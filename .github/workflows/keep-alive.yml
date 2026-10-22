@@ -1,0 +1,20 @@
+name: Garder Supabase actif
+
+# L'offre gratuite de Supabase met le projet en pause après 7 jours sans activité.
+on:
+  schedule:
+    - cron: '0 6 */3 * *'
+  workflow_dispatch:
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Requête légère sur l'API
+        env:
+          URL: ${{ secrets.VITE_SUPABASE_URL }}
+          KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+        run: |
+          status=$(curl -s -o /dev/null -w '%{http_code}' "$URL/rest/v1/" -H "apikey: $KEY")
+          echo "HTTP $status"
+          test "$status" -lt 500
