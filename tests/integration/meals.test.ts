@@ -102,16 +102,20 @@ describe('meals api', () => {
       },
     )
     try {
-      await waitFor(() => status === 'SUBSCRIBED')
-      // Le serveur temps réel finit d'enregistrer le filtre juste après l'abonnement.
-      await new Promise((r) => setTimeout(r, 1000))
-      await eric.api.meals.createMeal({
-        date: '2026-10-20', slot: 'LUNCH', people: [ERIC.id], source: { kind: 'adhoc', title: 'Soupe', notes: '', url: '' },
-      })
-      await waitFor(() => events > 0)
+      await waitFor(() => status === 'SUBSCRIBED', 20000)
+      // Juste après le démarrage de Supabase (en CI), le serveur temps réel peut mettre
+      // plusieurs secondes à diffuser les changements : Eric modifie le planning
+      // jusqu'à ce que Lucile reçoive une notification.
+      const deadline = Date.now() + 30000
+      while (events === 0 && Date.now() < deadline) {
+        await eric.api.meals.createMeal({
+          date: '2026-10-20', slot: 'LUNCH', people: [ERIC.id], source: { kind: 'adhoc', title: 'Soupe', notes: '', url: '' },
+        })
+        await waitFor(() => events > 0, 2000).catch(() => undefined)
+      }
       expect(events).toBeGreaterThan(0)
     } finally {
       unsubscribe()
     }
-  })
+  }, 60000)
 })

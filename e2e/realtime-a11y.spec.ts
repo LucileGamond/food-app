@@ -8,6 +8,7 @@ async function expectNoA11yViolations(page: Page) {
 }
 
 test('les changements d’Eric apparaissent chez Lucile sans recharger', async ({ page, browser }) => {
+  test.setTimeout(90_000)
   await login(page)
 
   const ericContext = await browser.newContext()
@@ -15,9 +16,10 @@ test('les changements d’Eric apparaissent chez Lucile sans recharger', async (
   try {
     await login(eric, ERIC.email)
     // Laisse au canal temps réel de Lucile le temps de s'abonner.
-    await page.waitForTimeout(1500)
+    await page.waitForTimeout(3000)
     await addAdhocMeal(eric, 0, 'Soir', 'Raclette')
-    await expect(slot(page, 0, 'Soir').getByText('Raclette')).toBeVisible({ timeout: 10_000 })
+    // En CI, la diffusion temps réel peut être lente juste après le démarrage de Supabase.
+    await expect(slot(page, 0, 'Soir').getByText('Raclette')).toBeVisible({ timeout: 30_000 })
   } finally {
     await ericContext.close()
   }
