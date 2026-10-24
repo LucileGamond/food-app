@@ -7,7 +7,7 @@ import type { Api } from '@/api'
 import { ApiProvider } from '@/app/ApiContext'
 import { AuthProvider, type AuthClient } from '@/auth/AuthProvider'
 import type { Meal, Profile, RecipeSummary } from '@/lib/meals'
-import type { Recipe } from '@/lib/recipes'
+import type { Recipe, RecipeImport } from '@/lib/recipes'
 import type { Consumption, FoodPeriod, PeriodItem, PlanItem } from '@/lib/food'
 import type { WeightEntry } from '@/lib/weights'
 
@@ -39,6 +39,7 @@ export function fakeApi(): FakeApi {
       listUsages: vi.fn(async () => []),
       deleteRecipe: vi.fn(async () => undefined),
       listTags: vi.fn(async () => [] as string[]),
+      importFromUrl: vi.fn(async (): Promise<RecipeImport> => ({ recipe: { title: 'Recette importée', servings: null, ingredients: [], steps: '', tags: [] }, source: 'structured', image: null })),
     },
     photos: {
       uploadPhoto: vi.fn(async () => ({ id: 'p-new', storage_path: 'r/p-new.jpg', position: 0 })),

@@ -1,0 +1,5 @@
+{
+  "imports": {
+    "linkedom": "npm:linkedom@0.18.13"
+  }
+}

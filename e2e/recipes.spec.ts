@@ -97,7 +97,7 @@ test('une recette ponctuelle peut être sauvegardée depuis le planning', async 
   await mealAction(page, 'Quiche de mamie', 'Sauvegarder la recette')
   await expect(page.getByRole('heading', { name: 'Sauvegarder la recette' })).toBeVisible()
   await expect(page.getByLabel('Titre')).toHaveValue('Quiche de mamie')
-  await expect(page.getByLabel('Lien')).toHaveValue('https://exemple.fr/quiche')
+  await expect(page.getByLabel('Lien', { exact: true })).toHaveValue('https://exemple.fr/quiche')
 
   await page.getByRole('button', { name: 'Sauvegarder la recette' }).click()
   await expect(page.getByText('Ajoute au moins un ingrédient')).toBeVisible()
@@ -109,4 +109,45 @@ test('une recette ponctuelle peut être sauvegardée depuis le planning', async 
   await expect(slot(page, 0, 'Midi').getByRole('link', { name: 'Quiche de mamie' })).toBeVisible()
   await page.getByRole('link', { name: 'Recettes' }).filter({ visible: true }).click()
   await expect(page.getByRole('link', { name: /Quiche de mamie/ })).toBeVisible()
+})
+
+test('préremplit une recette depuis un lien (analyse simulée)', async ({ page }) => {
+  // L'Edge Function est simulée : le test ne dépend ni du site ni du modèle.
+  let requested: unknown = null
+  await page.route('**/functions/v1/import-recipe', async (route) => {
+    requested = route.request().postDataJSON()
+    await route.fulfill({
+      json: {
+        recipe: {
+          title: 'Pâte à crêpes',
+          servings: 4,
+          ingredients: [
+            { name: 'farine', quantity: 250, unit: 'g' },
+            { name: 'œufs', quantity: 3, unit: null },
+          ],
+          steps: '1. Mélanger.\n2. Cuire à la poêle.',
+          tags: ['dessert'],
+        },
+        source: 'structured',
+        image: { data: PNG.toString('base64'), type: 'image/png' },
+      },
+    })
+  })
+
+  await page.goto('/recettes/nouvelle')
+  await page.getByLabel('Lien de la recette à importer').fill('https://www.marmiton.org/recettes/crepes.aspx')
+  await page.getByRole('button', { name: 'Préremplir' }).click()
+  await expect(page.getByRole('status').filter({ hasText: 'Recette préremplie depuis marmiton.org' })).toBeVisible()
+  expect(requested).toMatchObject({ url: 'https://www.marmiton.org/recettes/crepes.aspx' })
+
+  await expect(page.getByLabel('Titre')).toHaveValue('Pâte à crêpes')
+  await expect(page.getByLabel("Nom de l'ingrédient 2")).toHaveValue('œufs')
+  await expect(page.getByTestId('photo-item')).toHaveCount(1)
+  await page.getByRole('button', { name: 'Enregistrer' }).click()
+
+  await expect(page.getByRole('heading', { name: 'Pâte à crêpes' })).toBeVisible()
+  await expect(page.getByText('250 g farine')).toBeVisible()
+  await expect(page.getByText('4 portions')).toBeVisible()
+  await expect(page.getByRole('img', { name: 'Pâte à crêpes' })).toBeVisible()
+  await expect(page.getByRole('link', { name: 'Voir la recette en ligne' })).toHaveAttribute('href', 'https://www.marmiton.org/recettes/crepes.aspx')
 })

@@ -230,3 +230,144 @@ describe('RecipeFormPage — modification', () => {
     await waitFor(() => expect(screen.getByText('Recette introuvable')).toBeInTheDocument())
   })
 })
+
+describe('RecipeFormPage — préremplissage depuis un lien', () => {
+  const IMPORTED = {
+    recipe: {
+      title: 'Pâte à crêpes',
+      servings: 4,
+      ingredients: [
+        { name: 'farine', quantity: 250, unit: 'g' },
+        { name: 'œufs', quantity: 3, unit: null },
+      ],
+      steps: '1. Mélanger.\n2. Cuire.',
+      tags: ['Dessert'],
+    },
+    source: 'structured' as const,
+    image: { data: btoa('jpeg'), type: 'image/jpeg' },
+  }
+
+  function deferred<T>() {
+    let resolve!: (value: T) => void
+    const promise = new Promise<T>((r) => (resolve = r))
+    return { promise, resolve }
+  }
+
+  it('remplit le formulaire, ajoute la photo, puis enregistre', async () => {
+    const user = userEvent.setup()
+    const api = fakeApi()
+    api.recipes.listTags.mockResolvedValue(['dessert', 'végé'])
+    const pending = deferred<typeof IMPORTED>()
+    api.recipes.importFromUrl.mockReturnValueOnce(pending.promise)
+    api.recipes.saveRecipe.mockResolvedValue('r9')
+    renderForm(api, '/recettes/nouvelle')
+    await screen.findByRole('heading', { name: 'Nouvelle recette' })
+    await waitFor(() => expect(api.recipes.listTags).toHaveBeenCalled())
+
+    const input = screen.getByLabelText('Lien de la recette à importer')
+    await user.type(input, 'https://www.marmiton.org/recettes/crepes.aspx')
+    await user.click(screen.getByRole('button', { name: 'Préremplir' }))
+    expect(api.recipes.importFromUrl).toHaveBeenCalledWith('https://www.marmiton.org/recettes/crepes.aspx', ['dessert', 'végé'])
+    expect(screen.getByRole('button', { name: 'Analyse…' })).toBeDisabled()
+    expect(input).toBeDisabled()
+    expect(screen.getByText(/Lecture de la page/)).toBeInTheDocument()
+
+    pending.resolve(IMPORTED)
+    expect(await screen.findByRole('status')).toHaveTextContent("Recette préremplie depuis marmiton.org. Vérifie les quantités avant d'enregistrer.")
+    expect(screen.getByLabelText('Titre')).toHaveValue('Pâte à crêpes')
+    expect(screen.getByLabelText('Portions')).toHaveValue('4')
+    expect(screen.getByLabelText('Lien')).toHaveValue('https://www.marmiton.org/recettes/crepes.aspx')
+    expect(screen.getByLabelText('Préparation')).toHaveValue('1. Mélanger.\n2. Cuire.')
+    expect(screen.getByLabelText("Nom de l'ingrédient 2")).toHaveValue('œufs')
+    expect(screen.getByLabelText("Quantité de l'ingrédient 1")).toHaveValue('250')
+    expect(screen.getAllByTestId('photo-item')).toHaveLength(1)
+
+    await user.click(screen.getByRole('button', { name: 'Enregistrer' }))
+    expect(await screen.findByText('Fiche recette')).toBeInTheDocument()
+    expect(api.recipes.saveRecipe).toHaveBeenCalledWith(
+      expect.objectContaining({
+        title: 'Pâte à crêpes',
+        servings: 4,
+        url: 'https://www.marmiton.org/recettes/crepes.aspx',
+        tags: ['Dessert'],
+        ingredients: [
+          { name: 'farine', quantity: 250, unit: 'g' },
+          { name: 'œufs', quantity: 3, unit: null },
+        ],
+      }),
+    )
+    expect(api.photos.uploadPhoto).toHaveBeenCalledTimes(1)
+  })
+
+  it('lance l’import avec Entrée sans enregistrer la recette', async () => {
+    const user = userEvent.setup()
+    const api = fakeApi()
+    api.recipes.importFromUrl.mockResolvedValue({ ...IMPORTED, image: null })
+    renderForm(api, '/recettes/nouvelle')
+    await user.type(await screen.findByLabelText('Lien de la recette à importer'), 'https://exemple.fr/r{Enter}')
+    expect(await screen.findByRole('status')).toHaveTextContent('exemple.fr')
+    expect(api.recipes.saveRecipe).not.toHaveBeenCalled()
+    expect(screen.queryAllByTestId('photo-item')).toHaveLength(0)
+  })
+
+  it('refuse un lien incomplet et affiche l’erreur du service', async () => {
+    const user = userEvent.setup()
+    const api = fakeApi()
+    renderForm(api, '/recettes/nouvelle')
+    const input = await screen.findByLabelText('Lien de la recette à importer')
+    await user.type(input, 'marmiton.org')
+    await user.click(screen.getByRole('button', { name: 'Préremplir' }))
+    expect(screen.getByRole('alert')).toHaveTextContent('Colle un lien complet (https://…).')
+    expect(api.recipes.importFromUrl).not.toHaveBeenCalled()
+
+    await user.clear(input)
+    await user.type(input, 'https://exemple.fr/blog')
+    api.recipes.importFromUrl.mockRejectedValueOnce(new AppError('Aucune recette trouvée sur cette page.'))
+    await user.click(screen.getByRole('button', { name: 'Préremplir' }))
+    expect(await screen.findByRole('alert')).toHaveTextContent('Aucune recette trouvée sur cette page.')
+    expect(screen.getByLabelText('Titre')).toHaveValue('')
+    expect(input).toBeEnabled()
+  })
+
+  it('demande confirmation avant de remplacer une saisie ; garde les photos existantes', async () => {
+    const user = userEvent.setup()
+    const api = fakeApi()
+    api.recipes.getRecipe.mockResolvedValue({
+      ...EXISTING,
+      is_saved: false,
+      title: 'Quiche',
+      notes: 'De mamie',
+      url: 'https://quiche.fr/r',
+      servings: null,
+      tags: [],
+      ingredients: [],
+    })
+    api.recipes.importFromUrl.mockResolvedValue({ ...IMPORTED, recipe: { ...IMPORTED.recipe, title: 'Quiche lorraine' } })
+    renderForm(api, { pathname: '/recettes/r1/modifier', state: { from: '/planning' } })
+
+    // Le lien de la recette ponctuelle est déjà proposé
+    expect(await screen.findByLabelText('Lien de la recette à importer')).toHaveValue('https://quiche.fr/r')
+    const photosBefore = screen.getAllByTestId('photo-item').length
+    await user.click(screen.getByRole('button', { name: 'Préremplir' }))
+    const confirm = await screen.findByRole('alertdialog', { name: 'Remplacer le contenu du formulaire ?' })
+    await user.click(within(confirm).getByRole('button', { name: 'Annuler' }))
+    expect(api.recipes.importFromUrl).not.toHaveBeenCalled()
+    expect(screen.getByLabelText('Préparation')).toHaveValue('De mamie')
+
+    await user.click(screen.getByRole('button', { name: 'Préremplir' }))
+    await user.click(within(await screen.findByRole('alertdialog')).getByRole('button', { name: 'Remplacer' }))
+    expect(await screen.findByRole('status')).toHaveTextContent('quiche.fr')
+    expect(screen.getByLabelText('Titre')).toHaveValue('Quiche lorraine')
+    expect(screen.getByLabelText('Préparation')).toHaveValue('1. Mélanger.\n2. Cuire.')
+    // La photo de la page n'est ajoutée que s'il n'y en a aucune
+    expect(screen.getAllByTestId('photo-item')).toHaveLength(photosBefore)
+  })
+
+  it('n’est pas proposé en modification d’une recette sauvegardée', async () => {
+    const api = fakeApi()
+    api.recipes.getRecipe.mockResolvedValue(EXISTING)
+    renderForm(api, '/recettes/r1/modifier')
+    await screen.findByRole('heading', { name: 'Modifier la recette' })
+    expect(screen.queryByLabelText('Lien de la recette à importer')).not.toBeInTheDocument()
+  })
+})

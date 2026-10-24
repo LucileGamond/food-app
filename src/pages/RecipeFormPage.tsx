@@ -10,12 +10,16 @@ import { Textarea } from '@/components/ui/textarea'
 import { EmptyState } from '@/components/EmptyState'
 import { IngredientsEditor } from '@/components/recipes/IngredientsEditor'
 import { PhotoUploader, type PhotoDraft } from '@/components/recipes/PhotoUploader'
+import { RecipeImportCard } from '@/components/recipes/RecipeImportCard'
 import { TagInput } from '@/components/recipes/TagInput'
 import { useApi } from '@/app/ApiContext'
 import { errorMessage } from '@/api'
 import { compressImage } from '@/lib/image'
 import {
+  formHasContent,
   hasErrors,
+  importedImageToFile,
+  importedToFormValues,
   recipeToFormValues,
   toSaveRecipeInput,
   validateRecipeForm,
@@ -99,6 +103,14 @@ export function RecipeFormPage() {
       ...list,
       ...files.map((file) => ({ kind: 'new' as const, key: `new-${++keyCounter.current}`, file, url: URL.createObjectURL(file) })),
     ])
+  }
+
+  /** Préremplit le formulaire depuis une page de recette (et ajoute sa photo s'il n'y en a pas encore). */
+  async function importFromUrl(url: string) {
+    const result = await api.recipes.importFromUrl(url, tagSuggestions)
+    setValues(importedToFormValues(result.recipe, url))
+    setSubmitted(false)
+    if (result.image && photos.length === 0) addPhotos([importedImageToFile(result.image)])
   }
 
   function removePhoto(key: string) {
@@ -193,6 +205,8 @@ export function RecipeFormPage() {
       )}
 
       <div className="mt-6 space-y-8">
+        {(!id || !wasSaved) && <RecipeImportCard initialUrl={values.url} hasContent={formHasContent(values)} onImport={importFromUrl} />}
+
         <section className="space-y-5 rounded-2xl border bg-background p-5 shadow-xs">
           <Field id="recipe-title" label="Titre" error={shown.title}>
             <Input

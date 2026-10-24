@@ -1,13 +1,23 @@
 import type { IsoDate } from '@/lib/dates'
 import type { MealSlot, RecipeSummary } from '@/lib/meals'
-import type { Recipe, RecipeListItem, SaveRecipeInput } from '@/lib/recipes'
+import type { Recipe, RecipeImport, RecipeListItem, SaveRecipeInput } from '@/lib/recipes'
 import type { AppSupabaseClient } from '@/lib/supabase'
 import { PHOTO_BUCKET } from './photos'
-import { RecipeInUseError, toAppError } from './errors'
+import { AppError, RecipeInUseError, toAppError } from './errors'
 
 export interface RecipeUsage {
   meal_date: IsoDate
   slot: MealSlot
+}
+
+/** Erreur renvoyée par l'Edge Function import-recipe → message affichable. */
+async function importError(error: { name?: string; context?: unknown }): Promise<AppError> {
+  const response = error.context instanceof Response ? error.context : null
+  if (!response) return new AppError('Connexion impossible. Vérifie ta connexion internet.', 'network')
+  if (response.status === 401) return new AppError('Ta session a expiré. Reconnecte-toi.', 'import-401')
+  const body = (await response.json().catch(() => null)) as { error?: unknown } | null
+  const message = typeof body?.error === 'string' ? body.error : "L'import de la recette a échoué."
+  return new AppError(message, `import-${response.status}`)
 }
 
 export function createRecipesApi(db: AppSupabaseClient) {
@@ -113,6 +123,14 @@ export function createRecipesApi(db: AppSupabaseClient) {
       const tags = new Map<string, string>()
       for (const row of data) for (const tag of row.tags) tags.set(tag.toLocaleLowerCase('fr-FR'), tag)
       return [...tags.values()].sort((a, b) => a.localeCompare(b, 'fr'))
+    },
+
+    /** Analyse une page de recette (Edge Function + modèle) pour préremplir le formulaire. */
+    async importFromUrl(url: string, knownTags: string[] = []): Promise<RecipeImport> {
+      const { data, error } = await db.functions.invoke<RecipeImport>('import-recipe', { body: { url, knownTags } })
+      if (error) throw await importError(error)
+      if (!data?.recipe) throw new AppError("L'import de la recette a échoué.")
+      return data
     },
   }
 }

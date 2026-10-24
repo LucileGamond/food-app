@@ -31,3 +31,6 @@ playwright-report
 # Supabase local
 supabase/.branches
 supabase/.temp
+
+# Secrets des Edge Functions en local
+supabase/functions/.env

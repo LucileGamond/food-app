@@ -17,6 +17,11 @@ Application web installable (PWA) pour Lucile et Eric : planning partagé des re
   - *sauvegardées* : ingrédients détaillés, étapes, tags, photos — listées dans l'écran Recettes.
   Une recette ponctuelle peut être sauvegardée depuis le planning (« Sauvegarder la recette »).
   Une recette sauvegardée utilisée dans le planning ne peut pas être supprimée.
+  **Préremplissage depuis un lien** (nouvelle recette, ou sauvegarde d'une recette ponctuelle) : l'Edge Function
+  `import-recipe` télécharge la page, la réduit au strict nécessaire (données schema.org/Recipe si le site en publie,
+  sinon le texte du contenu principal, sans menus, scripts, pubs ni commentaires : quelques centaines de tokens),
+  puis demande à Claude Haiku d'en extraire titre, portions, ingrédients, étapes et tags. La photo de la page est ajoutée.
+  Réservé aux utilisateurs connectés ; les adresses locales ou privées sont refusées.
 - **Poids** :
   - une pesée par personne et par jour (20 à 300 kg, une décimale, pas de date future) ;
   - synthèse par personne : dernière pesée, écart avec la précédente et sur la période, min/max ;
@@ -47,6 +52,10 @@ npm run dev
 Comptes de test locaux (créés par `supabase/seed.sql`) : `lucile@food.test` et `eric@food.test`, mot de passe `motdepasse-test`.
 
 Après une modification du schéma (`supabase/migrations`) : `npm run db:reset` puis `npm run db:types`.
+
+Import de recettes en local : copier `supabase/functions/.env.example` en `supabase/functions/.env`, y mettre une clé
+API Anthropic, puis `docker restart supabase_edge_runtime_food-app`. Sans clé, l'import répond « service mal configuré »
+(les tests automatisés n'appellent jamais le modèle).
 
 ## Tests
 
@@ -96,6 +105,12 @@ Les tests d'intégration et E2E vident les données de la Supabase **locale** av
    ```
    puis exécuter `food.sql` dans *Supabase → SQL Editor*. Le plan de la personne est remplacé ; chaque fichier
    Consumption devient une période (remplacée si elle existe déjà aux mêmes dates). Relancer le script ne crée pas de doublons.
+
+6. **Clé API pour l'import de recettes** (une seule fois) : créer une clé sur console.anthropic.com, puis
+   ```bash
+   npx supabase secrets set ANTHROPIC_API_KEY=<ta clé> --project-ref <SUPABASE_PROJECT_REF>
+   ```
+   Facultatif : `ANTHROPIC_MODEL` pour changer de modèle (Claude Haiku par défaut).
 
 Ensuite, chaque push sur `main` lance tous les tests, puis — s'ils passent — applique les migrations et déploie.
 Le workflow `keep-alive` interroge Supabase tous les 3 jours pour éviter la mise en pause du projet gratuit.

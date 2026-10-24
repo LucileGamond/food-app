@@ -32,7 +32,7 @@ jobs:
         with:
           version: latest
       - name: Démarrer Supabase en local
-        run: supabase start -x studio,imgproxy,edge-runtime,logflare,vector,supavisor
+        run: supabase start -x studio,imgproxy,logflare,vector,supavisor
       - run: npm run test:db
       - run: npm run test:integration
 
@@ -71,6 +71,11 @@ jobs:
         run: |
           supabase link --project-ref "${{ secrets.SUPABASE_PROJECT_REF }}"
           supabase db push
+
+      - name: Déployer les Edge Functions
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+        run: supabase functions deploy import-recipe --project-ref "${{ secrets.SUPABASE_PROJECT_REF }}" --use-api
 
       - name: Construire l'application
         env:

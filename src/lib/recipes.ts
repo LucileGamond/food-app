@@ -206,3 +206,54 @@ export function collectTags(recipes: readonly Pick<RecipeListItem, 'tags'>[]): s
 export function photoPath(recipeId: string, fileId: string, extension = 'jpg'): string {
   return `${recipeId}/${fileId}.${extension}`
 }
+
+// ---------------------------------------------------------------------------
+// Import depuis une URL (Edge Function import-recipe)
+
+export interface ImportedRecipe {
+  title: string
+  servings: number | null
+  ingredients: Ingredient[]
+  steps: string
+  tags: string[]
+}
+
+export interface RecipeImport {
+  recipe: ImportedRecipe
+  source: 'structured' | 'text'
+  image: { data: string; type: string } | null
+}
+
+/** Le formulaire contient déjà une saisie que l'import écraserait (le titre et le lien seuls ne comptent pas). */
+export function formHasContent(values: RecipeFormValues): boolean {
+  return values.notes.trim() !== '' || values.tags.length > 0 || filledIngredients(values.ingredients).length > 0
+}
+
+/** Remplace le contenu du formulaire par la recette importée ; le lien devient l'adresse importée. */
+export function importedToFormValues(imported: ImportedRecipe, url: string): RecipeFormValues {
+  return recipeToFormValues({
+    title: imported.title,
+    servings: imported.servings,
+    notes: imported.steps || null,
+    url,
+    tags: normalizeTags(imported.tags),
+    ingredients: imported.ingredients,
+  })
+}
+
+/** Photo renvoyée par l'import (base64) → fichier, comme une photo choisie à la main. */
+export function importedImageToFile(image: { data: string; type: string }, name = 'photo-importee'): File {
+  const binary = atob(image.data)
+  const bytes = Uint8Array.from(binary, (c) => c.charCodeAt(0))
+  const extension = image.type === 'image/png' ? 'png' : image.type === 'image/webp' ? 'webp' : 'jpg'
+  return new File([bytes], `${name}.${extension}`, { type: image.type })
+}
+
+/** « https://www.marmiton.org/… » → « marmiton.org » */
+export function siteName(url: string): string {
+  try {
+    return new URL(url).hostname.replace(/^www\./, '')
+  } catch {
+    return url
+  }
+}

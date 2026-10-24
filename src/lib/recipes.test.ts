@@ -1,4 +1,8 @@
 import {
+  formHasContent,
+  importedImageToFile,
+  importedToFormValues,
+  siteName,
   collectTags,
   filledIngredients,
   filterRecipes,
@@ -163,5 +167,46 @@ describe('photoPath', () => {
   it('range les photos par recette', () => {
     expect(photoPath('r1', 'f1')).toBe('r1/f1.jpg')
     expect(photoPath('r1', 'f1', 'webp')).toBe('r1/f1.webp')
+  })
+})
+
+describe('import depuis un lien', () => {
+  const imported = {
+    title: 'Crêpes',
+    servings: 4,
+    ingredients: [{ name: 'farine', quantity: 250, unit: 'g' }],
+    steps: '1. Mélanger.',
+    tags: ['Dessert', 'dessert ', 'rapide'],
+  }
+
+  it('convertit la recette importée en valeurs de formulaire', () => {
+    const values = importedToFormValues(imported, 'https://exemple.fr/crepes')
+    expect(values).toMatchObject({ title: 'Crêpes', servings: '4', notes: '1. Mélanger.', url: 'https://exemple.fr/crepes', tags: ['Dessert', 'rapide'] })
+    expect(values.ingredients.map(({ name, quantity, unit }) => ({ name, quantity, unit }))).toEqual([{ name: 'farine', quantity: '250', unit: 'g' }])
+    const empty = importedToFormValues({ ...imported, servings: null, steps: '', ingredients: [] }, 'https://e.fr')
+    expect(empty).toMatchObject({ servings: '', notes: '' })
+    expect(empty.ingredients).toHaveLength(1)
+  })
+
+  it('détecte une saisie que l’import remplacerait', () => {
+    const blank = importedToFormValues({ ...imported, steps: '', tags: [], ingredients: [] }, '')
+    expect(formHasContent({ ...blank, title: 'Titre', url: 'https://e.fr' })).toBe(false)
+    expect(formHasContent({ ...blank, notes: ' x ' })).toBe(true)
+    expect(formHasContent({ ...blank, tags: ['a'] })).toBe(true)
+    expect(formHasContent(importedToFormValues(imported, ''))).toBe(true)
+  })
+
+  it('transforme la photo importée en fichier', async () => {
+    const file = importedImageToFile({ data: btoa('abc'), type: 'image/png' })
+    expect(file.name).toBe('photo-importee.png')
+    expect(file.type).toBe('image/png')
+    expect(await file.text()).toBe('abc')
+    expect(importedImageToFile({ data: '', type: 'image/webp' }).name).toBe('photo-importee.webp')
+    expect(importedImageToFile({ data: '', type: 'image/jpeg' }, 'x').name).toBe('x.jpg')
+  })
+
+  it('donne le nom du site', () => {
+    expect(siteName('https://www.marmiton.org/recettes/a')).toBe('marmiton.org')
+    expect(siteName('pas une url')).toBe('pas une url')
   })
 })
