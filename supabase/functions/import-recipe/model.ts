@@ -46,16 +46,16 @@ const TOOL = {
     properties: {
       is_recipe: { type: 'boolean', description: 'false si la page ne contient pas de recette de cuisine.' },
       title: { type: 'string', description: 'Nom de la recette, sans le nom du site.' },
-      servings: { type: ['integer', 'null'], description: 'Nombre de portions / personnes, null si inconnu.' },
+      servings: { anyOf: [{ type: 'integer' }, { type: 'null' }], description: 'Nombre de portions / personnes, null si inconnu.' },
       ingredients: {
         type: 'array',
         items: {
           type: 'object',
           properties: {
             name: { type: 'string', description: 'Ingrédient seul, en minuscules, sans la quantité (ex. « farine », « œufs »).' },
-            quantity: { type: ['number', 'null'], description: 'Quantité numérique (½ → 0.5, « un » → 1), null si non précisée.' },
+            quantity: { anyOf: [{ type: 'number' }, { type: 'null' }], description: 'Quantité numérique (½ → 0.5, « un » → 1), null si non précisée.' },
             unit: {
-              type: ['string', 'null'],
+              anyOf: [{ type: 'string' }, { type: 'null' }],
               description: 'Unité courte : g, kg, ml, cl, l, c. à s., c. à c., pincée, gousse, tranche, sachet… ; null pour un nombre de pièces.',
             },
           },
@@ -147,7 +147,6 @@ export async function extractRecipe(
       body: JSON.stringify({
         model,
         max_tokens: 4096,
-        temperature: 0,
         system: SYSTEM,
         tools: [TOOL],
         tool_choice: { type: 'tool', name: TOOL_NAME },
@@ -163,10 +162,19 @@ export async function extractRecipe(
   if (response.status === 429 || response.status === 529 || response.status >= 500) {
     throw new ImportError('Le service d’analyse est surchargé. Réessaie dans un instant.', 503)
   }
-  if (!response.ok) throw new ImportError('L’analyse de la page a échoué.', 502)
+  if (!response.ok) {
+    // Le détail renvoyé par l'API (ex. « not_found_error: model: … ») aide à diagnostiquer ; il ne contient aucun secret.
+    const error = (await response.json().catch(() => null)) as { error?: { type?: string; message?: string } } | null
+    const detail = [error?.error?.type, error?.error?.message].filter(Boolean).join(' : ').slice(0, 200)
+    throw new ImportError(`L’analyse de la page a échoué (${response.status}${detail ? ` – ${detail}` : ''}).`, 502)
+  }
 
-  const body = (await response.json()) as { content?: { type: string; name?: string; input?: unknown }[]; usage?: ModelUsage }
+  const body = (await response.json()) as {
+    content?: { type: string; name?: string; input?: unknown }[]
+    usage?: ModelUsage
+    stop_reason?: string
+  }
   const call = body.content?.find((block) => block.type === 'tool_use' && block.name === TOOL_NAME)
-  if (!call) throw new ImportError('L’analyse de la page a échoué.', 502)
+  if (!call) throw new ImportError(`L’analyse de la page a échoué (réponse sans recette${body.stop_reason ? ` : ${body.stop_reason}` : ''}).`, 502)
   return { recipe: sanitizeRecipe(call.input, content.title), usage: body.usage ?? null }
 }

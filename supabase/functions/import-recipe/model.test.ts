@@ -114,7 +114,11 @@ describe('extractRecipe', () => {
     expect(url).toBe('https://api.anthropic.com/v1/messages')
     expect(init!.headers).toMatchObject({ 'x-api-key': 'test-key', 'anthropic-version': '2023-06-01' })
     const body = JSON.parse(String(init!.body))
-    expect(body).toMatchObject({ model: DEFAULT_MODEL, temperature: 0, tool_choice: { type: 'tool', name: 'enregistrer_recette' } })
+    expect(body).toMatchObject({ model: DEFAULT_MODEL, tool_choice: { type: 'tool', name: 'enregistrer_recette' } })
+    // Haiku 5.5 refuse temperature / top_p / top_k, et la réflexion adaptative ne doit pas être forcée.
+    expect(body).not.toHaveProperty('temperature')
+    expect(body).not.toHaveProperty('thinking')
+    expect(JSON.stringify(body.tools)).not.toMatch(/"type":\[/)
     expect(body.tools[0].input_schema.required).toContain('ingredients')
     expect(body.messages).toEqual([{ role: 'user', content: expect.stringContaining('250 g de farine') }])
   })
@@ -131,8 +135,14 @@ describe('extractRecipe', () => {
     [new Response('', { status: 401 }), 500, 'mal configuré'],
     [new Response('', { status: 429 }), 503, 'surchargé'],
     [new Response('', { status: 529 }), 503, 'surchargé'],
-    [new Response('', { status: 400 }), 502, 'a échoué'],
-    [new Response(JSON.stringify({ content: [{ type: 'text', text: 'non' }] }), { status: 200 }), 502, 'a échoué'],
+    [new Response('', { status: 400 }), 502, 'a échoué (400)'],
+    [
+      new Response(JSON.stringify({ type: 'error', error: { type: 'not_found_error', message: 'model: inconnu' } }), { status: 404 }),
+      502,
+      'a échoué (404 – not_found_error : model: inconnu)',
+    ],
+    [new Response(JSON.stringify({ content: [{ type: 'text', text: 'non' }], stop_reason: 'max_tokens' }), { status: 200 }), 502, 'sans recette : max_tokens'],
+    [new Response(JSON.stringify({ content: [] }), { status: 200 }), 502, '(réponse sans recette)'],
   ])('traduit les erreurs de l’API (%#)', async (response, status, message) => {
     const promise = extractRecipe(TEXT, 'https://e.fr', [], { apiKey: 'k', fetch: fakeFetch(response) })
     await expect(promise).rejects.toMatchObject({ status, message: expect.stringContaining(message) })
