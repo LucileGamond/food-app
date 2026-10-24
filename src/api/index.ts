@@ -16,4 +16,4 @@ export function createApi(db: AppSupabaseClient) {
 }
 
 export type Api = ReturnType<typeof createApi>
-export { AppError, RecipeInUseError, errorMessage, toAppError } from './errors'
+export { AppError, DuplicateRecipeUrlError, RecipeInUseError, errorMessage, toAppError } from './errors'

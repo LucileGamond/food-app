@@ -3,7 +3,7 @@ import { useState, type FormEvent } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { ConfirmDialog } from '@/components/ConfirmDialog'
-import { errorMessage } from '@/api'
+import { DuplicateRecipeUrlError, errorMessage } from '@/api'
 import { isValidUrl } from '@/lib/meals'
 import { siteName } from '@/lib/recipes'
 
@@ -32,7 +32,8 @@ export function RecipeImportCard({ initialUrl, hasContent, onImport }: Props) {
       await onImport(target)
       setState({ kind: 'done', site: siteName(target) })
     } catch (error) {
-      setState({ kind: 'error', message: errorMessage(error) })
+      // Recette déjà enregistrée : le formulaire affiche l'avertissement et les actions possibles.
+      setState(error instanceof DuplicateRecipeUrlError ? { kind: 'idle' } : { kind: 'error', message: errorMessage(error) })
     }
   }
 

@@ -1,4 +1,4 @@
-import { RecipeInUseError } from '@/api'
+import { DuplicateRecipeUrlError, RecipeInUseError } from '@/api'
 import { createRecipesApi } from '@/api/recipes'
 import { LUCILE, PNG_1PX, anonClient, resetData, signedInApi } from './helpers'
 
@@ -14,9 +14,9 @@ const curry = {
   servings: 4,
   tags: ['végé', 'Rapide'],
   ingredients: [
-    { name: 'Pois chiches', quantity: 400, unit: 'g' },
-    { name: 'Lait de coco', quantity: 0.5, unit: 'l' },
-    { name: 'Sel', quantity: null, unit: null },
+    { name: 'Pois chiches', quantity: 400, unit: 'g', note: null },
+    { name: 'Lait de coco', quantity: 0.5, unit: 'l', note: null },
+    { name: 'Sel', quantity: null, unit: null, note: null },
   ],
 }
 
@@ -41,16 +41,16 @@ describe('recipes api', () => {
   it('met à jour une recette en remplaçant ses ingrédients', async () => {
     const { api } = await signedInApi()
     const id = await api.recipes.saveRecipe(curry)
-    await api.recipes.saveRecipe({ ...curry, id, title: 'Curry express', notes: null, url: null, servings: null, ingredients: [{ name: 'Riz', quantity: 1, unit: 'kg' }] })
+    await api.recipes.saveRecipe({ ...curry, id, title: 'Curry express', notes: null, url: null, servings: null, ingredients: [{ name: 'Riz', quantity: 1, unit: 'kg', note: null }] })
     expect(await api.recipes.getRecipe(id)).toMatchObject({
-      title: 'Curry express', notes: null, url: null, servings: null, ingredients: [{ name: 'Riz', quantity: 1, unit: 'kg' }],
+      title: 'Curry express', notes: null, url: null, servings: null, ingredients: [{ name: 'Riz', quantity: 1, unit: 'kg', note: null }],
     })
   })
 
   it('ne liste que les recettes sauvegardées', async () => {
     const { api } = await signedInApi()
     await api.recipes.saveRecipe(curry)
-    await api.recipes.saveRecipe({ ...curry, title: 'Banana bread', tags: ['dessert', 'végé'] })
+    await api.recipes.saveRecipe({ ...curry, title: 'Banana bread', url: 'https://exemple.fr/banana-bread', tags: ['dessert', 'végé'] })
     await api.meals.createMeal({
       date: '2026-10-20', slot: 'LUNCH', people: [LUCILE.id], source: { kind: 'adhoc', title: 'Ponctuelle', notes: '', url: '' },
     })
@@ -72,7 +72,7 @@ describe('recipes api', () => {
     const [meal] = await api.meals.listMeals('2026-10-20', '2026-10-20')
     const recipeId = meal!.recipe.id
 
-    await api.recipes.saveRecipe({ ...curry, id: recipeId, title: 'Quiche lorraine', ingredients: [{ name: 'Lardons', quantity: 200, unit: 'g' }] })
+    await api.recipes.saveRecipe({ ...curry, id: recipeId, title: 'Quiche lorraine', ingredients: [{ name: 'Lardons', quantity: 200, unit: 'g', note: null }] })
 
     const [after] = await api.meals.listMeals('2026-10-20', '2026-10-20')
     expect(after!.recipe).toMatchObject({ id: recipeId, is_saved: true, title: 'Quiche lorraine' })
@@ -119,5 +119,38 @@ describe('recipes api', () => {
     await expect(api.listUsages(missing)).rejects.toThrow()
     await expect(api.listTags()).rejects.toThrow()
     await expect(api.deleteRecipe(missing)).rejects.toThrow()
+  })
+
+  it('refuse un lien déjà enregistré et permet de basculer le planning sur la recette existante', async () => {
+    const { api } = await signedInApi()
+    const curryId = await api.recipes.saveRecipe(curry)
+    expect(await api.recipes.findSavedByUrl('https://www.exemple.fr/curry/')).toEqual({ id: curryId, title: 'Curry de légumes' })
+    expect(await api.recipes.findSavedByUrl('https://exemple.fr/curry', curryId)).toBeNull()
+    expect(await api.recipes.findSavedByUrl('https://exemple.fr/autre')).toBeNull()
+
+    // Modifier la recette elle-même avec son propre lien reste possible
+    await api.recipes.saveRecipe({ ...curry, id: curryId, title: 'Curry du chef' })
+
+    const error = await api.recipes.saveRecipe({ ...curry, title: 'Doublon', url: 'http://exemple.fr/curry#notes' }).catch((e: unknown) => e)
+    expect(error).toBeInstanceOf(DuplicateRecipeUrlError)
+    expect(error).toMatchObject({ existing: { id: curryId, title: 'Curry du chef' }, message: 'Cette recette est déjà enregistrée : « Curry du chef ».' })
+
+    // Recette ponctuelle du planning avec le même lien → bascule sur la recette sauvegardée
+    await api.meals.createMeal({
+      date: '2026-10-20', slot: 'DINNER', people: [LUCILE.id], source: { kind: 'adhoc', title: 'Curry ce soir', notes: '', url: 'https://exemple.fr/curry' },
+    })
+    const [meal] = await api.meals.listMeals('2026-10-20', '2026-10-20')
+    expect(await api.recipes.useSavedRecipe(meal!.recipe.id, curryId)).toBe(1)
+    const [after] = await api.meals.listMeals('2026-10-20', '2026-10-20')
+    expect(after!.recipe).toMatchObject({ id: curryId, is_saved: true, title: 'Curry du chef' })
+    expect(await api.recipes.getRecipe(meal!.recipe.id)).toBeNull()
+  })
+
+  it('refuse la recherche par lien et la bascule sans connexion ou avec des recettes invalides', async () => {
+    const anon = createRecipesApi(anonClient())
+    await expect(anon.findSavedByUrl('https://exemple.fr/curry')).rejects.toThrow(/accès/)
+    await expect(anon.useSavedRecipe(LUCILE.id, LUCILE.id)).rejects.toThrow(/accès/)
+    const { api } = await signedInApi()
+    await expect(api.recipes.useSavedRecipe(LUCILE.id, LUCILE.id)).rejects.toThrow('Élément introuvable')
   })
 })

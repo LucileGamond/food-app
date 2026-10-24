@@ -3,7 +3,7 @@ import type { MealSlot, RecipeSummary } from '@/lib/meals'
 import type { Recipe, RecipeImport, RecipeListItem, SaveRecipeInput } from '@/lib/recipes'
 import type { AppSupabaseClient } from '@/lib/supabase'
 import { PHOTO_BUCKET } from './photos'
-import { AppError, RecipeInUseError, toAppError } from './errors'
+import { AppError, DuplicateRecipeUrlError, RecipeInUseError, toAppError } from './errors'
 
 export interface RecipeUsage {
   meal_date: IsoDate
@@ -21,6 +21,13 @@ async function importError(error: { name?: string; context?: unknown }): Promise
 }
 
 export function createRecipesApi(db: AppSupabaseClient) {
+  /** Recette sauvegardée qui utilise déjà ce lien (hors `excludeId`), ou null. */
+  async function findSavedByUrl(url: string, excludeId?: string | null): Promise<{ id: string; title: string } | null> {
+    const { data, error } = await db.rpc('find_saved_recipe_by_url', { p_url: url, p_exclude: excludeId ?? undefined })
+    if (error) throw toAppError(error, 'Impossible de vérifier le lien de la recette.')
+    return data[0] ?? null
+  }
+
   return {
     /** Recettes sauvegardées uniquement (les ponctuelles n'apparaissent que dans le planning). */
     async listSavedRecipes(): Promise<RecipeListItem[]> {
@@ -53,7 +60,7 @@ export function createRecipesApi(db: AppSupabaseClient) {
     async getRecipe(id: string): Promise<Recipe | null> {
       const { data, error } = await db
         .from('recipes')
-        .select('id, is_saved, title, notes, url, servings, tags, recipe_ingredients(name, quantity, unit, position), recipe_photos(id, storage_path, position)')
+        .select('id, is_saved, title, notes, url, servings, tags, recipe_ingredients(name, quantity, unit, note, position), recipe_photos(id, storage_path, position)')
         .eq('id', id)
         .maybeSingle()
       if (error) throw toAppError(error, 'Impossible de charger la recette.')
@@ -63,7 +70,7 @@ export function createRecipesApi(db: AppSupabaseClient) {
         ...recipe,
         ingredients: [...recipe_ingredients]
           .sort((a, b) => a.position - b.position)
-          .map(({ name, quantity, unit }) => ({ name, quantity, unit })),
+          .map(({ name, quantity, unit, note }) => ({ name, quantity, unit, note })),
         photos: [...recipe_photos].sort((a, b) => a.position - b.position),
       }
     },
@@ -81,9 +88,23 @@ export function createRecipesApi(db: AppSupabaseClient) {
           name: i.name,
           quantity: i.quantity === null ? '' : String(i.quantity),
           unit: i.unit ?? '',
+          note: i.note ?? '',
         })),
       })
+      if (error?.code === '23505' && input.url) {
+        const existing = await findSavedByUrl(input.url, input.id)
+        if (existing) throw new DuplicateRecipeUrlError(existing)
+      }
       if (error) throw toAppError(error, "Impossible d'enregistrer la recette.")
+      return data
+    },
+
+    findSavedByUrl,
+
+    /** Les repas qui utilisent la recette ponctuelle passent sur la recette sauvegardée ; renvoie leur nombre. */
+    async useSavedRecipe(adhocId: string, savedId: string): Promise<number> {
+      const { data, error } = await db.rpc('use_saved_recipe', { p_adhoc_id: adhocId, p_saved_id: savedId })
+      if (error) throw toAppError(error, 'Impossible de remplacer la recette.')
       return data
     },
 

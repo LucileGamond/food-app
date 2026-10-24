@@ -22,7 +22,7 @@ test('crée une recette complète, l’utilise au planning et bloque sa suppress
   await page.getByRole('combobox', { name: 'Tags' }).fill('rapide')
   await page.getByRole('combobox', { name: 'Tags' }).press('Enter')
   await page.getByLabel("Quantité de l'ingrédient 1").fill('400')
-  await page.getByLabel("Unité de l'ingrédient 1").fill('g')
+  await page.getByLabel("Unité de l'ingrédient 1").selectOption('g')
   await page.getByLabel("Nom de l'ingrédient 1").fill('Pois chiches')
   await page.getByRole('button', { name: 'Ajouter un ingrédient' }).click()
   await page.getByLabel("Nom de l'ingrédient 2").fill('Lait de coco')

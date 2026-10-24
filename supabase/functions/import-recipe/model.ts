@@ -7,10 +7,17 @@ const API_URL = 'https://api.anthropic.com/v1/messages'
 const TIMEOUT_MS = 45_000
 const MAX_KNOWN_TAGS = 40
 
+/** Unités acceptées par l'application (identiques à src/lib/units.ts, vérifié par un test). */
+export const UNITS = [
+  'g', 'kg', 'ml', 'cl', 'dl', 'l', 'c. à c.', 'c. à s.', 'pincée', 'gousse', 'tranche', 'sachet', 'boîte', 'botte',
+  'brin', 'feuille', 'verre', 'tasse', 'bol', 'poignée', 'noix', 'filet', 'morceau',
+] as const
+
 export interface ImportedIngredient {
   name: string
   quantity: number | null
   unit: string | null
+  note: string | null
 }
 
 export interface ImportedRecipe {
@@ -55,11 +62,16 @@ const TOOL = {
             name: { type: 'string', description: 'Ingrédient seul, en minuscules, sans la quantité (ex. « farine », « œufs »).' },
             quantity: { anyOf: [{ type: 'number' }, { type: 'null' }], description: 'Quantité numérique (½ → 0.5, « un » → 1), null si non précisée.' },
             unit: {
+              anyOf: [{ type: 'string', enum: [...UNITS] }, { type: 'null' }],
+              description:
+                'Unité de la liste (cuillère à soupe → « c. à s. », à café → « c. à c. », grammes → « g »…) ; null pour un nombre de pièces (3 œufs). Unité absente de la liste : null, et la quantité avec son unité dans note.',
+            },
+            note: {
               anyOf: [{ type: 'string' }, { type: 'null' }],
-              description: 'Unité courte : g, kg, ml, cl, l, c. à s., c. à c., pincée, gousse, tranche, sachet… ; null pour un nombre de pièces.',
+              description: 'Précision facultative : préparation (« émincés »), qualité (« bombée », « bio »), alternative, ou unité hors liste (« 1 shot »).',
             },
           },
-          required: ['name', 'quantity', 'unit'],
+          required: ['name', 'quantity', 'unit', 'note'],
         },
       },
       steps: { type: 'string', description: 'Étapes de préparation numérotées, une par ligne (« 1. … »), reformulées sans rien inventer.' },
@@ -99,7 +111,7 @@ export function sanitizeRecipe(input: unknown, fallbackTitle: string | null): Im
       const name = str(item.name, 120)
       if (!name) return null
       const q = typeof item.quantity === 'number' && Number.isFinite(item.quantity) && item.quantity > 0 && item.quantity < 100_000 ? item.quantity : null
-      return { name, quantity: q === null ? null : Math.round(q * 1000) / 1000, unit: str(item.unit, 20) || null }
+      return { name, quantity: q === null ? null : Math.round(q * 1000) / 1000, unit: str(item.unit, 30) || null, note: str(item.note, 200) || null }
     })
     .filter((i): i is ImportedIngredient => i !== null)
 

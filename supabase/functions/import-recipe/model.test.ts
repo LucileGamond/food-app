@@ -15,7 +15,7 @@ const GOOD = {
   servings: 4,
   ingredients: [
     { name: 'farine', quantity: 250, unit: 'g' },
-    { name: 'œufs', quantity: 3, unit: null },
+    { name: 'œufs', quantity: 3, unit: null, note: '  battus ' },
     { name: 'sel', quantity: null, unit: 'pincée' },
   ],
   steps: '1. Mélanger.\n\n  2. Cuire.  ',
@@ -58,9 +58,9 @@ describe('sanitizeRecipe', () => {
       title: 'Crêpes légères',
       servings: 4,
       ingredients: [
-        { name: 'farine', quantity: 250, unit: 'g' },
-        { name: 'œufs', quantity: 3, unit: null },
-        { name: 'sel', quantity: null, unit: 'pincée' },
+        { name: 'farine', quantity: 250, unit: 'g', note: null },
+        { name: 'œufs', quantity: 3, unit: null, note: 'battus' },
+        { name: 'sel', quantity: null, unit: 'pincée', note: null },
       ],
       steps: '1. Mélanger.\n2. Cuire.',
       tags: ['dessert', 'rapide'],
@@ -87,9 +87,9 @@ describe('sanitizeRecipe', () => {
     )
     expect(recipe.title).toBe('Titre de secours')
     expect(recipe.servings).toBeNull()
-    expect(recipe.ingredients[0]).toEqual({ name: 'sucre', quantity: null, unit: 'x'.repeat(20) })
-    expect(recipe.ingredients[1]).toEqual({ name: 'lait', quantity: 0.333, unit: 'l' })
-    expect(recipe.ingredients[2]).toEqual({ name: 'eau', quantity: null, unit: null })
+    expect(recipe.ingredients[0]).toEqual({ name: 'sucre', quantity: null, unit: 'x'.repeat(30), note: null })
+    expect(recipe.ingredients[1]).toEqual({ name: 'lait', quantity: 0.333, unit: 'l', note: null })
+    expect(recipe.ingredients[2]).toEqual({ name: 'eau', quantity: null, unit: null, note: null })
     expect(recipe.ingredients.length).toBeLessThanOrEqual(60)
     expect(recipe.steps).toBe('')
     expect(recipe.tags).toEqual(['a', 'b', 'c', 'd', 'e'])

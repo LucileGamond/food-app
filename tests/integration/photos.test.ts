@@ -9,7 +9,7 @@ beforeEach(async () => {
 async function recipeWithApi() {
   const ctx = await signedInApi()
   const id = await ctx.api.recipes.saveRecipe({
-    id: null, title: 'Tarte', notes: null, url: null, servings: null, tags: [], ingredients: [{ name: 'Pommes', quantity: 4, unit: null }],
+    id: null, title: 'Tarte', notes: null, url: null, servings: null, tags: [], ingredients: [{ name: 'Pommes', quantity: 4, unit: null, note: null }],
   })
   return { ...ctx, id }
 }

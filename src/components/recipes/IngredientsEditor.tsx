@@ -2,6 +2,11 @@ import { ArrowDown, ArrowUp, Plus, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { moveItem, newIngredientDraft, type IngredientDraft } from '@/lib/recipes'
+import { isUnit, UNIT_GROUPS } from '@/lib/units'
+import { cn } from '@/lib/utils'
+
+const selectClass =
+  'h-10 w-full min-w-0 rounded-lg border border-input bg-transparent px-2 text-base md:text-sm focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none dark:bg-input/30'
 
 interface Props {
   rows: IngredientDraft[]
@@ -10,7 +15,7 @@ interface Props {
 }
 
 export function IngredientsEditor({ rows, errors = {}, onChange }: Props) {
-  function update(key: string, field: 'name' | 'quantity' | 'unit', value: string) {
+  function update(key: string, field: 'name' | 'quantity' | 'unit' | 'note', value: string) {
     onChange(rows.map((r) => (r.key === key ? { ...r, [field]: value } : r)))
   }
 
@@ -21,10 +26,11 @@ export function IngredientsEditor({ rows, errors = {}, onChange }: Props) {
 
   return (
     <div className="space-y-2">
-      <div className="hidden grid-cols-[5.5rem_5.5rem_1fr_auto] gap-2 px-1 text-xs text-muted-foreground sm:grid" aria-hidden>
+      <div className="hidden grid-cols-[4.5rem_6.5rem_minmax(0,1fr)_minmax(0,1fr)_7.25rem] gap-2 text-xs [&>span]:pl-1 text-muted-foreground sm:grid" aria-hidden>
         <span>Quantité</span>
         <span>Unité</span>
         <span>Ingrédient</span>
+        <span>Précision</span>
       </div>
       <ol className="space-y-2">
         {rows.map((row, index) => {
@@ -32,22 +38,34 @@ export function IngredientsEditor({ rows, errors = {}, onChange }: Props) {
           const error = errors[row.key]
           return (
             <li key={row.key} data-testid="ingredient-row">
-              <div className="grid grid-cols-[4.5rem_4.5rem_1fr] gap-2 sm:grid-cols-[5.5rem_5.5rem_1fr_auto]">
+              <div className="grid grid-cols-[4.5rem_6.5rem_minmax(0,1fr)] gap-2 sm:grid-cols-[4.5rem_6.5rem_minmax(0,1fr)_minmax(0,1fr)_7.25rem]">
                 <Input
                   aria-label={`Quantité de l'ingrédient ${n}`}
                   inputMode="decimal"
                   placeholder="200"
                   value={row.quantity}
                   onChange={(e) => update(row.key, 'quantity', e.target.value)}
-                  className="h-10"
+                  className="h-10 placeholder:text-muted-foreground/40"
                 />
-                <Input
+                <select
                   aria-label={`Unité de l'ingrédient ${n}`}
-                  placeholder="g"
                   value={row.unit}
                   onChange={(e) => update(row.key, 'unit', e.target.value)}
-                  className="h-10"
-                />
+                  className={cn(selectClass, row.unit === '' && 'text-muted-foreground')}
+                >
+                  <option value="">—</option>
+                  {/* Unité d'une ancienne saisie hors liste : affichée pour ne pas la perdre, signalée à l'enregistrement. */}
+                  {row.unit !== '' && !isUnit(row.unit) && <option value={row.unit}>{row.unit}</option>}
+                  {UNIT_GROUPS.map((group) => (
+                    <optgroup key={group.label} label={group.label}>
+                      {group.units.map((unit) => (
+                        <option key={unit} value={unit}>
+                          {unit}
+                        </option>
+                      ))}
+                    </optgroup>
+                  ))}
+                </select>
                 <Input
                   aria-label={`Nom de l'ingrédient ${n}`}
                   placeholder="Farine"
@@ -55,6 +73,14 @@ export function IngredientsEditor({ rows, errors = {}, onChange }: Props) {
                   aria-invalid={Boolean(error) || undefined}
                   onChange={(e) => update(row.key, 'name', e.target.value)}
                   className="h-10"
+                />
+                <Input
+                  aria-label={`Précision de l'ingrédient ${n}`}
+                  placeholder="émincé, bio…"
+                  value={row.note}
+                  maxLength={200}
+                  onChange={(e) => update(row.key, 'note', e.target.value)}
+                  className="col-span-3 h-10 placeholder:text-muted-foreground/40 sm:col-span-1"
                 />
                 <div className="col-span-3 flex justify-end gap-1 sm:col-span-1">
                   <Button

@@ -59,7 +59,7 @@ describe('meals api', () => {
     const { api } = await signedInApi()
     const recipeId = await api.recipes.saveRecipe({
       id: null, title: 'Curry', notes: null, url: null, servings: 2, tags: ['végé'],
-      ingredients: [{ name: 'Riz', quantity: 200, unit: 'g' }],
+      ingredients: [{ name: 'Riz', quantity: 200, unit: 'g', note: null }],
     })
     await api.meals.createMeal({ date: '2026-10-20', slot: 'DINNER', people: [LUCILE.id], source: { kind: 'saved', recipeId } })
     const [meal] = await api.meals.listMeals('2026-10-20', '2026-10-20')

@@ -1,9 +1,12 @@
 import { isValidUrl } from './meals'
+import { isUnit, splitUnit, unitLabel } from './units'
 
 export interface Ingredient {
   name: string
   quantity: number | null
   unit: string | null
+  /** Précision libre : « émincés », « bombée », « à température ambiante »… */
+  note: string | null
 }
 
 export interface RecipePhoto {
@@ -30,6 +33,7 @@ export interface IngredientDraft {
   name: string
   quantity: string
   unit: string
+  note: string
 }
 
 export interface RecipeFormValues {
@@ -58,9 +62,27 @@ export function formatQuantity(quantity: number | null): string {
   return quantity.toLocaleString('fr-FR', { maximumFractionDigits: 3 })
 }
 
+/** « 3 gousses ail (écrasées) », « 200 g farine », « sel » */
 export function formatIngredient(ingredient: Ingredient): string {
-  const amount = [formatQuantity(ingredient.quantity), ingredient.unit ?? ''].filter(Boolean).join(' ')
-  return amount ? `${amount} ${ingredient.name}` : ingredient.name
+  const unit = ingredient.unit ? unitLabel(ingredient.unit, ingredient.quantity) : ''
+  const amount = [formatQuantity(ingredient.quantity), unit].filter(Boolean).join(' ')
+  const text = amount ? `${amount} ${ingredient.name}` : ingredient.name
+  return ingredient.note ? `${text} (${ingredient.note})` : text
+}
+
+export const SERVINGS_MAX = 99
+
+/** Arrondi lisible d'une quantité recalculée : 2 décimales sous 10, 1 sous 100, entier au-delà. */
+export function roundQuantity(quantity: number): number {
+  if (quantity >= 100) return Math.round(quantity)
+  if (quantity >= 10) return Math.round(quantity * 10) / 10
+  return Math.round(quantity * 100) / 100
+}
+
+/** Quantités adaptées à un autre nombre de personnes (les ingrédients sans quantité restent tels quels). */
+export function scaleIngredients(ingredients: readonly Ingredient[], from: number, to: number): Ingredient[] {
+  if (from <= 0 || to === from) return ingredients.map((i) => ({ ...i }))
+  return ingredients.map((i) => ({ ...i, quantity: i.quantity === null ? null : roundQuantity((i.quantity * to) / from) }))
 }
 
 /** Tags nettoyés : espaces retirés, vides ignorés, doublons supprimés sans tenir compte de la casse. */
@@ -79,7 +101,7 @@ export function normalizeTags(tags: readonly string[]): string[] {
 
 /** Ingrédients réellement saisis (les lignes entièrement vides sont ignorées). */
 export function filledIngredients(rows: readonly IngredientDraft[]): IngredientDraft[] {
-  return rows.filter((r) => r.name.trim() !== '' || r.quantity.trim() !== '' || r.unit.trim() !== '')
+  return rows.filter((r) => r.name.trim() !== '' || r.quantity.trim() !== '' || r.unit.trim() !== '' || r.note.trim() !== '')
 }
 
 export function validateRecipeForm(values: RecipeFormValues): RecipeFormErrors {
@@ -103,6 +125,8 @@ export function validateRecipeForm(values: RecipeFormValues): RecipeFormErrors {
     else {
       const quantity = parseQuantity(row.quantity)
       if (quantity !== null && !(quantity > 0)) rowErrors[row.key] = 'Quantité invalide'
+      else if (row.unit.trim() !== '' && !isUnit(row.unit.trim())) rowErrors[row.key] = 'Unité inconnue : choisis-en une dans la liste'
+      else if (row.note.trim().length > 200) rowErrors[row.key] = 'Précision trop longue (200 caractères maximum)'
     }
   }
   if (Object.keys(rowErrors).length > 0) errors.ingredientRows = rowErrors
@@ -136,6 +160,7 @@ export function toSaveRecipeInput(id: string | null, values: RecipeFormValues): 
       name: r.name.trim(),
       quantity: parseQuantity(r.quantity),
       unit: r.unit.trim() || null,
+      note: r.note.trim() || null,
     })),
   }
 }
@@ -148,6 +173,7 @@ export function newIngredientDraft(ingredient?: Ingredient): IngredientDraft {
     name: ingredient?.name ?? '',
     quantity: ingredient ? formatQuantity(ingredient.quantity) : '',
     unit: ingredient?.unit ?? '',
+    note: ingredient?.note ?? '',
   }
 }
 
@@ -229,6 +255,20 @@ export function formHasContent(values: RecipeFormValues): boolean {
   return values.notes.trim() !== '' || values.tags.length > 0 || filledIngredients(values.ingredients).length > 0
 }
 
+/**
+ * Unité ramenée à la liste : variante reconnue (« cuillères à soupe » → c. à s., mots en plus dans la précision),
+ * sinon quantité et unité déplacées dans la précision (« 1 shot »).
+ */
+export function normalizeIngredientUnit(ingredient: Ingredient): Ingredient {
+  const note = ingredient.note?.trim() || null
+  const join = (...parts: (string | null)[]) => parts.filter(Boolean).join(', ') || null
+  if (!ingredient.unit || isUnit(ingredient.unit)) return { ...ingredient, unit: ingredient.unit || null, note }
+  const split = splitUnit(ingredient.unit)
+  if (split) return { ...ingredient, unit: split.unit, note: join(split.rest, note) }
+  const lost = [formatQuantity(ingredient.quantity), ingredient.unit.trim()].filter(Boolean).join(' ')
+  return { ...ingredient, quantity: null, unit: null, note: join(lost, note) }
+}
+
 /** Remplace le contenu du formulaire par la recette importée ; le lien devient l'adresse importée. */
 export function importedToFormValues(imported: ImportedRecipe, url: string): RecipeFormValues {
   return recipeToFormValues({
@@ -237,7 +277,7 @@ export function importedToFormValues(imported: ImportedRecipe, url: string): Rec
     notes: imported.steps || null,
     url,
     tags: normalizeTags(imported.tags),
-    ingredients: imported.ingredients,
+    ingredients: imported.ingredients.map(normalizeIngredientUnit),
   })
 }
 

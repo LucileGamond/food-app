@@ -61,7 +61,7 @@ describe('import-recipe', () => {
     const result = await call(handle, { url: PAGE_URL, knownTags: ['dessert', 42] })
     expect(result.status).toBe(200)
     expect(result.body).toEqual({
-      recipe: { title: 'Crêpes', servings: 4, ingredients: [{ name: 'farine', quantity: 250, unit: 'g' }], steps: '1. Mélanger.', tags: ['dessert'] },
+      recipe: { title: 'Crêpes', servings: 4, ingredients: [{ name: 'farine', quantity: 250, unit: 'g', note: null }], steps: '1. Mélanger.', tags: ['dessert'] },
       source: 'structured',
       image: { data: 'AQID', type: 'image/jpeg' },
     })

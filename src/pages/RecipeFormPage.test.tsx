@@ -3,7 +3,7 @@ import userEvent from '@testing-library/user-event'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { render } from '@testing-library/react'
 import { Toaster } from 'sonner'
-import { AppError, type Api } from '@/api'
+import { AppError, DuplicateRecipeUrlError, type Api } from '@/api'
 import { ApiProvider } from '@/app/ApiContext'
 import { AuthProvider } from '@/auth/AuthProvider'
 import type { Recipe } from '@/lib/recipes'
@@ -88,7 +88,7 @@ describe('RecipeFormPage — nouvelle recette', () => {
 
     // Ingrédients : saisie, ajout, réordonnancement, suppression
     await user.type(screen.getByLabelText("Quantité de l'ingrédient 1"), '1,5')
-    await user.type(screen.getByLabelText("Unité de l'ingrédient 1"), 'kg')
+    await user.selectOptions(screen.getByLabelText("Unité de l'ingrédient 1"), 'kg')
     await user.type(screen.getByLabelText("Nom de l'ingrédient 1"), 'Pommes')
     await user.click(screen.getByRole('button', { name: 'Ajouter un ingrédient' }))
     await user.type(screen.getByLabelText("Nom de l'ingrédient 2"), 'Pâte brisée')
@@ -121,8 +121,8 @@ describe('RecipeFormPage — nouvelle recette', () => {
       servings: 6,
       tags: ['été'],
       ingredients: [
-        { name: 'Pommes', quantity: 1.5, unit: 'kg' },
-        { name: 'Pâte brisée', quantity: null, unit: null },
+        { name: 'Pommes', quantity: 1.5, unit: 'kg', note: null },
+        { name: 'Pâte brisée', quantity: null, unit: null, note: null },
       ],
     })
     expect(api.photos.uploadPhoto).toHaveBeenCalledTimes(2)
@@ -163,7 +163,7 @@ const EXISTING: Recipe = {
   url: null,
   servings: 2,
   tags: ['végé'],
-  ingredients: [{ name: 'Riz', quantity: 200, unit: 'g' }],
+  ingredients: [{ name: 'Riz', quantity: 200, unit: 'g', note: null }],
   photos: [
     { id: 'p1', storage_path: 'r1/1.jpg', position: 0 },
     { id: 'p2', storage_path: 'r1/2.jpg', position: 1 },
@@ -237,8 +237,8 @@ describe('RecipeFormPage — préremplissage depuis un lien', () => {
       title: 'Pâte à crêpes',
       servings: 4,
       ingredients: [
-        { name: 'farine', quantity: 250, unit: 'g' },
-        { name: 'œufs', quantity: 3, unit: null },
+        { name: 'farine', quantity: 250, unit: 'g', note: null },
+        { name: 'œufs', quantity: 3, unit: null, note: null },
       ],
       steps: '1. Mélanger.\n2. Cuire.',
       tags: ['Dessert'],
@@ -291,12 +291,52 @@ describe('RecipeFormPage — préremplissage depuis un lien', () => {
         url: 'https://www.marmiton.org/recettes/crepes.aspx',
         tags: ['Dessert'],
         ingredients: [
-          { name: 'farine', quantity: 250, unit: 'g' },
-          { name: 'œufs', quantity: 3, unit: null },
+          { name: 'farine', quantity: 250, unit: 'g', note: null },
+          { name: 'œufs', quantity: 3, unit: null, note: null },
         ],
       }),
     )
     expect(api.photos.uploadPhoto).toHaveBeenCalledTimes(1)
+  })
+
+  it('ramène les unités importées à la liste et garde les précisions', async () => {
+    const user = userEvent.setup()
+    const api = fakeApi()
+    api.recipes.importFromUrl.mockResolvedValue({
+      ...IMPORTED,
+      image: null,
+      recipe: {
+        ...IMPORTED.recipe,
+        ingredients: [
+          { name: 'sucre', quantity: 1, unit: 'cuillères à soupe bombées', note: null },
+          { name: 'rhum', quantity: 1, unit: 'shot', note: null },
+          { name: 'ail', quantity: 2, unit: 'gousse', note: 'écrasées' },
+        ],
+      },
+    })
+    api.recipes.saveRecipe.mockResolvedValue('r9')
+    renderForm(api, '/recettes/nouvelle')
+    await user.type(await screen.findByLabelText('Lien de la recette à importer'), 'https://exemple.fr/r{Enter}')
+    await screen.findByRole('status')
+    expect(screen.getByLabelText("Unité de l'ingrédient 1")).toHaveValue('c. à s.')
+    expect(screen.getByLabelText("Précision de l'ingrédient 1")).toHaveValue('bombées')
+    expect(screen.getByLabelText("Unité de l'ingrédient 2")).toHaveValue('')
+    expect(screen.getByLabelText("Quantité de l'ingrédient 2")).toHaveValue('')
+    expect(screen.getByLabelText("Précision de l'ingrédient 2")).toHaveValue('1 shot')
+    expect(screen.getByLabelText("Précision de l'ingrédient 3")).toHaveValue('écrasées')
+
+    await user.selectOptions(screen.getByLabelText("Unité de l'ingrédient 2"), 'verre')
+    await user.click(screen.getByRole('button', { name: 'Enregistrer' }))
+    expect(await screen.findByText('Fiche recette')).toBeInTheDocument()
+    expect(api.recipes.saveRecipe).toHaveBeenCalledWith(
+      expect.objectContaining({
+        ingredients: [
+          { name: 'sucre', quantity: 1, unit: 'c. à s.', note: 'bombées' },
+          { name: 'rhum', quantity: null, unit: 'verre', note: '1 shot' },
+          { name: 'ail', quantity: 2, unit: 'gousse', note: 'écrasées' },
+        ],
+      }),
+    )
   })
 
   it('lance l’import avec Entrée sans enregistrer la recette', async () => {
@@ -369,5 +409,96 @@ describe('RecipeFormPage — préremplissage depuis un lien', () => {
     renderForm(api, '/recettes/r1/modifier')
     await screen.findByRole('heading', { name: 'Modifier la recette' })
     expect(screen.queryByLabelText('Lien de la recette à importer')).not.toBeInTheDocument()
+  })
+})
+
+describe('RecipeFormPage — lien déjà enregistré', () => {
+  const EXISTING_RECIPE = { id: 'r-curry', title: 'Curry maison' }
+
+  it('signale un lien déjà utilisé et bloque l’enregistrement', async () => {
+    const user = userEvent.setup()
+    const api = fakeApi()
+    api.recipes.findSavedByUrl.mockImplementation(async (url: string) => (url === 'https://exemple.fr/curry' ? EXISTING_RECIPE : null))
+    renderForm(api, '/recettes/nouvelle')
+    await user.type(await screen.findByLabelText('Titre'), 'Curry')
+    await user.type(screen.getByLabelText("Nom de l'ingrédient 1"), 'Riz')
+    await user.type(screen.getByLabelText('Lien', { selector: '#recipe-url' }), 'https://exemple.fr/curry')
+
+    const alert = await screen.findByRole('alert', {}, { timeout: 2000 })
+    expect(alert).toHaveTextContent('Cette recette est déjà enregistrée : « Curry maison »')
+    expect(within(alert).getByRole('link', { name: 'Ouvrir « Curry maison »' })).toHaveAttribute('href', '/recettes/r-curry')
+    expect(within(alert).queryByRole('button', { name: /dans le planning/ })).not.toBeInTheDocument()
+    expect(screen.getByText('Lien déjà utilisé par une autre recette')).toBeInTheDocument()
+    expect(api.recipes.findSavedByUrl).toHaveBeenLastCalledWith('https://exemple.fr/curry', null)
+
+    await user.click(screen.getByRole('button', { name: 'Enregistrer' }))
+    expect(await screen.findByText('Cette recette est déjà enregistrée : « Curry maison ».')).toBeInTheDocument()
+    expect(api.recipes.saveRecipe).not.toHaveBeenCalled()
+
+    // Un autre lien fait disparaître l'avertissement
+    await user.type(screen.getByLabelText('Lien', { selector: '#recipe-url' }), '-bis')
+    await waitFor(() => expect(screen.queryByRole('alert')).not.toBeInTheDocument(), { timeout: 2000 })
+  })
+
+  it('n’analyse pas une page déjà enregistrée', async () => {
+    const user = userEvent.setup()
+    const api = fakeApi()
+    api.recipes.findSavedByUrl.mockResolvedValue(EXISTING_RECIPE)
+    renderForm(api, '/recettes/nouvelle')
+    await user.type(await screen.findByLabelText('Lien de la recette à importer'), 'https://exemple.fr/curry')
+    await user.click(screen.getByRole('button', { name: 'Préremplir' }))
+    expect(await screen.findByRole('alert')).toHaveTextContent('« Curry maison »')
+    expect(api.recipes.importFromUrl).not.toHaveBeenCalled()
+    // Pas de message d'erreur en double dans l'encadré d'import
+    expect(screen.getAllByRole('alert')).toHaveLength(1)
+  })
+
+  it('propose d’utiliser la recette existante dans le planning', async () => {
+    const user = userEvent.setup()
+    const api = fakeApi()
+    api.recipes.getRecipe.mockResolvedValue({
+      ...EXISTING,
+      is_saved: false,
+      title: 'Curry du lundi',
+      notes: null,
+      url: 'https://www.exemple.fr/curry/',
+      servings: null,
+      tags: [],
+      ingredients: [],
+      photos: [],
+    })
+    api.recipes.findSavedByUrl.mockResolvedValue(EXISTING_RECIPE)
+    renderForm(api, { pathname: '/recettes/r1/modifier', state: { from: '/planning' } })
+
+    const alert = await screen.findByRole('alert', {}, { timeout: 2000 })
+    expect(alert).toHaveTextContent('Le planning peut utiliser cette recette à la place de la recette ponctuelle.')
+    await user.click(within(alert).getByRole('button', { name: 'Utiliser « Curry maison » dans le planning' }))
+    expect(api.recipes.useSavedRecipe).toHaveBeenCalledWith('r1', 'r-curry')
+    expect(await screen.findByText('Écran planning')).toBeInTheDocument()
+    expect(await screen.findByText('Le planning utilise maintenant « Curry maison »')).toBeInTheDocument()
+  })
+
+  it('reste sur le formulaire si la bascule échoue', async () => {
+    const user = userEvent.setup()
+    const api = fakeApi()
+    api.recipes.getRecipe.mockResolvedValue({ ...EXISTING, is_saved: false, url: 'https://exemple.fr/curry', ingredients: [], photos: [] })
+    api.recipes.findSavedByUrl.mockResolvedValue(EXISTING_RECIPE)
+    api.recipes.useSavedRecipe.mockRejectedValueOnce(new AppError('Impossible de remplacer la recette.'))
+    renderForm(api, '/recettes/r1/modifier')
+    const alert = await screen.findByRole('alert', {}, { timeout: 2000 })
+    await user.click(within(alert).getByRole('button', { name: /dans le planning/ }))
+    expect(await screen.findByText('Impossible de remplacer la recette.')).toBeInTheDocument()
+    expect(within(alert).getByRole('button', { name: /dans le planning/ })).toBeEnabled()
+  })
+
+  it('affiche le doublon détecté par la base au moment d’enregistrer', async () => {
+    const user = userEvent.setup()
+    const api = fakeApi()
+    api.recipes.saveRecipe.mockRejectedValueOnce(new DuplicateRecipeUrlError(EXISTING_RECIPE))
+    renderForm(api, '/recettes/nouvelle')
+    await user.type(await screen.findByLabelText('Titre'), 'Curry')
+    await user.type(screen.getByLabelText("Nom de l'ingrédient 1"), 'Riz')
+    await user.click(screen.getByRole('button', { name: 'Enregistrer' }))
+    expect(await screen.findByRole('alert')).toHaveTextContent('« Curry maison »')
   })
 })

@@ -1,5 +1,6 @@
 import { AppError, createApi } from '@/api'
-import { anonClient, signedInApi } from './helpers'
+import { createAppClient } from '@/lib/supabase'
+import { LOCAL_ANON_KEY, anonClient, signedInApi } from './helpers'
 
 // Exécute la vraie Edge Function dans le runtime local (sans appel au modèle : les cas testés
 // s'arrêtent avant, ce qui évite tout accès réseau et tout coût).
@@ -29,5 +30,10 @@ describe('import de recette (Edge Function)', () => {
     await expect(api.recipes.importFromUrl('https://recette.invalid/crepes')).rejects.toThrow(
       /Le service d’analyse est mal configuré\.|Impossible de joindre ce site\./,
     )
+  })
+
+  it('signale un service injoignable', async () => {
+    const api = createApi(createAppClient('http://127.0.0.1:9', LOCAL_ANON_KEY, { persistSession: false }))
+    await expect(api.recipes.importFromUrl('https://exemple.fr/recette')).rejects.toMatchObject({ code: 'network' })
   })
 })

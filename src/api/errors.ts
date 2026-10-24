@@ -17,6 +17,17 @@ export class RecipeInUseError extends AppError {
   }
 }
 
+/** Le lien est déjà celui d'une autre recette sauvegardée. */
+export class DuplicateRecipeUrlError extends AppError {
+  readonly existing: { id: string; title: string }
+
+  constructor(existing: { id: string; title: string }) {
+    super(`Cette recette est déjà enregistrée : « ${existing.title} ».`, '23505')
+    this.name = 'DuplicateRecipeUrlError'
+    this.existing = existing
+  }
+}
+
 interface PostgrestLikeError {
   code?: string
   message?: string

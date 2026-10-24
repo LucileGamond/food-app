@@ -15,8 +15,8 @@ const CURRY: Recipe = {
   servings: 4,
   tags: ['végé'],
   ingredients: [
-    { name: 'Pois chiches', quantity: 400, unit: 'g' },
-    { name: 'Sel', quantity: null, unit: null },
+    { name: 'Pois chiches', quantity: 400, unit: 'g', note: null },
+    { name: 'Sel', quantity: null, unit: null, note: null },
   ],
   photos: [
     { id: 'p1', storage_path: 'r1/1.jpg', position: 0 },
@@ -138,5 +138,51 @@ describe('RecipeDetailPage', () => {
     expect(await screen.findByRole('alert')).toHaveTextContent('Hors ligne')
     await user.click(screen.getByRole('button', { name: 'Réessayer' }))
     expect(await screen.findByRole('heading', { name: 'Curry de légumes' })).toBeInTheDocument()
+  })
+
+  it('adapte les quantités au nombre de personnes choisi', async () => {
+    const user = userEvent.setup()
+    const api = fakeApi()
+    api.recipes.getRecipe.mockResolvedValue({
+      ...CURRY,
+      ingredients: [...CURRY.ingredients, { name: 'Œufs', quantity: 3, unit: null, note: null }, { name: 'Lait de coco', quantity: 33.3, unit: 'cl', note: null }],
+    })
+    renderDetail(api)
+    const group = await screen.findByRole('group', { name: 'Nombre de personnes' })
+    const list = screen.getByRole('region', { name: 'Ingrédients' })
+    expect(group).toHaveTextContent('4 personnes')
+    expect(within(list).getByText('400 g Pois chiches')).toBeInTheDocument()
+
+    await user.click(within(group).getByRole('button', { name: 'Une personne de moins' }))
+    await user.click(within(group).getByRole('button', { name: 'Une personne de moins' }))
+    expect(group).toHaveTextContent('2 personnes')
+    expect(within(list).getByText('200 g Pois chiches')).toBeInTheDocument()
+    expect(within(list).getByText('1,5 Œufs')).toBeInTheDocument()
+    expect(within(list).getByText('16,7 cl Lait de coco')).toBeInTheDocument()
+    expect(within(list).getByText('Sel')).toBeInTheDocument()
+    // Le nombre de portions de la recette ne change pas
+    expect(screen.getByText('4 portions')).toBeInTheDocument()
+    expect(within(list).getByText(/Quantités adaptées \(recette pour 4\)/)).toBeInTheDocument()
+
+    await user.click(within(group).getByRole('button', { name: 'Une personne de moins' }))
+    expect(group).toHaveTextContent('1 personne')
+    expect(within(group).getByRole('button', { name: 'Une personne de moins' })).toBeDisabled()
+
+    await user.click(within(list).getByRole('button', { name: 'Revenir à 4' }))
+    expect(within(list).getByText('400 g Pois chiches')).toBeInTheDocument()
+    expect(within(list).queryByText(/Quantités adaptées/)).not.toBeInTheDocument()
+
+    for (let n = 0; n < 6; n++) await user.click(within(group).getByRole('button', { name: 'Une personne de plus' }))
+    expect(group).toHaveTextContent('10 personnes')
+    expect(within(list).getByText(/^1\s000 g Pois chiches$/)).toBeInTheDocument()
+  })
+
+  it('ne propose pas d’adapter les quantités sans nombre de portions', async () => {
+    const api = fakeApi()
+    api.recipes.getRecipe.mockResolvedValue({ ...CURRY, servings: null })
+    renderDetail(api)
+    await screen.findByRole('heading', { name: 'Curry de légumes' })
+    expect(screen.queryByRole('group', { name: 'Nombre de personnes' })).not.toBeInTheDocument()
+    expect(screen.getByText('400 g Pois chiches')).toBeInTheDocument()
   })
 })

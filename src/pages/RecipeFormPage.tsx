@@ -1,4 +1,4 @@
-import { ArrowLeft, Loader2, SearchX } from 'lucide-react'
+import { ArrowLeft, ArrowRightLeft, CopyCheck, Loader2, SearchX } from 'lucide-react'
 import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom'
 import { toast } from 'sonner'
@@ -13,7 +13,8 @@ import { PhotoUploader, type PhotoDraft } from '@/components/recipes/PhotoUpload
 import { RecipeImportCard } from '@/components/recipes/RecipeImportCard'
 import { TagInput } from '@/components/recipes/TagInput'
 import { useApi } from '@/app/ApiContext'
-import { errorMessage } from '@/api'
+import { DuplicateRecipeUrlError, errorMessage } from '@/api'
+import { isValidUrl } from '@/lib/meals'
 import { compressImage } from '@/lib/image'
 import {
   formHasContent,
@@ -55,12 +56,35 @@ export function RecipeFormPage() {
   const [tagSuggestions, setTagSuggestions] = useState<string[]>([])
   const [submitted, setSubmitted] = useState(false)
   const [saving, setSaving] = useState(false)
+  // Recette sauvegardée qui a déjà le même lien (le lien est unique parmi les recettes sauvegardées).
+  const [duplicate, setDuplicate] = useState<{ id: string; title: string } | null>(null)
+  const [switching, setSwitching] = useState(false)
   const savedId = useRef<string | null>(id ?? null)
   const keyCounter = useRef(0)
 
   useEffect(() => {
     api.recipes.listTags().then(setTagSuggestions, () => setTagSuggestions([]))
   }, [api])
+
+  // Vérifie, peu après la saisie, si le lien est déjà celui d'une autre recette sauvegardée.
+  const url = values.url.trim()
+  useEffect(() => {
+    if (status !== 'ready' || !isValidUrl(url)) {
+      setDuplicate(null)
+      return
+    }
+    let active = true
+    const timer = setTimeout(() => {
+      api.recipes.findSavedByUrl(url, savedId.current).then(
+        (existing) => active && setDuplicate(existing),
+        () => undefined,
+      )
+    }, 400)
+    return () => {
+      active = false
+      clearTimeout(timer)
+    }
+  }, [api, url, status])
 
   useEffect(() => {
     if (!id) return
@@ -107,6 +131,12 @@ export function RecipeFormPage() {
 
   /** Préremplit le formulaire depuis une page de recette (et ajoute sa photo s'il n'y en a pas encore). */
   async function importFromUrl(url: string) {
+    // Recette déjà enregistrée : inutile de l'analyser (et de consommer des tokens).
+    const existing = await api.recipes.findSavedByUrl(url, savedId.current)
+    if (existing) {
+      setDuplicate(existing)
+      throw new DuplicateRecipeUrlError(existing)
+    }
     const result = await api.recipes.importFromUrl(url, tagSuggestions)
     setValues(importedToFormValues(result.recipe, url))
     setSubmitted(false)
@@ -133,6 +163,10 @@ export function RecipeFormPage() {
     setSubmitted(true)
     if (hasErrors(errors)) {
       toast.error('Vérifie les champs en rouge.')
+      return
+    }
+    if (duplicate) {
+      toast.error(new DuplicateRecipeUrlError(duplicate).message)
       return
     }
     setSaving(true)
@@ -162,9 +196,24 @@ export function RecipeFormPage() {
       toast.success(wasSaved ? 'Recette enregistrée' : 'Recette sauvegardée')
       navigate(from ?? `/recettes/${recipeId}`, { replace: true })
     } catch (e) {
+      if (e instanceof DuplicateRecipeUrlError) setDuplicate(e.existing)
       toast.error(errorMessage(e))
     } finally {
       setSaving(false)
+    }
+  }
+
+  /** Recette ponctuelle du planning : les repas passent sur la recette déjà enregistrée. */
+  async function switchToExisting() {
+    if (!id || !duplicate) return
+    setSwitching(true)
+    try {
+      await api.recipes.useSavedRecipe(id, duplicate.id)
+      toast.success(`Le planning utilise maintenant « ${duplicate.title} »`)
+      navigate(from ?? '/planning', { replace: true })
+    } catch (e) {
+      toast.error(errorMessage(e))
+      setSwitching(false)
     }
   }
 
@@ -195,7 +244,7 @@ export function RecipeFormPage() {
   const backTo = from ?? (id && wasSaved ? `/recettes/${id}` : '/recettes')
 
   return (
-    <form onSubmit={handleSubmit} noValidate className="mx-auto max-w-2xl">
+    <form onSubmit={handleSubmit} noValidate className="mx-auto max-w-3xl">
       <Link to={backTo} className="mb-4 inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
         <ArrowLeft className="size-4" aria-hidden /> Retour
       </Link>
@@ -206,6 +255,31 @@ export function RecipeFormPage() {
 
       <div className="mt-6 space-y-8">
         {(!id || !wasSaved) && <RecipeImportCard initialUrl={values.url} hasContent={formHasContent(values)} onImport={importFromUrl} />}
+
+        {duplicate && (
+          <div role="alert" className="rounded-2xl border border-destructive/30 bg-destructive/5 p-5 text-sm">
+            <p className="flex items-center gap-2 font-medium">
+              <CopyCheck className="size-4 shrink-0 text-destructive" aria-hidden />
+              Cette recette est déjà enregistrée : « {duplicate.title} »
+            </p>
+            <p className="mt-1 text-muted-foreground">
+              {id && !wasSaved
+                ? 'Le planning peut utiliser cette recette à la place de la recette ponctuelle.'
+                : 'Un même lien ne peut être utilisé que par une seule recette.'}
+            </p>
+            <div className="mt-3 flex flex-wrap gap-2">
+              {id && !wasSaved && (
+                <Button type="button" className="h-10 px-4" disabled={switching} onClick={() => void switchToExisting()}>
+                  {switching ? <Loader2 className="animate-spin" aria-hidden /> : <ArrowRightLeft aria-hidden />}
+                  Utiliser « {duplicate.title} » dans le planning
+                </Button>
+              )}
+              <Link to={`/recettes/${duplicate.id}`} className={cn(buttonVariants({ variant: 'outline' }), 'h-10 px-4')}>
+                Ouvrir « {duplicate.title} »
+              </Link>
+            </div>
+          </div>
+        )}
 
         <section className="space-y-5 rounded-2xl border bg-background p-5 shadow-xs">
           <Field id="recipe-title" label="Titre" error={shown.title}>
@@ -228,7 +302,7 @@ export function RecipeFormPage() {
                 className="h-10"
               />
             </Field>
-            <Field id="recipe-url" label="Lien" error={shown.url}>
+            <Field id="recipe-url" label="Lien" error={shown.url ?? (duplicate ? 'Lien déjà utilisé par une autre recette' : undefined)}>
               <Input
                 id="recipe-url"
                 type="url"
@@ -236,7 +310,7 @@ export function RecipeFormPage() {
                 placeholder="https://"
                 value={values.url}
                 onChange={(e) => set('url', e.target.value)}
-                aria-invalid={Boolean(shown.url) || undefined}
+                aria-invalid={Boolean(shown.url || duplicate) || undefined}
                 className="h-10"
               />
             </Field>

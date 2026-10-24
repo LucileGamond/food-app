@@ -151,14 +151,14 @@ isOneToOne: false
                   ]
                 },"recipe_ingredients": {
                   Row: {
-                    "id": string,"name": string,"position": number,"quantity": number | null,"recipe_id": string,"unit": string | null
+                    "id": string,"name": string,"note": string | null,"position": number,"quantity": number | null,"recipe_id": string,"unit": string | null
                   }
                   ComputedFields: never
                   Insert: {
-                    "id"?: string,"name": string,"position": number,"quantity"?: number | null,"recipe_id": string,"unit"?: string | null
+                    "id"?: string,"name": string,"note"?: string | null,"position": number,"quantity"?: number | null,"recipe_id": string,"unit"?: string | null
                   }
                   Update: {
-                    "id"?: string,"name"?: string,"position"?: number,"quantity"?: number | null,"recipe_id"?: string,"unit"?: string | null
+                    "id"?: string,"name"?: string,"note"?: string | null,"position"?: number,"quantity"?: number | null,"recipe_id"?: string,"unit"?: string | null
                   }
                   Relationships: [
                     {
@@ -250,14 +250,34 @@ isOneToOne: false
 "duplicate_meal":
 { Args: { "p_meal_date": string,"p_meal_id": string,"p_slot": Database["public"]['Enums']["meal_slot"] }; Returns: string
                            },
+"find_saved_recipe_by_url":
+{ Args: { "p_exclude"?: string,"p_url": string }; Returns: {
+              "id": string,"title": string
+            }[]
+                           },
+"normalize_unit":
+{ Args: { "p_unit": string }; Returns: string
+                           },
+"recipe_url_key":
+{ Args: { "p_url": string }; Returns: string
+                           },
 "save_recipe":
 { Args: { "p_ingredients": Json,"p_notes"?: string,"p_recipe_id"?: string,"p_servings"?: number,"p_tags"?: (string)[],"p_title": string,"p_url"?: string }; Returns: string
                            },
 "save_weigh_in":
 { Args: { "p_measured_on": string,"p_previous_date"?: string,"p_weights": Json }; Returns: undefined
                            },
+"split_unit":
+{ Args: { "p_unit": string }; Returns: Record<string, unknown>
+                           },
+"unit_key":
+{ Args: { "p_unit": string }; Returns: string
+                           },
 "update_meal":
 { Args: { "p_adhoc_notes"?: string,"p_adhoc_title"?: string,"p_adhoc_url"?: string,"p_meal_id": string,"p_people": (string)[],"p_recipe_id"?: string }; Returns: undefined
+                           },
+"use_saved_recipe":
+{ Args: { "p_adhoc_id": string,"p_saved_id": string }; Returns: number
                            }
           }
           Enums: {

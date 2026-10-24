@@ -1,4 +1,4 @@
-import { ArrowLeft, ExternalLink, Pencil, RefreshCw, SearchX, Trash2, Users } from 'lucide-react'
+import { ArrowLeft, ExternalLink, Minus, Pencil, Plus, RefreshCw, SearchX, Trash2, Users } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { toast } from 'sonner'
@@ -14,7 +14,7 @@ import type { RecipeUsage } from '@/api/recipes'
 import { useSignedUrls } from '@/hooks/useSignedUrls'
 import { formatDay } from '@/lib/dates'
 import { slotLabel } from '@/lib/meals'
-import { formatIngredient, type Recipe } from '@/lib/recipes'
+import { formatIngredient, scaleIngredients, SERVINGS_MAX, type Recipe } from '@/lib/recipes'
 import { cn } from '@/lib/utils'
 
 export function RecipeDetailPage() {
@@ -26,6 +26,8 @@ export function RecipeDetailPage() {
   const [activePhoto, setActivePhoto] = useState(0)
   const [deleteOpen, setDeleteOpen] = useState(false)
   const [usages, setUsages] = useState<RecipeUsage[] | null>(null)
+  // Nombre de personnes choisi pour adapter les quantités (non enregistré).
+  const [people, setPeople] = useState<{ recipeId: string; value: number } | null>(null)
 
   const load = useCallback(() => {
     setError(null)
@@ -93,6 +95,10 @@ export function RecipeDetailPage() {
 
   const mainUrl = recipe.photos[activePhoto] ? urls[recipe.photos[activePhoto].storage_path] : undefined
   const inUse = usages !== null && usages.length > 0
+  const baseServings = recipe.servings
+  const servings = baseServings === null ? null : people?.recipeId === recipe.id ? people.value : baseServings
+  const ingredients = baseServings !== null && servings !== null ? scaleIngredients(recipe.ingredients, baseServings, servings) : recipe.ingredients
+  const setServings = (value: number) => setPeople({ recipeId: recipe.id, value: Math.min(SERVINGS_MAX, Math.max(1, value)) })
 
   return (
     <article>
@@ -152,9 +158,34 @@ export function RecipeDetailPage() {
 
       <div className="grid gap-8 md:grid-cols-[minmax(0,1fr)_minmax(0,1.6fr)]">
         <section aria-labelledby="ingredients-title" className="rounded-2xl border bg-background p-5 shadow-xs">
-          <h2 id="ingredients-title" className="mb-3 font-semibold tracking-tight">Ingrédients</h2>
+          <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+            <h2 id="ingredients-title" className="font-semibold tracking-tight">
+              Ingrédients
+            </h2>
+            {servings !== null && (
+              <div className="flex items-center gap-1" role="group" aria-label="Nombre de personnes">
+                <Button variant="outline" size="icon" aria-label="Une personne de moins" disabled={servings <= 1} onClick={() => setServings(servings - 1)}>
+                  <Minus />
+                </Button>
+                <span className="min-w-24 text-center text-sm tabular-nums" aria-live="polite">
+                  {servings} {servings > 1 ? 'personnes' : 'personne'}
+                </span>
+                <Button variant="outline" size="icon" aria-label="Une personne de plus" disabled={servings >= SERVINGS_MAX} onClick={() => setServings(servings + 1)}>
+                  <Plus />
+                </Button>
+              </div>
+            )}
+          </div>
+          {servings !== null && servings !== baseServings && (
+            <p className="mb-2 text-xs text-muted-foreground">
+              Quantités adaptées (recette pour {baseServings}).{' '}
+              <button type="button" className="font-medium text-foreground underline underline-offset-2" onClick={() => setServings(baseServings!)}>
+                Revenir à {baseServings}
+              </button>
+            </p>
+          )}
           <ul className="divide-y text-sm">
-            {recipe.ingredients.map((ingredient, i) => (
+            {ingredients.map((ingredient, i) => (
               <li key={i} className="py-2">
                 {formatIngredient(ingredient)}
               </li>
