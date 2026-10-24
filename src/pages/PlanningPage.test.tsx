@@ -308,6 +308,38 @@ describe('PlanningPage', () => {
     expect(await screen.findAllByTestId('day-card')).toHaveLength(7)
   })
 
+  it('ne vide pas le formulaire de repas en cours quand le planning est rechargé', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true })
+    try {
+      const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime })
+      const api = fakeApi()
+      api.meals.listMeals.mockResolvedValue([mealFixture()])
+      let notify: () => void = () => undefined
+      api.meals.subscribe.mockImplementation((cb: () => void) => {
+        notify = cb
+        return () => undefined
+      })
+      renderPlanning(api)
+      await screen.findByText('Pâtes tomate')
+      await user.click(screen.getByRole('button', { name: 'Actions pour Pâtes tomate' }))
+      await user.click(await screen.findByRole('menuitem', { name: 'Modifier' }))
+      const dialog = await screen.findByRole('dialog')
+      await user.clear(within(dialog).getByLabelText('Titre'))
+      await user.type(within(dialog).getByLabelText('Titre'), 'Pâtes pesto')
+
+      // Le rechargement renvoie de nouveaux objets pour le même repas
+      api.meals.listMeals.mockResolvedValue([mealFixture()])
+      act(() => notify())
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(300)
+      })
+      await waitFor(() => expect(api.meals.listMeals.mock.calls.length).toBeGreaterThanOrEqual(2))
+      expect(within(dialog).getByLabelText('Titre')).toHaveValue('Pâtes pesto')
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
   it('recharge quand l’autre personne modifie le planning', async () => {
     vi.useFakeTimers({ shouldAdvanceTime: true })
     try {

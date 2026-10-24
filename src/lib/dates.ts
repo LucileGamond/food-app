@@ -35,6 +35,8 @@ export function nextDays(start: IsoDate, count = 7): IsoDate[] {
 
 const dayFormatter = new Intl.DateTimeFormat('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' })
 const shortFormatter = new Intl.DateTimeFormat('fr-FR', { day: 'numeric', month: 'long' })
+const fullFormatter = new Intl.DateTimeFormat('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })
+const compactFormatter = new Intl.DateTimeFormat('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' })
 
 function capitalize(text: string): string {
   return text.charAt(0).toLocaleUpperCase('fr-FR') + text.slice(1)
@@ -48,6 +50,16 @@ export function formatDay(iso: IsoDate): string {
 /** « 20 octobre » */
 export function formatShortDate(iso: IsoDate): string {
   return shortFormatter.format(parseIsoDate(iso))
+}
+
+/** « 20 octobre 2026 » */
+export function formatFullDate(iso: IsoDate): string {
+  return fullFormatter.format(parseIsoDate(iso))
+}
+
+/** « 20 oct. 2026 » */
+export function formatCompactDate(iso: IsoDate): string {
+  return compactFormatter.format(parseIsoDate(iso))
 }
 
 /** « Du 20 octobre au 26 octobre » */

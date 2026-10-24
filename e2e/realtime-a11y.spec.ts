@@ -3,7 +3,8 @@ import type { Page } from '@playwright/test'
 import { ERIC, addAdhocMeal, expect, login, slot, test } from './fixtures'
 
 async function expectNoA11yViolations(page: Page) {
-  const results = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa']).analyze()
+  // Les toasts sont éphémères (animation d'opacité) : on les exclut de l'analyse.
+  const results = await new AxeBuilder({ page }).exclude('[data-sonner-toaster]').withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa']).analyze()
   expect(results.violations.map((v) => `${v.id}: ${v.nodes.map((n) => n.target.join(' ')).join(', ')}`)).toEqual([])
 }
 
@@ -45,5 +46,13 @@ test('les écrans respectent les règles d’accessibilité', async ({ page }) =
 
   await page.goto('/recettes/nouvelle')
   await expect(page.getByRole('heading', { name: 'Nouvelle recette' })).toBeVisible()
+  await expectNoA11yViolations(page)
+
+  await page.goto('/poids')
+  await page.getByRole('button', { name: 'Nouvelle pesée' }).first().click()
+  await page.getByRole('dialog').getByLabel('Lucile').fill('62')
+  await page.getByRole('dialog').getByRole('button', { name: 'Enregistrer' }).click()
+  await expect(page.getByRole('dialog')).toBeHidden()
+  await expect(page.getByRole('img', { name: /Évolution du poids/ })).toBeVisible()
   await expectNoA11yViolations(page)
 })

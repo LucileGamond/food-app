@@ -17,6 +17,12 @@ Application web installable (PWA) pour Lucile et Eric : planning partagé des re
   - *sauvegardées* : ingrédients détaillés, étapes, tags, photos — listées dans l'écran Recettes.
   Une recette ponctuelle peut être sauvegardée depuis le planning (« Sauvegarder la recette »).
   Une recette sauvegardée utilisée dans le planning ne peut pas être supprimée.
+- **Poids** :
+  - une pesée par personne et par jour (20 à 300 kg, une décimale, pas de date future) ;
+  - synthèse par personne : dernière pesée, écart avec la précédente et sur la période, min/max ;
+  - graphique des deux courbes (3 mois, 6 mois, 1 an, tout), avec info-bulle à la souris, au doigt ou au clavier ;
+  - clic (ou Entrée) sur un point du graphique pour modifier ou supprimer la pesée ;
+  - rappel si une personne ne s'est pas pesée depuis plus de 20 jours.
 
 ## Développement local
 
@@ -67,6 +73,13 @@ Les tests d'intégration et E2E vident les données de la Supabase **locale** av
 | `SUPABASE_ACCESS_TOKEN` | supabase.com → Account → Access Tokens |
 | `SUPABASE_DB_PASSWORD` | Mot de passe de la base choisi à la création du projet |
 | `AZURE_STATIC_WEB_APPS_API_TOKEN` | Azure → Static Web App → Manage deployment token |
+
+4. **Reprendre l'historique des pesées** de l'ancienne application (une seule fois) :
+   ```bash
+   node scripts/weights-to-sql.mjs chemin/vers/weight.json > weights.sql
+   ```
+   puis coller le contenu de `weights.sql` dans *Supabase → SQL Editor* et l'exécuter.
+   La requête de vérification à la fin doit trouver 1 profil par personne. Relancer le script ne crée pas de doublons.
 
 Ensuite, chaque push sur `main` lance tous les tests, puis — s'ils passent — applique les migrations et déploie.
 Le workflow `keep-alive` interroge Supabase tous les 3 jours pour éviter la mise en pause du projet gratuit.

@@ -1,5 +1,6 @@
 import { CalendarDays, Clock, Loader2 } from 'lucide-react'
-import { useEffect, useState, type FormEvent } from 'react'
+import { useState, type FormEvent } from 'react'
+import { useOnOpen } from '@/hooks/useOnOpen'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
@@ -51,11 +52,7 @@ export function MealDialog({ open, onOpenChange, target, meal, profiles, current
   const [values, setValues] = useState<MealFormValues>(() => initialValues(meal, currentUserId))
   const [saving, setSaving] = useState(false)
 
-  useEffect(() => {
-    if (open) {
-      setValues(initialValues(meal, currentUserId))
-    }
-  }, [open, meal, currentUserId])
+  useOnOpen(open, () => setValues(initialValues(meal, currentUserId)))
 
   const errors = validateMealForm(values)
   // Le bouton Enregistrer reste désactivé tant que le formulaire est invalide ;

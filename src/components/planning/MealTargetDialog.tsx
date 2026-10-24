@@ -1,4 +1,5 @@
-import { useEffect, useState, type FormEvent } from 'react'
+import { useState, type FormEvent } from 'react'
+import { useOnOpen } from '@/hooks/useOnOpen'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Label } from '@/components/ui/label'
@@ -21,12 +22,12 @@ export function MealTargetDialog({ mode, meal, days, onOpenChange, onSubmit }: P
   const [date, setDate] = useState<IsoDate>('')
   const [slot, setSlot] = useState<MealSlot>('LUNCH')
 
-  useEffect(() => {
+  useOnOpen(meal !== null, () => {
     if (!meal) return
     // Par défaut : le premier autre jour visible (duplication) ou le jour du repas (déplacement).
     setDate(mode === 'duplicate' ? (days.find((d) => d !== meal.meal_date) ?? meal.meal_date) : meal.meal_date)
     setSlot(meal.slot)
-  }, [meal, mode, days])
+  })
 
   const options = meal && !days.includes(meal.meal_date) ? [meal.meal_date, ...days] : days
   const unchanged = mode === 'move' && meal !== null && !isMoveNeeded(meal, { date, slot })

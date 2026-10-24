@@ -123,6 +123,32 @@ isOneToOne: false
       referencedColumns: ["id"]
     }
                   ]
+                },"weight_entries": {
+                  Row: {
+                    "created_at": string,"created_by": string | null,"id": string,"measured_on": string,"profile_id": string,"updated_at": string,"weight_kg": number
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "created_at"?: string,"created_by"?: string | null,"id"?: string,"measured_on": string,"profile_id": string,"updated_at"?: string,"weight_kg": number
+                  }
+                  Update: {
+                    "created_at"?: string,"created_by"?: string | null,"id"?: string,"measured_on"?: string,"profile_id"?: string,"updated_at"?: string,"weight_kg"?: number
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "weight_entries_created_by_fkey"
+      columns: ["created_by"]
+isOneToOne: false
+      referencedRelation: "profiles"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "weight_entries_profile_id_fkey"
+      columns: ["profile_id"]
+isOneToOne: false
+      referencedRelation: "profiles"
+      referencedColumns: ["id"]
+    }
+                  ]
                 }
           }
           Views: {
@@ -137,6 +163,9 @@ isOneToOne: false
                            },
 "save_recipe":
 { Args: { "p_ingredients": Json,"p_notes"?: string,"p_recipe_id"?: string,"p_servings"?: number,"p_tags"?: (string)[],"p_title": string,"p_url"?: string }; Returns: string
+                           },
+"save_weigh_in":
+{ Args: { "p_measured_on": string,"p_previous_date"?: string,"p_weights": Json }; Returns: undefined
                            },
 "update_meal":
 { Args: { "p_adhoc_notes"?: string,"p_adhoc_title"?: string,"p_adhoc_url"?: string,"p_meal_id": string,"p_people": (string)[],"p_recipe_id"?: string }; Returns: undefined

@@ -8,6 +8,7 @@ import { ApiProvider } from '@/app/ApiContext'
 import { AuthProvider, type AuthClient } from '@/auth/AuthProvider'
 import type { Meal, Profile, RecipeSummary } from '@/lib/meals'
 import type { Recipe } from '@/lib/recipes'
+import type { WeightEntry } from '@/lib/weights'
 
 export const LUCILE: Profile = { id: 'u-lucile', display_name: 'Lucile' }
 export const ERIC: Profile = { id: 'u-eric', display_name: 'Eric' }
@@ -43,6 +44,12 @@ export function fakeApi(): FakeApi {
       deletePhoto: vi.fn(async () => undefined),
       reorderPhotos: vi.fn(async () => undefined),
       signedUrls: vi.fn(async (paths: string[]) => Object.fromEntries(paths.map((p) => [p, `https://cdn.test/${p}`]))),
+    },
+    weights: {
+      listEntries: vi.fn(async () => [] as WeightEntry[]),
+      saveWeighIn: vi.fn(async () => undefined),
+      deleteWeighIn: vi.fn(async () => undefined),
+      subscribe: vi.fn(() => () => undefined),
     },
   }
 }

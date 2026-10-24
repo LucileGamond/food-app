@@ -1,4 +1,4 @@
-import { addDays, formatDay, formatRange, formatShortDate, nextDays, parseIsoDate, toIsoDate, todayIso } from './dates'
+import { addDays, formatCompactDate, formatDay, formatFullDate, formatRange, formatShortDate, nextDays, parseIsoDate, toIsoDate, todayIso } from './dates'
 
 describe('dates', () => {
   it('convertit une date locale en ISO sans décalage de fuseau', () => {
@@ -30,5 +30,7 @@ describe('dates', () => {
     expect(formatDay('2026-10-20')).toBe('Mardi 20 octobre')
     expect(formatShortDate('2026-11-01')).toBe('1 novembre')
     expect(formatRange('2026-10-20')).toBe('Du 20 octobre au 26 octobre')
+    expect(formatFullDate('2025-08-26')).toBe('26 août 2025')
+    expect(formatCompactDate('2025-12-23')).toBe('23 déc. 2025')
   })
 })

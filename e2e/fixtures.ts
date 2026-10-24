@@ -42,6 +42,7 @@ export async function mealAction(page: Page, title: string, action: string) {
 /** Chaque test part d'une base vide (comptes conservés). */
 export const test = base.extend<{ cleanDb: void }>({
   cleanDb: [
+    // oxlint-disable-next-line no-empty-pattern -- signature imposée par Playwright
     async ({}, use) => {
       await resetData()
       await use()

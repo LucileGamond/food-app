@@ -1,4 +1,4 @@
-import { BookOpen, CalendarDays, LogOut, UtensilsCrossed } from 'lucide-react'
+import { BookOpen, CalendarDays, LogOut, Scale, UtensilsCrossed } from 'lucide-react'
 import { NavLink, Outlet } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 import { useAuth } from '@/auth/AuthProvider'
@@ -7,6 +7,7 @@ import { cn } from '@/lib/utils'
 const NAV = [
   { to: '/planning', label: 'Planning', icon: CalendarDays },
   { to: '/recettes', label: 'Recettes', icon: BookOpen },
+  { to: '/poids', label: 'Poids', icon: Scale },
 ]
 
 function Brand() {
@@ -70,7 +71,7 @@ export function Layout() {
       {/* Onglets (mobile) */}
       <nav
         aria-label="Navigation principale"
-        className="fixed inset-x-0 bottom-0 z-30 grid grid-cols-2 border-t bg-background/95 pb-[env(safe-area-inset-bottom)] backdrop-blur md:hidden"
+        className="fixed inset-x-0 bottom-0 z-30 grid grid-cols-3 border-t bg-background/95 pb-[env(safe-area-inset-bottom)] backdrop-blur md:hidden"
       >
         {NAV.map(({ to, label, icon: Icon }) => (
           <NavLink
