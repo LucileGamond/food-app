@@ -23,7 +23,93 @@ export type Database = {
           }
         },"public": {
           Tables: {
-            "meals": {
+            "food_consumptions": {
+                  Row: {
+                    "consumed_on": string,"created_at": string,"created_by": string | null,"id": string,"item_id": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "consumed_on": string,"created_at"?: string,"created_by"?: string | null,"id"?: string,"item_id": string
+                  }
+                  Update: {
+                    "consumed_on"?: string,"created_at"?: string,"created_by"?: string | null,"id"?: string,"item_id"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "food_consumptions_created_by_fkey"
+      columns: ["created_by"]
+isOneToOne: false
+      referencedRelation: "profiles"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "food_consumptions_item_id_fkey"
+      columns: ["item_id"]
+isOneToOne: false
+      referencedRelation: "food_period_items"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"food_period_items": {
+                  Row: {
+                    "allowed_occurrences": number,"category": string,"id": string,"meal": Database["public"]['Enums']["food_meal"],"name": string,"period_id": string,"position": number,"quantity": number | null,"unit": string | null
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "allowed_occurrences": number,"category": string,"id"?: string,"meal": Database["public"]['Enums']["food_meal"],"name": string,"period_id": string,"position"?: number,"quantity"?: number | null,"unit"?: string | null
+                  }
+                  Update: {
+                    "allowed_occurrences"?: number,"category"?: string,"id"?: string,"meal"?: Database["public"]['Enums']["food_meal"],"name"?: string,"period_id"?: string,"position"?: number,"quantity"?: number | null,"unit"?: string | null
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "food_period_items_period_id_fkey"
+      columns: ["period_id"]
+isOneToOne: false
+      referencedRelation: "food_periods"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"food_periods": {
+                  Row: {
+                    "created_at": string,"end_date": string,"id": string,"profile_id": string,"start_date": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "created_at"?: string,"end_date": string,"id"?: string,"profile_id": string,"start_date": string
+                  }
+                  Update: {
+                    "created_at"?: string,"end_date"?: string,"id"?: string,"profile_id"?: string,"start_date"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "food_periods_profile_id_fkey"
+      columns: ["profile_id"]
+isOneToOne: false
+      referencedRelation: "profiles"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"food_plan_items": {
+                  Row: {
+                    "allowed_occurrences": number,"category": string,"created_at": string,"id": string,"meal": Database["public"]['Enums']["food_meal"],"name": string,"position": number,"profile_id": string,"quantity": number | null,"unit": string | null,"updated_at": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "allowed_occurrences": number,"category": string,"created_at"?: string,"id"?: string,"meal": Database["public"]['Enums']["food_meal"],"name": string,"position"?: number,"profile_id": string,"quantity"?: number | null,"unit"?: string | null,"updated_at"?: string
+                  }
+                  Update: {
+                    "allowed_occurrences"?: number,"category"?: string,"created_at"?: string,"id"?: string,"meal"?: Database["public"]['Enums']["food_meal"],"name"?: string,"position"?: number,"profile_id"?: string,"quantity"?: number | null,"unit"?: string | null,"updated_at"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "food_plan_items_profile_id_fkey"
+      columns: ["profile_id"]
+isOneToOne: false
+      referencedRelation: "profiles"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"meals": {
                   Row: {
                     "created_at": string,"created_by": string | null,"id": string,"meal_date": string,"people": (string)[],"recipe_id": string,"slot": Database["public"]['Enums']["meal_slot"],"updated_at": string
                   }
@@ -155,7 +241,10 @@ isOneToOne: false
             [_ in never]: never
           }
           Functions: {
-            "create_meal":
+            "create_food_period":
+{ Args: { "p_end": string,"p_profile_id": string,"p_start": string }; Returns: string
+                           },
+"create_meal":
 { Args: { "p_adhoc_notes"?: string,"p_adhoc_title"?: string,"p_adhoc_url"?: string,"p_meal_date": string,"p_people": (string)[],"p_recipe_id"?: string,"p_slot": Database["public"]['Enums']["meal_slot"] }; Returns: string
                            },
 "duplicate_meal":
@@ -172,7 +261,7 @@ isOneToOne: false
                            }
           }
           Enums: {
-            "meal_slot": "LUNCH"|"DINNER"
+            "food_meal": "BREAKFAST"|"LUNCH"|"SNACK"|"APERITIF"|"DINNER"|"POOL"|"SPORT","meal_slot": "LUNCH"|"DINNER"
           }
           CompositeTypes: {
             [_ in never]: never
@@ -292,7 +381,7 @@ export const Constants = {
           }
         },"public": {
           Enums: {
-            "meal_slot": ["LUNCH", "DINNER"]
+            "food_meal": ["BREAKFAST", "LUNCH", "SNACK", "APERITIF", "DINNER", "POOL", "SPORT"],"meal_slot": ["LUNCH", "DINNER"]
           }
         }
 } as const

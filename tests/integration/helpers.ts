@@ -35,7 +35,7 @@ export async function signedInApi(email = LUCILE.email) {
 export async function resetData(): Promise<void> {
   const admin = createAppClient(LOCAL_URL, LOCAL_SERVICE_KEY, { persistSession: false })
   const nil = '00000000-0000-0000-0000-000000000000'
-  for (const table of ['meals', 'recipe_photos', 'recipe_ingredients', 'recipes', 'weight_entries'] as const) {
+  for (const table of ['meals', 'recipe_photos', 'recipe_ingredients', 'recipes', 'weight_entries', 'food_periods', 'food_plan_items'] as const) {
     const { error } = await admin.from(table).delete().neq('id', nil)
     if (error) throw error
   }

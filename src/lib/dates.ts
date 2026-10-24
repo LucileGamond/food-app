@@ -66,3 +66,7 @@ export function formatCompactDate(iso: IsoDate): string {
 export function formatRange(start: IsoDate, count = 7): string {
   return `Du ${formatShortDate(start)} au ${formatShortDate(addDays(start, count - 1))}`
 }
+
+export function currentHour(now: Date = new Date()): number {
+  return now.getHours()
+}

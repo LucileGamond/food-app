@@ -8,6 +8,7 @@ import { ApiProvider } from '@/app/ApiContext'
 import { AuthProvider, type AuthClient } from '@/auth/AuthProvider'
 import type { Meal, Profile, RecipeSummary } from '@/lib/meals'
 import type { Recipe } from '@/lib/recipes'
+import type { Consumption, FoodPeriod, PeriodItem, PlanItem } from '@/lib/food'
 import type { WeightEntry } from '@/lib/weights'
 
 export const LUCILE: Profile = { id: 'u-lucile', display_name: 'Lucile' }
@@ -49,6 +50,18 @@ export function fakeApi(): FakeApi {
       listEntries: vi.fn(async () => [] as WeightEntry[]),
       saveWeighIn: vi.fn(async () => undefined),
       deleteWeighIn: vi.fn(async () => undefined),
+      subscribe: vi.fn(() => () => undefined),
+    },
+    food: {
+      listPlan: vi.fn(async () => [] as PlanItem[]),
+      savePlanItem: vi.fn(async () => undefined),
+      deletePlanItem: vi.fn(async () => undefined),
+      listPeriods: vi.fn(async () => [] as FoodPeriod[]),
+      listPeriodItems: vi.fn(async () => [] as PeriodItem[]),
+      createPeriod: vi.fn(async () => 'new-period'),
+      deletePeriod: vi.fn(async () => undefined),
+      addConsumption: vi.fn(async (_itemId: string, date: string): Promise<Consumption> => ({ id: `c-${Math.random()}`, consumed_on: date, created_at: new Date().toISOString() })),
+      removeConsumption: vi.fn(async () => undefined),
       subscribe: vi.fn(() => () => undefined),
     },
   }

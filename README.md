@@ -23,6 +23,15 @@ Application web installable (PWA) pour Lucile et Eric : planning partagé des re
   - graphique des deux courbes (3 mois, 6 mois, 1 an, tout), avec info-bulle à la souris, au doigt ou au clavier ;
   - clic (ou Entrée) sur un point du graphique pour modifier ou supprimer la pesée ;
   - rappel si une personne ne s'est pas pesée depuis plus de 20 jours.
+- **Plan** (suivi du plan alimentaire, repris de FoodTracker) :
+  - un *plan* par personne : aliments rangés par moment (petit-déjeuner, déjeuner, collation, apéritif, dîner,
+    pool alimentaire, sport) et par catégorie, chacun avec un nombre de fois autorisé par période ;
+  - des *périodes* (dates incluses, sans chevauchement) qui figent une copie du plan à leur création :
+    modifier le plan ne touche que les périodes suivantes ;
+  - pour le jour choisi, + / − sur chaque aliment ; pastilles du quota sur la période ;
+    au-delà du quota, les consommations les plus récentes sont « hors plan » (en rouge) ;
+  - recherche d'aliment, moments repliables, changement de période et de personne ;
+  - rappels : fin de période dans 2 jours ou moins, aucune période en cours, rien de noté aujourd'hui (le soir).
 
 ## Développement local
 
@@ -80,6 +89,13 @@ Les tests d'intégration et E2E vident les données de la Supabase **locale** av
    ```
    puis coller le contenu de `weights.sql` dans *Supabase → SQL Editor* et l'exécuter.
    La requête de vérification à la fin doit trouver 1 profil par personne. Relancer le script ne crée pas de doublons.
+
+5. **Reprendre le plan et la période en cours** de FoodTracker (une seule fois) :
+   ```bash
+   node scripts/food-to-sql.mjs --person Lucile chemin/vers/Plan.json chemin/vers/Consumption-2026-10-19-2026-11-02.json > food.sql
+   ```
+   puis exécuter `food.sql` dans *Supabase → SQL Editor*. Le plan de la personne est remplacé ; chaque fichier
+   Consumption devient une période (remplacée si elle existe déjà aux mêmes dates). Relancer le script ne crée pas de doublons.
 
 Ensuite, chaque push sur `main` lance tous les tests, puis — s'ils passent — applique les migrations et déploie.
 Le workflow `keep-alive` interroge Supabase tous les 3 jours pour éviter la mise en pause du projet gratuit.

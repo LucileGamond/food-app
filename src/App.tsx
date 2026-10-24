@@ -14,6 +14,8 @@ import { PlanningPage } from '@/pages/PlanningPage'
 const RecipesPage = lazy(() => import('@/pages/RecipesPage').then((m) => ({ default: m.RecipesPage })))
 const RecipeDetailPage = lazy(() => import('@/pages/RecipeDetailPage').then((m) => ({ default: m.RecipeDetailPage })))
 const WeightPage = lazy(() => import('@/pages/WeightPage').then((m) => ({ default: m.WeightPage })))
+const FoodTrackingPage = lazy(() => import('@/pages/FoodTrackingPage').then((m) => ({ default: m.FoodTrackingPage })))
+const FoodPlanPage = lazy(() => import('@/pages/FoodPlanPage').then((m) => ({ default: m.FoodPlanPage })))
 const RecipeFormPage = lazy(() => import('@/pages/RecipeFormPage').then((m) => ({ default: m.RecipeFormPage })))
 
 export function App({ api, auth }: { api: Api; auth: AuthClient }) {
@@ -30,6 +32,8 @@ export function App({ api, auth }: { api: Api; auth: AuthClient }) {
               <Route path="/recettes/nouvelle" element={<RecipeFormPage />} />
               <Route path="/recettes/:id" element={<RecipeDetailPage />} />
               <Route path="/recettes/:id/modifier" element={<RecipeFormPage />} />
+              <Route path="/plan" element={<FoodTrackingPage />} />
+              <Route path="/plan/modifier" element={<FoodPlanPage />} />
               <Route path="/poids" element={<WeightPage />} />
             </Route>
           </Route>
