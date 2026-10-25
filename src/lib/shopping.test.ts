@@ -1,4 +1,7 @@
+import shoppingSql from '../../supabase/migrations/20261029000000_shopping_lists.sql?raw'
+import { AISLES as FUNCTION_AISLES } from '../../supabase/functions/tidy-shopping/tidy.ts'
 import {
+  AISLES,
   aisleLabel,
   convertQuantity,
   defaultListName,
@@ -135,5 +138,14 @@ describe('formulaire d’article', () => {
     expect(validateItemForm({ ...ok, unit: 'pluche' })).toEqual({ unit: 'Unité inconnue' })
     expect(emptyItemForm()).toEqual({ name: '', quantity: '', unit: '', aisle: 'AUTRE' })
     expect(itemToForm(item({ name: 'Lait', quantity: 1.5, unit: 'l', aisle: 'CREMERIE' }))).toEqual({ name: 'Lait', quantity: '1,5', unit: 'l', aisle: 'CREMERIE' })
+  })
+})
+
+describe('rayons', () => {
+  it('sont identiques dans l’application, la base et la fonction tidy-shopping', () => {
+    const values = /create type public\.shopping_aisle as enum \(([^)]*)\)/.exec(shoppingSql)![1]!
+    const sqlAisles = values.split(',').map((v) => v.trim().replace(/^'|'$/g, ''))
+    expect(AISLES.map((a) => a.value)).toEqual(sqlAisles)
+    expect([...FUNCTION_AISLES]).toEqual(sqlAisles)
   })
 })

@@ -1,6 +1,6 @@
 import { ArrowLeft, CheckCheck, MoreHorizontal, Pencil, RefreshCw, SearchX, ShoppingBasket, Trash2 } from 'lucide-react'
 import { useState } from 'react'
-import { Link, useNavigate, useParams } from 'react-router-dom'
+import { Link, useLocation, useNavigate, useParams } from 'react-router-dom'
 import { toast } from 'sonner'
 import { Button, buttonVariants } from '@/components/ui/button'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
@@ -11,10 +11,12 @@ import { ItemDialog } from '@/components/shopping/ItemDialog'
 import { ListNameDialog } from '@/components/shopping/ListNameDialog'
 import { QuickAddBar } from '@/components/shopping/QuickAddBar'
 import { ShoppingItemRow } from '@/components/shopping/ShoppingItemRow'
+import { SkippedPanel } from '@/components/shopping/SkippedPanel'
 import { useApi } from '@/app/ApiContext'
 import { errorMessage } from '@/api'
 import { useShoppingList } from '@/hooks/useShoppingList'
 import { groupByAisle, listProgress, type ShoppingItem } from '@/lib/shopping'
+import type { SkippedEntry } from '@/lib/shoppingFromPlan'
 import { cn } from '@/lib/utils'
 
 type DialogState =
@@ -27,7 +29,10 @@ export function ShoppingListPage() {
   const { id = '' } = useParams()
   const api = useApi()
   const navigate = useNavigate()
+  const location = useLocation()
   const list = useShoppingList(api, id)
+  // Éléments non repris lors d'une génération depuis le planning (transmis par la navigation, jamais stockés).
+  const [skipped, setSkipped] = useState<SkippedEntry[]>(() => (location.state as { skipped?: SkippedEntry[] } | null)?.skipped ?? [])
   const [dialog, setDialog] = useState<DialogState>({ kind: 'none' })
   const close = () => setDialog({ kind: 'none' })
 
@@ -131,6 +136,20 @@ export function ShoppingListPage() {
       <div className="sticky top-14 z-20 -mx-4 border-b bg-page/95 px-4 py-3 backdrop-blur md:top-0 md:mx-0 md:rounded-2xl md:border md:bg-background/95 md:px-4 md:shadow-xs">
         <QuickAddBar onAdd={list.add} />
       </div>
+
+      {skipped.length > 0 && (
+        <SkippedPanel
+          entries={skipped}
+          onAdd={(entry, input) => {
+            setSkipped((list) => list.filter((e) => e.key !== entry.key))
+            void list.add(input)
+          }}
+          onDismiss={() => {
+            setSkipped([])
+            navigate('.', { replace: true, state: null })
+          }}
+        />
+      )}
 
       <div className="mt-4 space-y-4">
         {progress.total === 0 && (

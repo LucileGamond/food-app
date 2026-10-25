@@ -81,7 +81,7 @@ const KEYWORDS: Record<Aisle, string[]> = {
   ],
   CREMERIE: [
     'lait', 'yaourt', 'yogourt', 'fromage', 'fromage blanc', 'beurre', 'creme', 'creme fraiche', 'oeuf', 'emmental', 'gruyere', 'parmesan',
-    'mozzarella', 'comte', 'chevre', 'feta', 'ricotta', 'mascarpone', 'skyr', 'petit suisse', 'camembert', 'brie', 'raclette', 'roquefort',
+    'mozzarella', 'comte', 'reblochon', 'tomme', 'chevre', 'feta', 'ricotta', 'mascarpone', 'skyr', 'petit suisse', 'camembert', 'brie', 'raclette', 'roquefort',
     // Pâtes à tarte : au rayon frais
     'pate brisee', 'pate feuilletee', 'pate sablee', 'pate a pizza',
   ],
@@ -189,15 +189,26 @@ export interface MergePlan {
  * avec la quantité additionnée dans l'unité de l'article existant. Null s'il faut créer un article.
  */
 export function findMergeTarget(items: readonly ShoppingItem[], input: ShoppingItemInput): MergePlan | null {
-  const name = normalizeName(input.name)
   for (const item of items) {
-    if (item.checked || normalizeName(item.name) !== name) continue
-    if (item.quantity === null && input.quantity === null && (item.unit ?? '') === (input.unit ?? '')) return { item, quantity: null }
-    if (item.quantity === null || input.quantity === null) continue
-    const added = convertQuantity(input.quantity, input.unit, item.unit)
-    if (added !== null) return { item, quantity: roundQuantity(item.quantity + added) }
+    if (item.checked) continue
+    const merged = addAmounts(item, input)
+    if (merged) return { item, quantity: merged.quantity }
   }
   return null
+}
+
+type Amount = Pick<ShoppingItem, 'name' | 'quantity' | 'unit'>
+
+/**
+ * Quantité de `a` augmentée de celle de `b` (dans l'unité de `a`) s'il s'agit du même produit
+ * (même nom normalisé) dans une unité identique ou convertible ; null sinon.
+ */
+export function addAmounts(a: Amount, b: Amount): { quantity: number | null } | null {
+  if (normalizeName(a.name) !== normalizeName(b.name)) return null
+  if (a.quantity === null && b.quantity === null && (a.unit ?? '') === (b.unit ?? '')) return { quantity: null }
+  if (a.quantity === null || b.quantity === null) return null
+  const added = convertQuantity(b.quantity, b.unit, a.unit)
+  return added === null ? null : { quantity: roundQuantity(a.quantity + added) }
 }
 
 // ---------------------------------------------------------------------------

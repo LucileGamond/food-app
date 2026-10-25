@@ -1,6 +1,6 @@
 import type { IsoDate } from '@/lib/dates'
 import type { MealSlot, RecipeSummary } from '@/lib/meals'
-import type { Recipe, RecipeImport, RecipeListItem, SaveRecipeInput } from '@/lib/recipes'
+import type { Ingredient, Recipe, RecipeImport, RecipeListItem, SaveRecipeInput } from '@/lib/recipes'
 import type { AppSupabaseClient } from '@/lib/supabase'
 import { PHOTO_BUCKET } from './photos'
 import { AppError, DuplicateRecipeUrlError, RecipeInUseError, toAppError } from './errors'
@@ -73,6 +73,19 @@ export function createRecipesApi(db: AppSupabaseClient) {
           .map(({ name, quantity, unit, note }) => ({ name, quantity, unit, note })),
         photos: [...recipe_photos].sort((a, b) => a.position - b.position),
       }
+    },
+
+    /** Nombre de personnes et ingrédients de plusieurs recettes (liste de courses), en une requête. */
+    async getIngredients(ids: string[]): Promise<{ id: string; servings: number | null; ingredients: Ingredient[] }[]> {
+      if (ids.length === 0) return []
+      const { data, error } = await db.from('recipes').select('id, servings, recipe_ingredients(name, quantity, unit, note, position)').in('id', ids)
+      if (error) throw toAppError(error, 'Impossible de charger les ingrédients.')
+      return data.map(({ recipe_ingredients, ...recipe }) => ({
+        ...recipe,
+        ingredients: [...recipe_ingredients]
+          .sort((a, b) => a.position - b.position)
+          .map(({ name, quantity, unit, note }) => ({ name, quantity, unit, note })),
+      }))
     },
 
     /** Crée ou met à jour une recette sauvegardée (et transforme une recette ponctuelle si `id` en est une). */

@@ -38,6 +38,19 @@ describe('recipes api', () => {
     })
   })
 
+  it('renvoie le nombre de personnes et les ingrédients de plusieurs recettes', async () => {
+    const { api } = await signedInApi()
+    const id = await api.recipes.saveRecipe(curry)
+    const riz = [{ name: 'Riz', quantity: 1, unit: 'kg', note: null }]
+    const other = await api.recipes.saveRecipe({ ...curry, title: 'Riz', url: null, servings: null, ingredients: riz })
+    const result = await api.recipes.getIngredients([id, other])
+    expect(result.sort((a, b) => (a.id === id ? -1 : b.id === id ? 1 : 0))).toEqual([
+      { id, servings: 4, ingredients: curry.ingredients },
+      { id: other, servings: null, ingredients: riz },
+    ])
+    expect(await api.recipes.getIngredients([])).toEqual([])
+  })
+
   it('met à jour une recette en remplaçant ses ingrédients', async () => {
     const { api } = await signedInApi()
     const id = await api.recipes.saveRecipe(curry)

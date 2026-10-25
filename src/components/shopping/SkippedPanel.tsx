@@ -1,0 +1,56 @@
+import { ExternalLink, Plus, X } from 'lucide-react'
+import { Button } from '@/components/ui/button'
+import { formatAmount, type ShoppingItemInput } from '@/lib/shopping'
+import { SKIP_LABELS, skippedInput, type SkippedEntry } from '@/lib/shoppingFromPlan'
+
+interface Props {
+  entries: SkippedEntry[]
+  onAdd: (entry: SkippedEntry, input: ShoppingItemInput) => void
+  onDismiss: () => void
+}
+
+/** Ce que la génération depuis le planning n'a pas mis dans la liste, pour le compléter à la main. */
+export function SkippedPanel({ entries, onAdd, onDismiss }: Props) {
+  return (
+    <section aria-labelledby="skipped-title" className="mt-4 rounded-2xl border border-brand/25 bg-brand/5 p-3">
+      <div className="flex items-start justify-between gap-2">
+        <div>
+          <h2 id="skipped-title" className="text-sm font-medium">
+            Non repris ({entries.length})
+          </h2>
+          <p className="text-xs text-muted-foreground">Pas ajoutés à la liste depuis le planning : à compléter si besoin.</p>
+        </div>
+        <Button variant="ghost" size="icon" aria-label="Fermer « Non repris »" onClick={onDismiss}>
+          <X />
+        </Button>
+      </div>
+      <ul className="mt-2 space-y-2">
+        {entries.map((entry) => {
+          const amount = entry.input ? formatAmount(entry.input) : ''
+          return (
+            <li key={entry.key} className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm">
+              <span className="min-w-0 flex-1">
+                <span className="block truncate font-medium">
+                  {entry.label}
+                  {amount && <span className="font-normal text-muted-foreground"> · {amount}</span>}
+                </span>
+                <span className="block truncate text-xs text-muted-foreground">
+                  {SKIP_LABELS[entry.reason]}
+                  {entry.detail && ` · ${entry.detail}`}
+                </span>
+              </span>
+              {entry.url && (
+                <a href={entry.url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-xs font-medium text-brand hover:underline">
+                  <ExternalLink className="size-3.5" aria-hidden /> Ouvrir <span className="sr-only">la recette « {entry.label} »</span>
+                </a>
+              )}
+              <Button variant="ghost" size="sm" onClick={() => onAdd(entry, skippedInput(entry))}>
+                <Plus /> Ajouter <span className="sr-only">« {entry.label} »</span>
+              </Button>
+            </li>
+          )
+        })}
+      </ul>
+    </section>
+  )
+}

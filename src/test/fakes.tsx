@@ -7,10 +7,11 @@ import type { Api } from '@/api'
 import { ApiProvider } from '@/app/ApiContext'
 import { AuthProvider, type AuthClient } from '@/auth/AuthProvider'
 import type { Meal, Profile, RecipeSummary } from '@/lib/meals'
-import type { Recipe, RecipeImport } from '@/lib/recipes'
+import type { Ingredient, Recipe, RecipeImport } from '@/lib/recipes'
 import type { Consumption, FoodPeriod, PeriodItem, PlanItem } from '@/lib/food'
 import type { InboxItem } from '@/lib/inbox'
 import type { ShoppingItem, ShoppingItemInput, ShoppingList } from '@/lib/shopping'
+import type { TidyLine } from '@/lib/shoppingFromPlan'
 import type { WeightEntry } from '@/lib/weights'
 
 export const LUCILE: Profile = { id: 'u-lucile', display_name: 'Lucile' }
@@ -43,6 +44,7 @@ export function fakeApi(): FakeApi {
       listTags: vi.fn(async () => [] as string[]),
       findSavedByUrl: vi.fn(async () => null as { id: string; title: string } | null),
       useSavedRecipe: vi.fn(async () => 1),
+      getIngredients: vi.fn(async () => [] as { id: string; servings: number | null; ingredients: Ingredient[] }[]),
       importFromUrl: vi.fn(async (): Promise<RecipeImport> => ({ recipe: { title: 'Recette importée', servings: null, ingredients: [], steps: '', tags: [] }, source: 'structured', image: null })),
     },
     photos: {
@@ -82,6 +84,8 @@ export function fakeApi(): FakeApi {
           ...input,
         }),
       ),
+      addItems: vi.fn(async () => undefined),
+      tidy: vi.fn(async () => [] as TidyLine[]),
       updateItem: vi.fn(async () => undefined),
       deleteItem: vi.fn(async () => undefined),
       clearChecked: vi.fn(async () => undefined),

@@ -7,9 +7,12 @@
 // La passerelle Supabase vérifie le jeton (verify_jwt), mais accepte aussi la clé publique anonyme :
 // `isSignedIn` vérifie en plus qu'il s'agit d'un utilisateur connecté.
 
+import { CORS_HEADERS, json } from '../_shared/anthropic.ts'
 import { extractPage, MIN_TEXT_CHARS } from './extract.ts'
 import { extractRecipe, ImportError, type ImportedRecipe, type ModelUsage } from './model.ts'
 import { checkPublicUrl } from './url.ts'
+
+export { CORS_HEADERS }
 
 export const MAX_PAGE_BYTES = 3_000_000
 export const MAX_IMAGE_BYTES = 3_000_000
@@ -33,16 +36,6 @@ export interface Deps {
   log?: (message: string, data?: Record<string, unknown>) => void
   /** Vrai si l'en-tête Authorization correspond à un utilisateur connecté. */
   isSignedIn: (authorization: string | null) => Promise<boolean>
-}
-
-export const CORS_HEADERS = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-  'Access-Control-Allow-Methods': 'POST, OPTIONS',
-}
-
-function json(body: unknown, status = 200): Response {
-  return new Response(JSON.stringify(body), { status, headers: { ...CORS_HEADERS, 'content-type': 'application/json; charset=utf-8' } })
 }
 
 /** Télécharge une ressource publique : redirections vérifiées une à une, taille et durée bornées. */

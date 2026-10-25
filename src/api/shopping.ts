@@ -1,6 +1,7 @@
-import type { ShoppingItem, ShoppingItemInput, ShoppingList } from '@/lib/shopping'
+import type { Aisle, ShoppingItem, ShoppingItemInput, ShoppingList } from '@/lib/shopping'
+import type { TidyLine } from '@/lib/shoppingFromPlan'
 import type { AppSupabaseClient } from '@/lib/supabase'
-import { toAppError } from './errors'
+import { AppError, toAppError } from './errors'
 
 const ITEM_COLUMNS = 'id, list_id, name, quantity, unit, aisle, checked, position'
 
@@ -61,6 +62,21 @@ export function createShoppingApi(db: AppSupabaseClient) {
         .single()
       if (error) throw toAppError(error, "Impossible d'ajouter l'article.")
       return toItem(data)
+    },
+
+    /** Ajoute plusieurs articles en une requête, à partir de la position `start`. */
+    async addItems(listId: string, inputs: ShoppingItemInput[], start: number): Promise<void> {
+      if (inputs.length === 0) return
+      const rows = inputs.map((input, i) => ({ ...input, list_id: listId, position: start + i }))
+      const { error } = await db.from('shopping_items').insert(rows)
+      if (error) throw toAppError(error, "Impossible d'ajouter les articles.")
+    },
+
+    /** Nettoyage par le modèle (Edge Function tidy-shopping) : nom canonique, rayon, basique du placard. */
+    async tidy(lines: { id: string; name: string; quantity: number | null; unit: string | null; aisle: Aisle }[]): Promise<TidyLine[]> {
+      const { data, error } = await db.functions.invoke<{ lines: TidyLine[] }>('tidy-shopping', { body: { lines } })
+      if (error || !Array.isArray(data?.lines)) throw new AppError('Regroupement automatique indisponible.')
+      return data.lines
     },
 
     async updateItem(id: string, patch: ShoppingItemPatch): Promise<void> {

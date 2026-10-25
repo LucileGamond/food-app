@@ -73,6 +73,39 @@ describe('shopping api', () => {
     ])
   })
 
+  it('ajoute plusieurs articles en une fois, avec un événement par article', async () => {
+    const { api } = await signedInApi()
+    const list = await api.shopping.createList('Depuis le planning')
+    await api.shopping.addItems(
+      list,
+      [
+        { name: 'Pommes de terre', quantity: 1, unit: 'kg', aisle: 'FRUITS_LEGUMES' },
+        { name: 'Reblochon', quantity: 1, unit: null, aisle: 'CREMERIE' },
+      ],
+      3,
+    )
+    await api.shopping.addItems(list, [], 0)
+    const items = await api.shopping.listItems(list)
+    expect(items.map((i) => [i.name, i.quantity, i.unit, i.position])).toEqual([
+      ['Pommes de terre', 1, 'kg', 3],
+      ['Reblochon', 1, null, 4],
+    ])
+    const { data } = await admin().from('shopping_events').select('kind, item_name').order('id')
+    expect(data).toEqual([
+      { kind: 'ADDED', item_name: 'Pommes de terre' },
+      { kind: 'ADDED', item_name: 'Reblochon' },
+    ])
+    await expect(api.shopping.addItems(list, [{ name: 'X', quantity: 1, unit: 'pot', aisle: 'AUTRE' }], 5)).rejects.toBeInstanceOf(AppError)
+  })
+
+  it('le regroupement (tidy-shopping) exige une connexion et signale son indisponibilité', async () => {
+    const anon = createShoppingApi(anonClient())
+    await expect(anon.tidy([{ id: 'd1', name: 'sel', quantity: null, unit: null, aisle: 'AUTRE' }])).rejects.toThrow('Regroupement automatique indisponible.')
+    // Sans clé API locale, la fonction répond « mal configuré » : jamais d'appel réel au modèle en test.
+    const { api } = await signedInApi()
+    await expect(api.shopping.tidy([])).rejects.toThrow('Regroupement automatique indisponible.')
+  })
+
   it('refuse tout accès sans connexion', async () => {
     const api = createShoppingApi(anonClient())
     await expect(api.listLists()).rejects.toThrow(/accès/)
@@ -137,6 +170,39 @@ describe('push api', () => {
     await eric.api.push.deleteSubscription(device.endpoint)
     expect(await eric.api.push.isSubscribed(device.endpoint)).toBe(false)
     await expect(eric.api.push.saveSubscription({ ...device, endpoint: 'http://non-securise' })).rejects.toBeInstanceOf(AppError)
+  })
+
+  it('ajoute plusieurs articles en une fois, avec un événement par article', async () => {
+    const { api } = await signedInApi()
+    const list = await api.shopping.createList('Depuis le planning')
+    await api.shopping.addItems(
+      list,
+      [
+        { name: 'Pommes de terre', quantity: 1, unit: 'kg', aisle: 'FRUITS_LEGUMES' },
+        { name: 'Reblochon', quantity: 1, unit: null, aisle: 'CREMERIE' },
+      ],
+      3,
+    )
+    await api.shopping.addItems(list, [], 0)
+    const items = await api.shopping.listItems(list)
+    expect(items.map((i) => [i.name, i.quantity, i.unit, i.position])).toEqual([
+      ['Pommes de terre', 1, 'kg', 3],
+      ['Reblochon', 1, null, 4],
+    ])
+    const { data } = await admin().from('shopping_events').select('kind, item_name').order('id')
+    expect(data).toEqual([
+      { kind: 'ADDED', item_name: 'Pommes de terre' },
+      { kind: 'ADDED', item_name: 'Reblochon' },
+    ])
+    await expect(api.shopping.addItems(list, [{ name: 'X', quantity: 1, unit: 'pot', aisle: 'AUTRE' }], 5)).rejects.toBeInstanceOf(AppError)
+  })
+
+  it('le regroupement (tidy-shopping) exige une connexion et signale son indisponibilité', async () => {
+    const anon = createShoppingApi(anonClient())
+    await expect(anon.tidy([{ id: 'd1', name: 'sel', quantity: null, unit: null, aisle: 'AUTRE' }])).rejects.toThrow('Regroupement automatique indisponible.')
+    // Sans clé API locale, la fonction répond « mal configuré » : jamais d'appel réel au modèle en test.
+    const { api } = await signedInApi()
+    await expect(api.shopping.tidy([])).rejects.toThrow('Regroupement automatique indisponible.')
   })
 
   it('refuse tout accès sans connexion', async () => {

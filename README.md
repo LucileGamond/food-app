@@ -21,7 +21,13 @@ Application web installable (PWA) pour Lucile et Eric : planning partagé des re
   (deviné à partir du nom, modifiable), rangés dans l'ordre du magasin ; un article déjà présent voit sa quantité
   additionnée (g/kg, ml/cl/l convertis) ; les articles cochés passent « dans le caddie » et se retirent d'un clic.
   **Notifications** (Web Push) : l'autre personne est prévenue sur son téléphone, une seule fois par série de
-  modifications (quelques minutes après la dernière) ; activation par appareil depuis la page Courses.
+  modifications (quelques minutes après la dernière) ; activation par appareil (cloche de l'application).
+  **Depuis le planning** (bouton « Liste de courses ») : choix des repas de la semaine, puis aperçu modifiable avant de
+  créer une liste ou d'en compléter une. L'application calcule les quantités (adaptées au nombre de personnes,
+  additionnées, arrondies à la pièce) ; les ingrédients des recettes ponctuelles avec lien sont lus par `import-recipe`.
+  L'Edge Function `tidy-shopping` demande ensuite à Claude Haiku d'unifier les noms, de corriger les rayons et de
+  repérer les basiques du placard (décochés par défaut), sans jamais toucher aux quantités ; en cas d'échec, l'aperçu
+  reste utilisable sans ce regroupement. Ce qui n'a pas pu être repris est listé pour être complété à la main.
 - **Recettes** :
   - *ponctuelles* : titre, texte libre, lien — saisies directement dans le planning ;
   - *sauvegardées* : ingrédients détaillés, étapes, tags, photos — listées dans l'écran Recettes.
@@ -116,7 +122,7 @@ Les tests d'intégration et E2E vident les données de la Supabase **locale** av
    puis exécuter `food.sql` dans *Supabase → SQL Editor*. Le plan de la personne est remplacé ; chaque fichier
    Consumption devient une période (remplacée si elle existe déjà aux mêmes dates). Relancer le script ne crée pas de doublons.
 
-6. **Clé API pour l'import de recettes** (une seule fois) : créer une clé sur console.anthropic.com, puis
+6. **Clé API pour l'import de recettes et le regroupement des courses** (une seule fois) : créer une clé sur console.anthropic.com, puis
    ```bash
    npx supabase secrets set ANTHROPIC_API_KEY=<ta clé> --project-ref <SUPABASE_PROJECT_REF>
    ```

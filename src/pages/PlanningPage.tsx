@@ -9,7 +9,7 @@ import {
   type DragEndEvent,
   type DragStartEvent,
 } from '@dnd-kit/core'
-import { CalendarPlus, ChevronLeft, ChevronRight, Copy, MoveRight, RefreshCw } from 'lucide-react'
+import { CalendarPlus, ChevronLeft, ChevronRight, Copy, MoveRight, RefreshCw, ShoppingCart } from 'lucide-react'
 import { useCallback, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
@@ -22,6 +22,7 @@ import { InboxPanel, type InboxDragData } from '@/components/planning/InboxPanel
 import { MealDialog } from '@/components/planning/MealDialog'
 import type { MealAction } from '@/components/planning/MealItem'
 import { MealTargetDialog } from '@/components/planning/MealTargetDialog'
+import { ShoppingFromPlanDialog } from '@/components/planning/ShoppingFromPlanDialog'
 import { useApi } from '@/app/ApiContext'
 import { useAuth } from '@/auth/AuthProvider'
 import { useInbox } from '@/hooks/useInbox'
@@ -46,6 +47,7 @@ type DialogState =
   | { kind: 'move' | 'duplicate'; meal: Meal }
   | { kind: 'delete'; meal: Meal }
   | { kind: 'plan' | 'rename'; item: InboxItem }
+  | { kind: 'shopping' }
 
 interface MealDragState {
   meal: Meal
@@ -142,16 +144,29 @@ export function PlanningPage({ today = todayIso() }: { today?: IsoDate }) {
         title="Planning"
         description={formatRange(start, PLANNING_DAYS)}
         actions={
-          <div className="flex items-center gap-1 rounded-lg border bg-background p-1 shadow-xs">
-            <Button variant="ghost" size="icon-lg" aria-label="Semaine précédente" onClick={() => setStart((s) => addDays(s, -PLANNING_DAYS))}>
-              <ChevronLeft />
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              className="h-11 px-3 shadow-xs"
+              aria-label="Liste de courses"
+              onClick={() => setDialog({ kind: 'shopping' })}
+              disabled={planning.loading || Boolean(planning.loadError)}
+            >
+              <ShoppingCart />
+              <span className="sm:hidden">Courses</span>
+              <span className="max-sm:hidden">Liste de courses</span>
             </Button>
-            <Button variant="ghost" className="h-9 px-3" onClick={() => setStart(today)} disabled={start === today}>
-              Aujourd'hui
-            </Button>
-            <Button variant="ghost" size="icon-lg" aria-label="Semaine suivante" onClick={() => setStart((s) => addDays(s, PLANNING_DAYS))}>
-              <ChevronRight />
-            </Button>
+            <div className="flex items-center gap-1 rounded-lg border bg-background p-1 shadow-xs">
+              <Button variant="ghost" size="icon-lg" aria-label="Semaine précédente" onClick={() => setStart((s) => addDays(s, -PLANNING_DAYS))}>
+                <ChevronLeft />
+              </Button>
+              <Button variant="ghost" className="h-9 px-3" onClick={() => setStart(today)} disabled={start === today}>
+                Aujourd'hui
+              </Button>
+              <Button variant="ghost" size="icon-lg" aria-label="Semaine suivante" onClick={() => setStart((s) => addDays(s, PLANNING_DAYS))}>
+                <ChevronRight />
+              </Button>
+            </div>
           </div>
         }
       />
@@ -244,6 +259,8 @@ export function PlanningPage({ today = todayIso() }: { today?: IsoDate }) {
       />
 
       <InboxRenameDialog item={dialog.kind === 'rename' ? dialog.item : null} onOpenChange={(open) => !open && closeDialog()} onSubmit={inbox.rename} />
+
+      <ShoppingFromPlanDialog open={dialog.kind === 'shopping'} onOpenChange={(open) => !open && closeDialog()} meals={planning.meals} today={today} />
 
       <ConfirmDialog
         open={deleting !== null}

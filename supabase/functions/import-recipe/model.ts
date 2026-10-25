@@ -1,10 +1,10 @@
 // Appel au modèle (API Messages d'Anthropic) pour transformer le contenu nettoyé en recette structurée.
 
+import { callTool, HttpError, type ModelOptions, type ModelUsage } from '../_shared/anthropic.ts'
 import type { PageContent } from './extract.ts'
 
-export const DEFAULT_MODEL = 'claude-haiku-5-5'
-const API_URL = 'https://api.anthropic.com/v1/messages'
-const TIMEOUT_MS = 45_000
+export { DEFAULT_MODEL } from '../_shared/anthropic.ts'
+export type { ModelOptions, ModelUsage }
 const MAX_KNOWN_TAGS = 40
 
 /** Unités acceptées par l'application (identiques à src/lib/units.ts, vérifié par un test). */
@@ -28,20 +28,9 @@ export interface ImportedRecipe {
   tags: string[]
 }
 
-export interface ModelUsage {
-  input_tokens: number
-  output_tokens: number
-}
-
-export class ImportError extends Error {
-  readonly status: number
-
-  constructor(message: string, status: number) {
-    super(message)
-    this.name = 'ImportError'
-    this.status = status
-  }
-}
+/** Erreur d'import : statut HTTP et message lisible. */
+export const ImportError = HttpError
+export type ImportError = HttpError
 
 const TOOL_NAME = 'enregistrer_recette'
 
@@ -138,55 +127,23 @@ export function sanitizeRecipe(input: unknown, fallbackTitle: string | null): Im
   return { title: str(data.title, 200) || str(fallbackTitle, 200) || 'Recette importée', servings, ingredients, steps, tags }
 }
 
-export interface ModelOptions {
-  apiKey: string
-  model?: string
-  fetch?: typeof fetch
-}
-
 /** Appelle le modèle et renvoie la recette validée. */
 export async function extractRecipe(
   content: PageContent,
   url: string,
   knownTags: readonly string[],
-  { apiKey, model = DEFAULT_MODEL, fetch: doFetch = fetch }: ModelOptions,
+  options: ModelOptions,
 ): Promise<{ recipe: ImportedRecipe; usage: ModelUsage | null }> {
-  let response: Response
-  try {
-    response = await doFetch(API_URL, {
-      method: 'POST',
-      headers: { 'content-type': 'application/json', 'x-api-key': apiKey, 'anthropic-version': '2023-06-01' },
-      body: JSON.stringify({
-        model,
-        max_tokens: 4096,
-        system: SYSTEM,
-        tools: [TOOL],
-        tool_choice: { type: 'tool', name: TOOL_NAME },
-        messages: [{ role: 'user', content: buildUserMessage(content, url, knownTags) }],
-      }),
-      signal: AbortSignal.timeout(TIMEOUT_MS),
-    })
-  } catch {
-    throw new ImportError('Le service d’analyse ne répond pas. Réessaie dans un instant.', 503)
-  }
-
-  if (response.status === 401 || response.status === 403) throw new ImportError('Le service d’analyse est mal configuré.', 500)
-  if (response.status === 429 || response.status === 529 || response.status >= 500) {
-    throw new ImportError('Le service d’analyse est surchargé. Réessaie dans un instant.', 503)
-  }
-  if (!response.ok) {
-    // Le détail renvoyé par l'API (ex. « not_found_error: model: … ») aide à diagnostiquer ; il ne contient aucun secret.
-    const error = (await response.json().catch(() => null)) as { error?: { type?: string; message?: string } } | null
-    const detail = [error?.error?.type, error?.error?.message].filter(Boolean).join(' : ').slice(0, 200)
-    throw new ImportError(`L’analyse de la page a échoué (${response.status}${detail ? ` – ${detail}` : ''}).`, 502)
-  }
-
-  const body = (await response.json()) as {
-    content?: { type: string; name?: string; input?: unknown }[]
-    usage?: ModelUsage
-    stop_reason?: string
-  }
-  const call = body.content?.find((block) => block.type === 'tool_use' && block.name === TOOL_NAME)
-  if (!call) throw new ImportError(`L’analyse de la page a échoué (réponse sans recette${body.stop_reason ? ` : ${body.stop_reason}` : ''}).`, 502)
-  return { recipe: sanitizeRecipe(call.input, content.title), usage: body.usage ?? null }
+  const { input, usage } = await callTool(
+    {
+      system: SYSTEM,
+      tool: TOOL,
+      message: buildUserMessage(content, url, knownTags),
+      maxTokens: 4096,
+      failure: 'L’analyse de la page a échoué',
+      missing: 'réponse sans recette',
+    },
+    options,
+  )
+  return { recipe: sanitizeRecipe(input, content.title), usage }
 }
