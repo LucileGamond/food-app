@@ -37,6 +37,8 @@ describe('inbox api (liste « À planifier »)', () => {
     await expect(api.inbox.addItem({ title: ' ' })).rejects.toBeInstanceOf(AppError)
 
     await api.inbox.renameItem(linkId, '  Pâte à crêpes ')
+    // Titre récupéré trop tard : un renommage à la main n'est pas écrasé.
+    await api.inbox.renameItem(linkId, 'Titre de la page', 'marmiton.org')
     await api.inbox.deleteItem(items[1]!.id)
     items = await api.inbox.listItems()
     expect(items.map((i) => i.title)).toEqual(['Pâte à crêpes', 'Curry maison'])
@@ -58,6 +60,15 @@ describe('inbox api (liste « À planifier »)', () => {
       ['2026-10-23', 'LUNCH', 1, 'Curry maison', true, 'https://exemple.fr/curry'],
     ])
     await expect(api.inbox.planItem(linkId, '2026-10-24', 'LUNCH', [LUCILE.id])).rejects.toThrow('Élément introuvable')
+  })
+
+  it('planifie un lien devenu entre-temps une recette sauvegardée avec cette recette', async () => {
+    const { api } = await signedInApi()
+    const linkId = await api.inbox.addItem({ url: 'https://exemple.fr/curry', title: 'Curry du site' })
+    await api.recipes.saveRecipe(curry)
+    await api.inbox.planItem(linkId, '2026-10-22', 'LUNCH', [LUCILE.id])
+    const [meal] = await api.meals.listMeals('2026-10-22', '2026-10-22')
+    expect([meal!.recipe.title, meal!.recipe.is_saved]).toEqual(['Curry maison', true])
   })
 
   it('refuse tout accès sans connexion', async () => {

@@ -85,11 +85,13 @@ describe('tidyLines', () => {
   })
 
   it('traduit une réponse sans outil', async () => {
-    const response = new Response(JSON.stringify({ content: [], stop_reason: 'max_tokens' }), { status: 200 })
+    const response = new Response(JSON.stringify({ content: [], stop_reason: 'end_turn' }), { status: 200 })
     await expect(tidyLines(LINES, { apiKey: 'k', fetch: fakeFetch(response) })).rejects.toMatchObject({
       status: 502,
-      message: 'Le regroupement de la liste a échoué (réponse vide : max_tokens).',
+      message: 'Le regroupement de la liste a échoué (réponse vide : end_turn).',
     })
+    const cut = new Response(JSON.stringify({ content: [{ type: 'tool_use', name: 'ranger_courses', input: { lines: [] } }], stop_reason: 'max_tokens' }), { status: 200 })
+    await expect(tidyLines(LINES, { apiKey: 'k', fetch: fakeFetch(cut) })).rejects.toMatchObject({ message: 'Le regroupement de la liste a échoué (réponse trop longue).' })
   })
 })
 

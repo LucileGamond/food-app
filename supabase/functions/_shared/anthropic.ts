@@ -83,6 +83,8 @@ export async function callTool(
     usage?: ModelUsage
     stop_reason?: string
   }
+  // Réponse coupée : le résultat serait incomplet (recette amputée, articles manquants).
+  if (body.stop_reason === 'max_tokens') throw new HttpError(`${failure} (réponse trop longue).`, 502)
   const call = body.content?.find((block) => block.type === 'tool_use' && block.name === tool.name)
   if (!call) throw new HttpError(`${failure} (${missing}${body.stop_reason ? ` : ${body.stop_reason}` : ''}).`, 502)
   return { input: call.input, usage: body.usage ?? null }

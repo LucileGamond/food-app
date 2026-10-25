@@ -101,7 +101,7 @@ export function RecipesPage() {
           {visible.length === 0 ? (
             <EmptyState icon={Search} title="Aucune recette ne correspond" description="Essayez un autre mot-clé ou retirez le filtre." />
           ) : (
-            <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            <ul className="grid grid-cols-[minmax(0,1fr)] gap-4 sm:grid-cols-2 lg:grid-cols-3">
               {visible.map((recipe) => {
                 const url = recipe.mainPhotoPath ? urls[recipe.mainPhotoPath] : undefined
                 return (

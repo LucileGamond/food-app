@@ -1,4 +1,4 @@
-import { checkPublicUrl, isPrivateIpv4 } from './url.ts'
+import { checkPublicUrl, isPrivateIpv4, isPrivateIpv6, resolvesToPublic } from './url.ts'
 
 const ok = (raw: string) => checkPublicUrl(raw).ok
 
@@ -41,6 +41,12 @@ describe('checkPublicUrl', () => {
       'http://[fe80::1]/',
       'http://[::ffff:127.0.0.1]/',
       'http://[::ffff:7f00:1]/',
+      'http://[::127.0.0.1]/',
+      'http://[64:ff9b::a9fe:a9fe]/',
+      'http://[fec0::1]/',
+      'http://[2002:7f00:1::]/',
+      'http://198.18.0.1/',
+      'http://192.0.0.1/',
       'http://2130706433/',
       'http://0x7f.0.0.1/',
       'http://intranet/',
@@ -60,5 +66,32 @@ describe('checkPublicUrl', () => {
     expect(isPrivateIpv4('192.169.0.1')).toBe(false)
     expect(isPrivateIpv4('239.1.1.1')).toBe(true)
     expect(isPrivateIpv4('999.1.1.1')).toBe(false)
+  })
+
+  it('n’accepte que les adresses IPv6 publiques', () => {
+    expect(ok('https://[2a00:1450:4007:80c::200e]/')).toBe(true)
+    expect(isPrivateIpv6('2001:db8::1')).toBe(true)
+    expect(isPrivateIpv6('exemple.fr')).toBe(false)
+  })
+})
+
+describe('resolvesToPublic', () => {
+  const dns = (records: Record<string, string[]>) => async (host: string, type: 'A' | 'AAAA') => {
+    const found = records[`${host} ${type}`]
+    if (!found) throw new Error('NXDOMAIN')
+    return found
+  }
+
+  it('refuse un nom qui pointe vers une adresse privée', async () => {
+    expect(await resolvesToPublic('127.0.0.1.nip.io', dns({ '127.0.0.1.nip.io A': ['127.0.0.1'] }))).toBe(false)
+    expect(await resolvesToPublic('v6.exemple.fr', dns({ 'v6.exemple.fr AAAA': ['::1'] }))).toBe(false)
+    expect(await resolvesToPublic('mixte.fr', dns({ 'mixte.fr A': ['93.184.216.34', '10.0.0.1'] }))).toBe(false)
+  })
+
+  it('accepte un nom public, une adresse IP déjà vérifiée, ou un nom introuvable', async () => {
+    expect(await resolvesToPublic('exemple.fr', dns({ 'exemple.fr A': ['93.184.216.34'], 'exemple.fr AAAA': ['2606:2800:220:1::'] }))).toBe(true)
+    expect(await resolvesToPublic('8.8.8.8', dns({}))).toBe(true)
+    expect(await resolvesToPublic('[2a00::1]', dns({}))).toBe(true)
+    expect(await resolvesToPublic('inconnu.fr', dns({}))).toBe(true)
   })
 })

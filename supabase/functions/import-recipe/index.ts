@@ -21,6 +21,7 @@ Deno.serve(
     model: Deno.env.get('ANTHROPIC_MODEL') || undefined,
     fetchPage: fetch,
     fetchModel: fetch,
+    resolveDns: (host, type) => Deno.resolveDns(host, type),
     log: (message, data) => console.log(JSON.stringify({ message, ...data })),
     isSignedIn,
   }),

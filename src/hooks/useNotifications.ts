@@ -8,6 +8,8 @@ export interface NotificationsState {
   busy: boolean
   enable: () => Promise<void>
   disable: () => Promise<void>
+  /** À la déconnexion : cet appareil ne reçoit plus les notifications du compte (sans message). */
+  forget: () => Promise<void>
 }
 
 /** Notifications des listes de courses sur cet appareil. */
@@ -69,5 +71,15 @@ export function useNotifications(api: Api): NotificationsState {
     }
   }, [api])
 
-  return { status, busy, enable, disable }
+  const forget = useCallback(async () => {
+    try {
+      const registration = await pushRegistration()
+      const device = registration ? await currentDevicePush(registration) : null
+      if (device) await api.push.deleteSubscription(device.endpoint)
+    } catch {
+      // Hors ligne : l'abonnement sera retiré à l'expiration, rien de bloquant pour se déconnecter.
+    }
+  }, [api])
+
+  return { status, busy, enable, disable, forget }
 }

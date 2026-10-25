@@ -50,7 +50,8 @@ export function IngredientsEditor({ rows, errors = {}, onChange }: Props) {
                   value={row.name}
                   aria-invalid={Boolean(error) || undefined}
                   onChange={(e) => update(row.key, 'name', e.target.value)}
-                  className="h-10"
+                  // Téléphone : le nom sur toute la largeur, au-dessus de la quantité, de l'unité et de la précision.
+                  className="order-first col-span-3 h-10 sm:order-none sm:col-span-1"
                 />
                 <Input
                   aria-label={`Précision de l'ingrédient ${n}`}
@@ -58,7 +59,7 @@ export function IngredientsEditor({ rows, errors = {}, onChange }: Props) {
                   value={row.note}
                   maxLength={200}
                   onChange={(e) => update(row.key, 'note', e.target.value)}
-                  className="col-span-3 h-10 placeholder:text-muted-foreground/40 sm:col-span-1"
+                  className="h-10 placeholder:text-muted-foreground/40"
                 />
                 <div className="col-span-3 flex justify-end gap-1 sm:col-span-1">
                   <Button

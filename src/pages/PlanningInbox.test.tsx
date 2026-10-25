@@ -64,7 +64,7 @@ describe('PlanningPage — liste « À planifier »', () => {
     expect(await within(panel()).findByText('cuisine.fr', { selector: 'p.font-medium' })).toBeInTheDocument()
     expect(screen.getByLabelText('Lien ou idée à planifier')).toHaveValue('')
 
-    await waitFor(() => expect(api.inbox.renameItem).toHaveBeenCalledWith('new-item', 'Tarte tatin facile'))
+    await waitFor(() => expect(api.inbox.renameItem).toHaveBeenCalledWith('new-item', 'Tarte tatin facile', 'cuisine.fr'))
     expect(api.inbox.fetchTitle).toHaveBeenCalledWith('https://cuisine.fr/tatin')
   })
 

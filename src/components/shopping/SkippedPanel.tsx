@@ -28,8 +28,8 @@ export function SkippedPanel({ entries, onAdd, onDismiss }: Props) {
         {entries.map((entry) => {
           const amount = entry.input ? formatAmount(entry.input) : ''
           return (
-            <li key={entry.key} className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm">
-              <span className="min-w-0 flex-1">
+            <li key={entry.key} className="flex flex-col gap-1 text-sm sm:flex-row sm:items-center sm:gap-2">
+              <span className="min-w-0 sm:flex-1">
                 <span className="block truncate font-medium">
                   {entry.label}
                   {amount && <span className="font-normal text-muted-foreground"> · {amount}</span>}
@@ -39,16 +39,18 @@ export function SkippedPanel({ entries, onAdd, onDismiss }: Props) {
                   {entry.detail && ` · ${entry.detail}`}
                 </span>
               </span>
-              {entry.url && (
-                <a href={entry.url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-xs font-medium text-brand hover:underline">
-                  <ExternalLink className="size-3.5" aria-hidden /> Ouvrir <span className="sr-only">la recette « {entry.label} »</span>
-                </a>
-              )}
-              {entry.reason !== 'to-check' && (
-                <Button variant="ghost" size="sm" onClick={() => onAdd(entry, skippedInput(entry))}>
-                  <Plus /> Ajouter <span className="sr-only">« {entry.label} »</span>
-                </Button>
-              )}
+              <div className="flex items-center gap-3">
+                {entry.url && (
+                  <a href={entry.url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-xs font-medium text-brand hover:underline">
+                    <ExternalLink className="size-3.5" aria-hidden /> Ouvrir <span className="sr-only">la recette « {entry.label} »</span>
+                  </a>
+                )}
+                {entry.reason !== 'to-check' && (
+                  <Button variant="ghost" size="sm" onClick={() => onAdd(entry, skippedInput(entry))}>
+                    <Plus /> Ajouter <span className="sr-only">« {entry.label} »</span>
+                  </Button>
+                )}
+              </div>
             </li>
           )
         })}

@@ -1,5 +1,6 @@
 import { BellRing, CalendarDays, CalendarPlus, ChevronDown, ChevronLeft, ChevronRight, ClipboardList, MoreHorizontal, RefreshCw, Trash2 } from 'lucide-react'
 import { useCallback, useMemo, useState } from 'react'
+import { useToday } from '@/hooks/useToday'
 import { Link } from 'react-router-dom'
 import { Button, buttonVariants } from '@/components/ui/button'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
@@ -13,7 +14,7 @@ import { ProfileSwitch, useProfileParam } from '@/components/food/ProfileSwitch'
 import { useApi } from '@/app/ApiContext'
 import { useAuth } from '@/auth/AuthProvider'
 import { useFoodTracking } from '@/hooks/useFoodTracking'
-import { addDays, currentHour, formatDay, todayIso, type IsoDate } from '@/lib/dates'
+import { addDays, currentHour, formatDay, type IsoDate } from '@/lib/dates'
 import {
   clampToPeriod,
   containsDate,
@@ -32,7 +33,8 @@ const DAILY_REMINDER_HOUR = 20
 const selectClass =
   'h-10 rounded-lg border border-input bg-background px-3 text-sm shadow-xs focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none'
 
-export function FoodTrackingPage({ today = todayIso(), hour = currentHour() }: { today?: IsoDate; hour?: number }) {
+export function FoodTrackingPage({ today: fixedToday, hour = currentHour() }: { today?: IsoDate; hour?: number }) {
+  const today = useToday(fixedToday)
   const api = useApi()
   const { profiles } = useAuth()
   const [profile, selectProfile] = useProfileParam()

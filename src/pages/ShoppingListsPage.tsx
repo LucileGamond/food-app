@@ -1,5 +1,6 @@
 import { MoreHorizontal, Pencil, Plus, RefreshCw, ShoppingCart, Trash2 } from 'lucide-react'
 import { useState } from 'react'
+import { useToday } from '@/hooks/useToday'
 import { Link, useNavigate } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
@@ -10,14 +11,15 @@ import { PageHeader } from '@/components/Layout'
 import { ListNameDialog } from '@/components/shopping/ListNameDialog'
 import { useApi } from '@/app/ApiContext'
 import { useShoppingLists } from '@/hooks/useShoppingLists'
-import { todayIso, type IsoDate } from '@/lib/dates'
+import { type IsoDate } from '@/lib/dates'
 import { defaultListName, listProgress, type ShoppingList } from '@/lib/shopping'
 
 type DialogState = { kind: 'none' } | { kind: 'create' } | { kind: 'rename' | 'delete'; list: ShoppingList }
 
 const dateFormatter = new Intl.DateTimeFormat('fr-FR', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })
 
-export function ShoppingListsPage({ today = todayIso() }: { today?: IsoDate }) {
+export function ShoppingListsPage({ today: fixedToday }: { today?: IsoDate }) {
+  const today = useToday(fixedToday)
   const api = useApi()
   const navigate = useNavigate()
   const shopping = useShoppingLists(api)
@@ -44,14 +46,14 @@ export function ShoppingListsPage({ today = todayIso() }: { today?: IsoDate }) {
             </Button>
           </div>
         ) : shopping.loading ? (
-          <div className="grid gap-3 sm:grid-cols-2" aria-busy="true" aria-label="Chargement des listes">
+          <div className="grid grid-cols-[minmax(0,1fr)] gap-3 sm:grid-cols-2" aria-busy="true" aria-label="Chargement des listes">
             <Skeleton className="h-20 rounded-2xl" />
             <Skeleton className="h-20 rounded-2xl" />
           </div>
         ) : shopping.lists.length === 0 ? (
           <EmptyState icon={ShoppingCart} title="Aucune liste" description="Crée une liste pour noter ce qu'il faut acheter." action={createButton} />
         ) : (
-          <ul className="grid gap-3 sm:grid-cols-2" aria-label="Listes de courses">
+          <ul className="grid grid-cols-[minmax(0,1fr)] gap-3 sm:grid-cols-2" aria-label="Listes de courses">
             {shopping.lists.map((list) => {
               const done = list.total > 0 && list.checked === list.total
               return (

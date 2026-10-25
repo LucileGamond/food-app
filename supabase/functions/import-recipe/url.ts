@@ -29,19 +29,34 @@ export function isPrivateIpv4(ip: string): boolean {
     inRange(value, '169.254.0.0', 16) ||
     inRange(value, '172.16.0.0', 12) ||
     inRange(value, '192.168.0.0', 16) ||
+    inRange(value, '192.0.0.0', 24) ||
+    inRange(value, '192.0.2.0', 24) ||
+    inRange(value, '198.18.0.0', 15) ||
+    inRange(value, '198.51.100.0', 24) ||
+    inRange(value, '203.0.113.0', 24) ||
     inRange(value, '224.0.0.0', 3) // multicast et réservé
   )
 }
 
-function isPrivateIpv6(host: string): boolean {
+export function isPrivateIpv6(host: string): boolean {
   const ip = host.replace(/^\[|\]$/g, '').toLowerCase()
   if (!ip.includes(':')) return false
-  if (ip === '::' || ip === '::1') return true
-  const mapped = /^::ffff:(\d+\.\d+\.\d+\.\d+)$/.exec(ip)
-  if (mapped) return isPrivateIpv4(mapped[1]!)
-  // Toute autre forme ::ffff:… (notation hexadécimale) est refusée par prudence.
-  if (ip.startsWith('::ffff:')) return true
-  return /^(fc|fd|fe8|fe9|fea|feb|ff)/.test(ip)
+  // Seules les adresses publiques (2000::/3) sont acceptées, hors 6to4 (2002::/16) et documentation (2001:db8::/32) :
+  // tout le reste (::1, ::ffff:…, ::7f00:1, 64:ff9b::…, fc00::/7, fe80::/10, ff00::/8…) est refusé.
+  if (!/^[23][0-9a-f]{0,3}:/.test(ip)) return true
+  return ip.startsWith('2002:') || ip.startsWith('2001:db8:') || ip.startsWith('2001:0db8:')
+}
+
+export type ResolveDns = (host: string, type: 'A' | 'AAAA') => Promise<string[]>
+
+/**
+ * Faux si le nom d'hôte pointe vers une adresse privée (ex. 127.0.0.1.nip.io). Une résolution impossible
+ * (nom inexistant, résolveur indisponible) ne bloque pas : le téléchargement échouera alors de lui-même.
+ */
+export async function resolvesToPublic(host: string, resolve: ResolveDns): Promise<boolean> {
+  if (/^[\d.]+$/.test(host) || host.includes(':')) return true // adresse IP : déjà vérifiée
+  const lookups = await Promise.all((['A', 'AAAA'] as const).map((type) => resolve(host, type).catch(() => [] as string[])))
+  return lookups.flat().every((ip) => !isPrivateIpv4(ip) && !(ip.includes(':') && isPrivateIpv6(ip)))
 }
 
 export type UrlCheck = { ok: true; url: URL } | { ok: false; reason: string }

@@ -38,24 +38,37 @@ export async function notifyPending(deps: Deps): Promise<RunReport> {
   const report: RunReport = { groups: groups.length, sent: 0, failed: 0, removed: 0 }
   const gone = new Set<string>()
 
-  for (const group of groups) {
-    const payload = buildShoppingMessage(group)
-    for (const subscription of await deps.loadSubscriptions(group.actor_id)) {
-      const result = await deps.send(subscription, payload)
-      if (result === 'sent') report.sent += 1
-      else if (result === 'gone') gone.add(subscription.id)
-      else report.failed += 1
+  try {
+    for (const group of groups) {
+      const payload = buildShoppingMessage(group)
+      for (const subscription of await deps.loadSubscriptions(group.actor_id)) {
+        if (gone.has(subscription.id)) continue // expiré : déjà constaté pour un groupe précédent
+        const result = await deps.send(subscription, payload)
+        if (result === 'sent') report.sent += 1
+        else if (result === 'gone') gone.add(subscription.id)
+        else report.failed += 1
+      }
+      // Marqués même en cas d'échec d'envoi : pas de rafale de notifications en retard.
+      await deps.markNotified(group.events.map((e) => e.id))
     }
-    // Marqués même en cas d'échec d'envoi : pas de rafale de notifications en retard.
-    await deps.markNotified(group.events.map((e) => e.id))
-  }
-
-  if (gone.size > 0) {
-    await deps.deleteSubscriptions([...gone])
-    report.removed = gone.size
+  } finally {
+    // Abonnements expirés retirés même si un groupe a échoué en cours de route.
+    if (gone.size > 0) {
+      await deps.deleteSubscriptions([...gone])
+      report.removed = gone.size
+    }
   }
   await deps.purgeOldEvents()
   return report
+}
+
+/** Comparaison en temps constant (le secret ne se devine pas caractère par caractère). */
+export function sameSecret(given: string | null, expected: string): boolean {
+  const a = new TextEncoder().encode(given ?? '')
+  const b = new TextEncoder().encode(expected)
+  let diff = a.length ^ b.length
+  for (let i = 0; i < b.length; i++) diff |= (a[i] ?? 0) ^ b[i]!
+  return diff === 0
 }
 
 function json(body: unknown, status = 200): Response {
@@ -65,7 +78,7 @@ function json(body: unknown, status = 200): Response {
 export function createHandler(deps: Deps) {
   return async (request: Request): Promise<Response> => {
     if (request.method !== 'POST') return json({ error: 'Méthode non autorisée.' }, 405)
-    if (!deps.secret || request.headers.get('x-cron-secret') !== deps.secret) return json({ error: 'Non autorisé.' }, 401)
+    if (!deps.secret || !sameSecret(request.headers.get('x-cron-secret'), deps.secret)) return json({ error: 'Non autorisé.' }, 401)
     try {
       const report = await notifyPending(deps)
       if (report.groups > 0) deps.log?.('notifications envoyées', { ...report })

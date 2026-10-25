@@ -47,7 +47,7 @@ export function InboxPlanDialog({ item, days, profiles, currentUserId, onOpenCha
   return (
     <Dialog open={item !== null} onOpenChange={(open) => !saving && onOpenChange(open)}>
       <DialogContent className="sm:max-w-sm">
-        <form onSubmit={handleSubmit} className="grid gap-5">
+        <form onSubmit={handleSubmit} className="grid grid-cols-[minmax(0,1fr)] gap-5">
           <DialogHeader>
             <DialogTitle>Planifier</DialogTitle>
             <DialogDescription>{item?.title}</DialogDescription>
@@ -131,7 +131,7 @@ export function InboxRenameDialog({ item, onOpenChange, onSubmit }: RenameProps)
   return (
     <Dialog open={item !== null} onOpenChange={(open) => !saving && onOpenChange(open)}>
       <DialogContent className="sm:max-w-sm">
-        <form onSubmit={handleSubmit} className="grid gap-5">
+        <form onSubmit={handleSubmit} className="grid grid-cols-[minmax(0,1fr)] gap-5">
           <DialogHeader>
             <DialogTitle>Renommer</DialogTitle>
             <DialogDescription>Le titre du repas une fois planifié.</DialogDescription>

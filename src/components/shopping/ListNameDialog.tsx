@@ -37,7 +37,7 @@ export function ListNameDialog({ open, onOpenChange, title, initialName, confirm
   return (
     <Dialog open={open} onOpenChange={(next) => !saving && onOpenChange(next)}>
       <DialogContent className="sm:max-w-sm">
-        <form onSubmit={handleSubmit} className="grid gap-5">
+        <form onSubmit={handleSubmit} className="grid grid-cols-[minmax(0,1fr)] gap-5">
           <DialogHeader>
             <DialogTitle>{title}</DialogTitle>
           </DialogHeader>

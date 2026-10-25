@@ -83,7 +83,7 @@ export function DayCard({ date, isToday, mealsBySlot, profiles, disabled, onAdd,
         </h2>
         <span className="rounded-full bg-muted px-2.5 py-0.5 text-xs font-medium text-muted-foreground">{mealCountLabel(count)}</span>
       </header>
-      <div className="grid gap-1 sm:grid-cols-2">
+      <div className="grid grid-cols-[minmax(0,1fr)] gap-1 sm:grid-cols-2">
         {SLOTS.map((slot) => (
           <SlotSection
             key={slot}

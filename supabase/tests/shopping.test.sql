@@ -1,6 +1,6 @@
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(24);
+select plan(27);
 
 -- Tests indépendants des données locales (annulés en fin de transaction)
 delete from public.shopping_lists;
@@ -90,28 +90,41 @@ select is((select count(*)::int from public.shopping_events), 0, 'pas d''événe
 set local role authenticated;
 set local request.jwt.claims = '{"sub":"11111111-1111-1111-1111-111111111111","role":"authenticated"}';
 select lives_ok(
-  $$select public.save_push_subscription('https://push.exemple/tel-lucile', 'cle', 'secret', 'Android')$$,
+  $$select public.save_push_subscription('https://fcm.googleapis.com/fcm/send/tel-lucile', 'cle', 'secret', 'Android')$$,
   'abonnement enregistré'
 );
 select throws_ok(
   $$select public.save_push_subscription('http://push.exemple/x', 'cle', 'secret')$$,
-  '23514', null, 'adresse https obligatoire'
+  '22023', null, 'adresse https obligatoire'
+);
+select throws_ok(
+  $$select public.save_push_subscription('https://pirate.exemple/x', 'cle', 'secret')$$,
+  '22023', null, 'seulement les services de notification des navigateurs'
 );
 set local request.jwt.claims = '{"sub":"22222222-2222-2222-2222-222222222222","role":"authenticated"}';
-select public.save_push_subscription('https://push.exemple/tel-eric', 'cle', 'secret');
+select public.save_push_subscription('https://fcm.googleapis.com/fcm/send/tel-eric', 'cle', 'secret');
 select is((select count(*)::int from public.push_subscriptions), 1, 'Eric ne voit que son appareil');
 select throws_ok(
-  $$insert into public.push_subscriptions (profile_id, endpoint, p256dh, auth) values ('11111111-1111-1111-1111-111111111111', 'https://push.exemple/y', 'a', 'b')$$,
+  $$insert into public.push_subscriptions (profile_id, endpoint, p256dh, auth) values ('11111111-1111-1111-1111-111111111111', 'https://fcm.googleapis.com/fcm/send/y', 'a', 'b')$$,
   '42501', null, 'pas d''insertion directe (passer par save_push_subscription)'
 );
--- Le téléphone de Lucile est repris par le compte d'Eric
-select public.save_push_subscription('https://push.exemple/tel-lucile', 'cle2', 'secret2');
+select throws_ok(
+  $$update public.push_subscriptions set endpoint = 'https://pirate.exemple/y'$$,
+  '42501', null, 'pas de modification directe'
+);
+-- Un autre compte ne peut pas détourner l'appareil de Lucile (clés différentes)
+select throws_ok(
+  $$select public.save_push_subscription('https://fcm.googleapis.com/fcm/send/tel-lucile', 'autre-cle', 'autre-secret')$$,
+  '42501', null, 'appareil d''un autre compte non détourné'
+);
+-- Le téléphone de Lucile (mêmes clés) est repris par le compte d'Eric
+select public.save_push_subscription('https://fcm.googleapis.com/fcm/send/tel-lucile', 'cle', 'secret');
 select is((select count(*)::int from public.push_subscriptions), 2, 'appareil réattribué à Eric');
-delete from public.push_subscriptions where endpoint = 'https://push.exemple/tel-eric';
+delete from public.push_subscriptions where endpoint = 'https://fcm.googleapis.com/fcm/send/tel-eric';
 select is((select count(*)::int from public.push_subscriptions), 1, 'Eric peut retirer son appareil');
 reset role;
 set local role anon;
-select throws_ok($$select public.save_push_subscription('https://push.exemple/z', 'a', 'b')$$, '42501', null, 'anon ne s''abonne pas');
+select throws_ok($$select public.save_push_subscription('https://fcm.googleapis.com/fcm/send/z', 'a', 'b')$$, '42501', null, 'anon ne s''abonne pas');
 reset role;
 
 -- Tâche planifiée

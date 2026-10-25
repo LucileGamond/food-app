@@ -56,6 +56,11 @@ const VERBS: Record<ShoppingEventKind, string> = {
 
 const ORDER: ShoppingEventKind[] = ['ADDED', 'CHECKED', 'UNCHECKED', 'UPDATED', 'REMOVED']
 
+/** Texte coupé à `max` caractères, avec des points de suspension. */
+export function shorten(text: string, max: number): string {
+  return text.length <= max ? text : `${text.slice(0, max - 1).trimEnd()}…`
+}
+
 /** « a, b et c » */
 export function joinFr(parts: readonly string[]): string {
   if (parts.length <= 1) return parts[0] ?? ''
@@ -65,14 +70,15 @@ export function joinFr(parts: readonly string[]): string {
 /** « Eric a ajouté farine et lait, et coché 4 articles » → titre = nom de la liste. */
 export function buildShoppingMessage(group: EventGroup): PushPayload {
   const parts = ORDER.flatMap((kind) => {
-    const names = [...new Set(group.events.filter((e) => e.kind === kind).map((e) => e.item_name))]
+    const names = [...new Set(group.events.filter((e) => e.kind === kind).map((e) => shorten(e.item_name, 40)))]
     if (names.length === 0) return []
     const what = names.length <= 3 ? joinFr(names) : `${names.length} articles`
     return [`${VERBS[kind]} ${what}`]
   })
   return {
-    title: group.list_name,
-    body: `${group.actor_name} a ${joinFr(parts)}`,
+    // Textes bornés : un message Web Push ne doit pas dépasser environ 4 Ko une fois chiffré.
+    title: shorten(group.list_name, 80),
+    body: shorten(`${group.actor_name} a ${joinFr(parts)}`, 300),
     url: `/courses/${group.list_id}`,
     tag: `shopping-${group.list_id}`,
   }

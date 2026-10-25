@@ -152,7 +152,7 @@ describe('shopping api', () => {
 })
 
 describe('push api', () => {
-  const device = { endpoint: 'https://push.exemple/tel', p256dh: 'cle', auth: 'secret', userAgent: 'Android' }
+  const device = { endpoint: 'https://fcm.googleapis.com/fcm/send/tel', p256dh: 'cle', auth: 'secret', userAgent: 'Android' }
 
   it('enregistre, vérifie et supprime l’abonnement de cet appareil', async () => {
     const lucile = await signedInApi(LUCILE.email)
@@ -162,14 +162,17 @@ describe('push api', () => {
     // Chacun ne voit que ses appareils
     expect(await eric.api.push.isSubscribed(device.endpoint)).toBe(false)
 
-    // Le même téléphone utilisé avec le compte d'Eric : l'abonnement passe à Eric
-    await eric.api.push.saveSubscription({ ...device, p256dh: 'cle2' })
+    // Un autre compte ne peut pas détourner l'appareil (clés différentes)
+    await expect(eric.api.push.saveSubscription({ ...device, p256dh: 'cle2' })).rejects.toBeInstanceOf(AppError)
+    // Le même téléphone (mêmes clés) utilisé avec le compte d'Eric : l'abonnement passe à Eric
+    await eric.api.push.saveSubscription(device)
     expect(await eric.api.push.isSubscribed(device.endpoint)).toBe(true)
     expect(await lucile.api.push.isSubscribed(device.endpoint)).toBe(false)
 
     await eric.api.push.deleteSubscription(device.endpoint)
     expect(await eric.api.push.isSubscribed(device.endpoint)).toBe(false)
     await expect(eric.api.push.saveSubscription({ ...device, endpoint: 'http://non-securise' })).rejects.toBeInstanceOf(AppError)
+    await expect(eric.api.push.saveSubscription({ ...device, endpoint: 'https://pirate.exemple/x' })).rejects.toBeInstanceOf(AppError)
   })
 
   it('ajoute plusieurs articles en une fois, avec un événement par article', async () => {

@@ -31,6 +31,12 @@ export function Layout() {
   // Notifications : réglage global de l'application, pour cet appareil.
   const notifications = useNotifications(useApi())
 
+  async function logout() {
+    // Avant la déconnexion (droits nécessaires) : l'appareil ne reçoit plus les notifications de ce compte.
+    await notifications.forget()
+    await signOut()
+  }
+
   return (
     <div className="min-h-dvh md:grid md:grid-cols-[15rem_1fr]">
       {/* Barre latérale (ordinateur) */}
@@ -59,7 +65,7 @@ export function Layout() {
           <span className="truncate text-sm text-muted-foreground">{currentProfile?.display_name}</span>
           <span className="flex-1" />
           <NotificationsButton notifications={notifications} />
-          <Button variant="ghost" size="icon" onClick={() => void signOut()} aria-label="Se déconnecter">
+          <Button variant="ghost" size="icon" onClick={() => void logout()} aria-label="Se déconnecter">
             <LogOut />
           </Button>
         </div>
@@ -70,7 +76,7 @@ export function Layout() {
         <Brand />
         <div className="flex items-center gap-1">
           <NotificationsButton notifications={notifications} size="icon-lg" />
-          <Button variant="ghost" size="icon-lg" onClick={() => void signOut()} aria-label="Se déconnecter">
+          <Button variant="ghost" size="icon-lg" onClick={() => void logout()} aria-label="Se déconnecter">
             <LogOut />
           </Button>
         </div>

@@ -41,7 +41,7 @@ describe('WeightPage', () => {
     expect(within(lucile).getByText('vs pesée précédente')).toBeInTheDocument()
     expect(within(lucile).getByText('sur 1 an')).toBeInTheDocument()
     expect(within(lucile).getByText('+4,1 kg')).toBeInTheDocument()
-    expect(within(lucile).getByText('Min 60,9 kg · Max 65,0 kg')).toBeInTheDocument()
+    expect(lucile).toHaveTextContent('Min 60,9 kg · Max 65,0 kg')
 
     const eric = screen.getByRole('article', { name: 'Eric' })
     expect(within(eric).getByText('72,7 kg')).toBeInTheDocument()

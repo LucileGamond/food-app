@@ -68,8 +68,10 @@ export function RecipePicker({ recipes, value, onChange, invalid }: Props) {
                 className="sr-only"
               />
               <BookmarkCheck className={cn('size-4 shrink-0', value === recipe.id ? 'text-brand' : 'text-muted-foreground')} aria-hidden />
-              <span className="flex-1 truncate">{recipe.title}</span>
-              {recipe.tags.length > 0 && <span className="truncate text-xs text-muted-foreground">{recipe.tags.join(' · ')}</span>}
+              <span className="min-w-0 flex-1">
+                <span className="block truncate">{recipe.title}</span>
+                {recipe.tags.length > 0 && <span className="block truncate text-xs font-normal text-muted-foreground">{recipe.tags.join(' · ')}</span>}
+              </span>
             </label>
           ))
         )}

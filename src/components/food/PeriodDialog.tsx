@@ -38,7 +38,7 @@ export function PeriodDialog({ open, onOpenChange, periods, today, onSubmit }: P
   return (
     <Dialog open={open} onOpenChange={(next) => !saving && onOpenChange(next)}>
       <DialogContent className="sm:max-w-sm">
-        <form onSubmit={handleSubmit} noValidate className="grid gap-5">
+        <form onSubmit={handleSubmit} noValidate className="grid grid-cols-[minmax(0,1fr)] gap-5">
           <DialogHeader>
             <DialogTitle>Nouvelle période</DialogTitle>
             <DialogDescription>Les quotas du plan actuel sont repris pour toute la période.</DialogDescription>

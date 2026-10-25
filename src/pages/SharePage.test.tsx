@@ -28,7 +28,7 @@ describe('SharePage (partage depuis le téléphone)', () => {
     renderShare('?text=Regarde%20%3A%20https%3A%2F%2Fcuisine.fr%2Ftatin', api)
     expect(await screen.findByText('Écran planning')).toBeInTheDocument()
     expect(api.inbox.addItem).toHaveBeenCalledWith({ url: 'https://cuisine.fr/tatin', title: 'cuisine.fr' })
-    await waitFor(() => expect(api.inbox.renameItem).toHaveBeenCalledWith('new-item', 'Tarte tatin'))
+    await waitFor(() => expect(api.inbox.renameItem).toHaveBeenCalledWith('new-item', 'Tarte tatin', 'cuisine.fr'))
   })
 
   it('ajoute un texte sans lien comme une idée', async () => {

@@ -51,7 +51,8 @@ export type RecipeFormErrors = Partial<Record<'title' | 'servings' | 'url' | 'in
 
 /** « 1,5 » / « 1.5 » / « 2 » → nombre ; vide → null ; invalide → NaN. */
 export function parseQuantity(raw: string): number | null {
-  const value = raw.trim().replace(',', '.')
+  // Espaces de milliers (« 1 500 », espace fine insécable de toLocaleString) ignorées.
+  const value = raw.replace(/[\s  ]/g, '').replace(',', '.')
   if (value === '') return null
   if (!/^\d+(\.\d+)?$/.test(value)) return Number.NaN
   return Number(value)
@@ -109,7 +110,7 @@ export function validateRecipeForm(values: RecipeFormValues): RecipeFormErrors {
   if (values.title.trim() === '') errors.title = 'Le titre est obligatoire'
 
   const servings = values.servings.trim()
-  if (servings !== '' && !(/^\d+$/.test(servings) && Number(servings) > 0)) {
+  if (servings !== '' && !(/^\d+$/.test(servings) && Number(servings) > 0 && Number(servings) <= SERVINGS_MAX)) {
     errors.servings = 'Nombre de portions invalide'
   }
 
@@ -273,7 +274,7 @@ export function normalizeIngredientUnit(ingredient: Ingredient): Ingredient {
 export function importedToFormValues(imported: ImportedRecipe, url: string): RecipeFormValues {
   return recipeToFormValues({
     title: imported.title,
-    servings: imported.servings,
+    servings: imported.servings !== null && imported.servings <= SERVINGS_MAX ? imported.servings : null,
     notes: imported.steps || null,
     url,
     tags: normalizeTags(imported.tags),

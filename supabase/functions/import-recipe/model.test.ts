@@ -141,7 +141,7 @@ describe('extractRecipe', () => {
       502,
       'a échoué (404 – not_found_error : model: inconnu)',
     ],
-    [new Response(JSON.stringify({ content: [{ type: 'text', text: 'non' }], stop_reason: 'max_tokens' }), { status: 200 }), 502, 'sans recette : max_tokens'],
+    [new Response(JSON.stringify({ content: [{ type: 'text', text: 'non' }], stop_reason: 'max_tokens' }), { status: 200 }), 502, '(réponse trop longue)'],
     [new Response(JSON.stringify({ content: [] }), { status: 200 }), 502, '(réponse sans recette)'],
   ])('traduit les erreurs de l’API (%#)', async (response, status, message) => {
     const promise = extractRecipe(TEXT, 'https://e.fr', [], { apiKey: 'k', fetch: fakeFetch(response) })

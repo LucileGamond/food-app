@@ -144,7 +144,9 @@ function finalize(lines: DraftLine[]): DraftLine[] {
       const amounts = others.map((o) => formatAmount({ quantity: purchaseQuantity(o.quantity, o.unit), unit: o.unit }) || 'sans quantité')
       issues.push({ kind: 'mixed-units', text: `aussi ${amounts.join(', ')}`, meal: '' })
     }
-    return { ...line, quantity: purchaseQuantity(line.quantity, line.unit), issues }
+    const quantity = purchaseQuantity(line.quantity, line.unit)
+    // Bornes de la base (0 < quantité < 100 000) : une petite quantité adaptée à 1 personne ne tombe jamais à 0.
+    return { ...line, quantity: quantity === null ? null : Math.min(Math.max(quantity, 0.01), 99_999), issues }
   })
 }
 

@@ -64,7 +64,8 @@ export function useInbox(api: Api): InboxState {
           void api.inbox.fetchTitle(input.url).then(async (title) => {
             if (!title || title === siteName(input.url)) return
             try {
-              await api.inbox.renameItem(id, title)
+              // Seulement si le titre provisoire n'a pas été modifié à la main entre-temps.
+              await api.inbox.renameItem(id, title, input.title)
               await reload()
             } catch {
               // Le titre provisoire reste : rien de bloquant.

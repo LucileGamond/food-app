@@ -94,6 +94,15 @@ describe('import-recipe', () => {
     expect(await call(handle, { url: 'https://exemple.fr/piege' })).toMatchObject({ status: 400, body: { error: 'Adresse non autorisée.' } })
   })
 
+  it('refuse un nom de domaine qui pointe vers le réseau local', async () => {
+    const { deps } = setup()
+    const resolveDns = vi.fn(async (host: string, type: 'A' | 'AAAA') => (type === 'A' && host === 'piege.exemple.fr' ? ['169.254.169.254'] : []))
+    const handle = createHandler({ ...deps, resolveDns })
+    expect(await call(handle, { url: 'https://piege.exemple.fr/recette' })).toMatchObject({ status: 400, body: { error: 'Adresse non autorisée.' } })
+    expect(deps.fetchPage).not.toHaveBeenCalled()
+    expect(await call(handle, { url: 'https://piege.exemple.fr/recette', mode: 'title' })).toMatchObject({ status: 400 })
+  })
+
   it('limite le nombre de redirections', async () => {
     const loop = () => new Response(null, { status: 302, headers: { location: 'https://exemple.fr/boucle' } })
     const { handle } = setup({ 'https://exemple.fr/boucle': loop })

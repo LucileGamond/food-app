@@ -76,7 +76,7 @@ export function MealDialog({ open, onOpenChange, target, meal, profiles, current
   return (
     <Dialog open={open} onOpenChange={(next) => !saving && onOpenChange(next)}>
       <DialogContent className="max-h-[calc(100dvh-2rem)] overflow-y-auto sm:max-w-lg">
-        <form onSubmit={handleSubmit} noValidate className="grid gap-5">
+        <form onSubmit={handleSubmit} noValidate className="grid grid-cols-[minmax(0,1fr)] gap-5">
           <DialogHeader>
             <DialogTitle>{meal ? 'Modifier le repas' : 'Ajouter un repas'}</DialogTitle>
             <DialogDescription className="flex flex-wrap gap-2 pt-1">

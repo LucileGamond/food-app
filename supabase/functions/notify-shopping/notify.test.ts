@@ -1,5 +1,5 @@
-import { createHandler, notifyPending, type Deps, type DeviceSubscription } from './handler.ts'
-import { buildShoppingMessage, joinFr, QUIET_MS, readyGroups, type ShoppingEvent, type ShoppingEventKind } from './message.ts'
+import { createHandler, notifyPending, sameSecret, type Deps, type DeviceSubscription } from './handler.ts'
+import { buildShoppingMessage, joinFr, QUIET_MS, readyGroups, shorten, type ShoppingEvent, type ShoppingEventKind } from './message.ts'
 
 const NOW = Date.parse('2026-10-25T12:00:00Z')
 const minutesAgo = (n: number) => new Date(NOW - n * 60_000).toISOString()
@@ -102,6 +102,18 @@ describe('envoi', () => {
     expect(deps.markNotified).toHaveBeenCalled()
   })
 
+  it('n’essaie plus un appareil expiré, et le retire même si un groupe échoue ensuite', async () => {
+    const deps = setup(
+      [event('ADDED', 'Farine'), event('ADDED', 'Pain', { list_id: 'l2', list_name: 'Apéro' }), event('ADDED', 'Vin', { list_id: 'l3', list_name: 'Fête' })],
+      { lucile: [device('a')] },
+    )
+    deps.send.mockResolvedValueOnce('gone')
+    deps.markNotified.mockResolvedValueOnce(undefined).mockRejectedValueOnce(new Error('base indisponible'))
+    await expect(notifyPending(deps)).rejects.toThrow('base indisponible')
+    expect(deps.send).toHaveBeenCalledTimes(1)
+    expect(deps.deleteSubscriptions).toHaveBeenCalledWith(['a'])
+  })
+
   it('ne fait rien tant que l’autre est en train d’écrire', async () => {
     const deps = setup([event('ADDED', 'Farine', { created_at: minutesAgo(1) })], { lucile: [device('a')] })
     expect(await notifyPending(deps)).toEqual({ groups: 0, sent: 0, failed: 0, removed: 0 })
@@ -134,5 +146,29 @@ describe('handler', () => {
     const failed = await createHandler(deps)(post('secret-cron'))
     expect(failed.status).toBe(500)
     expect(deps.log).toHaveBeenCalledWith('notifications en erreur', expect.anything())
+  })
+})
+
+describe('robustesse', () => {
+  it('compare le secret en entier', () => {
+    expect(sameSecret('secret', 'secret')).toBe(true)
+    expect(sameSecret('secreT', 'secret')).toBe(false)
+    expect(sameSecret('secret-plus-long', 'secret')).toBe(false)
+    expect(sameSecret(null, 'secret')).toBe(false)
+  })
+
+  it('borne la taille du message', () => {
+    expect(shorten('abc', 5)).toBe('abc')
+    expect(shorten('abcdefgh', 5)).toBe('abcd…')
+    const long = 'x'.repeat(120)
+    const message = buildShoppingMessage({
+      list_id: 'l1',
+      list_name: 'L'.repeat(100),
+      actor_id: 'eric',
+      actor_name: 'Eric',
+      events: [event('ADDED', long), event('CHECKED', long), event('REMOVED', long), event('UPDATED', long), event('UNCHECKED', long)],
+    })
+    expect(message.title.length).toBeLessThanOrEqual(80)
+    expect(message.body.length).toBeLessThanOrEqual(300)
   })
 })

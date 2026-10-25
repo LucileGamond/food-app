@@ -25,14 +25,18 @@ self.addEventListener('push', (event) => {
 
 self.addEventListener('notificationclick', (event) => {
   event.notification.close()
-  const url = new URL(event.notification.data?.url || '/courses', self.location.origin).href
+  // Uniquement une page de l'application (jamais une adresse externe).
+  const target = new URL(event.notification.data?.url || '/courses', self.location.origin)
+  const url = target.origin === self.location.origin ? target.href : new URL('/courses', self.location.origin).href
   event.waitUntil(
     self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((windows) => {
       const existing = windows.find((w) => new URL(w.url).origin === self.location.origin)
-      if (existing) {
-        return existing.focus().then((w) => (w && 'navigate' in w ? w.navigate(url) : undefined))
-      }
-      return self.clients.openWindow(url)
+      if (!existing) return self.clients.openWindow(url)
+      // Une fenêtre non contrôlée par ce service worker refuse navigate() : on en ouvre une nouvelle.
+      return existing
+        .focus()
+        .then((w) => (w && 'navigate' in w ? w.navigate(url) : self.clients.openWindow(url)))
+        .catch(() => self.clients.openWindow(url))
     }),
   )
 })

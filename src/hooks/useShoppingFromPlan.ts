@@ -190,21 +190,31 @@ export function useShoppingFromPlan(api: Api): ShoppingFromPlanState {
     async (destination: Destination): Promise<ShoppingFromPlanResult | null> => {
       const inputs = lines.filter((l) => l.include).map(toItemInput)
       setSubmitting(true)
+      let created: string | null = null
+      let written = false
       try {
         let listId: string
         if (destination.kind === 'new') {
-          listId = await api.shopping.createList(destination.name)
+          listId = created = await api.shopping.createList(destination.name)
           await api.shopping.addItems(listId, inputs, 0)
         } else {
           listId = destination.listId
           const items = await api.shopping.listItems(listId)
           const { updates, additions } = mergeIntoList(items, inputs)
+          written = true
           await Promise.all(updates.map((u) => api.shopping.updateItem(u.item.id, { quantity: u.quantity })))
           await api.shopping.addItems(listId, additions, nextPosition(items))
         }
         return { listId, count: inputs.length, skipped: [...skipped, ...lineEntries(lines)] }
       } catch (error) {
+        // Nouvelle liste restée vide : supprimée, pour qu'un nouvel essai ne crée pas de doublon.
+        if (created) await api.shopping.deleteList(created).catch(() => undefined)
         toast.error(errorMessage(error))
+        // Liste existante complétée en partie : on l'ouvre pour vérifier, plutôt que de tout réadditionner.
+        if (written && destination.kind === 'existing') {
+          toast.error('La liste a été complétée en partie : vérifie-la avant de réessayer.')
+          return { listId: destination.listId, count: 0, skipped: [] }
+        }
         return null
       } finally {
         setSubmitting(false)

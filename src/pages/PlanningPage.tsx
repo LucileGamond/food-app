@@ -11,6 +11,7 @@ import {
 } from '@dnd-kit/core'
 import { CalendarPlus, ChevronLeft, ChevronRight, Copy, MoveRight, RefreshCw, ShoppingCart } from 'lucide-react'
 import { useCallback, useMemo, useState } from 'react'
+import { useToday } from '@/hooks/useToday'
 import { useNavigate } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -27,7 +28,7 @@ import { useApi } from '@/app/ApiContext'
 import { useAuth } from '@/auth/AuthProvider'
 import { useInbox } from '@/hooks/useInbox'
 import { PLANNING_DAYS, usePlanning } from '@/hooks/usePlanning'
-import { addDays, formatDay, formatRange, nextDays, todayIso, type IsoDate } from '@/lib/dates'
+import { addDays, formatDay, formatRange, nextDays, type IsoDate } from '@/lib/dates'
 import type { InboxItem } from '@/lib/inbox'
 import {
   dropTarget,
@@ -56,7 +57,8 @@ interface MealDragState {
 
 type DragState = MealDragState | InboxDragData
 
-export function PlanningPage({ today = todayIso() }: { today?: IsoDate }) {
+export function PlanningPage({ today: fixedToday }: { today?: IsoDate }) {
+  const today = useToday(fixedToday)
   const api = useApi()
   const navigate = useNavigate()
   const { profiles, userId } = useAuth()
@@ -182,7 +184,7 @@ export function PlanningPage({ today = todayIso() }: { today?: IsoDate }) {
 
       {!planning.loadError && (
         <DndContext sensors={sensors} collisionDetection={pointerWithin} onDragStart={handleDragStart} onDragEnd={handleDragEnd} onDragCancel={() => setDrag(null)}>
-          <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_17rem] lg:items-start lg:gap-6">
+          <div className="grid grid-cols-[minmax(0,1fr)] gap-4 lg:grid-cols-[minmax(0,1fr)_17rem] lg:items-start lg:gap-6">
             <div className="lg:order-last">
               <InboxPanel inbox={inbox} onPlan={(item) => setDialog({ kind: 'plan', item })} onRename={(item) => setDialog({ kind: 'rename', item })} />
             </div>
@@ -193,7 +195,7 @@ export function PlanningPage({ today = todayIso() }: { today?: IsoDate }) {
                 ))}
               </div>
             ) : (
-              <div className="grid gap-4">
+              <div className="grid grid-cols-[minmax(0,1fr)] gap-4">
                 {days.map((date) => (
                   <DayCard
                     key={date}

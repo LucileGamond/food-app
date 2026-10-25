@@ -1,5 +1,6 @@
 import { BellRing, Plus, RefreshCw, Scale } from 'lucide-react'
 import { useMemo, useState } from 'react'
+import { useToday } from '@/hooks/useToday'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { ConfirmDialog } from '@/components/ConfirmDialog'
@@ -11,7 +12,7 @@ import { useApi } from '@/app/ApiContext'
 import { useAuth } from '@/auth/AuthProvider'
 import { useWeights } from '@/hooks/useWeights'
 import type { ChartSeries } from '@/lib/chart'
-import { formatFullDate, todayIso, type IsoDate } from '@/lib/dates'
+import { formatFullDate, type IsoDate } from '@/lib/dates'
 import { cn } from '@/lib/utils'
 import {
   PERIODS,
@@ -36,9 +37,8 @@ type DialogState = { kind: 'none' } | { kind: 'form'; row: WeighInRow | null } |
 function Delta({ value, label }: { value: number | null; label: string }) {
   if (value === null) return null
   return (
-    <span className="inline-flex items-baseline gap-1 text-xs text-muted-foreground">
-      <span className="font-medium text-foreground tabular-nums">{formatDeltaKg(value)}</span>
-      {label}
+    <span className="text-xs text-muted-foreground">
+      <span className="font-medium whitespace-nowrap text-foreground tabular-nums">{formatDeltaKg(value)}</span> {label}
     </span>
   )
 }
@@ -64,7 +64,7 @@ function SummaryCard({ summary, color, periodLabel }: { summary: PersonSummary; 
           </div>
           {summary.min !== null && summary.max !== null && summary.min !== summary.max && (
             <p className="mt-1 text-xs text-muted-foreground">
-              Min {formatKg(summary.min)} · Max {formatKg(summary.max)}
+              <span className="whitespace-nowrap">Min {formatKg(summary.min)}</span> · <span className="whitespace-nowrap">Max {formatKg(summary.max)}</span>
             </p>
           )}
         </>
@@ -75,7 +75,8 @@ function SummaryCard({ summary, color, periodLabel }: { summary: PersonSummary; 
   )
 }
 
-export function WeightPage({ today = todayIso() }: { today?: IsoDate }) {
+export function WeightPage({ today: fixedToday }: { today?: IsoDate }) {
+  const today = useToday(fixedToday)
   const api = useApi()
   const { profiles } = useAuth()
   const weights = useWeights(api)

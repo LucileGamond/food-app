@@ -104,6 +104,11 @@ describe('buildDraft', () => {
     ])
   })
 
+  it('ne descend jamais à 0 pour une petite quantité adaptée à une personne', () => {
+    const [line] = buildDraft([source(GRATIN, 8, [ing('vanille liquide', 0.02, 'l')])])
+    expect(line!.quantity).toBe(0.01)
+  })
+
   it('ne compte qu’une fois un repas qui utilise deux fois le même ingrédient', () => {
     const [line] = buildDraft([source(GRATIN, null, [ing('beurre', 20, 'g'), ing('beurre', 30, 'g')])])
     expect(line).toMatchObject({ quantity: 50, meals: ['Gratin'] })

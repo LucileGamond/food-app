@@ -39,6 +39,9 @@ describe('quantités', () => {
   it('parse les formats français et anglais', () => {
     expect(parseQuantity('1,5')).toBe(1.5)
     expect(parseQuantity(' 2 ')).toBe(2)
+    // Valeur réaffichée dans un formulaire : « 1 500 » (espace fine insécable)
+    expect(parseQuantity(formatQuantity(1500))).toBe(1500)
+    expect(parseQuantity('1 250,5')).toBe(1250.5)
     expect(parseQuantity('0.25')).toBe(0.25)
     expect(parseQuantity('')).toBeNull()
     expect(parseQuantity('beaucoup')).toBeNaN()

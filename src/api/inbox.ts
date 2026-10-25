@@ -20,8 +20,11 @@ export function createInboxApi(db: AppSupabaseClient) {
       return data
     },
 
-    async renameItem(id: string, title: string): Promise<void> {
-      const { error } = await db.from('planning_inbox').update({ title: title.trim() }).eq('id', id)
+    /** Renomme ; avec `ifTitle`, seulement si le titre n'a pas changé entre-temps (renommage à la main). */
+    async renameItem(id: string, title: string, ifTitle?: string): Promise<void> {
+      let query = db.from('planning_inbox').update({ title: title.trim().slice(0, 200) }).eq('id', id)
+      if (ifTitle !== undefined) query = query.eq('title', ifTitle)
+      const { error } = await query
       if (error) throw toAppError(error, 'Impossible de renommer.')
     },
 

@@ -92,11 +92,14 @@ export function usePlanning(api: Api, start: IsoDate): PlanningState {
   const moveMeal = useCallback(
     async (meal: Meal, target: SlotRef) => {
       if (!isMoveNeeded(meal, target)) return
-      const previous = meals
       setMeals((list) => list.map((m) => (m.id === meal.id ? { ...m, meal_date: target.date, slot: target.slot } : m)))
-      await run(() => api.meals.moveMeal(meal.id, target.date, target.slot), () => setMeals(previous))
+      // Retour arrière de ce repas seulement : un autre déplacement a pu avoir lieu entre-temps.
+      await run(
+        () => api.meals.moveMeal(meal.id, target.date, target.slot),
+        () => setMeals((list) => list.map((m) => (m.id === meal.id ? { ...m, meal_date: meal.meal_date, slot: meal.slot } : m))),
+      )
     },
-    [api, meals, run],
+    [api, run],
   )
 
   const duplicateMeal = useCallback(
@@ -108,11 +111,13 @@ export function usePlanning(api: Api, start: IsoDate): PlanningState {
 
   const deleteMeal = useCallback(
     async (meal: Meal) => {
-      const previous = meals
       setMeals((list) => list.filter((m) => m.id !== meal.id))
-      await run(() => api.meals.deleteMeal(meal.id), () => setMeals(previous))
+      await run(
+        () => api.meals.deleteMeal(meal.id),
+        () => setMeals((list) => (list.some((m) => m.id === meal.id) ? list : [...list, meal])),
+      )
     },
-    [api, meals, run],
+    [api, run],
   )
 
   return { meals, loading, loadError, busy: pending > 0, reload, createMeal, updateMeal, moveMeal, duplicateMeal, deleteMeal }

@@ -35,7 +35,7 @@ export function SharePage() {
         // Titre partagé absent : celui de la page est récupéré en arrière-plan (le planning se met à jour en direct).
         if (input.kind === 'link' && !params.get('title')?.trim()) {
           void api.inbox.fetchTitle(input.url).then(async (title) => {
-            if (title) await api.inbox.renameItem(id, title).catch(() => undefined)
+            if (title) await api.inbox.renameItem(id, title, input.title).catch(() => undefined)
           })
         }
         finish()

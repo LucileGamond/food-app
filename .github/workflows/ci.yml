@@ -7,7 +7,9 @@ on:
 
 concurrency:
   group: ci-${{ github.ref }}
-  cancel-in-progress: true
+  # Sur main, un nouveau push attend la fin du précédent : un déploiement n'est jamais coupé en plein milieu
+  # (migrations appliquées mais fonctions pas encore déployées).
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   test:
@@ -30,7 +32,7 @@ jobs:
 
       - uses: supabase/setup-cli@v1
         with:
-          version: latest
+          version: 2.121.0
       - name: Démarrer Supabase en local
         run: supabase start -x studio,imgproxy,logflare,vector,supavisor
       - run: npm run test:db
@@ -63,7 +65,7 @@ jobs:
 
       - uses: supabase/setup-cli@v1
         with:
-          version: latest
+          version: 2.121.0
       - name: Appliquer les migrations sur la base de prod
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}

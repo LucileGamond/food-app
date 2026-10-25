@@ -129,6 +129,29 @@ describe('notifications de l’application', () => {
     expect(screen.queryByRole('region', { name: 'Activer les notifications' })).not.toBeInTheDocument()
   })
 
+  it('à la déconnexion, l’appareil ne reçoit plus les notifications du compte', async () => {
+    const user = userEvent.setup()
+    const api = fakeApi()
+    vi.mocked(currentDevicePush).mockResolvedValue(DEVICE)
+    api.push.isSubscribed.mockResolvedValue(true)
+    const { auth } = renderLayout(api)
+    await bell()
+    await user.click(screen.getAllByRole('button', { name: 'Se déconnecter' })[0]!)
+    await waitFor(() => expect(auth.signOut).toHaveBeenCalled())
+    expect(api.push.deleteSubscription).toHaveBeenCalledWith(DEVICE.endpoint)
+  })
+
+  it('se déconnecte même si l’abonnement ne peut pas être retiré', async () => {
+    const user = userEvent.setup()
+    const api = fakeApi()
+    vi.mocked(currentDevicePush).mockResolvedValue(DEVICE)
+    api.push.deleteSubscription.mockRejectedValueOnce(new AppError('Hors ligne'))
+    const { auth } = renderLayout(api)
+    await bell()
+    await user.click(screen.getAllByRole('button', { name: 'Se déconnecter' })[0]!)
+    await waitFor(() => expect(auth.signOut).toHaveBeenCalled())
+  })
+
   it('considère l’appareil non abonné si la vérification échoue', async () => {
     const api = fakeApi()
     vi.mocked(currentDevicePush).mockResolvedValue(DEVICE)

@@ -71,7 +71,7 @@ export function PlanItemDialog({ open, onOpenChange, editing, defaults, items, o
   return (
     <Dialog open={open} onOpenChange={(next) => !saving && onOpenChange(next)}>
       <DialogContent className="max-h-[calc(100dvh-2rem)] overflow-y-auto sm:max-w-md">
-        <form onSubmit={handleSubmit} noValidate className="grid gap-4">
+        <form onSubmit={handleSubmit} noValidate className="grid grid-cols-[minmax(0,1fr)] gap-4">
           <DialogHeader>
             <DialogTitle>{editing ? "Modifier l'aliment" : 'Ajouter un aliment'}</DialogTitle>
             <DialogDescription>Les changements s'appliquent aux prochaines périodes.</DialogDescription>

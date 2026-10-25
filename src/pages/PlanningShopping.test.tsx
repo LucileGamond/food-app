@@ -170,6 +170,18 @@ describe('PlanningPage — liste de courses depuis le planning', () => {
     expect(api.shopping.createList).not.toHaveBeenCalled()
   })
 
+  it('ouvre une liste existante complétée en partie, pour la vérifier', async () => {
+    const api = fakeApi()
+    api.shopping.listLists.mockResolvedValue([{ id: 'l1', name: 'Marché', updated_at: '2026-10-19T10:00:00Z', total: 0, checked: 0 }])
+    api.shopping.addItems.mockRejectedValueOnce(new AppError("Impossible d'ajouter les articles."))
+    const { user } = setup([TARTIFLETTE], api)
+    const dialog = await preview(user)
+    await user.click(within(dialog).getByRole('radio', { name: 'Compléter une liste' }))
+    await user.click(within(dialog).getByRole('button', { name: /^Ajouter \(/ }))
+    expect(await screen.findByText('La liste a été complétée en partie : vérifie-la avant de réessayer.')).toBeInTheDocument()
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Liste de courses' })).not.toBeInTheDocument())
+  })
+
   it('permet de corriger ou retirer un article de l’aperçu, et de revenir aux repas', async () => {
     const { user, api } = setup([TARTIFLETTE])
     const dialog = await preview(user)
@@ -231,6 +243,13 @@ describe('PlanningPage — liste de courses depuis le planning', () => {
     api.shopping.createList.mockRejectedValueOnce(new AppError('Impossible de créer la liste.'))
     await user.click(await within(dialog).findByRole('button', { name: /Créer la liste/ }))
     expect(await screen.findByText('Impossible de créer la liste.')).toBeInTheDocument()
+    expect(screen.getByRole('dialog', { name: 'Liste de courses' })).toBeInTheDocument()
+
+    // Liste créée mais articles refusés : la liste vide est supprimée (pas de doublon au nouvel essai).
+    api.shopping.addItems.mockRejectedValueOnce(new AppError("Impossible d'ajouter les articles."))
+    await user.click(within(dialog).getByRole('button', { name: /Créer la liste/ }))
+    expect((await screen.findAllByText("Impossible d'ajouter les articles.")).length).toBeGreaterThan(0)
+    expect(api.shopping.deleteList).toHaveBeenCalledWith('new-list')
     expect(screen.getByRole('dialog', { name: 'Liste de courses' })).toBeInTheDocument()
   })
 

@@ -20,6 +20,13 @@ export interface ShoppingListState {
 
 const TEMP_PREFIX = 'tmp-'
 
+/** Article tout juste ajouté, pas encore enregistré (identifiant provisoire) : on attend avant de le modifier. */
+function isSaving(item: ShoppingItem): boolean {
+  if (!item.id.startsWith(TEMP_PREFIX)) return false
+  toast.info('Enregistrement en cours, réessaie dans un instant')
+  return true
+}
+
 /**
  * Une liste de courses et ses articles. Toutes les écritures sont optimistes (au magasin, cocher doit
  * être instantané) ; un rechargement temps réel pendant une écriture est reporté à la fin de celle-ci.
@@ -77,6 +84,11 @@ export function useShoppingList(api: Api, listId: string): ShoppingListState {
     }
   }, [api, reload])
 
+  const latestReload = useRef(reload)
+  useEffect(() => {
+    latestReload.current = reload
+  })
+
   /** Écriture optimiste : `apply` tout de suite, `rollback` si le serveur refuse. */
   const write = useCallback(
     async (apply: () => void, action: () => Promise<void>, rollback: () => void): Promise<boolean> => {
@@ -93,11 +105,12 @@ export function useShoppingList(api: Api, listId: string): ShoppingListState {
         pending.current -= 1
         if (pending.current === 0 && reloadDeferred.current) {
           reloadDeferred.current = false
-          void reload()
+          // Le dernier reload : la liste (ou la personne) a pu changer pendant l'écriture.
+          void latestReload.current()
         }
       }
     },
-    [reload],
+    [],
   )
 
   const patchItem = (id: string, patch: Partial<ShoppingItem>) => setItems((list) => list.map((i) => (i.id === id ? { ...i, ...patch } : i)))
@@ -147,17 +160,20 @@ export function useShoppingList(api: Api, listId: string): ShoppingListState {
   )
 
   const update = useCallback(
-    (item: ShoppingItem, input: ShoppingItemInput) =>
-      write(
+    async (item: ShoppingItem, input: ShoppingItemInput) => {
+      if (isSaving(item)) return false
+      return write(
         () => patchItem(item.id, input),
         () => api.shopping.updateItem(item.id, input),
         () => patchItem(item.id, item),
-      ),
+      )
+    },
     [api, write],
   )
 
   const remove = useCallback(
     async (item: ShoppingItem) => {
+      if (isSaving(item)) return
       await write(
         () => setItems((list) => list.filter((i) => i.id !== item.id)),
         () => api.shopping.deleteItem(item.id),

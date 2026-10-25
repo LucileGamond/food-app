@@ -39,7 +39,7 @@ export function ItemDialog({ item, onOpenChange, onSubmit, onDelete }: Props) {
   return (
     <Dialog open={item !== null} onOpenChange={(next) => !saving && onOpenChange(next)}>
       <DialogContent className="sm:max-w-sm">
-        <form onSubmit={handleSubmit} noValidate className="grid gap-4">
+        <form onSubmit={handleSubmit} noValidate className="grid grid-cols-[minmax(0,1fr)] gap-4">
           <DialogHeader>
             <DialogTitle>Modifier l'article</DialogTitle>
           </DialogHeader>

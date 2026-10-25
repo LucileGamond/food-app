@@ -87,6 +87,11 @@ export function useFoodTracking(api: Api, profileId: string | null, today: IsoDa
     }
   }, [api, reload])
 
+  const latestReload = useRef(reload)
+  useEffect(() => {
+    latestReload.current = reload
+  })
+
   const write = useCallback(
     async (action: () => Promise<void>) => {
       pending.current += 1
@@ -96,11 +101,12 @@ export function useFoodTracking(api: Api, profileId: string | null, today: IsoDa
         pending.current -= 1
         if (pending.current === 0 && reloadDeferred.current) {
           reloadDeferred.current = false
-          void reload()
+          // Le dernier reload : la liste (ou la personne) a pu changer pendant l'écriture.
+          void latestReload.current()
         }
       }
     },
-    [reload],
+    [],
   )
 
   const add = useCallback(

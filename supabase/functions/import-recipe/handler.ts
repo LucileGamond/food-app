@@ -10,7 +10,7 @@
 import { CORS_HEADERS, json } from '../_shared/anthropic.ts'
 import { extractPage, MIN_TEXT_CHARS } from './extract.ts'
 import { extractRecipe, ImportError, type ImportedRecipe, type ModelUsage } from './model.ts'
-import { checkPublicUrl } from './url.ts'
+import { checkPublicUrl, resolvesToPublic, type ResolveDns } from './url.ts'
 
 export { CORS_HEADERS }
 
@@ -34,15 +34,25 @@ export interface Deps {
   /** fetch utilisé pour l'API du modèle. */
   fetchModel: typeof fetch
   log?: (message: string, data?: Record<string, unknown>) => void
+  /** Résolution DNS (Deno.resolveDns) : refuse les noms qui pointent vers une adresse privée. */
+  resolveDns?: ResolveDns
   /** Vrai si l'en-tête Authorization correspond à un utilisateur connecté. */
   isSignedIn: (authorization: string | null) => Promise<boolean>
 }
 
 /** Télécharge une ressource publique : redirections vérifiées une à une, taille et durée bornées. */
-async function download(rawUrl: string, accept: string, maxBytes: number, doFetch: typeof fetch): Promise<{ url: URL; type: string; bytes: Uint8Array }> {
+async function download(
+  rawUrl: string,
+  accept: string,
+  maxBytes: number,
+  doFetch: typeof fetch,
+  resolve?: ResolveDns,
+): Promise<{ url: URL; type: string; bytes: Uint8Array }> {
   let check = checkPublicUrl(rawUrl)
   for (let hop = 0; ; hop++) {
     if (!check.ok) throw new ImportError(check.reason, 400)
+    // Nom d'hôte qui pointe vers une adresse privée (vérifié à chaque redirection).
+    if (resolve && !(await resolvesToPublic(check.url.hostname, resolve))) throw new ImportError('Adresse non autorisée.', 400)
     let response: Response
     try {
       response = await doFetch(check.url.href, {
@@ -58,11 +68,15 @@ async function download(rawUrl: string, accept: string, maxBytes: number, doFetc
       throw new ImportError('Impossible de joindre ce site.', 502)
     }
     if (response.status >= 300 && response.status < 400 && response.headers.get('location')) {
+      void response.body?.cancel().catch(() => undefined)
       if (hop >= MAX_REDIRECTS) throw new ImportError('Trop de redirections.', 502)
       check = checkPublicUrl(response.headers.get('location'), check.url)
       continue
     }
-    if (!response.ok) throw new ImportError(`Le site a répondu par une erreur (${response.status}).`, 502)
+    if (!response.ok) {
+      void response.body?.cancel().catch(() => undefined)
+      throw new ImportError(`Le site a répondu par une erreur (${response.status}).`, 502)
+    }
     const length = Number(response.headers.get('content-length') ?? 0)
     if (length > maxBytes) throw new ImportError('La page est trop volumineuse.', 413)
 
@@ -108,10 +122,10 @@ function toBase64(bytes: Uint8Array): string {
 }
 
 /** Photo de la recette : facultative, une erreur ne fait jamais échouer l'import. */
-async function downloadImage(url: string | null, doFetch: typeof fetch): Promise<ImportResult['image']> {
+async function downloadImage(url: string | null, doFetch: typeof fetch, resolve?: ResolveDns): Promise<ImportResult['image']> {
   if (!url) return null
   try {
-    const image = await download(url, IMAGE_TYPES.join(','), MAX_IMAGE_BYTES, doFetch)
+    const image = await download(url, IMAGE_TYPES.join(','), MAX_IMAGE_BYTES, doFetch, resolve)
     const type = image.type.split(';')[0]!.trim().toLowerCase()
     if (!IMAGE_TYPES.includes(type) || image.bytes.length === 0) return null
     return { data: toBase64(image.bytes), type }
@@ -127,7 +141,7 @@ export async function importRecipe(body: unknown, deps: Deps): Promise<ImportRes
   const knownTags = Array.isArray(input.knownTags) ? input.knownTags.filter((t): t is string => typeof t === 'string').map((t) => t.slice(0, 30)) : []
   if (!deps.apiKey) throw new ImportError('Le service d’analyse est mal configuré.', 500)
 
-  const page = await download(check.url.href, 'text/html,application/xhtml+xml', MAX_PAGE_BYTES, deps.fetchPage)
+  const page = await download(check.url.href, 'text/html,application/xhtml+xml', MAX_PAGE_BYTES, deps.fetchPage, deps.resolveDns)
   if (!/html|xml/i.test(page.type)) throw new ImportError('Cette adresse ne mène pas à une page web.', 415)
   const content = extractPage(decodeHtml(page.bytes, page.type), page.url.href)
   if (!content.structured && content.text.length < MIN_TEXT_CHARS) {
@@ -136,17 +150,17 @@ export async function importRecipe(body: unknown, deps: Deps): Promise<ImportRes
 
   const [{ recipe, usage }, image] = await Promise.all([
     extractRecipe(content, page.url.href, knownTags, { apiKey: deps.apiKey, model: deps.model, fetch: deps.fetchModel }),
-    downloadImage(content.imageUrl, deps.fetchPage),
+    downloadImage(content.imageUrl, deps.fetchPage, deps.resolveDns),
   ])
   return { recipe, source: content.structured ? 'structured' : 'text', image, usage }
 }
 
 /** Titre d'une page (liste « À planifier ») : téléchargement et lecture des métadonnées, sans appel au modèle. */
-export async function fetchTitle(body: unknown, deps: Pick<Deps, 'fetchPage'>): Promise<{ title: string | null }> {
+export async function fetchTitle(body: unknown, deps: Pick<Deps, 'fetchPage' | 'resolveDns'>): Promise<{ title: string | null }> {
   const input = (typeof body === 'object' && body !== null ? body : {}) as Record<string, unknown>
   const check = checkPublicUrl(input.url)
   if (!check.ok) throw new ImportError(check.reason, 400)
-  const page = await download(check.url.href, 'text/html,application/xhtml+xml', MAX_PAGE_BYTES, deps.fetchPage)
+  const page = await download(check.url.href, 'text/html,application/xhtml+xml', MAX_PAGE_BYTES, deps.fetchPage, deps.resolveDns)
   if (!/html|xml/i.test(page.type)) return { title: null }
   const title = extractPage(decodeHtml(page.bytes, page.type), page.url.href).title
   return { title: title ? title.replace(/\s+/g, ' ').trim().slice(0, 200) : null }
