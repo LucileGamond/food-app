@@ -3,18 +3,22 @@ name: Garder Supabase actif
 # L'offre gratuite de Supabase met le projet en pause après 7 jours sans activité.
 on:
   schedule:
-    - cron: '0 6 */3 * *'
+    # Jours 1, 7, 13, 19, 25 (et 31) du mois : jamais plus de 6 jours d'écart.
+    - cron: '0 6 */6 * *'
   workflow_dispatch:
 
 jobs:
   ping:
     runs-on: ubuntu-latest
+    # Les secrets Supabase sont rangés dans l'environnement « production » (comme pour le déploiement).
+    environment: production
     steps:
       - name: Requête légère sur l'API
         env:
           URL: ${{ secrets.VITE_SUPABASE_URL }}
           KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
         run: |
+          test -n "$URL" || { echo "::error::Secret VITE_SUPABASE_URL introuvable"; exit 1; }
           status=$(curl -s -o /dev/null -w '%{http_code}' "$URL/rest/v1/" -H "apikey: $KEY")
           echo "HTTP $status"
           test "$status" -lt 500
