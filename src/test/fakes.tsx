@@ -9,6 +9,7 @@ import { AuthProvider, type AuthClient } from '@/auth/AuthProvider'
 import type { Meal, Profile, RecipeSummary } from '@/lib/meals'
 import type { Recipe, RecipeImport } from '@/lib/recipes'
 import type { Consumption, FoodPeriod, PeriodItem, PlanItem } from '@/lib/food'
+import type { InboxItem } from '@/lib/inbox'
 import type { WeightEntry } from '@/lib/weights'
 
 export const LUCILE: Profile = { id: 'u-lucile', display_name: 'Lucile' }
@@ -53,6 +54,15 @@ export function fakeApi(): FakeApi {
       listEntries: vi.fn(async () => [] as WeightEntry[]),
       saveWeighIn: vi.fn(async () => undefined),
       deleteWeighIn: vi.fn(async () => undefined),
+      subscribe: vi.fn(() => () => undefined),
+    },
+    inbox: {
+      listItems: vi.fn(async () => [] as InboxItem[]),
+      addItem: vi.fn(async () => 'new-item'),
+      renameItem: vi.fn(async () => undefined),
+      deleteItem: vi.fn(async () => undefined),
+      planItem: vi.fn(async () => 'planned-meal'),
+      fetchTitle: vi.fn(async () => null as string | null),
       subscribe: vi.fn(() => () => undefined),
     },
     food: {

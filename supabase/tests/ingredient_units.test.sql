@@ -2,6 +2,11 @@ begin;
 create extension if not exists pgtap with schema extensions;
 select plan(11);
 
+-- Tests indépendants des données locales (annulés en fin de transaction)
+delete from public.planning_inbox;
+delete from public.meals;
+delete from public.recipes;
+
 -- Reconnaissance des unités (mêmes règles que src/lib/units.ts)
 select is(public.normalize_unit('Cuillères à soupe'), 'c. à s.', 'variante reconnue');
 select is(public.normalize_unit('pièce'), '', '« pièce » = sans unité');

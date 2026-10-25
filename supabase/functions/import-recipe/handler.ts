@@ -2,6 +2,7 @@
 //
 // POST { url: string, knownTags?: string[] }
 //   → 200 { recipe, source: 'structured' | 'text', image: { data, type } | null }
+// POST { url: string, mode: 'title' } → 200 { title: string | null } (titre de la page seul, sans modèle)
 //   → 4xx/5xx { error: message lisible }
 // La passerelle Supabase vérifie le jeton (verify_jwt), mais accepte aussi la clé publique anonyme :
 // `isSignedIn` vérifie en plus qu'il s'agit d'un utilisateur connecté.
@@ -147,6 +148,17 @@ export async function importRecipe(body: unknown, deps: Deps): Promise<ImportRes
   return { recipe, source: content.structured ? 'structured' : 'text', image, usage }
 }
 
+/** Titre d'une page (liste « À planifier ») : téléchargement et lecture des métadonnées, sans appel au modèle. */
+export async function fetchTitle(body: unknown, deps: Pick<Deps, 'fetchPage'>): Promise<{ title: string | null }> {
+  const input = (typeof body === 'object' && body !== null ? body : {}) as Record<string, unknown>
+  const check = checkPublicUrl(input.url)
+  if (!check.ok) throw new ImportError(check.reason, 400)
+  const page = await download(check.url.href, 'text/html,application/xhtml+xml', MAX_PAGE_BYTES, deps.fetchPage)
+  if (!/html|xml/i.test(page.type)) return { title: null }
+  const title = extractPage(decodeHtml(page.bytes, page.type), page.url.href).title
+  return { title: title ? title.replace(/\s+/g, ' ').trim().slice(0, 200) : null }
+}
+
 export function createHandler(deps: Deps) {
   return async (request: Request): Promise<Response> => {
     if (request.method === 'OPTIONS') return new Response('ok', { headers: CORS_HEADERS })
@@ -160,6 +172,7 @@ export function createHandler(deps: Deps) {
     }
     const started = Date.now()
     try {
+      if ((body as { mode?: unknown } | null)?.mode === 'title') return json(await fetchTitle(body, deps))
       const { usage, ...result } = await importRecipe(body, deps)
       deps.log?.('import réussi', { source: result.source, ms: Date.now() - started, ...usage })
       return json(result)

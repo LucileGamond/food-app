@@ -185,4 +185,17 @@ describe('RecipeDetailPage', () => {
     expect(screen.queryByRole('group', { name: 'Nombre de personnes' })).not.toBeInTheDocument()
     expect(screen.getByText('400 g Pois chiches')).toBeInTheDocument()
   })
+
+  it('ajoute la recette à la liste « À planifier »', async () => {
+    const user = userEvent.setup()
+    const api = fakeApi()
+    api.recipes.getRecipe.mockResolvedValue(CURRY)
+    renderDetail(api)
+    await user.click(await screen.findByRole('button', { name: 'À planifier' }))
+    expect(api.inbox.addItem).toHaveBeenCalledWith({ recipeId: 'r1' })
+    expect(await screen.findByText('Ajoutée à la liste « À planifier »')).toBeInTheDocument()
+    api.inbox.addItem.mockRejectedValueOnce(new AppError('Déjà dans la liste « À planifier ».'))
+    await user.click(screen.getByRole('button', { name: 'À planifier' }))
+    expect(await screen.findByText('Déjà dans la liste « À planifier ».')).toBeInTheDocument()
+  })
 })

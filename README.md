@@ -12,6 +12,11 @@ Application web installable (PWA) pour Lucile et Eric : planning partagé des re
 - **Planning** : 7 jours glissants, créneaux Midi / Soir, plusieurs repas par créneau, pour Lucile et/ou Eric.
   Ajout, modification, suppression (avec confirmation), déplacement et duplication (glisser-déposer ou menu « … »).
   Synchronisation en direct entre les deux comptes.
+- **À planifier** (panneau du planning) : liste partagée de liens, recettes enregistrées et idées à répartir ensuite.
+  Ajout depuis le panneau, depuis la fiche d'une recette (« À planifier »), ou par le menu **Partager** d'Android
+  (l'app installée apparaît comme cible de partage ; le titre de la page est récupéré automatiquement).
+  Un élément se planifie par glisser-déposer sur un créneau ou avec le bouton calendrier (jour, créneau, personnes),
+  puis disparaît de la liste. Un lien déjà enregistré comme recette devient cette recette.
 - **Recettes** :
   - *ponctuelles* : titre, texte libre, lien — saisies directement dans le planning ;
   - *sauvegardées* : ingrédients détaillés, étapes, tags, photos — listées dans l'écran Recettes.

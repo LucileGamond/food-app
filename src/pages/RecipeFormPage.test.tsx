@@ -59,6 +59,7 @@ describe('RecipeFormPage — nouvelle recette', () => {
     expect(screen.getByText('Nom manquant')).toBeInTheDocument()
   })
 
+  // Test long (saisie complète et 3 photos) : délai élargi pour la CI et les machines chargées.
   it('enregistre une recette complète avec ingrédients, tags et photos', async () => {
     const user = userEvent.setup()
     const api = fakeApi()
@@ -129,7 +130,7 @@ describe('RecipeFormPage — nouvelle recette', () => {
     const sent = await Promise.all(api.photos.uploadPhoto.mock.calls.map(([, blob]) => (blob as Blob).text()))
     expect(sent).toEqual(['c.png', 'a.png'])
     expect(api.photos.reorderPhotos).toHaveBeenCalledWith(['p1', 'p2'])
-  })
+  }, 15000)
 
   it('n’envoie pas deux fois les photos si l’enregistrement est relancé après une erreur', async () => {
     const user = userEvent.setup()

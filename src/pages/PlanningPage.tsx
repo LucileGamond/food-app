@@ -9,7 +9,7 @@ import {
   type DragEndEvent,
   type DragStartEvent,
 } from '@dnd-kit/core'
-import { ChevronLeft, ChevronRight, Copy, MoveRight, RefreshCw } from 'lucide-react'
+import { CalendarPlus, ChevronLeft, ChevronRight, Copy, MoveRight, RefreshCw } from 'lucide-react'
 import { useCallback, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
@@ -17,13 +17,17 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { ConfirmDialog } from '@/components/ConfirmDialog'
 import { PageHeader } from '@/components/Layout'
 import { DayCard } from '@/components/planning/DayCard'
+import { InboxPlanDialog, InboxRenameDialog } from '@/components/planning/InboxDialogs'
+import { InboxPanel, type InboxDragData } from '@/components/planning/InboxPanel'
 import { MealDialog } from '@/components/planning/MealDialog'
 import type { MealAction } from '@/components/planning/MealItem'
 import { MealTargetDialog } from '@/components/planning/MealTargetDialog'
 import { useApi } from '@/app/ApiContext'
 import { useAuth } from '@/auth/AuthProvider'
+import { useInbox } from '@/hooks/useInbox'
 import { PLANNING_DAYS, usePlanning } from '@/hooks/usePlanning'
 import { addDays, formatDay, formatRange, nextDays, todayIso, type IsoDate } from '@/lib/dates'
+import type { InboxItem } from '@/lib/inbox'
 import {
   dropTarget,
   groupMealsBySlot,
@@ -41,11 +45,14 @@ type DialogState =
   | { kind: 'form'; target: SlotRef; meal: Meal | null }
   | { kind: 'move' | 'duplicate'; meal: Meal }
   | { kind: 'delete'; meal: Meal }
+  | { kind: 'plan' | 'rename'; item: InboxItem }
 
-interface DragState {
+interface MealDragState {
   meal: Meal
   mode: 'move' | 'copy'
 }
+
+type DragState = MealDragState | InboxDragData
 
 export function PlanningPage({ today = todayIso() }: { today?: IsoDate }) {
   const api = useApi()
@@ -53,6 +60,7 @@ export function PlanningPage({ today = todayIso() }: { today?: IsoDate }) {
   const { profiles, userId } = useAuth()
   const [start, setStart] = useState<IsoDate>(today)
   const planning = usePlanning(api, start)
+  const inbox = useInbox(api)
   const [dialog, setDialog] = useState<DialogState>({ kind: 'none' })
   const [savedRecipes, setSavedRecipes] = useState<RecipeSummary[] | null>(null)
   const [drag, setDrag] = useState<DragState | null>(null)
@@ -103,8 +111,19 @@ export function PlanningPage({ today = todayIso() }: { today?: IsoDate }) {
     const data = event.active.data.current as DragState | undefined
     const target = dropTarget(event.over?.id)
     if (!data || !target) return
+    // Élément de la liste déposé sur un créneau : repas pour la personne connectée (modifiable ensuite).
+    if ('inbox' in data) {
+      if (userId) void planInboxItem(data.inbox, target, [userId])
+      return
+    }
     if (data.mode === 'move') void planning.moveMeal(data.meal, target)
     else void planning.duplicateMeal(data.meal, target)
+  }
+
+  async function planInboxItem(item: InboxItem, target: SlotRef, people: string[]): Promise<boolean> {
+    const ok = await inbox.plan(item, target, people)
+    if (ok) void planning.reload()
+    return ok
   }
 
   async function submitForm(people: string[], source: MealRecipeSource): Promise<boolean> {
@@ -144,33 +163,52 @@ export function PlanningPage({ today = todayIso() }: { today?: IsoDate }) {
             <RefreshCw /> Réessayer
           </Button>
         </div>
-      ) : planning.loading ? (
-        <div className="grid gap-4" aria-busy="true" aria-label="Chargement du planning">
-          {days.slice(0, 3).map((d) => (
-            <Skeleton key={d} className="h-40 rounded-2xl" />
-          ))}
-        </div>
-      ) : (
+      ) : null}
+
+      {!planning.loadError && (
         <DndContext sensors={sensors} collisionDetection={pointerWithin} onDragStart={handleDragStart} onDragEnd={handleDragEnd} onDragCancel={() => setDrag(null)}>
-          <div className="grid gap-4">
-            {days.map((date) => (
-              <DayCard
-                key={date}
-                date={date}
-                isToday={date === today}
-                mealsBySlot={mealsBySlot}
-                profiles={profiles}
-                onAdd={(d: IsoDate, slot: MealSlot) => openForm({ date: d, slot }, null)}
-                onAction={handleAction}
-              />
-            ))}
+          <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_17rem] lg:items-start lg:gap-6">
+            <div className="lg:order-last">
+              <InboxPanel inbox={inbox} onPlan={(item) => setDialog({ kind: 'plan', item })} onRename={(item) => setDialog({ kind: 'rename', item })} />
+            </div>
+            {planning.loading ? (
+              <div className="grid gap-4" aria-busy="true" aria-label="Chargement du planning">
+                {days.slice(0, 3).map((d) => (
+                  <Skeleton key={d} className="h-40 rounded-2xl" />
+                ))}
+              </div>
+            ) : (
+              <div className="grid gap-4">
+                {days.map((date) => (
+                  <DayCard
+                    key={date}
+                    date={date}
+                    isToday={date === today}
+                    mealsBySlot={mealsBySlot}
+                    profiles={profiles}
+                    onAdd={(d: IsoDate, slot: MealSlot) => openForm({ date: d, slot }, null)}
+                    onAction={handleAction}
+                  />
+                ))}
+              </div>
+            )}
           </div>
           <DragOverlay dropAnimation={null}>
             {drag && (
               <div className="flex max-w-xs items-center gap-2 rounded-lg border bg-background px-3 py-2 text-sm font-medium shadow-lg">
-                {drag.mode === 'move' ? <MoveRight className="size-4 text-brand" aria-hidden /> : <Copy className="size-4 text-brand" aria-hidden />}
-                <span className="text-muted-foreground">{drag.mode === 'move' ? 'Déplacement' : 'Copie'}</span>
-                <span className="truncate">{drag.meal.recipe.title}</span>
+                {'inbox' in drag ? (
+                  <>
+                    <CalendarPlus className="size-4 text-brand" aria-hidden />
+                    <span className="text-muted-foreground">Planifier</span>
+                    <span className="truncate">{drag.inbox.title}</span>
+                  </>
+                ) : (
+                  <>
+                    {drag.mode === 'move' ? <MoveRight className="size-4 text-brand" aria-hidden /> : <Copy className="size-4 text-brand" aria-hidden />}
+                    <span className="text-muted-foreground">{drag.mode === 'move' ? 'Déplacement' : 'Copie'}</span>
+                    <span className="truncate">{drag.meal.recipe.title}</span>
+                  </>
+                )}
               </div>
             )}
           </DragOverlay>
@@ -195,6 +233,17 @@ export function PlanningPage({ today = todayIso() }: { today?: IsoDate }) {
         onOpenChange={(open) => !open && closeDialog()}
         onSubmit={(meal, target) => (dialog.kind === 'move' ? planning.moveMeal(meal, target) : planning.duplicateMeal(meal, target))}
       />
+
+      <InboxPlanDialog
+        item={dialog.kind === 'plan' ? dialog.item : null}
+        days={days}
+        profiles={profiles}
+        currentUserId={userId}
+        onOpenChange={(open) => !open && closeDialog()}
+        onSubmit={planInboxItem}
+      />
+
+      <InboxRenameDialog item={dialog.kind === 'rename' ? dialog.item : null} onOpenChange={(open) => !open && closeDialog()} onSubmit={inbox.rename} />
 
       <ConfirmDialog
         open={deleting !== null}

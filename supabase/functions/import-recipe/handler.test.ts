@@ -167,4 +167,20 @@ describe('import-recipe', () => {
     expect(await call(handle, { url: PAGE_URL })).toMatchObject({ status: 500, body: { error: 'L’import a échoué.' } })
     expect(deps.log).toHaveBeenCalledWith('import en erreur', expect.anything())
   })
+
+  it('mode titre : renvoie le titre de la page sans appeler le modèle', async () => {
+    const { deps, handle } = setup({
+      'https://exemple.fr/blog': html('<html><head><meta property="og:title" content="  Tarte   tatin  "></head><body></body></html>'),
+      'https://exemple.fr/doc.pdf': new Response('%PDF', { headers: { 'content-type': 'application/pdf' } }),
+    })
+    expect(await call(handle, { url: 'https://exemple.fr/blog', mode: 'title' })).toMatchObject({ status: 200, body: { title: 'Tarte tatin' } })
+    expect(await call(handle, { url: 'https://exemple.fr/doc.pdf', mode: 'title' })).toMatchObject({ status: 200, body: { title: null } })
+    expect(await call(handle, { url: 'http://localhost/', mode: 'title' })).toMatchObject({ status: 400 })
+    expect(deps.fetchModel).not.toHaveBeenCalled()
+    // Fonctionne même sans clé API
+    const noKey = createHandler({ ...deps, apiKey: undefined })
+    expect(await call(noKey, { url: 'https://exemple.fr/blog', mode: 'title' })).toMatchObject({ status: 200, body: { title: 'Tarte tatin' } })
+    const anonymous = await noKey(post({ url: 'https://exemple.fr/blog', mode: 'title' }, 'Bearer cle-anonyme'))
+    expect(anonymous.status).toBe(401)
+  })
 })

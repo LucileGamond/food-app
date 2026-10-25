@@ -2,6 +2,11 @@ begin;
 create extension if not exists pgtap with schema extensions;
 select plan(12);
 
+-- Tests indépendants des données locales (annulés en fin de transaction)
+delete from public.planning_inbox;
+delete from public.meals;
+delete from public.recipes;
+
 set local role authenticated;
 set local request.jwt.claims = '{"sub":"11111111-1111-1111-1111-111111111111","role":"authenticated"}';
 

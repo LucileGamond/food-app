@@ -21,6 +21,8 @@ export default defineConfig({
         background_color: '#fafafa',
         display: 'standalone',
         start_url: '/',
+        // Partage Android (menu « Partager » → Food) : le lien arrive dans la liste « À planifier ».
+        share_target: { action: '/partage', method: 'GET', params: { title: 'title', text: 'text', url: 'url' } },
         icons: [
           { src: '/icons/icon-192.png', sizes: '192x192', type: 'image/png' },
           { src: '/icons/icon-512.png', sizes: '512x512', type: 'image/png' },

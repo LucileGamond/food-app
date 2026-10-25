@@ -1,4 +1,4 @@
-import { test as base, expect, type Page } from '@playwright/test'
+import { test as base, expect, type Locator, type Page } from '@playwright/test'
 import { ERIC, LUCILE, TEST_PASSWORD, resetData } from '../tests/integration/helpers'
 
 export { ERIC, LUCILE, expect }
@@ -37,6 +37,37 @@ export async function addAdhocMeal(page: Page, offset: number, label: 'Midi' | '
 export async function mealAction(page: Page, title: string, action: string) {
   await page.getByRole('button', { name: `Actions pour ${title}` }).first().click()
   await page.getByRole('menuitem', { name: action }).click()
+}
+
+/** Glisser-déposer à la souris (desktop) ou au doigt avec appui long (mobile). */
+export async function dragTo(page: Page, source: Locator, target: Locator, isMobile: boolean) {
+  await source.scrollIntoViewIfNeeded()
+  const from = (await source.boundingBox())!
+  const start = { x: from.x + from.width / 2, y: from.y + Math.min(from.height / 2, 20) }
+
+  if (!isMobile) {
+    await page.mouse.move(start.x, start.y)
+    await page.mouse.down()
+    await page.mouse.move(start.x + 10, start.y + 10, { steps: 5 })
+    await target.scrollIntoViewIfNeeded()
+    const to = (await target.boundingBox())!
+    await page.mouse.move(to.x + to.width / 2, to.y + to.height / 2, { steps: 15 })
+    await page.mouse.up()
+    return
+  }
+
+  const cdp = await page.context().newCDPSession(page)
+  const touch = (type: 'touchStart' | 'touchMove' | 'touchEnd', x: number, y: number) =>
+    cdp.send('Input.dispatchTouchEvent', { type, touchPoints: type === 'touchEnd' ? [] : [{ x, y }] })
+  await touch('touchStart', start.x, start.y)
+  await page.waitForTimeout(400) // appui long
+  await touch('touchMove', start.x, start.y + 4)
+  const to = (await target.boundingBox())!
+  const end = { x: to.x + to.width / 2, y: to.y + to.height / 2 }
+  for (let i = 1; i <= 12; i++) {
+    await touch('touchMove', start.x + ((end.x - start.x) * i) / 12, start.y + ((end.y - start.y) * i) / 12)
+  }
+  await touch('touchEnd', end.x, end.y)
 }
 
 /** Chaque test part d'une base vide (comptes conservés). */

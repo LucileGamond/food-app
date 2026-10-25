@@ -6,6 +6,6 @@ export function RequireAuth() {
   const { status } = useAuth()
   const location = useLocation()
   if (status === 'loading') return <FullPageSpinner />
-  if (status === 'signedOut') return <Navigate to="/login" replace state={{ from: location.pathname }} />
+  if (status === 'signedOut') return <Navigate to="/login" replace state={{ from: location.pathname + location.search }} />
   return <Outlet />
 }

@@ -1,4 +1,4 @@
-import { ArrowLeft, ExternalLink, Minus, Pencil, Plus, RefreshCw, SearchX, Trash2, Users } from 'lucide-react'
+import { ArrowLeft, ExternalLink, Inbox, Minus, Pencil, Plus, RefreshCw, SearchX, Trash2, Users } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { toast } from 'sonner'
@@ -38,6 +38,16 @@ export function RecipeDetailPage() {
 
   const paths = useMemo(() => recipe?.photos.map((p) => p.storage_path) ?? [], [recipe])
   const urls = useSignedUrls(api, paths)
+
+  async function addToInbox() {
+    if (!recipe) return
+    try {
+      await api.inbox.addItem({ recipeId: recipe.id })
+      toast.success('Ajoutée à la liste « À planifier »')
+    } catch (e) {
+      toast.error(errorMessage(e))
+    }
+  }
 
   function openDelete() {
     setUsages(null)
@@ -122,7 +132,10 @@ export function RecipeDetailPage() {
             ))}
           </div>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
+          <Button variant="outline" className="h-10 px-3" onClick={() => void addToInbox()}>
+            <Inbox /> À planifier
+          </Button>
           <Link to={`/recettes/${recipe.id}/modifier`} className={cn(buttonVariants({ variant: 'outline' }), 'h-10 px-3')}>
             <Pencil /> Modifier
           </Link>
