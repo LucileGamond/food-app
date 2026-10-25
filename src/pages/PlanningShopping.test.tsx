@@ -118,14 +118,14 @@ describe('PlanningPage — liste de courses depuis le planning', () => {
     expect(await screen.findByText('4 articles ajoutés')).toBeInTheDocument()
 
     // Sur la liste : les éléments non repris, pour les ajouter à la main.
-    const panel = await screen.findByRole('region', { name: 'Non repris (2)' })
+    const panel = await screen.findByRole('region', { name: 'À vérifier (2)' })
     expect(panel).toHaveTextContent('Poulet basquaise')
     expect(panel).toHaveTextContent('SelDécoché · Tartiflette')
     await user.click(within(panel).getByRole('button', { name: 'Ajouter « Sel »' }))
     expect(api.shopping.addItem).toHaveBeenCalledWith('new-list', { name: 'Sel', quantity: null, unit: null, aisle: 'EPICERIE_SALEE' }, 0)
-    expect(screen.getByRole('region', { name: 'Non repris (1)' })).toBeInTheDocument()
-    await user.click(screen.getByRole('button', { name: 'Fermer « Non repris »' }))
-    expect(screen.queryByRole('region', { name: /Non repris/ })).not.toBeInTheDocument()
+    expect(screen.getByRole('region', { name: 'À vérifier (1)' })).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'Fermer « À vérifier »' }))
+    expect(screen.queryByRole('region', { name: /À vérifier/ })).not.toBeInTheDocument()
   })
 
   it('se passe du regroupement automatique s’il échoue, et signale une page illisible', async () => {
@@ -195,6 +195,27 @@ describe('PlanningPage — liste de courses depuis le planning', () => {
     await user.click(within(dialog).getByRole('button', { name: 'Retour' }))
     expect(within(dialog).getByRole('button', { name: 'Préparer la liste (1 repas)' })).toBeInTheDocument()
     expect(api.shopping.createList).not.toHaveBeenCalled()
+  })
+
+  it('signale les ingrédients incomplets, jusqu’à leur correction', async () => {
+    const { user, api } = setup([GRATIN])
+    api.recipes.getIngredients.mockResolvedValue([{ id: 'r2', servings: null, ingredients: [ing('rhum', 1, 'shot'), ing('persil'), ing('lait', 1, 'l')] }])
+    const dialog = await preview(user)
+    expect(within(dialog).getByRole('button', { name: /Modifier Rhum/ })).toHaveTextContent('À vérifier : Unité inconnue : 1 shot rhum (Gratin)')
+    expect(within(dialog).getByRole('button', { name: /Modifier Persil/ })).toHaveTextContent('À vérifier : Quantité non précisée (Gratin)')
+    expect(within(dialog).getByRole('button', { name: /Modifier Lait/ })).not.toHaveTextContent('À vérifier')
+
+    await user.click(within(dialog).getByRole('button', { name: /Modifier Persil/ }))
+    const edit = await screen.findByRole('dialog', { name: "Modifier l'article" })
+    await user.type(within(edit).getByLabelText('Quantité'), '1')
+    await user.selectOptions(within(edit).getByLabelText('Unité'), 'botte')
+    await user.click(within(edit).getByRole('button', { name: 'Enregistrer' }))
+    await waitFor(() => expect(within(dialog).getByRole('button', { name: /Modifier Persil/ })).not.toHaveTextContent('À vérifier'))
+
+    await user.click(within(dialog).getByRole('button', { name: 'Créer la liste (3 articles)' }))
+    const panel = await screen.findByRole('region', { name: 'À vérifier (1)' })
+    expect(panel).toHaveTextContent('RhumÀ vérifier · Unité inconnue : 1 shot rhum (Gratin)')
+    expect(within(panel).queryByRole('button', { name: /Ajouter/ })).not.toBeInTheDocument()
   })
 
   it('affiche les erreurs sans perdre la sélection', async () => {

@@ -9,18 +9,18 @@ interface Props {
   onDismiss: () => void
 }
 
-/** Ce que la génération depuis le planning n'a pas mis dans la liste, pour le compléter à la main. */
+/** Ce que la génération depuis le planning n'a pas mis tel quel dans la liste (repas, articles décochés ou incomplets). */
 export function SkippedPanel({ entries, onAdd, onDismiss }: Props) {
   return (
     <section aria-labelledby="skipped-title" className="mt-4 rounded-2xl border border-brand/25 bg-brand/5 p-3">
       <div className="flex items-start justify-between gap-2">
         <div>
           <h2 id="skipped-title" className="text-sm font-medium">
-            Non repris ({entries.length})
+            À vérifier ({entries.length})
           </h2>
-          <p className="text-xs text-muted-foreground">Pas ajoutés à la liste depuis le planning : à compléter si besoin.</p>
+          <p className="text-xs text-muted-foreground">Ce que le planning n'a pas pu mettre tel quel dans la liste : à compléter si besoin.</p>
         </div>
-        <Button variant="ghost" size="icon" aria-label="Fermer « Non repris »" onClick={onDismiss}>
+        <Button variant="ghost" size="icon" aria-label="Fermer « À vérifier »" onClick={onDismiss}>
           <X />
         </Button>
       </div>
@@ -34,7 +34,7 @@ export function SkippedPanel({ entries, onAdd, onDismiss }: Props) {
                   {entry.label}
                   {amount && <span className="font-normal text-muted-foreground"> · {amount}</span>}
                 </span>
-                <span className="block truncate text-xs text-muted-foreground">
+                <span className="block text-xs text-muted-foreground">
                   {SKIP_LABELS[entry.reason]}
                   {entry.detail && ` · ${entry.detail}`}
                 </span>
@@ -44,9 +44,11 @@ export function SkippedPanel({ entries, onAdd, onDismiss }: Props) {
                   <ExternalLink className="size-3.5" aria-hidden /> Ouvrir <span className="sr-only">la recette « {entry.label} »</span>
                 </a>
               )}
-              <Button variant="ghost" size="sm" onClick={() => onAdd(entry, skippedInput(entry))}>
-                <Plus /> Ajouter <span className="sr-only">« {entry.label} »</span>
-              </Button>
+              {entry.reason !== 'to-check' && (
+                <Button variant="ghost" size="sm" onClick={() => onAdd(entry, skippedInput(entry))}>
+                  <Plus /> Ajouter <span className="sr-only">« {entry.label} »</span>
+                </Button>
+              )}
             </li>
           )
         })}

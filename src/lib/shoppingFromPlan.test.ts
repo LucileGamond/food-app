@@ -15,7 +15,8 @@ import {
   skippedInput,
   skippedMeal,
   toItemInput,
-  uncheckedEntries,
+  issueText,
+  lineEntries,
   type DraftLine,
   type MealIngredients,
 } from './shoppingFromPlan'
@@ -109,6 +110,53 @@ describe('buildDraft', () => {
   })
 })
 
+describe('signalements', () => {
+  const issues = (lines: DraftLine[]) => Object.fromEntries(lines.map((l) => [l.name, l.issues.map(issueText)]))
+
+  it('signale ce qui n’a pas pu être repris tel quel, ingrédient par ingrédient', () => {
+    const lines = buildDraft([
+      source(GRATIN, null, [
+        ing('lardons', 200, 'g'),
+        ing('rhum', 1, 'shot'),
+        { name: 'yaourt', quantity: null, unit: null, note: '1 pot' },
+        { name: 'ciboulette', quantity: null, unit: null, note: 'ciselée' },
+        ing('sel'),
+        ing('tomates', 3),
+        ing('tomates', 200, 'g'),
+      ]),
+      source(TARTIFLETTE, null, [ing('ciboulette')]),
+    ])
+    expect(issues(lines)).toEqual({
+      lardons: [],
+      rhum: ['Unité inconnue : 1 shot rhum (Gratin)'],
+      yaourt: ['Quantité dans la précision : yaourt (1 pot) (Gratin)'],
+      ciboulette: ['Quantité non précisée (Gratin)', 'Quantité non précisée (Tartiflette)'],
+      sel: [],
+      tomates: expect.anything(),
+    })
+    expect(lines.filter((l) => l.name === 'tomates').map((l) => l.issues.map(issueText))).toEqual([
+      ['Deux unités différentes : aussi 200 g'],
+      ['Deux unités différentes : aussi 3'],
+    ])
+    expect(lineEntries(lines).map((e) => [e.reason, e.label, e.detail])).toEqual([
+      ['to-check', 'Rhum', 'Unité inconnue : 1 shot rhum (Gratin)'],
+      ['to-check', 'Yaourt', 'Quantité dans la précision : yaourt (1 pot) (Gratin)'],
+      ['to-check', 'Ciboulette', 'Quantité non précisée (Gratin) · Quantité non précisée (Tartiflette)'],
+      ['unchecked', 'Sel', 'Gratin'],
+      ['to-check', 'Tomates', 'Deux unités différentes : aussi 200 g'],
+      ['to-check', 'Tomates', 'Deux unités différentes : aussi 3'],
+    ])
+  })
+
+  it('un basique repéré par le modèle n’a pas besoin de quantité ; une fusion après renommage lève le doute', () => {
+    const lines = applyTidy(buildDraft([source(GRATIN, null, [ing('thym'), ing('tomate', 2), ing('tomates cerises', 200, 'g')])]), [
+      { id: 'd1', name: 'thym', aisle: 'FRUITS_LEGUMES', pantry: true },
+      { id: 'd3', name: 'tomate cerise', aisle: 'FRUITS_LEGUMES', pantry: false },
+    ])
+    expect(issues(lines)).toEqual({ thym: [], tomate: [], 'tomate cerise': [] })
+  })
+})
+
 describe('applyTidy', () => {
   const draft = (): DraftLine[] =>
     buildDraft([source(GRATIN, null, [ing('oignons jaunes', 1), ing('oignon', 2), ing('reblochon', 1), ing('fleur de thym', 1, 'pincée')])])
@@ -154,7 +202,7 @@ describe('enregistrement', () => {
     expect(capitalize('œufs')).toBe('Œufs')
     const lines = buildDraft([source(GRATIN, null, [ing('sel'), ing('lait', 1, 'l')])])
     expect(toItemInput(lines[1]!)).toEqual({ name: 'Lait', quantity: 1, unit: 'l', aisle: 'CREMERIE' })
-    expect(uncheckedEntries(lines)).toEqual([
+    expect(lineEntries(lines)).toEqual([
       { key: 'line-d1', reason: 'unchecked', label: 'Sel', detail: 'Gratin', url: null, input: { name: 'Sel', quantity: null, unit: null, aisle: 'EPICERIE_SALEE' } },
     ])
   })

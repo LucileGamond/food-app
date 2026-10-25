@@ -12,7 +12,7 @@ import {
   skippedInput,
   skippedMeal,
   toItemInput,
-  uncheckedEntries,
+  lineEntries,
   type DraftLine,
   type MealIngredients,
   type SkippedEntry,
@@ -176,13 +176,14 @@ export function useShoppingFromPlan(api: Api): ShoppingFromPlanState {
   }, [])
 
   const update = useCallback((id: string, input: ShoppingItemInput) => {
-    setLines((list) => list.map((l) => (l.id === id ? { ...l, ...input, include: true } : l)))
+    // Article corrigé à la main : plus rien à vérifier.
+    setLines((list) => list.map((l) => (l.id === id ? { ...l, ...input, include: true, issues: [] } : l)))
   }, [])
 
   const addSkipped = useCallback((entry: SkippedEntry) => {
     setSkipped((list) => list.filter((e) => e.key !== entry.key))
     const input = skippedInput(entry)
-    setLines((list) => [...list, { ...input, id: `d${++lineSeq.current}`, name: input.name, pantry: false, include: true, meals: [entry.label] }])
+    setLines((list) => [...list, { ...input, id: `d${++lineSeq.current}`, name: input.name, pantry: false, include: true, meals: [entry.label], issues: [] }])
   }, [])
 
   const submit = useCallback(
@@ -201,7 +202,7 @@ export function useShoppingFromPlan(api: Api): ShoppingFromPlanState {
           await Promise.all(updates.map((u) => api.shopping.updateItem(u.item.id, { quantity: u.quantity })))
           await api.shopping.addItems(listId, additions, nextPosition(items))
         }
-        return { listId, count: inputs.length, skipped: [...skipped, ...uncheckedEntries(lines)] }
+        return { listId, count: inputs.length, skipped: [...skipped, ...lineEntries(lines)] }
       } catch (error) {
         toast.error(errorMessage(error))
         return null

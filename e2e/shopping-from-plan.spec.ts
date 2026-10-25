@@ -69,14 +69,14 @@ test('génère une liste de courses depuis le planning', async ({ page }) => {
   await dialog.getByRole('button', { name: 'Créer la liste (3 articles)' }).click()
   await expect(page.getByRole('heading', { name: /^Courses du /, level: 1 })).toBeVisible()
   await expect(page.getByTestId('shopping-item')).toHaveCount(3)
-  const skipped = page.getByRole('region', { name: 'Non repris (2)' })
+  const skipped = page.getByRole('region', { name: 'À vérifier (2)' })
   await expect(skipped).toContainText('Raclette')
   await expect(skipped).toContainText('Sel')
   await expectNoA11yViolations(page)
 
   await skipped.getByRole('button', { name: 'Ajouter « Sel »' }).click()
   await expect(page.getByTestId('shopping-item')).toHaveCount(4)
-  await expect(page.getByRole('region', { name: 'Non repris (1)' })).toBeVisible()
+  await expect(page.getByRole('region', { name: 'À vérifier (1)' })).toBeVisible()
 })
 
 test('complète une liste existante', async ({ page }) => {

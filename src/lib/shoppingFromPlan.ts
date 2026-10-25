@@ -1,7 +1,7 @@
 import { formatDay, type IsoDate } from './dates'
 import { slotLabel, type Meal } from './meals'
-import { scaleIngredients, type Ingredient } from './recipes'
-import { addAmounts, findMergeTarget, guessAisle, normalizeName, type Aisle, type ShoppingItem, type ShoppingItemInput } from './shopping'
+import { formatIngredient, scaleIngredients, type Ingredient } from './recipes'
+import { addAmounts, findMergeTarget, formatAmount, guessAisle, normalizeName, type Aisle, type ShoppingItem, type ShoppingItemInput } from './shopping'
 import { isUnit } from './units'
 
 // ---------------------------------------------------------------------------
@@ -28,7 +28,7 @@ export function mealWhen(meal: Pick<Meal, 'meal_date' | 'slot'>): string {
 // ---------------------------------------------------------------------------
 // Ce qui n'entre pas dans la liste
 
-export type SkipReason = 'no-ingredients' | 'unreadable-page' | 'unchecked'
+export type SkipReason = 'no-ingredients' | 'unreadable-page' | 'unchecked' | 'to-check'
 
 export interface SkippedEntry {
   key: string
@@ -38,7 +38,7 @@ export interface SkippedEntry {
   /** Quand (repas) ou quantité (article). */
   detail: string
   url: string | null
-  /** Article décoché, pour pouvoir le rajouter tel quel. */
+  /** Article décoché, pour pouvoir le rajouter tel quel (absent pour un article à vérifier, déjà sur la liste). */
   input?: ShoppingItemInput
 }
 
@@ -46,9 +46,10 @@ export const SKIP_LABELS: Record<SkipReason, string> = {
   'no-ingredients': 'Sans ingrédients',
   'unreadable-page': 'Page illisible',
   unchecked: 'Décoché',
+  'to-check': 'À vérifier',
 }
 
-export function skippedMeal(meal: Meal, reason: Exclude<SkipReason, 'unchecked'>): SkippedEntry {
+export function skippedMeal(meal: Meal, reason: 'no-ingredients' | 'unreadable-page'): SkippedEntry {
   return { key: `meal-${meal.id}`, reason, label: meal.recipe.title, detail: mealWhen(meal), url: meal.recipe.url }
 }
 
@@ -79,6 +80,30 @@ export interface DraftLine {
   include: boolean
   /** Titres des repas qui l'utilisent. */
   meals: string[]
+  /** Informations de la recette qui n'ont pas pu être reprises telles quelles. */
+  issues: LineIssue[]
+}
+
+export type IssueKind = 'unknown-unit' | 'note-quantity' | 'no-quantity' | 'mixed-units'
+
+export interface LineIssue {
+  kind: IssueKind
+  /** Ligne d'origine (« 1 shot rhum ») ou autre quantité du même produit (« 200 g »). */
+  text: string
+  /** Repas concerné (vide pour deux unités différentes). */
+  meal: string
+}
+
+export const ISSUE_LABELS: Record<IssueKind, string> = {
+  'unknown-unit': 'Unité inconnue',
+  'note-quantity': 'Quantité dans la précision',
+  'no-quantity': 'Quantité non précisée',
+  'mixed-units': 'Deux unités différentes',
+}
+
+/** « Unité inconnue : 1 shot rhum (Mojito) », « Deux unités différentes : aussi 200 g » */
+export function issueText(issue: LineIssue): string {
+  return `${ISSUE_LABELS[issue.kind]}${issue.text ? ` : ${issue.text}` : ''}${issue.meal ? ` (${issue.meal})` : ''}`
 }
 
 // Basiques qu'on a presque toujours : décochés par défaut, toujours visibles dans l'aperçu.
@@ -107,7 +132,21 @@ export function purchaseQuantity(quantity: number | null, unit: string | null): 
   return Math.ceil(quantity - 1e-9)
 }
 
-const withPurchaseQuantities = (lines: DraftLine[]): DraftLine[] => lines.map((l) => ({ ...l, quantity: purchaseQuantity(l.quantity, l.unit) }))
+/**
+ * Dernière passe : quantités arrondies à l'achat, et signalements à jour (un basique du placard n'a pas besoin
+ * de quantité ; un produit resté sur plusieurs lignes est signalé sur chacune).
+ */
+function finalize(lines: DraftLine[]): DraftLine[] {
+  return lines.map((line) => {
+    const others = lines.filter((l) => l !== line && normalizeName(l.name) === normalizeName(line.name))
+    const issues = line.issues.filter((i) => i.kind !== 'mixed-units' && !(i.kind === 'no-quantity' && line.pantry))
+    if (others.length > 0) {
+      const amounts = others.map((o) => formatAmount({ quantity: purchaseQuantity(o.quantity, o.unit), unit: o.unit }) || 'sans quantité')
+      issues.push({ kind: 'mixed-units', text: `aussi ${amounts.join(', ')}`, meal: '' })
+    }
+    return { ...line, quantity: purchaseQuantity(line.quantity, line.unit), issues }
+  })
+}
 
 /** Ajoute une ligne à `lines`, ou l'additionne à une ligne du même produit dans une unité compatible. */
 function pushLine(lines: DraftLine[], line: DraftLine) {
@@ -118,9 +157,10 @@ function pushLine(lines: DraftLine[], line: DraftLine) {
     existing.pantry ||= line.pantry
     existing.include = !existing.pantry
     for (const title of line.meals) if (!existing.meals.includes(title)) existing.meals.push(title)
+    existing.issues.push(...line.issues)
     return
   }
-  lines.push({ ...line, meals: [...line.meals] })
+  lines.push({ ...line, meals: [...line.meals], issues: [...line.issues] })
 }
 
 /** Lignes de courses : ingrédients adaptés au nombre de personnes, doublons additionnés, rayon deviné. */
@@ -133,20 +173,29 @@ export function buildDraft(sources: readonly MealIngredients[]): DraftLine[] {
       if (!name) continue
       // Unité inconnue (import) : la quantité n'aurait pas de sens seule.
       const known = ingredient.unit === null || isUnit(ingredient.unit)
+      const quantity = known ? ingredient.quantity : null
       const pantry = isPantry(name)
+      const meal = source.meal.recipe.title
+      const issues: LineIssue[] = []
+      if (!known) issues.push({ kind: 'unknown-unit', text: formatIngredient({ ...ingredient, name, note: null }), meal })
+      else if (quantity === null && ingredient.note && /\d/.test(ingredient.note)) {
+        // Unité hors liste rangée dans la précision à l'import (« 1 pot »).
+        issues.push({ kind: 'note-quantity', text: formatIngredient({ ...ingredient, name }), meal })
+      } else if (quantity === null) issues.push({ kind: 'no-quantity', text: '', meal })
       pushLine(lines, {
         id: `d${++seq}`,
         name,
-        quantity: known ? ingredient.quantity : null,
+        quantity,
         unit: known ? ingredient.unit : null,
         aisle: guessAisle(name),
         pantry,
         include: !pantry,
-        meals: [source.meal.recipe.title],
+        meals: [meal],
+        issues,
       })
     }
   }
-  return withPurchaseQuantities(lines)
+  return finalize(lines)
 }
 
 export interface TidyLine {
@@ -165,7 +214,7 @@ export function applyTidy(lines: readonly DraftLine[], tidy: readonly TidyLine[]
     const pantry = line.pantry || Boolean(t?.pantry)
     pushLine(result, { ...line, name: t?.name || line.name, aisle: t?.aisle ?? line.aisle, pantry, include: !pantry })
   }
-  return withPurchaseQuantities(result)
+  return finalize(result)
 }
 
 /** « oignon » → « Oignon » */
@@ -177,13 +226,14 @@ export function toItemInput(line: DraftLine): ShoppingItemInput {
   return { name: capitalize(line.name).slice(0, 120), quantity: line.quantity, unit: line.unit, aisle: line.aisle }
 }
 
-export function uncheckedEntries(lines: readonly DraftLine[]): SkippedEntry[] {
-  return lines
-    .filter((l) => !l.include)
-    .map((l) => {
-      const input = toItemInput(l)
-      return { key: `line-${l.id}`, reason: 'unchecked', label: input.name, detail: l.meals.join(', '), url: null, input }
-    })
+/** Pour l'encadré de la liste créée : articles décochés (à rajouter si besoin) et articles ajoutés mais à vérifier. */
+export function lineEntries(lines: readonly DraftLine[]): SkippedEntry[] {
+  return lines.flatMap((l): SkippedEntry[] => {
+    const input = toItemInput(l)
+    if (!l.include) return [{ key: `line-${l.id}`, reason: 'unchecked', label: input.name, detail: l.meals.join(', '), url: null, input }]
+    if (l.issues.length === 0) return []
+    return [{ key: `check-${l.id}`, reason: 'to-check', label: input.name, detail: l.issues.map(issueText).join(' · '), url: null }]
+  })
 }
 
 // ---------------------------------------------------------------------------

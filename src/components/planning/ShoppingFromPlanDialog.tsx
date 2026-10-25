@@ -17,7 +17,7 @@ import { useShoppingFromPlan } from '@/hooks/useShoppingFromPlan'
 import { formatDay, type IsoDate } from '@/lib/dates'
 import { slotLabel, SLOTS, type Meal } from '@/lib/meals'
 import { AISLES, defaultListName, formatAmount, type ShoppingItem, type ShoppingList } from '@/lib/shopping'
-import { capitalize, defaultSelection, mealSource, SKIP_LABELS, type DraftLine, type MealSource } from '@/lib/shoppingFromPlan'
+import { capitalize, defaultSelection, issueText, mealSource, SKIP_LABELS, type DraftLine, type MealSource } from '@/lib/shoppingFromPlan'
 import { cn } from '@/lib/utils'
 
 interface Props {
@@ -131,6 +131,12 @@ export function ShoppingFromPlanDialog({ open, onOpenChange, meals, today }: Pro
               <span className="sr-only">Modifier</span> {label}
             </span>
             <span className="block truncate text-xs text-muted-foreground">{line.meals.join(', ')}</span>
+            {line.issues.length > 0 && (
+              <span className="mt-0.5 flex items-start gap-1 text-xs font-medium text-brand">
+                <TriangleAlert className="mt-px size-3.5 shrink-0" aria-hidden />
+                <span>À vérifier : {line.issues.map(issueText).join(' · ')}</span>
+              </span>
+            )}
           </span>
           {amount && <span className={cn('shrink-0 text-sm tabular-nums text-muted-foreground', !line.include && 'line-through')}>{amount}</span>}
         </button>
