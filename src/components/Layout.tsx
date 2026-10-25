@@ -1,7 +1,10 @@
 import { BookOpen, CalendarDays, ListChecks, LogOut, Scale, ShoppingCart, UtensilsCrossed } from 'lucide-react'
 import { NavLink, Outlet } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
+import { useApi } from '@/app/ApiContext'
 import { useAuth } from '@/auth/AuthProvider'
+import { NotificationsButton, NotificationsPrompt } from '@/components/Notifications'
+import { useNotifications } from '@/hooks/useNotifications'
 import { cn } from '@/lib/utils'
 
 const NAV = [
@@ -25,6 +28,8 @@ function Brand() {
 
 export function Layout() {
   const { currentProfile, signOut } = useAuth()
+  // Notifications : réglage global de l'application, pour cet appareil.
+  const notifications = useNotifications(useApi())
 
   return (
     <div className="min-h-dvh md:grid md:grid-cols-[15rem_1fr]">
@@ -50,8 +55,10 @@ export function Layout() {
             </NavLink>
           ))}
         </nav>
-        <div className="mt-auto flex items-center justify-between gap-2 border-t px-2 pt-4">
+        <div className="mt-auto flex items-center gap-1 border-t px-2 pt-4">
           <span className="truncate text-sm text-muted-foreground">{currentProfile?.display_name}</span>
+          <span className="flex-1" />
+          <NotificationsButton notifications={notifications} />
           <Button variant="ghost" size="icon" onClick={() => void signOut()} aria-label="Se déconnecter">
             <LogOut />
           </Button>
@@ -61,12 +68,16 @@ export function Layout() {
       {/* En-tête (mobile) */}
       <header className="sticky top-0 z-30 flex h-14 items-center justify-between border-b bg-background/90 px-4 backdrop-blur md:hidden">
         <Brand />
-        <Button variant="ghost" size="icon-lg" onClick={() => void signOut()} aria-label="Se déconnecter">
-          <LogOut />
-        </Button>
+        <div className="flex items-center gap-1">
+          <NotificationsButton notifications={notifications} size="icon-lg" />
+          <Button variant="ghost" size="icon-lg" onClick={() => void signOut()} aria-label="Se déconnecter">
+            <LogOut />
+          </Button>
+        </div>
       </header>
 
       <main className="mx-auto w-full max-w-5xl px-4 pt-6 pb-28 md:px-8 md:pt-10 md:pb-12">
+        <NotificationsPrompt notifications={notifications} />
         <Outlet />
       </main>
 

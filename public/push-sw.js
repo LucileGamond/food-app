@@ -13,7 +13,8 @@ self.addEventListener('push', (event) => {
     self.registration.showNotification(title, {
       body: data.body || '',
       icon: '/icons/icon-192.png',
-      badge: '/icons/favicon-64.png',
+      // Petite icône de la barre d'état Android : silhouette blanche sur fond transparent.
+      badge: '/icons/badge-96.png',
       // Une notification par liste : la suivante remplace la précédente.
       tag: data.tag || 'food',
       renotify: true,

@@ -8,9 +8,7 @@ import { ConfirmDialog } from '@/components/ConfirmDialog'
 import { EmptyState } from '@/components/EmptyState'
 import { PageHeader } from '@/components/Layout'
 import { ListNameDialog } from '@/components/shopping/ListNameDialog'
-import { NotificationsCard } from '@/components/shopping/NotificationsCard'
 import { useApi } from '@/app/ApiContext'
-import { useNotifications } from '@/hooks/useNotifications'
 import { useShoppingLists } from '@/hooks/useShoppingLists'
 import { todayIso, type IsoDate } from '@/lib/dates'
 import { defaultListName, listProgress, type ShoppingList } from '@/lib/shopping'
@@ -23,7 +21,6 @@ export function ShoppingListsPage({ today = todayIso() }: { today?: IsoDate }) {
   const api = useApi()
   const navigate = useNavigate()
   const shopping = useShoppingLists(api)
-  const notifications = useNotifications(api)
   const [dialog, setDialog] = useState<DialogState>({ kind: 'none' })
   const close = () => setDialog({ kind: 'none' })
   const target = dialog.kind === 'rename' || dialog.kind === 'delete' ? dialog.list : null
@@ -39,8 +36,6 @@ export function ShoppingListsPage({ today = todayIso() }: { today?: IsoDate }) {
       <PageHeader title="Courses" description="Listes de courses partagées" actions={createButton} />
 
       <div className="space-y-4">
-        <NotificationsCard notifications={notifications} />
-
         {shopping.loadError ? (
           <div role="alert" className="flex flex-col items-start gap-3 rounded-xl border border-destructive/30 bg-destructive/5 p-4 text-sm">
             <p>{shopping.loadError}</p>

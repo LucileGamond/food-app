@@ -34,8 +34,6 @@ describe('ShoppingListsPage', () => {
     expect(items[0]).toHaveTextContent('3 / 12 articles')
     expect(items[1]).toHaveTextContent('2 / 2 articles')
     expect(items[2]).toHaveTextContent('Vide')
-    // Sans application installée, les notifications ne sont pas proposées
-    expect(screen.getByText(/disponibles depuis l'application installée/)).toBeInTheDocument()
   })
 
   it('crée une liste avec le nom proposé puis l’ouvre', async () => {
