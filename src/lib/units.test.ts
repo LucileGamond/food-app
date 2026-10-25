@@ -1,4 +1,5 @@
 import sql from '../../supabase/migrations/20261027000000_ingredient_units.sql?raw'
+import shoppingSql from '../../supabase/migrations/20261029000000_shopping_lists.sql?raw'
 import { UNITS as FUNCTION_UNITS } from '../../supabase/functions/import-recipe/model.ts'
 import { isUnit, splitUnit, UNIT_ALIASES, unitKey, unitLabel, UNITS } from './units'
 
@@ -59,5 +60,7 @@ describe('unités', () => {
     const check = /unit in \((.*?)\)\);/s.exec(sql)?.[1]
     expect(check!.split(',').map((u) => u.trim().replace(/^'|'$/g, ''))).toEqual(UNITS)
     expect(FUNCTION_UNITS).toEqual(UNITS)
+    const shopping = /unit in \((.*?)\)\),/s.exec(shoppingSql)?.[1]
+    expect(shopping!.split(',').map((u) => u.trim().replace(/^'|'$/g, ''))).toEqual(UNITS)
   })
 })

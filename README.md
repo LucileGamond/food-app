@@ -17,6 +17,11 @@ Application web installable (PWA) pour Lucile et Eric : planning partagé des re
   (l'app installée apparaît comme cible de partage ; le titre de la page est récupéré automatiquement).
   Un élément se planifie par glisser-déposer sur un créneau ou avec le bouton calendrier (jour, créneau, personnes),
   puis disparaît de la liste. Un lien déjà enregistré comme recette devient cette recette.
+- **Courses** : listes partagées en direct, articles avec quantité, unité (même liste que les recettes) et rayon
+  (deviné à partir du nom, modifiable), rangés dans l'ordre du magasin ; un article déjà présent voit sa quantité
+  additionnée (g/kg, ml/cl/l convertis) ; les articles cochés passent « dans le caddie » et se retirent d'un clic.
+  **Notifications** (Web Push) : l'autre personne est prévenue sur son téléphone, une seule fois par série de
+  modifications (quelques minutes après la dernière) ; activation par appareil depuis la page Courses.
 - **Recettes** :
   - *ponctuelles* : titre, texte libre, lien — saisies directement dans le planning ;
   - *sauvegardées* : ingrédients détaillés, étapes, tags, photos — listées dans l'écran Recettes.
@@ -116,6 +121,17 @@ Les tests d'intégration et E2E vident les données de la Supabase **locale** av
    npx supabase secrets set ANTHROPIC_API_KEY=<ta clé> --project-ref <SUPABASE_PROJECT_REF>
    ```
    Facultatif : `ANTHROPIC_MODEL` pour changer de modèle (Claude Haiku par défaut).
+
+7. **Notifications des listes de courses** (une seule fois) :
+   - clés VAPID et secret partagé : `supabase/functions/.env.notify` (généré en local, ignoré par git ; la clé publique
+     est dans `.env`, commitée) ;
+   - `npx supabase secrets set --env-file supabase/functions/.env.notify --project-ref <SUPABASE_PROJECT_REF>` ;
+   - dans *SQL Editor* (même valeur que `NOTIFY_SECRET`) :
+     ```sql
+     select vault.create_secret('https://<SUPABASE_PROJECT_REF>.supabase.co/functions/v1/notify-shopping', 'notify_shopping_url');
+     select vault.create_secret('<NOTIFY_SECRET>', 'notify_shopping_secret');
+     ```
+   La tâche `pg_cron` appelle la fonction toutes les 3 minutes, seulement s'il y a des modifications en attente.
 
 Ensuite, chaque push sur `main` lance tous les tests, puis — s'ils passent — applique les migrations et déploie.
 Le workflow `keep-alive` interroge Supabase tous les 3 jours pour éviter la mise en pause du projet gratuit.

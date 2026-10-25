@@ -175,6 +175,26 @@ isOneToOne: false
                   Relationships: [
                     
                   ]
+                },"push_subscriptions": {
+                  Row: {
+                    "auth": string,"created_at": string,"endpoint": string,"id": string,"p256dh": string,"profile_id": string,"user_agent": string | null
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "auth": string,"created_at"?: string,"endpoint": string,"id"?: string,"p256dh": string,"profile_id"?: string,"user_agent"?: string | null
+                  }
+                  Update: {
+                    "auth"?: string,"created_at"?: string,"endpoint"?: string,"id"?: string,"p256dh"?: string,"profile_id"?: string,"user_agent"?: string | null
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "push_subscriptions_profile_id_fkey"
+      columns: ["profile_id"]
+isOneToOne: false
+      referencedRelation: "profiles"
+      referencedColumns: ["id"]
+    }
+                  ]
                 },"recipe_ingredients": {
                   Row: {
                     "id": string,"name": string,"note": string | null,"position": number,"quantity": number | null,"recipe_id": string,"unit": string | null
@@ -229,6 +249,78 @@ isOneToOne: false
                   Relationships: [
                     {
       foreignKeyName: "recipes_created_by_fkey"
+      columns: ["created_by"]
+isOneToOne: false
+      referencedRelation: "profiles"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"shopping_events": {
+                  Row: {
+                    "actor_id": string,"created_at": string,"id": number,"item_name": string,"kind": Database["public"]['Enums']["shopping_event_kind"],"list_id": string,"notified_at": string | null
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "actor_id": string,"created_at"?: string,"id"?: never,"item_name": string,"kind": Database["public"]['Enums']["shopping_event_kind"],"list_id": string,"notified_at"?: string | null
+                  }
+                  Update: {
+                    "actor_id"?: string,"created_at"?: string,"id"?: never,"item_name"?: string,"kind"?: Database["public"]['Enums']["shopping_event_kind"],"list_id"?: string,"notified_at"?: string | null
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "shopping_events_actor_id_fkey"
+      columns: ["actor_id"]
+isOneToOne: false
+      referencedRelation: "profiles"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "shopping_events_list_id_fkey"
+      columns: ["list_id"]
+isOneToOne: false
+      referencedRelation: "shopping_lists"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"shopping_items": {
+                  Row: {
+                    "aisle": Database["public"]['Enums']["shopping_aisle"],"checked": boolean,"created_at": string,"created_by": string | null,"id": string,"list_id": string,"name": string,"position": number,"quantity": number | null,"unit": string | null,"updated_at": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "aisle"?: Database["public"]['Enums']["shopping_aisle"],"checked"?: boolean,"created_at"?: string,"created_by"?: string | null,"id"?: string,"list_id": string,"name": string,"position"?: number,"quantity"?: number | null,"unit"?: string | null,"updated_at"?: string
+                  }
+                  Update: {
+                    "aisle"?: Database["public"]['Enums']["shopping_aisle"],"checked"?: boolean,"created_at"?: string,"created_by"?: string | null,"id"?: string,"list_id"?: string,"name"?: string,"position"?: number,"quantity"?: number | null,"unit"?: string | null,"updated_at"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "shopping_items_created_by_fkey"
+      columns: ["created_by"]
+isOneToOne: false
+      referencedRelation: "profiles"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "shopping_items_list_id_fkey"
+      columns: ["list_id"]
+isOneToOne: false
+      referencedRelation: "shopping_lists"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"shopping_lists": {
+                  Row: {
+                    "created_at": string,"created_by": string | null,"id": string,"name": string,"updated_at": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "created_at"?: string,"created_by"?: string | null,"id"?: string,"name": string,"updated_at"?: string
+                  }
+                  Update: {
+                    "created_at"?: string,"created_by"?: string | null,"id"?: string,"name"?: string,"updated_at"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "shopping_lists_created_by_fkey"
       columns: ["created_by"]
 isOneToOne: false
       referencedRelation: "profiles"
@@ -293,6 +385,9 @@ isOneToOne: false
 "recipe_url_key":
 { Args: { "p_url": string }; Returns: string
                            },
+"save_push_subscription":
+{ Args: { "p_auth": string,"p_endpoint": string,"p_p256dh": string,"p_user_agent"?: string }; Returns: string
+                           },
 "save_recipe":
 { Args: { "p_ingredients": Json,"p_notes"?: string,"p_recipe_id"?: string,"p_servings"?: number,"p_tags"?: (string)[],"p_title": string,"p_url"?: string }; Returns: string
                            },
@@ -313,7 +408,7 @@ isOneToOne: false
                            }
           }
           Enums: {
-            "food_meal": "BREAKFAST"|"LUNCH"|"SNACK"|"APERITIF"|"DINNER"|"POOL"|"SPORT","meal_slot": "LUNCH"|"DINNER"
+            "food_meal": "BREAKFAST"|"LUNCH"|"SNACK"|"APERITIF"|"DINNER"|"POOL"|"SPORT","meal_slot": "LUNCH"|"DINNER","shopping_aisle": "FRUITS_LEGUMES"|"BOULANGERIE"|"BOUCHERIE_POISSON"|"CREMERIE"|"EPICERIE_SALEE"|"EPICERIE_SUCREE"|"SURGELES"|"BOISSONS"|"HYGIENE_MAISON"|"AUTRE","shopping_event_kind": "ADDED"|"CHECKED"|"UNCHECKED"|"UPDATED"|"REMOVED"
           }
           CompositeTypes: {
             [_ in never]: never
@@ -433,7 +528,7 @@ export const Constants = {
           }
         },"public": {
           Enums: {
-            "food_meal": ["BREAKFAST", "LUNCH", "SNACK", "APERITIF", "DINNER", "POOL", "SPORT"],"meal_slot": ["LUNCH", "DINNER"]
+            "food_meal": ["BREAKFAST", "LUNCH", "SNACK", "APERITIF", "DINNER", "POOL", "SPORT"],"meal_slot": ["LUNCH", "DINNER"],"shopping_aisle": ["FRUITS_LEGUMES", "BOULANGERIE", "BOUCHERIE_POISSON", "CREMERIE", "EPICERIE_SALEE", "EPICERIE_SUCREE", "SURGELES", "BOISSONS", "HYGIENE_MAISON", "AUTRE"],"shopping_event_kind": ["ADDED", "CHECKED", "UNCHECKED", "UPDATED", "REMOVED"]
           }
         }
 } as const

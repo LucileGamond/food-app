@@ -34,3 +34,5 @@ supabase/.temp
 
 # Secrets des Edge Functions en local
 supabase/functions/.env
+supabase/functions/.env.*
+!supabase/functions/.env.example

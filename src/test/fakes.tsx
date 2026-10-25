@@ -10,6 +10,7 @@ import type { Meal, Profile, RecipeSummary } from '@/lib/meals'
 import type { Recipe, RecipeImport } from '@/lib/recipes'
 import type { Consumption, FoodPeriod, PeriodItem, PlanItem } from '@/lib/food'
 import type { InboxItem } from '@/lib/inbox'
+import type { ShoppingItem, ShoppingItemInput, ShoppingList } from '@/lib/shopping'
 import type { WeightEntry } from '@/lib/weights'
 
 export const LUCILE: Profile = { id: 'u-lucile', display_name: 'Lucile' }
@@ -64,6 +65,32 @@ export function fakeApi(): FakeApi {
       planItem: vi.fn(async () => 'planned-meal'),
       fetchTitle: vi.fn(async () => null as string | null),
       subscribe: vi.fn(() => () => undefined),
+    },
+    shopping: {
+      listLists: vi.fn(async () => [] as ShoppingList[]),
+      getList: vi.fn(async (id: string) => ({ id, name: 'Courses' }) as { id: string; name: string } | null),
+      createList: vi.fn(async () => 'new-list'),
+      renameList: vi.fn(async () => undefined),
+      deleteList: vi.fn(async () => undefined),
+      listItems: vi.fn(async () => [] as ShoppingItem[]),
+      addItem: vi.fn(
+        async (listId: string, input: ShoppingItemInput, position: number): Promise<ShoppingItem> => ({
+          id: `item-${Math.random()}`,
+          list_id: listId,
+          checked: false,
+          position,
+          ...input,
+        }),
+      ),
+      updateItem: vi.fn(async () => undefined),
+      deleteItem: vi.fn(async () => undefined),
+      clearChecked: vi.fn(async () => undefined),
+      subscribe: vi.fn(() => () => undefined),
+    },
+    push: {
+      saveSubscription: vi.fn(async () => undefined),
+      isSubscribed: vi.fn(async () => false),
+      deleteSubscription: vi.fn(async () => undefined),
     },
     food: {
       listPlan: vi.fn(async () => [] as PlanItem[]),

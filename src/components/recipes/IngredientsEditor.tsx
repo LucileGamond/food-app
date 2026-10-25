@@ -2,11 +2,7 @@ import { ArrowDown, ArrowUp, Plus, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { moveItem, newIngredientDraft, type IngredientDraft } from '@/lib/recipes'
-import { isUnit, UNIT_GROUPS } from '@/lib/units'
-import { cn } from '@/lib/utils'
-
-const selectClass =
-  'h-10 w-full min-w-0 rounded-lg border border-input bg-transparent px-2 text-base md:text-sm focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none dark:bg-input/30'
+import { UnitSelect } from '@/components/UnitSelect'
 
 interface Props {
   rows: IngredientDraft[]
@@ -47,25 +43,7 @@ export function IngredientsEditor({ rows, errors = {}, onChange }: Props) {
                   onChange={(e) => update(row.key, 'quantity', e.target.value)}
                   className="h-10 placeholder:text-muted-foreground/40"
                 />
-                <select
-                  aria-label={`Unité de l'ingrédient ${n}`}
-                  value={row.unit}
-                  onChange={(e) => update(row.key, 'unit', e.target.value)}
-                  className={cn(selectClass, row.unit === '' && 'text-muted-foreground')}
-                >
-                  <option value="">—</option>
-                  {/* Unité d'une ancienne saisie hors liste : affichée pour ne pas la perdre, signalée à l'enregistrement. */}
-                  {row.unit !== '' && !isUnit(row.unit) && <option value={row.unit}>{row.unit}</option>}
-                  {UNIT_GROUPS.map((group) => (
-                    <optgroup key={group.label} label={group.label}>
-                      {group.units.map((unit) => (
-                        <option key={unit} value={unit}>
-                          {unit}
-                        </option>
-                      ))}
-                    </optgroup>
-                  ))}
-                </select>
+                <UnitSelect aria-label={`Unité de l'ingrédient ${n}`} value={row.unit} onChange={(unit) => update(row.key, 'unit', unit)} />
                 <Input
                   aria-label={`Nom de l'ingrédient ${n}`}
                   placeholder="Farine"

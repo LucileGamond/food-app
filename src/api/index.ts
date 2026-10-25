@@ -3,7 +3,9 @@ import { createFoodApi } from './food'
 import { createInboxApi } from './inbox'
 import { createMealsApi } from './meals'
 import { createPhotosApi } from './photos'
+import { createPushApi } from './push'
 import { createRecipesApi } from './recipes'
+import { createShoppingApi } from './shopping'
 import { createWeightsApi } from './weights'
 
 export function createApi(db: AppSupabaseClient) {
@@ -14,6 +16,8 @@ export function createApi(db: AppSupabaseClient) {
     weights: createWeightsApi(db),
     food: createFoodApi(db),
     inbox: createInboxApi(db),
+    shopping: createShoppingApi(db),
+    push: createPushApi(db),
   }
 }
 

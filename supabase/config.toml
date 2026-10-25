@@ -416,3 +416,7 @@ enabled = true
 
 [functions.import-recipe]
 verify_jwt = true
+
+[functions.notify-shopping]
+# Appelée par pg_cron : pas de jeton utilisateur, la fonction vérifie elle-même un secret partagé.
+verify_jwt = false

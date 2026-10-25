@@ -30,6 +30,8 @@ export default defineConfig({
         ],
       },
       workbox: {
+        // Notifications Web Push (listes de courses)
+        importScripts: ['push-sw.js'],
         navigateFallback: '/index.html',
         globPatterns: ['**/*.{js,css,html,svg,png,woff2}'],
       },
