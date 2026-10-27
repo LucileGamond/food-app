@@ -37,7 +37,7 @@ describe('recipes api', () => {
       prep_minutes: null,
       rest_minutes: null,
       cook_minutes: null,
-      ingredients: curry.ingredients.map((i) => ({ ...i, section: null })),
+      ingredients: curry.ingredients.map((i) => ({ ...i, section: null, linkedRecipe: null })),
       photos: [],
     })
   })
@@ -65,6 +65,46 @@ describe('recipes api', () => {
     expect(await api.recipes.getRecipe(id)).toMatchObject({ source: null, prep_minutes: null, rest_minutes: null, cook_minutes: null })
     expect(await api.recipes.listSources()).toEqual([])
     await expect(api.recipes.saveRecipe({ ...curry, url: null, prepMinutes: 99_999 })).rejects.toBeInstanceOf(Error)
+  })
+
+  it('lie un ingrédient à une sous-recette, dans un seul sens', async () => {
+    const { api } = await signedInApi()
+    const pate = await api.recipes.saveRecipe({ ...curry, url: null, title: 'Pâte sucrée', ingredients: [{ name: 'Farine', quantity: 250, unit: 'g', note: null }] })
+    const tarte = await api.recipes.saveRecipe({
+      ...curry,
+      url: null,
+      title: 'Tarte',
+      ingredients: [
+        { name: 'Pâte sucrée', quantity: 200, unit: 'g', note: 'voir p. 208' },
+        { name: 'Bananes', quantity: 5, unit: null, note: null },
+      ],
+    })
+    await api.recipes.linkIngredient(tarte, { position: 0, name: 'Pâte sucrée' }, pate)
+    const linked = await api.recipes.getRecipe(tarte)
+    expect(linked!.ingredients.map((i) => i.linkedRecipe)).toEqual([{ id: pate, title: 'Pâte sucrée' }, null])
+    expect((await api.recipes.getRecipe(pate))!.ingredients.map((i) => i.linkedRecipe)).toEqual([null])
+
+    // Réenregistrée depuis le formulaire : le lien suit l'ingrédient, même déplacé
+    await api.recipes.saveRecipe({ ...curry, id: tarte, url: null, title: 'Tarte', ingredients: [linked!.ingredients[1]!, linked!.ingredients[0]!] })
+    expect((await api.recipes.getRecipe(tarte))!.ingredients.map((i) => i.linkedRecipe?.title ?? null)).toEqual([null, 'Pâte sucrée'])
+
+    await api.recipes.linkIngredient(tarte, { position: 1, name: 'Pâte sucrée' }, null)
+    expect((await api.recipes.getRecipe(tarte))!.ingredients.map((i) => i.linkedRecipe)).toEqual([null, null])
+    await expect(api.recipes.linkIngredient(tarte, { position: 0, name: 'Bananes' }, tarte)).rejects.toThrow('Cette recette n’existe plus')
+    // Recette modifiée entre-temps (l'ingrédient n'est plus à cette place) : rien n'est lié au mauvais ingrédient
+    await expect(api.recipes.linkIngredient(tarte, { position: 0, name: 'Pâte sucrée' }, pate)).rejects.toThrow('La recette a été modifiée entre-temps')
+
+    // Sous-recette utilisée : suppression refusée, avec les recettes qui l'utilisent
+    await api.recipes.linkIngredient(tarte, { position: 1, name: 'Pâte sucrée' }, pate)
+    expect(await api.recipes.listUsages(pate)).toEqual({ meals: [], recipes: [{ id: tarte, title: 'Tarte' }] })
+    const refused = api.recipes.deleteRecipe(pate)
+    await expect(refused).rejects.toBeInstanceOf(RecipeInUseError)
+    await expect(refused).rejects.toThrow('utilisée dans une autre recette')
+    expect(await api.recipes.getRecipe(pate)).not.toBeNull()
+    // La recette principale reste supprimable, et libère la sous-recette
+    await api.recipes.deleteRecipe(tarte)
+    await api.recipes.deleteRecipe(pate)
+    expect(await api.recipes.getRecipe(pate)).toBeNull()
   })
 
   it('renvoie le nombre de personnes et les ingrédients de plusieurs recettes', async () => {
@@ -127,11 +167,14 @@ describe('recipes api', () => {
     await api.meals.createMeal({ date: '2026-10-22', slot: 'DINNER', people: [LUCILE.id], source: { kind: 'saved', recipeId: id } })
     await api.meals.createMeal({ date: '2026-10-21', slot: 'LUNCH', people: [LUCILE.id], source: { kind: 'saved', recipeId: id } })
 
-    expect(await api.recipes.listUsages(id)).toEqual([
-      { meal_date: '2026-10-21', slot: 'LUNCH' },
-      { meal_date: '2026-10-22', slot: 'DINNER' },
-    ])
-    await expect(api.recipes.deleteRecipe(id)).rejects.toBeInstanceOf(RecipeInUseError)
+    expect(await api.recipes.listUsages(id)).toEqual({
+      meals: [
+        { meal_date: '2026-10-21', slot: 'LUNCH' },
+        { meal_date: '2026-10-22', slot: 'DINNER' },
+      ],
+      recipes: [],
+    })
+    await expect(api.recipes.deleteRecipe(id)).rejects.toThrow('utilisée dans le planning')
     expect(await api.recipes.getRecipe(id)).not.toBeNull()
   })
 
@@ -161,6 +204,7 @@ describe('recipes api', () => {
     await expect(api.listUsages(missing)).rejects.toThrow()
     await expect(api.listTags()).rejects.toThrow()
     await expect(api.deleteRecipe(missing)).rejects.toThrow()
+    await expect(api.linkIngredient(missing, { position: 0, name: 'x' }, null)).rejects.toThrow()
   })
 
   it('refuse un lien déjà enregistré et permet de basculer le planning sur la recette existante', async () => {

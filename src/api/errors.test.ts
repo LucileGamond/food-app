@@ -17,6 +17,8 @@ describe('toAppError', () => {
     const error = new RecipeInUseError()
     expect(toAppError(error)).toBe(error)
     expect(error).toBeInstanceOf(AppError)
+    expect(error.message).toContain('planning')
+    expect(new RecipeInUseError('recipe').message).toBe('Cette recette est utilisée dans une autre recette : elle ne peut pas être supprimée.')
   })
 })
 

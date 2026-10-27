@@ -9,6 +9,13 @@ export interface Ingredient {
   note: string | null
   /** Sous-partie de la recette (« Pour le streusel »), null si aucune. */
   section?: string | null
+  /** Sous-recette à laquelle renvoie l'ingrédient (« pâte sucrée » → recette Pâte sucrée). */
+  linkedRecipe?: LinkedRecipe | null
+}
+
+export interface LinkedRecipe {
+  id: string
+  title: string
 }
 
 export interface RecipePhoto {
@@ -45,6 +52,7 @@ export interface IngredientDraft {
   unit: string
   note: string
   heading?: boolean
+  linkedRecipe?: LinkedRecipe | null
 }
 
 export interface RecipeFormValues {
@@ -222,7 +230,14 @@ export function toSaveRecipeInput(id: string | null, values: RecipeFormValues): 
       continue
     }
     if (filledIngredients([row]).length === 0) continue
-    ingredients.push({ name: row.name.trim(), quantity: parseQuantity(row.quantity), unit: row.unit.trim() || null, note: row.note.trim() || null, section })
+    ingredients.push({
+      name: row.name.trim(),
+      quantity: parseQuantity(row.quantity),
+      unit: row.unit.trim() || null,
+      note: row.note.trim() || null,
+      section,
+      ...(row.linkedRecipe ? { linkedRecipe: row.linkedRecipe } : {}),
+    })
   }
   return {
     id,
@@ -248,6 +263,7 @@ export function newIngredientDraft(ingredient?: Ingredient): IngredientDraft {
     quantity: ingredient ? formatQuantity(ingredient.quantity) : '',
     unit: ingredient?.unit ?? '',
     note: ingredient?.note ?? '',
+    linkedRecipe: ingredient?.linkedRecipe ?? null,
   }
 }
 
@@ -287,6 +303,56 @@ export function recipeToFormValues(recipe: RecipeFormSource): RecipeFormValues {
     cookTime: formatDuration(recipe.cook_minutes),
     ingredients: ingredientRows(recipe.ingredients ?? []),
   }
+}
+
+const PAGE_REFERENCE = /\b(?:voir\s+)?(?:p\.|page)\s*(\d+)/i
+
+/** Renvoi à une autre page du livre (« voir p. 208 ») dans le nom ou la précision : « p. 208 », sinon null. */
+export function pageReference(ingredient: Pick<Ingredient, 'name' | 'note'>): string | null {
+  const match = PAGE_REFERENCE.exec(`${ingredient.name} ${ingredient.note ?? ''}`)
+  return match ? `p. ${match[1]}` : null
+}
+
+/** Sous-recette à importer ou à lier : ingrédient qui renvoie à une autre page, pas encore lié. */
+export interface PendingLink {
+  /** Position de l'ingrédient dans la recette. */
+  position: number
+  name: string
+  page: string
+}
+
+export function pendingLinks(ingredients: readonly Ingredient[]): PendingLink[] {
+  return ingredients.flatMap((ingredient, position) => {
+    const page = ingredient.linkedRecipe ? null : pageReference(ingredient)
+    return page ? [{ position, name: ingredient.name, page }] : []
+  })
+}
+
+/** Source d'une sous-recette : celle de la recette principale, à la page indiquée (« Pâtisserie maison, p. 208 »). */
+export function linkedSource(parentSource: string | null | undefined, page: string): string {
+  const book = (parentSource ?? '').replace(/[,\s]*\b(?:p\.|page)\s*\d+\s*$/i, '').trim()
+  return [book, page].filter(Boolean).join(', ')
+}
+
+/** Formulaire de nouvelle recette pour importer la sous-recette d'un ingrédient. */
+export function linkedImportPath(parentId: string, reference: PendingLink): string {
+  const params = new URLSearchParams({ lier: parentId, ingredient: String(reference.position), nom: reference.name, page: reference.page })
+  return `/recettes/nouvelle?${params}`
+}
+
+/** Paramètres d'un formulaire ouvert par `linkedImportPath`, ou null. */
+export function parseLinkedImport(params: URLSearchParams): { parentId: string; reference: PendingLink } | null {
+  const parentId = params.get('lier') ?? ''
+  const position = params.get('ingredient') ? Number(params.get('ingredient')) : Number.NaN
+  const name = params.get('nom')?.trim()
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(parentId) || !Number.isInteger(position) || position < 0 || !name) return null
+  return { parentId, reference: { position, name, page: params.get('page')?.trim() ?? '' } }
+}
+
+/** Titre proposé pour une sous-recette à partir du nom de l'ingrédient (« pâte sucrée » → « Pâte sucrée »). */
+export function linkedTitle(name: string): string {
+  const clean = name.trim()
+  return clean.charAt(0).toLocaleUpperCase('fr-FR') + clean.slice(1)
 }
 
 /** Ingrédients regroupés par sous-partie, dans l'ordre (sous-partie null : sans titre). */

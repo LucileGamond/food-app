@@ -27,7 +27,7 @@ describe('importChecks', () => {
     expect(importChecks(RECIPE, values).map((c) => [c.ingredientKey, c.field, c.message])).toEqual([
       [bananes!.key, null, 'Quantité approximative (4 ou 5)'],
       [null, null, 'Sous-parties du livre regroupées'],
-      [pate!.key, null, 'Renvoie à une autre page : recette à ajouter à part'],
+      [pate!.key, null, 'Renvoie à une autre page : recette à importer après l’enregistrement'],
       [citron!.key, null, 'Quantité dans la précision : à reporter si possible'],
       [thym!.key, null, 'Quantité non trouvée'],
       [null, 'servings', 'Nombre de portions non trouvé'],
@@ -52,7 +52,7 @@ describe('importChecks', () => {
     const left = pendingChecks(checks, snapshot, fixed).map((c) => c.message)
     expect(left).not.toContain('Quantité non trouvée')
     expect(left).not.toContain('Nombre de portions non trouvé')
-    expect(left).not.toContain('Renvoie à une autre page : recette à ajouter à part')
+    expect(left).not.toContain('Renvoie à une autre page : recette à importer après l’enregistrement')
     expect(left).toContain('Sous-parties du livre regroupées')
     expect(left).toContain('Étapes de préparation non trouvées')
   })

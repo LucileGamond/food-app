@@ -11,8 +11,13 @@ export class AppError extends Error {
 
 /** Une recette sauvegardée ne peut pas être supprimée tant qu'un repas l'utilise. */
 export class RecipeInUseError extends AppError {
-  constructor() {
-    super('Cette recette est utilisée dans le planning : elle ne peut pas être supprimée.', '23503')
+  constructor(usedBy: 'planning' | 'recipe' = 'planning') {
+    super(
+      usedBy === 'recipe'
+        ? 'Cette recette est utilisée dans une autre recette : elle ne peut pas être supprimée.'
+        : 'Cette recette est utilisée dans le planning : elle ne peut pas être supprimée.',
+      '23503',
+    )
     this.name = 'RecipeInUseError'
   }
 }

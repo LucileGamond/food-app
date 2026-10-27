@@ -1,6 +1,6 @@
 import type { IsoDate } from '@/lib/dates'
 import type { MealSlot, RecipeSummary } from '@/lib/meals'
-import type { Ingredient, Recipe, RecipeImport, RecipeListItem, SaveRecipeInput } from '@/lib/recipes'
+import type { Ingredient, LinkedRecipe, Recipe, RecipeImport, RecipeListItem, SaveRecipeInput } from '@/lib/recipes'
 import type { AppSupabaseClient } from '@/lib/supabase'
 import { PHOTO_BUCKET } from './photos'
 import { AppError, DuplicateRecipeUrlError, RecipeInUseError, toAppError } from './errors'
@@ -8,6 +8,12 @@ import { AppError, DuplicateRecipeUrlError, RecipeInUseError, toAppError } from 
 export interface RecipeUsage {
   meal_date: IsoDate
   slot: MealSlot
+}
+
+/** Ce qui empêche de supprimer une recette : les repas du planning et les recettes qui l'utilisent. */
+export interface RecipeUsages {
+  meals: RecipeUsage[]
+  recipes: LinkedRecipe[]
 }
 
 /** Erreur renvoyée par l'Edge Function import-recipe → message affichable. */
@@ -74,18 +80,29 @@ export function createRecipesApi(db: AppSupabaseClient) {
       const { data, error } = await db
         .from('recipes')
         .select(
-          'id, is_saved, title, notes, url, servings, tags, source, prep_minutes, rest_minutes, cook_minutes, recipe_ingredients(name, quantity, unit, note, section, position), recipe_photos(id, storage_path, position)',
+          'id, is_saved, title, notes, url, servings, tags, source, prep_minutes, rest_minutes, cook_minutes, recipe_ingredients(name, quantity, unit, note, section, position, linked_recipe_id), recipe_photos(id, storage_path, position)',
         )
         .eq('id', id)
         .maybeSingle()
       if (error) throw toAppError(error, 'Impossible de charger la recette.')
       if (!data) return null
       const { recipe_ingredients, recipe_photos, ...recipe } = data
+      // Titres des sous-recettes liées (pas de relation déclarée : voir la migration recipe_links).
+      const linkedIds = [...new Set(recipe_ingredients.flatMap((i) => (i.linked_recipe_id ? [i.linked_recipe_id] : [])))]
+      const titles = new Map<string, string>()
+      if (linkedIds.length > 0) {
+        const linked = await db.from('recipes').select('id, title').in('id', linkedIds).eq('is_saved', true)
+        if (linked.error) throw toAppError(linked.error, 'Impossible de charger la recette.')
+        for (const r of linked.data) titles.set(r.id, r.title)
+      }
       return {
         ...recipe,
         ingredients: [...recipe_ingredients]
           .sort((a, b) => a.position - b.position)
-          .map(({ name, quantity, unit, note, section }) => ({ name, quantity, unit, note, section })),
+          .map(({ name, quantity, unit, note, section, linked_recipe_id }) => {
+            const title = linked_recipe_id ? titles.get(linked_recipe_id) : undefined
+            return { name, quantity, unit, note, section, linkedRecipe: title ? { id: linked_recipe_id!, title } : null }
+          }),
         photos: [...recipe_photos].sort((a, b) => a.position - b.position),
       }
     },
@@ -130,6 +147,7 @@ export function createRecipesApi(db: AppSupabaseClient) {
           unit: i.unit ?? '',
           note: i.note ?? '',
           section: i.section ?? '',
+          linked_recipe_id: i.linkedRecipe?.id ?? '',
         })),
       })
       if (error?.code === '23505' && input.url) {
@@ -142,6 +160,29 @@ export function createRecipesApi(db: AppSupabaseClient) {
 
     findSavedByUrl,
 
+    /**
+     * Lie un ingrédient à une sous-recette sauvegardée, ou retire le lien (null). L'ingrédient est désigné par sa
+     * position et son nom : si la recette a changé entre-temps, rien n'est lié au mauvais ingrédient.
+     */
+    async linkIngredient(recipeId: string, ingredient: { position: number; name: string }, linkedRecipeId: string | null): Promise<void> {
+      const { error } = await db.rpc('link_recipe_ingredient', {
+        p_recipe_id: recipeId,
+        p_position: ingredient.position,
+        p_name: ingredient.name,
+        // null (retirer le lien) est accepté par la fonction ; les types générés ne le prévoient pas.
+        p_linked_recipe_id: linkedRecipeId as string,
+      })
+      if (error?.code === 'P0002') {
+        throw new AppError(
+          error.message === 'Recette liée introuvable'
+            ? 'Cette recette n’existe plus : elle a peut-être été supprimée.'
+            : 'La recette a été modifiée entre-temps : recharge-la puis réessaie.',
+          'P0002',
+        )
+      }
+      if (error) throw toAppError(error, 'Impossible de lier la recette.')
+    },
+
     /** Les repas qui utilisent la recette ponctuelle passent sur la recette sauvegardée ; renvoie leur nombre. */
     async useSavedRecipe(adhocId: string, savedId: string): Promise<number> {
       const { data, error } = await db.rpc('use_saved_recipe', { p_adhoc_id: adhocId, p_saved_id: savedId })
@@ -150,25 +191,26 @@ export function createRecipesApi(db: AppSupabaseClient) {
     },
 
     /** Dates du planning qui utilisent la recette. */
-    async listUsages(id: string): Promise<RecipeUsage[]> {
-      const { data, error } = await db
-        .from('meals')
-        .select('meal_date, slot')
-        .eq('recipe_id', id)
-        .order('meal_date')
-        .order('slot')
-      if (error) throw toAppError(error, 'Impossible de vérifier le planning.')
-      return data
+    async listUsages(id: string): Promise<RecipeUsages> {
+      const [meals, links] = await Promise.all([
+        db.from('meals').select('meal_date, slot').eq('recipe_id', id).order('meal_date').order('slot'),
+        db.from('recipe_ingredients').select('recipes(id, title)').eq('linked_recipe_id', id),
+      ])
+      if (meals.error) throw toAppError(meals.error, 'Impossible de vérifier le planning.')
+      if (links.error) throw toAppError(links.error, 'Impossible de vérifier les recettes liées.')
+      const recipes = new Map<string, LinkedRecipe>()
+      for (const { recipes: recipe } of links.data) if (recipe) recipes.set(recipe.id, recipe)
+      return { meals: meals.data, recipes: [...recipes.values()].sort((a, b) => a.title.localeCompare(b.title, 'fr')) }
     },
 
-    /** Supprime la recette et ses photos. Refusé si un repas l'utilise. */
+    /** Supprime la recette et ses photos. Refusé si un repas ou une autre recette l'utilise. */
     async deleteRecipe(id: string): Promise<void> {
       const { data: photos, error: photosError } = await db.from('recipe_photos').select('storage_path').eq('recipe_id', id)
       if (photosError) throw toAppError(photosError, 'Impossible de supprimer la recette.')
 
       const { error } = await db.from('recipes').delete().eq('id', id)
       if (error) {
-        if (error.code === '23503') throw new RecipeInUseError()
+        if (error.code === '23503') throw new RecipeInUseError(error.message.includes('autre recette') ? 'recipe' : 'planning')
         throw toAppError(error, 'Impossible de supprimer la recette.')
       }
 

@@ -1,4 +1,4 @@
-import { ArrowLeft, ArrowRightLeft, CopyCheck, Loader2, SearchX } from 'lucide-react'
+import { ArrowLeft, ArrowRightLeft, BookOpen, CopyCheck, Link2, Loader2, SearchX } from 'lucide-react'
 import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { Link, useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { toast } from 'sonner'
@@ -26,6 +26,9 @@ import {
   hasErrors,
   importedImageToFile,
   importedToFormValues,
+  linkedSource,
+  linkedTitle,
+  parseLinkedImport,
   recipeToFormValues,
   toSaveRecipeInput,
   validateRecipeForm,
@@ -78,7 +81,12 @@ export function RecipeFormPage() {
 
   const [status, setStatus] = useState<'loading' | 'ready' | 'notFound'>(id ? 'loading' : 'ready')
   const [wasSaved, setWasSaved] = useState(!id)
-  const [values, setValues] = useState<RecipeFormValues>(EMPTY)
+  // Sous-recette d'un ingrédient (« pâte sucrée, voir p. 208 »), ouverte depuis la recette principale.
+  const [linkTarget, setLinkTarget] = useState(() => (id ? null : parseLinkedImport(searchParams)))
+  const [parent, setParent] = useState<{ title: string } | null>(null)
+  const [values, setValues] = useState<RecipeFormValues>(() =>
+    linkTarget ? { ...EMPTY, title: linkedTitle(linkTarget.reference.name) } : EMPTY,
+  )
   const [photos, setPhotos] = useState<PhotoDraft[]>([])
   const [removed, setRemoved] = useState<PhotoDraft[]>([])
   const [tagSuggestions, setTagSuggestions] = useState<string[]>([])
@@ -101,6 +109,25 @@ export function RecipeFormPage() {
     api.recipes.listSources().then(setSources, () => setSources([]))
     api.recipes.listSavedSummaries().then(setSavedTitles, () => setSavedTitles([]))
   }, [api])
+
+  useEffect(() => {
+    if (!linkTarget) return
+    let active = true
+    api.recipes.getRecipe(linkTarget.parentId).then(
+      (recipe) => {
+        if (!active) return
+        // Recette principale supprimée entre-temps : la sous-recette devient une recette comme une autre.
+        if (!recipe?.is_saved) return setLinkTarget(null)
+        setParent({ title: recipe.title })
+        setValues((v) => ({ ...v, source: v.source || linkedSource(recipe.source, linkTarget.reference.page) }))
+      },
+      // Hors ligne : le lien sera tenté à l'enregistrement (et reproposé s'il échoue).
+      () => undefined,
+    )
+    return () => {
+      active = false
+    }
+  }, [api, linkTarget])
 
   // Recette déjà enregistrée sous le même titre (sans accents ni majuscules) : utile surtout après un import.
   const sameTitle = values.title.trim()
@@ -234,7 +261,9 @@ export function RecipeFormPage() {
   }
 
   function applyImport(recipe: ImportedRecipe, url: string) {
-    const next = importedToFormValues(recipe, url)
+    // Source lue sur la photo, sinon celle déjà saisie (ou déduite de la recette principale).
+    const imported = importedToFormValues(recipe, url)
+    const next = { ...imported, source: imported.source || values.source }
     setValues(next)
     setSubmitted(false)
     setReview({ checks: importChecks(recipe, next), snapshot: next })
@@ -290,14 +319,40 @@ export function RecipeFormPage() {
       }
       if (finalIds.length > 1) await api.photos.reorderPhotos(finalIds)
 
+      if (linkTarget) {
+        await linkToParent(recipeId, 'Recette enregistrée et liée', 'Recette enregistrée, mais pas liée')
+        return
+      }
       toast.success(wasSaved ? 'Recette enregistrée' : 'Recette sauvegardée')
-      navigate(from ?? `/recettes/${recipeId}`, { replace: true })
+      // Sur la fiche : proposer d'importer ou de lier les recettes auxquelles elle renvoie (« voir p. 208 »).
+      if (from) navigate(from, { replace: true })
+      else navigate(`/recettes/${recipeId}`, { replace: true, state: { offerLinks: true } })
     } catch (e) {
       if (e instanceof DuplicateRecipeUrlError) setDuplicate(e.existing)
       toast.error(errorMessage(e))
     } finally {
       setSaving(false)
     }
+  }
+
+  /** Lie la sous-recette à l'ingrédient de la recette principale, puis y retourne (pour les autres renvois). */
+  async function linkToParent(recipeId: string, done: string, failed: string) {
+    if (!linkTarget) return
+    const { parentId, reference } = linkTarget
+    try {
+      await api.recipes.linkIngredient(parentId, reference, recipeId)
+      toast.success(`${done} à « ${parent?.title ?? 'la recette'} »`)
+    } catch (e) {
+      // La recette est enregistrée : le renvoi reste proposé sur la recette principale.
+      toast.error(`${failed} : ${errorMessage(e)}`)
+    }
+    navigate(`/recettes/${parentId}`, { replace: true, state: { offerLinks: true } })
+  }
+
+  async function linkExisting(recipe: { id: string; title: string }) {
+    setSaving(true)
+    await linkToParent(recipe.id, `« ${recipe.title} » liée`, 'Lien impossible')
+    setSaving(false)
   }
 
   /** Recette ponctuelle du planning : les repas passent sur la recette déjà enregistrée. */
@@ -338,7 +393,7 @@ export function RecipeFormPage() {
   }
 
   const title = !id ? 'Nouvelle recette' : wasSaved ? 'Modifier la recette' : 'Sauvegarder la recette'
-  const backTo = from ?? (id && wasSaved ? `/recettes/${id}` : '/recettes')
+  const backTo = from ?? (linkTarget ? `/recettes/${linkTarget.parentId}` : id && wasSaved ? `/recettes/${id}` : '/recettes')
 
   return (
     <form onSubmit={handleSubmit} noValidate className="mx-auto max-w-3xl">
@@ -348,6 +403,15 @@ export function RecipeFormPage() {
       <h1 className="mb-1 text-2xl font-semibold tracking-tight">{title}</h1>
       {!wasSaved && (
         <p className="mb-6 text-sm text-muted-foreground">Complétez la recette pour la retrouver dans l'écran Recettes.</p>
+      )}
+      {linkTarget && (
+        <p role="note" className="mt-3 flex items-start gap-2 rounded-xl border bg-background p-3 text-sm">
+          <BookOpen className="mt-0.5 size-4 shrink-0 text-brand" aria-hidden />
+          <span>
+            Recette de « {linkTarget.reference.name} »{linkTarget.reference.page && ` (${linkTarget.reference.page})`}
+            {parent && <> pour « {parent.title} »</>} : elle y sera liée à l’enregistrement.
+          </span>
+        </p>
       )}
 
       <div className="mt-6 space-y-8">
@@ -407,6 +471,11 @@ export function RecipeFormPage() {
                   </Link>
                 </span>
               </p>
+            )}
+            {sameTitle && linkTarget && (
+              <Button type="button" variant="outline" className="h-10 px-3" disabled={saving} onClick={() => void linkExisting(sameTitle)}>
+                <Link2 /> Lier à « {sameTitle.title} » sans créer de recette
+              </Button>
             )}
           </Field>
           <div className="grid gap-5 sm:grid-cols-[8rem_1fr]">

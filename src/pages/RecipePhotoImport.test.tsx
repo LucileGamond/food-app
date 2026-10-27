@@ -118,7 +118,7 @@ describe('RecipeFormPage — recette depuis une photo', () => {
 
     // Chaque point sous le champ concerné
     const rows = screen.getAllByTestId('ingredient-row')
-    expect(rows[0]).toHaveTextContent('À vérifier : Renvoie à une autre page : recette à ajouter à part')
+    expect(rows[0]).toHaveTextContent('À vérifier : Renvoie à une autre page : recette à importer après l’enregistrement')
     expect(rows[1]).toHaveTextContent('À vérifier : Quantité approximative (4 ou 5)')
     expect(rows[2]).not.toHaveTextContent('À vérifier')
     expect(screen.getByText('Nombre de portions non trouvé')).toBeInTheDocument()

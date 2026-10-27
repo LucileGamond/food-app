@@ -197,14 +197,14 @@ isOneToOne: false
                   ]
                 },"recipe_ingredients": {
                   Row: {
-                    "id": string,"name": string,"note": string | null,"position": number,"quantity": number | null,"recipe_id": string,"section": string | null,"unit": string | null
+                    "id": string,"linked_recipe_id": string | null,"name": string,"note": string | null,"position": number,"quantity": number | null,"recipe_id": string,"section": string | null,"unit": string | null
                   }
                   ComputedFields: never
                   Insert: {
-                    "id"?: string,"name": string,"note"?: string | null,"position": number,"quantity"?: number | null,"recipe_id": string,"section"?: string | null,"unit"?: string | null
+                    "id"?: string,"linked_recipe_id"?: string | null,"name": string,"note"?: string | null,"position": number,"quantity"?: number | null,"recipe_id": string,"section"?: string | null,"unit"?: string | null
                   }
                   Update: {
-                    "id"?: string,"name"?: string,"note"?: string | null,"position"?: number,"quantity"?: number | null,"recipe_id"?: string,"section"?: string | null,"unit"?: string | null
+                    "id"?: string,"linked_recipe_id"?: string | null,"name"?: string,"note"?: string | null,"position"?: number,"quantity"?: number | null,"recipe_id"?: string,"section"?: string | null,"unit"?: string | null
                   }
                   Relationships: [
                     {
@@ -375,6 +375,12 @@ isOneToOne: false
 { Args: { "p_exclude"?: string,"p_url": string }; Returns: {
               "id": string,"title": string
             }[]
+                           },
+"link_recipe_ingredient":
+{ Args: { "p_linked_recipe_id": string,"p_name": string,"p_position": number,"p_recipe_id": string }; Returns: undefined
+                           },
+"linkable_recipe":
+{ Args: { "p_linked_recipe_id": string,"p_recipe_id": string }; Returns: string
                            },
 "normalize_unit":
 { Args: { "p_unit": string }; Returns: string

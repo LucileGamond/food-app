@@ -1,4 +1,4 @@
-import type { ImportedRecipe, IngredientDraft, RecipeFormValues } from './recipes'
+import { pageReference, type ImportedRecipe, type IngredientDraft, type RecipeFormValues } from './recipes'
 import { isPantry } from './shoppingFromPlan'
 
 /** Point à vérifier après un import (lien ou photo), sur un ingrédient ou sur la recette. */
@@ -10,8 +10,6 @@ export interface ImportCheck {
   field: 'servings' | 'notes' | null
   message: string
 }
-
-const PAGE_REFERENCE = /\b(voir\s+(p\.?|page)\s*\d+|p\.\s*\d+)/i
 
 /**
  * Ce qui semble à vérifier juste après l'import : points signalés par le modèle (passage illisible, quantité
@@ -35,7 +33,7 @@ export function importChecks(imported: Pick<ImportedRecipe, 'checks'>, values: R
 
   rows.forEach((row) => {
     if (!row.name.trim()) return
-    if (PAGE_REFERENCE.test(row.note)) add(row.key, null, 'Renvoie à une autre page : recette à ajouter à part')
+    if (pageReference(row)) add(row.key, null, 'Renvoie à une autre page : recette à importer après l’enregistrement')
     if (row.quantity === '' && /\d/.test(row.note)) add(row.key, null, 'Quantité dans la précision : à reporter si possible')
     else if (row.quantity === '' && !isPantry(row.name)) add(row.key, null, 'Quantité non trouvée')
   })

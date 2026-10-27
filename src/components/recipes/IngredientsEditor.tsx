@@ -1,4 +1,4 @@
-import { ArrowDown, ArrowUp, Heading, Plus, X } from 'lucide-react'
+import { ArrowDown, ArrowUp, BookOpen, Heading, Plus, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { moveItem, newHeadingDraft, newIngredientDraft, type IngredientDraft } from '@/lib/recipes'
@@ -123,6 +123,20 @@ export function IngredientsEditor({ rows, errors = {}, flags = {}, onChange }: P
                 />
                 <div className="col-span-3 flex justify-end gap-1 sm:col-span-1">{moveButtons}</div>
               </div>
+              {row.linkedRecipe && (
+                <p className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
+                  <BookOpen className="size-3.5 shrink-0 text-brand" aria-hidden />
+                  <span>Recette liée : {row.linkedRecipe.title}</span>
+                  <button
+                    type="button"
+                    className="font-medium text-foreground underline-offset-4 hover:underline"
+                    aria-label={`Retirer le lien vers ${row.linkedRecipe.title}`}
+                    onClick={() => onChange(rows.map((r) => (r.key === row.key ? { ...r, linkedRecipe: null } : r)))}
+                  >
+                    Retirer le lien
+                  </button>
+                </p>
+              )}
               {flags[row.key]?.map((message) => <CheckNote key={message} message={message} />)}
               {error && <p className="mt-1 text-sm text-destructive">{error}</p>}
             </li>

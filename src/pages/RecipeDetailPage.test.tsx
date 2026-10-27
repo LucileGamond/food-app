@@ -75,11 +75,14 @@ describe('RecipeDetailPage', () => {
     const user = userEvent.setup()
     const api = fakeApi()
     api.recipes.getRecipe.mockResolvedValue(CURRY)
-    api.recipes.listUsages.mockResolvedValue([
-      { meal_date: '2026-10-21', slot: 'LUNCH' },
-      { meal_date: '2026-10-21', slot: 'LUNCH' },
-      { meal_date: '2026-10-23', slot: 'DINNER' },
-    ])
+    api.recipes.listUsages.mockResolvedValue({
+      meals: [
+        { meal_date: '2026-10-21', slot: 'LUNCH' },
+        { meal_date: '2026-10-21', slot: 'LUNCH' },
+        { meal_date: '2026-10-23', slot: 'DINNER' },
+      ],
+      recipes: [],
+    })
     renderDetail(api)
     await user.click(await screen.findByRole('button', { name: /Supprimer/ }))
 
@@ -91,6 +94,28 @@ describe('RecipeDetailPage', () => {
     ])
     expect(within(dialog).getByRole('button', { name: 'Supprimer' })).toBeDisabled()
     expect(api.recipes.deleteRecipe).not.toHaveBeenCalled()
+  })
+
+  it('bloque la suppression d’une recette utilisée dans une autre recette', async () => {
+    const user = userEvent.setup()
+    const api = fakeApi()
+    api.recipes.getRecipe.mockResolvedValue(CURRY)
+    api.recipes.listUsages.mockResolvedValue({ meals: [{ meal_date: '2026-10-23', slot: 'DINNER' }], recipes: [{ id: 'r9', title: 'Tarte à la banane' }] })
+    renderDetail(api)
+    await user.click(await screen.findByRole('button', { name: /Supprimer/ }))
+
+    const dialog = await screen.findByRole('alertdialog', { name: 'Suppression impossible' })
+    expect(dialog).toHaveTextContent('utilisée dans le planning et dans d’autres recettes')
+    expect(within(dialog).getByRole('link', { name: 'Tarte à la banane' })).toHaveAttribute('href', '/recettes/r9')
+    expect(within(dialog).getByText('Vendredi 23 octobre · Soir')).toBeInTheDocument()
+    expect(within(dialog).getByRole('button', { name: 'Supprimer' })).toBeDisabled()
+
+    await user.click(within(dialog).getByRole('button', { name: 'Annuler' }))
+    api.recipes.listUsages.mockResolvedValue({ meals: [], recipes: [{ id: 'r9', title: 'Tarte à la banane' }] })
+    await user.click(screen.getByRole('button', { name: /Supprimer/ }))
+    expect(await screen.findByRole('alertdialog', { name: 'Suppression impossible' })).toHaveTextContent(
+      'utilisée dans d’autres recettes. Retirez-y le lien',
+    )
   })
 
   it('supprime une recette inutilisée et revient à la liste', async () => {

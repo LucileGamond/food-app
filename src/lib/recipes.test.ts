@@ -19,6 +19,12 @@ import {
   photoPath,
   formatDuration,
   groupBySection,
+  linkedImportPath,
+  linkedSource,
+  linkedTitle,
+  pageReference,
+  parseLinkedImport,
+  pendingLinks,
   parseDuration,
   recipeToFormValues,
   toSaveRecipeInput,
@@ -115,7 +121,10 @@ describe('conversion formulaire ↔ données', () => {
     }))).toEqual({
       id: 'r1', title: 'Curry', notes: null, url: 'https://a.fr', servings: null, tags: ['végé'],
       source: null, prepMinutes: null, restMinutes: null, cookMinutes: null,
-      ingredients: [{ name: 'Riz', quantity: 1.5, unit: 'kg', note: null, section: null }, { name: 'Sel', quantity: null, unit: null, note: null, section: null }],
+      ingredients: [
+        { name: 'Riz', quantity: 1.5, unit: 'kg', note: null, section: null },
+        { name: 'Sel', quantity: null, unit: null, note: null, section: null },
+      ],
     })
     expect(toSaveRecipeInput(null, form()).servings).toBe(4)
   })
@@ -335,5 +344,59 @@ describe('temps, source et sous-parties', () => {
     expect(groupBySection(saved.ingredients).map((g) => [g.section, g.items.length])).toEqual([
       [null, 1], ['Pour le beurre d’amande', 2], [null, 1],
     ])
+  })
+})
+
+describe('recettes liées', () => {
+  const ingredient = (name: string, note: string | null = null) => ({ name, quantity: null, unit: null, note })
+
+  it('repère un renvoi à une autre page', () => {
+    expect(pageReference(ingredient('pâte sucrée', 'voir p. 208'))).toBe('p. 208')
+    expect(pageReference(ingredient('pâte sucrée (page 12)'))).toBe('p. 12')
+    expect(pageReference(ingredient('crème', 'voir P.45'))).toBe('p. 45')
+    expect(pageReference(ingredient('poivre', '2 pincées'))).toBeNull()
+    expect(pageReference(ingredient('pâte feuilletée', 'pur beurre'))).toBeNull()
+  })
+
+  it('liste les renvois pas encore liés, avec leur position', () => {
+    expect(
+      pendingLinks([
+        ingredient('pâte sucrée', 'voir p. 208'),
+        ingredient('bananes'),
+        { ...ingredient('crème', 'voir p. 30'), linkedRecipe: { id: 'r2', title: 'Crème pâtissière' } },
+        ingredient('streusel', 'p. 40'),
+      ]),
+    ).toEqual([
+      { position: 0, name: 'pâte sucrée', page: 'p. 208' },
+      { position: 3, name: 'streusel', page: 'p. 40' },
+    ])
+  })
+
+  it('déduit la source et le titre de la sous-recette', () => {
+    expect(linkedSource('Pâtisserie maison, p. 146', 'p. 208')).toBe('Pâtisserie maison, p. 208')
+    expect(linkedSource('Pâtisserie maison page 146', 'p. 208')).toBe('Pâtisserie maison, p. 208')
+    expect(linkedSource('Pâtisserie maison', 'p. 208')).toBe('Pâtisserie maison, p. 208')
+    expect(linkedSource(null, 'p. 208')).toBe('p. 208')
+    expect(linkedSource('Pâtisserie maison', '')).toBe('Pâtisserie maison')
+    expect(linkedTitle('  pâte sucrée ')).toBe('Pâte sucrée')
+  })
+
+  it('ouvre le formulaire de la sous-recette et en relit les paramètres', () => {
+    const id = '6f1c2d3e-4a5b-4c6d-8e9f-0a1b2c3d4e5f'
+    const path = linkedImportPath(id, { position: 2, name: 'pâte sucrée & co', page: 'p. 208' })
+    const params = new URL(path, 'https://food.test').searchParams
+    expect(parseLinkedImport(params)).toEqual({ parentId: id, reference: { position: 2, name: 'pâte sucrée & co', page: 'p. 208' } })
+    expect(parseLinkedImport(new URLSearchParams(`lier=${id}&nom=pâte`))).toBeNull()
+    expect(parseLinkedImport(new URLSearchParams(`lier=${id}&ingredient=-1&nom=pâte`))).toBeNull()
+    expect(parseLinkedImport(new URLSearchParams(`lier=${id}&ingredient=1&nom=+`))).toBeNull()
+    expect(parseLinkedImport(new URLSearchParams('lier=pas-un-id&ingredient=1&nom=pâte'))).toBeNull()
+    expect(parseLinkedImport(new URLSearchParams('ingredient=1&nom=pâte'))).toBeNull()
+  })
+
+  it('garde le lien d’un ingrédient dans le formulaire', () => {
+    const linkedRecipe = { id: 'r2', title: 'Pâte sucrée' }
+    const values = recipeToFormValues({ title: 'Tarte', servings: 6, notes: null, url: null, tags: [], ingredients: [{ ...ingredient('pâte sucrée'), linkedRecipe }] })
+    expect(values.ingredients[0]!.linkedRecipe).toEqual(linkedRecipe)
+    expect(toSaveRecipeInput('r1', values).ingredients[0]!.linkedRecipe).toEqual(linkedRecipe)
   })
 })

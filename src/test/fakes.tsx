@@ -4,6 +4,7 @@ import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { Toaster } from 'sonner'
 import { vi } from 'vitest'
 import type { Api } from '@/api'
+import type { RecipeUsages } from '@/api/recipes'
 import { ApiProvider } from '@/app/ApiContext'
 import { AuthProvider, type AuthClient } from '@/auth/AuthProvider'
 import type { Meal, Profile, RecipeSummary } from '@/lib/meals'
@@ -39,12 +40,13 @@ export function fakeApi(): FakeApi {
       listSavedSummaries: vi.fn(async () => [] as RecipeSummary[]),
       getRecipe: vi.fn(async () => null as Recipe | null),
       saveRecipe: vi.fn(async () => 'saved-recipe'),
-      listUsages: vi.fn(async () => []),
+      listUsages: vi.fn(async () => ({ meals: [], recipes: [] }) as RecipeUsages),
       deleteRecipe: vi.fn(async () => undefined),
       listTags: vi.fn(async () => [] as string[]),
       listSources: vi.fn(async () => [] as string[]),
       findSavedByUrl: vi.fn(async () => null as { id: string; title: string } | null),
       useSavedRecipe: vi.fn(async () => 1),
+      linkIngredient: vi.fn(async () => undefined),
       getIngredients: vi.fn(async () => [] as { id: string; servings: number | null; ingredients: Ingredient[] }[]),
       importFromPhotos: vi.fn(async (): Promise<RecipeImport> => ({ recipe: { title: 'Recette lue', servings: null, ingredients: [], steps: '', tags: [] }, source: 'photo', image: null })),
       importFromUrl: vi.fn(async (): Promise<RecipeImport> => ({ recipe: { title: 'Recette importée', servings: null, ingredients: [], steps: '', tags: [] }, source: 'structured', image: null })),
