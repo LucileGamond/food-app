@@ -55,7 +55,7 @@ export function RecipePicker({ recipes, value, onChange, invalid }: Props) {
             <label
               key={recipe.id}
               className={cn(
-                'flex min-h-11 cursor-pointer items-center gap-3 rounded-md px-3 py-2 text-sm hover:bg-muted has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-ring/50',
+                'relative flex min-h-11 cursor-pointer items-center gap-3 rounded-md px-3 py-2 text-sm hover:bg-muted has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-ring/50',
                 value === recipe.id && 'bg-muted font-medium',
               )}
             >

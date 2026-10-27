@@ -54,7 +54,8 @@ test('crée une recette complète, l’utilise au planning et bloque sa suppress
   await page.getByRole('button', { name: `Ajouter un repas — ${dayLabel(1)}, Soir` }).click()
   const dialog = page.getByRole('dialog', { name: 'Ajouter un repas' })
   await dialog.getByRole('tab', { name: 'Recette sauvegardée' }).click()
-  await dialog.getByRole('radio', { name: /Curry de légumes/ }).check({ force: true })
+  await dialog.getByRole('radiogroup', { name: 'Recettes sauvegardées' }).getByText('Curry de légumes').click()
+  await expect(dialog.getByRole('radio', { name: /Curry de légumes/ })).toBeChecked()
   await dialog.getByRole('button', { name: 'Enregistrer' }).click()
   await expect(slot(page, 1, 'Soir').getByRole('link', { name: 'Curry de légumes' })).toBeVisible()
 
