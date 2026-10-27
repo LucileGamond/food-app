@@ -121,7 +121,7 @@ describe('RecipeFormPage — source, temps, sous-parties, doublons', () => {
     const { pageInput } = renderForm(api)
     await user.upload(await waitFor(() => pageInput()), new File(['x'], 'page.jpg', { type: 'image/jpeg' }))
     await user.click(screen.getByRole('button', { name: 'Lire la recette' }))
-    const review = await screen.findByRole('region', { name: 'Vérifie la recette' })
+    const review = await screen.findByRole('region', { name: 'Photo lue' })
     expect(screen.getByLabelText('Source')).toHaveValue('p. 146')
     expect(screen.getByLabelText('Cuisson')).toHaveValue('40 min')
     expect(screen.getByLabelText('Titre de la sous-partie 1')).toHaveValue('Pour le streusel')

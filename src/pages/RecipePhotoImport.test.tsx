@@ -97,31 +97,42 @@ describe('RecipeFormPage — recette depuis une photo', () => {
     const api = fakeApi()
     api.recipes.importFromPhotos.mockResolvedValue({
       ...READ,
-      recipe: { ...READ.recipe, servings: null, checks: [{ ingredient: 1, message: 'Quantité approximative (4 ou 5)' }] },
+      recipe: {
+        ...READ.recipe,
+        servings: null,
+        checks: [
+          { ingredient: 1, message: 'Quantité approximative (4 ou 5)' },
+          { ingredient: null, message: 'Titre en partie illisible' },
+        ],
+      },
     })
     const { pageInput } = renderForm(api)
     await user.upload(await waitFor(() => pageInput()), photo('page.jpg'))
     await user.click(screen.getByRole('button', { name: 'Lire la recette' }))
-    const review = await screen.findByRole('region', { name: 'À vérifier (3)' })
-    expect(within(within(review).getByRole('list', { name: 'Points à vérifier' })).getAllByRole('listitem').map((i) => i.textContent)).toEqual([
-      'bananes mûres · Quantité approximative (4 ou 5)',
-      'pâte sucrée · Renvoie à une autre page : recette à ajouter à part',
-      'Portions · Nombre de portions non trouvé',
-    ])
-    const rows = screen.getAllByTestId('ingredient-row')
-    expect(rows[1]).toHaveTextContent('À vérifier : Quantité approximative (4 ou 5)')
 
-    // Un clic mène au champ concerné
-    await user.click(within(review).getByRole('button', { name: /^Portions/ }))
-    expect(screen.getByLabelText('Portions')).toHaveFocus()
+    // En haut : la photo lue et ce qui concerne la recette en général, sans rappel des autres points.
+    const review = await screen.findByRole('region', { name: 'Photo lue' })
+    expect(within(review).getByRole('button', { name: 'Agrandir la page 1' })).toBeInTheDocument()
+    expect(review).toHaveTextContent('À vérifier : Titre en partie illisible')
+    expect(review).not.toHaveTextContent('Quantité approximative')
+
+    // Chaque point sous le champ concerné
+    const rows = screen.getAllByTestId('ingredient-row')
+    expect(rows[0]).toHaveTextContent('À vérifier : Renvoie à une autre page : recette à ajouter à part')
+    expect(rows[1]).toHaveTextContent('À vérifier : Quantité approximative (4 ou 5)')
+    expect(rows[2]).not.toHaveTextContent('À vérifier')
+    expect(screen.getByText('Nombre de portions non trouvé')).toBeInTheDocument()
+
+    // … jusqu'à la correction
     await user.type(screen.getByLabelText('Portions'), '6')
     await user.clear(screen.getByLabelText("Quantité de l'ingrédient 2"))
     await user.type(screen.getByLabelText("Quantité de l'ingrédient 2"), '4')
-    expect(screen.getByRole('region', { name: 'À vérifier (1)' })).toBeInTheDocument()
+    expect(screen.queryByText('Nombre de portions non trouvé')).not.toBeInTheDocument()
     expect(screen.getAllByTestId('ingredient-row')[1]).not.toHaveTextContent('À vérifier')
 
-    await user.click(screen.getByRole('button', { name: 'Masquer les points à vérifier' }))
-    expect(screen.queryByRole('region', { name: /À vérifier/ })).not.toBeInTheDocument()
+    await user.click(within(review).getByRole('button', { name: 'Masquer' }))
+    expect(screen.queryByRole('region', { name: 'Photo lue' })).not.toBeInTheDocument()
+    expect(screen.queryByText(/À vérifier/)).not.toBeInTheDocument()
   })
 
   it('garde 2 pages au plus, ignore ce qui n’est pas une image, et permet de retirer une page', async () => {

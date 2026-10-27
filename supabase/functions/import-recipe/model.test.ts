@@ -183,6 +183,33 @@ describe('points à vérifier', () => {
     ])
     expect(sanitizeRecipe({ ...GOOD, checks: Array.from({ length: 20 }, () => ({ ingredient: null, message: 'x' })) }, null).checks).toHaveLength(8)
   })
+
+  it('se fie au nom de l’ingrédient plutôt qu’au numéro, parfois décalé', () => {
+    const recipe = sanitizeRecipe(
+      {
+        ...GOOD,
+        ingredients: [
+          { name: 'beurre', quantity: 20, unit: 'g' },
+          { name: 'sucre roux', quantity: 2, unit: 'c. à s.' },
+          { name: 'jus de citron jaune', quantity: 0.5, unit: null },
+          { name: 'citron vert', quantity: 1, unit: null },
+        ],
+        checks: [
+          { ingredient: 1, ingredient_name: 'jus de citron jaune', message: '1/2 citron converti en 0,5' },
+          { ingredient: 0, ingredient_name: 'Sucre Roux', message: 'Roux ou blanc ?' },
+          { ingredient: 3, ingredient_name: 'citron', message: 'Ambigu : numéro gardé' },
+          { ingredient: 0, ingredient_name: 'inconnu', message: 'Nom inconnu : numéro gardé' },
+        ],
+      },
+      null,
+    )
+    expect(recipe.checks).toEqual([
+      { ingredient: 2, message: '1/2 citron converti en 0,5' },
+      { ingredient: 1, message: 'Roux ou blanc ?' },
+      { ingredient: 3, message: 'Ambigu : numéro gardé' },
+      { ingredient: 0, message: 'Nom inconnu : numéro gardé' },
+    ])
+  })
 })
 
 describe('extractRecipe', () => {

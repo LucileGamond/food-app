@@ -1,67 +1,40 @@
-import { TriangleAlert, X, ZoomIn, ZoomOut } from 'lucide-react'
+import { X, ZoomIn, ZoomOut } from 'lucide-react'
 import { useState } from 'react'
+import { CheckNote } from '@/components/recipes/CheckNote'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
-import type { ImportCheck } from '@/lib/importChecks'
-import type { RecipeFormValues } from '@/lib/recipes'
 import { cn } from '@/lib/utils'
 
 interface Props {
-  checks: ImportCheck[]
-  values: RecipeFormValues
+  /** Points à vérifier sur la recette en général (ceux d'un champ sont affichés sous le champ). */
+  messages: string[]
   /** Photos lues (aperçus locaux), pour comparer avec le formulaire ; jamais enregistrées. */
   pages?: string[]
   onDismiss: () => void
 }
 
-/** Champ du formulaire concerné par un point à vérifier (pour y aller d'un geste). */
-function targetOf(check: ImportCheck): string {
-  if (check.ingredientKey) return `[data-ingredient-key="${check.ingredientKey}"] input`
-  return check.field === 'servings' ? '#recipe-servings' : '#recipe-notes'
-}
-
-/** Ce qui paraît à vérifier après l'import, chaque point menant au champ concerné, et la photo lue. */
-export function ImportReview({ checks, values, pages = [], onDismiss }: Props) {
+/** Après un import : la photo lue, à comparer avec le formulaire, et ce qui est à vérifier sur la recette. */
+export function ImportReview({ messages, pages = [], onDismiss }: Props) {
   const [viewing, setViewing] = useState<number | null>(null)
   const [zoomed, setZoomed] = useState(false)
-  if (checks.length === 0 && pages.length === 0) return null
-
-  const subject = (check: ImportCheck) => {
-    if (check.ingredientKey) {
-      const rows = values.ingredients.filter((r) => !r.heading)
-      const index = rows.findIndex((r) => r.key === check.ingredientKey)
-      return rows[index]?.name.trim() || `Ingrédient ${index + 1}`
-    }
-    if (check.field === 'servings') return 'Portions'
-    if (check.field === 'notes') return 'Étapes'
-    return 'Recette'
-  }
-
-  function focus(check: ImportCheck) {
-    const field = document.querySelector<HTMLElement>(targetOf(check))
-    field?.scrollIntoView({ block: 'center', behavior: 'smooth' })
-    field?.focus({ preventScroll: true })
-  }
+  if (messages.length === 0 && pages.length === 0) return null
 
   return (
-    <section aria-labelledby="import-review-title" className="rounded-2xl border border-brand/25 bg-background p-4 shadow-xs">
+    <section aria-labelledby="import-review-title" className="rounded-2xl border bg-background p-4 shadow-xs">
       <div className="flex items-start justify-between gap-2">
         <div>
-          <h2 id="import-review-title" className="flex items-center gap-2 text-sm font-semibold">
-            <TriangleAlert className="size-4 text-brand" aria-hidden />
-            {checks.length > 0 ? `À vérifier (${checks.length})` : 'Vérifie la recette'}
+          <h2 id="import-review-title" className="text-sm font-semibold">
+            {pages.length > 1 ? 'Photos lues' : pages.length === 1 ? 'Photo lue' : 'À vérifier'}
           </h2>
-          <p className="mt-0.5 text-xs text-muted-foreground">
-            {checks.length > 0 ? 'Chaque point disparaît une fois la ligne corrigée.' : 'Compare avec la photo avant d’enregistrer.'}
-          </p>
+          {pages.length > 0 && <p className="mt-0.5 text-xs text-muted-foreground">Compare avec le formulaire avant d’enregistrer.</p>}
         </div>
-        <Button variant="ghost" size="icon" aria-label="Masquer les points à vérifier" onClick={onDismiss}>
+        <Button variant="ghost" size="icon" aria-label="Masquer" onClick={onDismiss}>
           <X />
         </Button>
       </div>
 
       {pages.length > 0 && (
-        <ul className="mt-3 flex gap-2" aria-label="Photos lues">
+        <ul className="mt-3 flex gap-3" aria-label="Photos lues">
           {pages.map((url, index) => (
             <li key={url}>
               <button
@@ -72,28 +45,19 @@ export function ImportReview({ checks, values, pages = [], onDismiss }: Props) {
                 }}
                 className="block overflow-hidden rounded-lg border focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none"
               >
-                <img src={url} alt={`Agrandir la page ${index + 1}`} className="h-20 w-16 object-cover" />
+                <img src={url} alt={`Agrandir la page ${index + 1}`} className="h-40 w-30 object-cover" />
               </button>
             </li>
           ))}
         </ul>
       )}
 
-      {checks.length > 0 && (
-        <ul className="mt-2 divide-y" aria-label="Points à vérifier">
-          {checks.map((check) => (
-            <li key={check.key}>
-              <button
-                type="button"
-                onClick={() => focus(check)}
-                className="w-full rounded-md px-1 py-2 text-left text-sm hover:bg-muted focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none"
-              >
-                <span className="font-medium">{subject(check)}</span>
-                <span className="text-muted-foreground"> · {check.message}</span>
-              </button>
-            </li>
+      {messages.length > 0 && (
+        <div className="mt-2">
+          {messages.map((message) => (
+            <CheckNote key={message} message={message} />
           ))}
-        </ul>
+        </div>
       )}
 
       <Dialog open={viewing !== null} onOpenChange={(open) => !open && setViewing(null)}>

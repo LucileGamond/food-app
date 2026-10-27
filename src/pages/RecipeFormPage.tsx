@@ -10,6 +10,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { EmptyState } from '@/components/EmptyState'
 import { IngredientsEditor } from '@/components/recipes/IngredientsEditor'
 import { PhotoUploader, type PhotoDraft } from '@/components/recipes/PhotoUploader'
+import { CheckNote } from '@/components/recipes/CheckNote'
 import { ImportReview } from '@/components/recipes/ImportReview'
 import { RecipeImportCard } from '@/components/recipes/RecipeImportCard'
 import { TagInput } from '@/components/recipes/TagInput'
@@ -36,12 +37,30 @@ import { cn } from '@/lib/utils'
 
 const EMPTY: RecipeFormValues = recipeToFormValues({ title: '', servings: null, notes: null, url: null, tags: [] })
 
-function Field({ id, label, error, hint, children }: { id?: string; label: string; error?: string; hint?: string; children: React.ReactNode }) {
+function Field({
+  id,
+  label,
+  error,
+  hint,
+  checks = [],
+  children,
+}: {
+  id?: string
+  label: string
+  error?: string
+  hint?: string
+  /** Points à vérifier après un import. */
+  checks?: string[]
+  children: React.ReactNode
+}) {
   return (
     <div className="space-y-2">
       <Label htmlFor={id}>{label}</Label>
       {children}
       {hint && !error && <p className="text-xs text-muted-foreground">{hint}</p>}
+      {checks.map((message) => (
+        <CheckNote key={message} message={message} />
+      ))}
       {error && <p className="text-sm text-destructive">{error}</p>}
     </div>
   )
@@ -168,6 +187,7 @@ export function RecipeFormPage() {
   const toCheck = review ? pendingChecks(review.checks, review.snapshot, values) : []
   const flags: Record<string, string[]> = {}
   for (const check of toCheck) if (check.ingredientKey) (flags[check.ingredientKey] ??= []).push(check.message)
+  const fieldChecks = (field: ImportCheck['field']) => toCheck.filter((c) => !c.ingredientKey && c.field === field).map((c) => c.message)
 
   const errors = validateRecipeForm(values)
   const shown = submitted ? errors : {}
@@ -341,7 +361,7 @@ export function RecipeFormPage() {
           />
         )}
 
-        {review && <ImportReview checks={toCheck} values={values} pages={readPages} onDismiss={() => setReview(null)} />}
+        {review && <ImportReview messages={fieldChecks(null)} pages={readPages} onDismiss={() => setReview(null)} />}
 
         {duplicate && (
           <div role="alert" className="rounded-2xl border border-destructive/30 bg-destructive/5 p-5 text-sm">
@@ -390,7 +410,7 @@ export function RecipeFormPage() {
             )}
           </Field>
           <div className="grid gap-5 sm:grid-cols-[8rem_1fr]">
-            <Field id="recipe-servings" label="Portions" error={shown.servings}>
+            <Field id="recipe-servings" label="Portions" error={shown.servings} checks={fieldChecks('servings')}>
               <Input
                 id="recipe-servings"
                 inputMode="numeric"
@@ -462,7 +482,7 @@ export function RecipeFormPage() {
         </section>
 
         <section className="space-y-3 rounded-2xl border bg-background p-5 shadow-xs">
-          <Field id="recipe-notes" label="Étapes">
+          <Field id="recipe-notes" label="Étapes" checks={fieldChecks('notes')}>
             <Textarea id="recipe-notes" rows={8} value={values.notes} onChange={(e) => set('notes', e.target.value)} placeholder="Étapes de la recette…" />
           </Field>
         </section>

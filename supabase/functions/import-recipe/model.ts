@@ -91,9 +91,13 @@ const TOOL = {
           type: 'object',
           properties: {
             ingredient: { anyOf: [{ type: 'integer' }, { type: 'null' }], description: 'Numéro de l’ingrédient concerné dans la liste (à partir de 0), null pour la recette en général.' },
+            ingredient_name: {
+              anyOf: [{ type: 'string' }, { type: 'null' }],
+              description: 'Nom de l’ingrédient concerné, recopié exactement comme dans ingredients ; null pour la recette en général.',
+            },
             message: { type: 'string', description: 'Ce qu’il faut vérifier, en une phrase courte.' },
           },
-          required: ['ingredient', 'message'],
+          required: ['ingredient', 'ingredient_name', 'message'],
         },
       },
       prep_minutes: { anyOf: [{ type: 'integer' }, { type: 'null' }], description: 'Temps de préparation en minutes, null si non indiqué.' },
@@ -180,13 +184,25 @@ export function sanitizeRecipe(input: unknown, fallbackTitle: string | null, not
   const order = sections.flatMap((section) => ingredients.flatMap((i, index) => (i.section === section ? [index] : [])))
   const grouped = order.map((index) => ingredients[index]!)
 
+  // Ingrédient désigné par son nom (exact, sinon une seule correspondance partielle), ou -1.
+  const byName = (v: unknown) => {
+    const key = str(v, 120).toLowerCase()
+    if (!key) return -1
+    const names = grouped.map((i) => i.name.toLowerCase())
+    const exact = names.indexOf(key)
+    if (exact >= 0) return exact
+    const partial = names.flatMap((name, index) => (name.includes(key) || key.includes(name) ? [index] : []))
+    return partial.length === 1 ? partial[0]! : -1
+  }
   const checks = (Array.isArray(data.checks) ? data.checks : [])
     .slice(0, 8)
     .flatMap((raw): ImportCheck[] => {
       const item = (typeof raw === 'object' && raw !== null ? raw : {}) as Record<string, unknown>
       const message = str(item.message, 160)
       if (!message) return []
-      const position = typeof item.ingredient === 'number' ? order.indexOf(kept.indexOf(item.ingredient)) : -1
+      // Le modèle se trompe parfois de numéro : le nom recopié, s'il désigne un ingrédient, fait foi.
+      const named = byName(item.ingredient_name)
+      const position = named >= 0 ? named : typeof item.ingredient === 'number' ? order.indexOf(kept.indexOf(item.ingredient)) : -1
       return [{ ingredient: position >= 0 ? position : null, message }]
     })
 

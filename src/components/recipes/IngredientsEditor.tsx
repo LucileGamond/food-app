@@ -1,7 +1,8 @@
-import { ArrowDown, ArrowUp, Heading, Plus, TriangleAlert, X } from 'lucide-react'
+import { ArrowDown, ArrowUp, Heading, Plus, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { moveItem, newHeadingDraft, newIngredientDraft, type IngredientDraft } from '@/lib/recipes'
+import { CheckNote } from '@/components/recipes/CheckNote'
 import { UnitSelect } from '@/components/UnitSelect'
 import { cn } from '@/lib/utils'
 
@@ -91,7 +92,7 @@ export function IngredientsEditor({ rows, errors = {}, flags = {}, onChange }: P
               key={row.key}
               data-testid="ingredient-row"
               data-ingredient-key={row.key}
-              className={cn(flags[row.key] && '-mx-2 rounded-xl border border-brand/30 bg-brand/5 p-2')}
+              className={cn(flags[row.key] && '-mx-2 rounded-xl border border-amber-500/40 bg-amber-500/10 p-2')}
             >
               <div className="grid grid-cols-[4.5rem_6.5rem_minmax(0,1fr)] gap-2 sm:grid-cols-[4.5rem_6.5rem_minmax(0,1fr)_minmax(0,1fr)_7.25rem]">
                 <Input
@@ -122,15 +123,7 @@ export function IngredientsEditor({ rows, errors = {}, flags = {}, onChange }: P
                 />
                 <div className="col-span-3 flex justify-end gap-1 sm:col-span-1">{moveButtons}</div>
               </div>
-              {flags[row.key]?.map((message) => (
-                <p key={message} className="mt-1 flex items-start gap-1.5 text-xs font-medium text-brand">
-                  <TriangleAlert className="mt-px size-3.5 shrink-0" aria-hidden />
-                  <span>
-                    <span className="sr-only">À vérifier : </span>
-                    {message}
-                  </span>
-                </p>
-              ))}
+              {flags[row.key]?.map((message) => <CheckNote key={message} message={message} />)}
               {error && <p className="mt-1 text-sm text-destructive">{error}</p>}
             </li>
           )
