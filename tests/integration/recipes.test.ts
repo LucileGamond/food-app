@@ -33,9 +33,38 @@ describe('recipes api', () => {
       url: 'https://exemple.fr/curry',
       servings: 4,
       tags: ['végé', 'Rapide'],
-      ingredients: curry.ingredients,
+      source: null,
+      prep_minutes: null,
+      rest_minutes: null,
+      cook_minutes: null,
+      ingredients: curry.ingredients.map((i) => ({ ...i, section: null })),
       photos: [],
     })
+  })
+
+  it('enregistre la source, les temps et les sous-parties d’ingrédients', async () => {
+    const { api } = await signedInApi()
+    const id = await api.recipes.saveRecipe({
+      ...curry,
+      url: null,
+      source: '  Pâtisserie maison, p. 146 ',
+      prepMinutes: 10,
+      restMinutes: 120,
+      cookMinutes: 40,
+      ingredients: [
+        { name: 'Bananes', quantity: 5, unit: null, note: null, section: null },
+        { name: 'Beurre demi-sel', quantity: 50, unit: 'g', note: null, section: ' Pour le streusel ' },
+      ],
+    })
+    const recipe = await api.recipes.getRecipe(id)
+    expect(recipe).toMatchObject({ source: 'Pâtisserie maison, p. 146', prep_minutes: 10, rest_minutes: 120, cook_minutes: 40 })
+    expect(recipe!.ingredients.map((i) => i.section)).toEqual([null, 'Pour le streusel'])
+
+    // Modification sans ces informations : elles sont effacées
+    await api.recipes.saveRecipe({ ...curry, id, url: null })
+    expect(await api.recipes.getRecipe(id)).toMatchObject({ source: null, prep_minutes: null, rest_minutes: null, cook_minutes: null })
+    expect(await api.recipes.listSources()).toEqual([])
+    await expect(api.recipes.saveRecipe({ ...curry, url: null, prepMinutes: 99_999 })).rejects.toBeInstanceOf(Error)
   })
 
   it('renvoie le nombre de personnes et les ingrédients de plusieurs recettes', async () => {

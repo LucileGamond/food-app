@@ -199,3 +199,27 @@ describe('RecipeDetailPage', () => {
     expect(await screen.findByText('Déjà dans la liste « À planifier ».')).toBeInTheDocument()
   })
 })
+
+describe('RecipeDetailPage — temps, source et sous-parties', () => {
+  it('affiche les temps, la source et les ingrédients par sous-partie', async () => {
+    const api = fakeApi()
+    api.recipes.getRecipe.mockResolvedValue({
+      ...CURRY,
+      photos: [],
+      source: 'Pâtisserie maison, p. 146',
+      prep_minutes: 10,
+      rest_minutes: 120,
+      cook_minutes: null,
+      ingredients: [
+        { name: 'bananes', quantity: 5, unit: null, note: null, section: null },
+        { name: 'beurre demi-sel', quantity: 50, unit: 'g', note: null, section: 'Pour le streusel' },
+      ],
+    })
+    renderDetail(api)
+    expect(await screen.findByText('Préparation 10 min · Repos 2 h')).toBeInTheDocument()
+    expect(screen.getByText('Pâtisserie maison, p. 146')).toBeInTheDocument()
+    const ingredients = screen.getByRole('region', { name: 'Ingrédients' })
+    expect(within(ingredients).getByRole('heading', { name: 'Pour le streusel' })).toBeInTheDocument()
+    expect(within(ingredients).getAllByRole('listitem').map((li) => li.textContent)).toEqual(['5 bananes', '50 g beurre demi-sel'])
+  })
+})

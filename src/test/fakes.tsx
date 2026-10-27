@@ -42,9 +42,11 @@ export function fakeApi(): FakeApi {
       listUsages: vi.fn(async () => []),
       deleteRecipe: vi.fn(async () => undefined),
       listTags: vi.fn(async () => [] as string[]),
+      listSources: vi.fn(async () => [] as string[]),
       findSavedByUrl: vi.fn(async () => null as { id: string; title: string } | null),
       useSavedRecipe: vi.fn(async () => 1),
       getIngredients: vi.fn(async () => [] as { id: string; servings: number | null; ingredients: Ingredient[] }[]),
+      importFromPhotos: vi.fn(async (): Promise<RecipeImport> => ({ recipe: { title: 'Recette lue', servings: null, ingredients: [], steps: '', tags: [] }, source: 'photo', image: null })),
       importFromUrl: vi.fn(async (): Promise<RecipeImport> => ({ recipe: { title: 'Recette importée', servings: null, ingredients: [], steps: '', tags: [] }, source: 'structured', image: null })),
     },
     photos: {

@@ -3,13 +3,15 @@
 // POST { url: string, knownTags?: string[] }
 //   → 200 { recipe, source: 'structured' | 'text', image: { data, type } | null }
 // POST { url: string, mode: 'title' } → 200 { title: string | null } (titre de la page seul, sans modèle)
+// POST { mode: 'photos', images: [{ data, type }], knownTags? } → 200 { recipe, source: 'photo', image: null }
+//   (1 ou 2 photos d'une page de livre ou d'un scan)
 //   → 4xx/5xx { error: message lisible }
 // La passerelle Supabase vérifie le jeton (verify_jwt), mais accepte aussi la clé publique anonyme :
 // `isSignedIn` vérifie en plus qu'il s'agit d'un utilisateur connecté.
 
 import { CORS_HEADERS, json } from '../_shared/anthropic.ts'
 import { extractPage, MIN_TEXT_CHARS } from './extract.ts'
-import { extractRecipe, ImportError, type ImportedRecipe, type ModelUsage } from './model.ts'
+import { extractRecipe, extractRecipeFromPhotos, ImportError, type ImportedRecipe, type ModelUsage, type PhotoInput } from './model.ts'
 import { checkPublicUrl, resolvesToPublic, type ResolveDns } from './url.ts'
 
 export { CORS_HEADERS }
@@ -22,7 +24,7 @@ const IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp']
 
 export interface ImportResult {
   recipe: ImportedRecipe
-  source: 'structured' | 'text'
+  source: 'structured' | 'text' | 'photo'
   image: { data: string; type: string } | null
 }
 
@@ -166,6 +168,35 @@ export async function fetchTitle(body: unknown, deps: Pick<Deps, 'fetchPage' | '
   return { title: title ? title.replace(/\s+/g, ' ').trim().slice(0, 200) : null }
 }
 
+export const MAX_PHOTOS = 2
+/** Taille maximale d'une photo en base64 (≈ 3 Mo d'image ; le navigateur les réduit à quelques centaines de Ko). */
+export const MAX_PHOTO_BASE64 = 4_000_000
+const PHOTO_TYPES = ['image/jpeg', 'image/png', 'image/webp'] as const
+
+/** Photos reçues du navigateur : 1 ou 2 images de type connu, de taille bornée. */
+export function parsePhotos(body: unknown): PhotoInput[] {
+  const raw = (typeof body === 'object' && body !== null ? (body as Record<string, unknown>).images : null) as unknown
+  if (!Array.isArray(raw) || raw.length === 0) throw new ImportError('Aucune photo reçue.', 400)
+  if (raw.length > MAX_PHOTOS) throw new ImportError(`${MAX_PHOTOS} photos au plus.`, 400)
+  return raw.map((value) => {
+    const image = (typeof value === 'object' && value !== null ? value : {}) as Record<string, unknown>
+    const type = PHOTO_TYPES.find((t) => t === image.type)
+    if (!type || typeof image.data !== 'string') throw new ImportError('Photo illisible (JPEG, PNG ou WebP).', 400)
+    if (image.data.length > MAX_PHOTO_BASE64) throw new ImportError('Photo trop lourde.', 413)
+    if (!/^[A-Za-z0-9+/]+=*$/.test(image.data)) throw new ImportError('Photo illisible (JPEG, PNG ou WebP).', 400)
+    return { type, data: image.data }
+  })
+}
+
+export async function importPhotos(body: unknown, deps: Deps): Promise<ImportResult & { usage: ModelUsage | null }> {
+  const photos = parsePhotos(body)
+  const input = body as Record<string, unknown>
+  const knownTags = Array.isArray(input.knownTags) ? input.knownTags.filter((t): t is string => typeof t === 'string').map((t) => t.slice(0, 30)) : []
+  if (!deps.apiKey) throw new ImportError('Le service d’analyse est mal configuré.', 500)
+  const { recipe, usage } = await extractRecipeFromPhotos(photos, knownTags, { apiKey: deps.apiKey, model: deps.model, fetch: deps.fetchModel })
+  return { recipe, source: 'photo', image: null, usage }
+}
+
 export function createHandler(deps: Deps) {
   return async (request: Request): Promise<Response> => {
     if (request.method === 'OPTIONS') return new Response('ok', { headers: CORS_HEADERS })
@@ -179,8 +210,9 @@ export function createHandler(deps: Deps) {
     }
     const started = Date.now()
     try {
-      if ((body as { mode?: unknown } | null)?.mode === 'title') return json(await fetchTitle(body, deps))
-      const { usage, ...result } = await importRecipe(body, deps)
+      const mode = (body as { mode?: unknown } | null)?.mode
+      if (mode === 'title') return json(await fetchTitle(body, deps))
+      const { usage, ...result } = mode === 'photos' ? await importPhotos(body, deps) : await importRecipe(body, deps)
       deps.log?.('import réussi', { source: result.source, ms: Date.now() - started, ...usage })
       return json(result)
     } catch (error) {

@@ -1,4 +1,4 @@
-import { ArrowLeft, ExternalLink, Inbox, Minus, Pencil, Plus, RefreshCw, SearchX, Trash2, Users } from 'lucide-react'
+import { ArrowLeft, BookOpen, Clock, ExternalLink, Inbox, Minus, Pencil, Plus, RefreshCw, SearchX, Trash2, Users } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { toast } from 'sonner'
@@ -14,7 +14,7 @@ import type { RecipeUsage } from '@/api/recipes'
 import { useSignedUrls } from '@/hooks/useSignedUrls'
 import { formatDay } from '@/lib/dates'
 import { slotLabel } from '@/lib/meals'
-import { formatIngredient, scaleIngredients, SERVINGS_MAX, type Recipe } from '@/lib/recipes'
+import { DURATION_FIELDS, formatDuration, formatIngredient, groupBySection, scaleIngredients, SERVINGS_MAX, type Recipe } from '@/lib/recipes'
 import { cn } from '@/lib/utils'
 
 export function RecipeDetailPage() {
@@ -108,6 +108,7 @@ export function RecipeDetailPage() {
   const baseServings = recipe.servings
   const servings = baseServings === null ? null : people?.recipeId === recipe.id ? people.value : baseServings
   const ingredients = baseServings !== null && servings !== null ? scaleIngredients(recipe.ingredients, baseServings, servings) : recipe.ingredients
+  const times = DURATION_FIELDS.flatMap(({ label, column }) => (recipe[column] ? [`${label} ${formatDuration(recipe[column])}`] : []))
   const setServings = (value: number) => setPeople({ recipeId: recipe.id, value: Math.min(SERVINGS_MAX, Math.max(1, value)) })
 
   return (
@@ -125,12 +126,22 @@ export function RecipeDetailPage() {
                 <Users className="size-4" aria-hidden /> {recipe.servings} {recipe.servings > 1 ? 'portions' : 'portion'}
               </span>
             )}
+            {times.length > 0 && (
+              <span className="inline-flex items-center gap-1">
+                <Clock className="size-4" aria-hidden /> {times.join(' · ')}
+              </span>
+            )}
             {recipe.tags.map((tag) => (
               <Badge key={tag} variant="secondary">
                 {tag}
               </Badge>
             ))}
           </div>
+          {recipe.source && (
+            <p className="mt-2 flex items-center gap-1 text-sm text-muted-foreground">
+              <BookOpen className="size-4" aria-hidden /> {recipe.source}
+            </p>
+          )}
         </div>
         <div className="flex flex-wrap gap-2">
           <Button variant="outline" className="h-10 px-3" onClick={() => void addToInbox()}>
@@ -197,13 +208,18 @@ export function RecipeDetailPage() {
               </button>
             </p>
           )}
-          <ul className="divide-y text-sm">
-            {ingredients.map((ingredient, i) => (
-              <li key={i} className="py-2">
-                {formatIngredient(ingredient)}
-              </li>
-            ))}
-          </ul>
+          {groupBySection(ingredients).map((group, g) => (
+            <div key={g} className={cn(g > 0 && 'mt-4')}>
+              {group.section && <h3 className="text-xs font-medium tracking-wide text-muted-foreground uppercase">{group.section}</h3>}
+              <ul className="divide-y text-sm">
+                {group.items.map((ingredient, i) => (
+                  <li key={i} className="py-2">
+                    {formatIngredient(ingredient)}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ))}
         </section>
 
         <section aria-labelledby="steps-title">

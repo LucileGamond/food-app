@@ -75,7 +75,7 @@ describe('RecipeFormPage — nouvelle recette', () => {
     await user.type(screen.getByLabelText('Titre'), ' Tarte aux pommes ')
     await user.type(screen.getByLabelText('Portions'), '6')
     await user.type(screen.getByLabelText('Lien'), 'https://tarte.fr')
-    await user.type(screen.getByLabelText('Préparation'), 'Cuire 30 min')
+    await user.type(screen.getByLabelText('Étapes'), 'Cuire 30 min')
 
     // Tags : Entrée, virgule, doublon ignoré, retour arrière, suppression
     const tags = screen.getByLabelText('Tags')
@@ -121,9 +121,13 @@ describe('RecipeFormPage — nouvelle recette', () => {
       url: 'https://tarte.fr',
       servings: 6,
       tags: ['été'],
+      source: null,
+      prepMinutes: null,
+      restMinutes: null,
+      cookMinutes: null,
       ingredients: [
-        { name: 'Pommes', quantity: 1.5, unit: 'kg', note: null },
-        { name: 'Pâte brisée', quantity: null, unit: null, note: null },
+        { name: 'Pommes', quantity: 1.5, unit: 'kg', note: null, section: null },
+        { name: 'Pâte brisée', quantity: null, unit: null, note: null, section: null },
       ],
     })
     expect(api.photos.uploadPhoto).toHaveBeenCalledTimes(2)
@@ -205,7 +209,7 @@ describe('RecipeFormPage — modification', () => {
 
     expect(await screen.findByRole('heading', { name: 'Sauvegarder la recette' })).toBeInTheDocument()
     expect(screen.getByLabelText('Titre')).toHaveValue('Quiche')
-    expect(screen.getByLabelText('Préparation')).toHaveValue('De mamie')
+    expect(screen.getByLabelText('Étapes')).toHaveValue('De mamie')
     expect(screen.getByLabelText('Lien')).toHaveValue('https://quiche.fr')
     expect(screen.getAllByTestId('ingredient-row')).toHaveLength(1)
     expect(screen.getByRole('link', { name: 'Retour' })).toHaveAttribute('href', '/planning')
@@ -278,7 +282,7 @@ describe('RecipeFormPage — préremplissage depuis un lien', () => {
     expect(screen.getByLabelText('Titre')).toHaveValue('Pâte à crêpes')
     expect(screen.getByLabelText('Portions')).toHaveValue('4')
     expect(screen.getByLabelText('Lien')).toHaveValue('https://www.marmiton.org/recettes/crepes.aspx')
-    expect(screen.getByLabelText('Préparation')).toHaveValue('1. Mélanger.\n2. Cuire.')
+    expect(screen.getByLabelText('Étapes')).toHaveValue('1. Mélanger.\n2. Cuire.')
     expect(screen.getByLabelText("Nom de l'ingrédient 2")).toHaveValue('œufs')
     expect(screen.getByLabelText("Quantité de l'ingrédient 1")).toHaveValue('250')
     expect(screen.getAllByTestId('photo-item')).toHaveLength(1)
@@ -292,8 +296,8 @@ describe('RecipeFormPage — préremplissage depuis un lien', () => {
         url: 'https://www.marmiton.org/recettes/crepes.aspx',
         tags: ['Dessert'],
         ingredients: [
-          { name: 'farine', quantity: 250, unit: 'g', note: null },
-          { name: 'œufs', quantity: 3, unit: null, note: null },
+          { name: 'farine', quantity: 250, unit: 'g', note: null, section: null },
+          { name: 'œufs', quantity: 3, unit: null, note: null, section: null },
         ],
       }),
     )
@@ -311,7 +315,7 @@ describe('RecipeFormPage — préremplissage depuis un lien', () => {
         ingredients: [
           { name: 'sucre', quantity: 1, unit: 'cuillères à soupe bombées', note: null },
           { name: 'rhum', quantity: 1, unit: 'shot', note: null },
-          { name: 'ail', quantity: 2, unit: 'gousse', note: 'écrasées' },
+          { name: 'ail', quantity: 2, unit: 'gousse', note: 'écrasées', section: null },
         ],
       },
     })
@@ -332,9 +336,9 @@ describe('RecipeFormPage — préremplissage depuis un lien', () => {
     expect(api.recipes.saveRecipe).toHaveBeenCalledWith(
       expect.objectContaining({
         ingredients: [
-          { name: 'sucre', quantity: 1, unit: 'c. à s.', note: 'bombées' },
-          { name: 'rhum', quantity: null, unit: 'verre', note: '1 shot' },
-          { name: 'ail', quantity: 2, unit: 'gousse', note: 'écrasées' },
+          { name: 'sucre', quantity: 1, unit: 'c. à s.', note: 'bombées', section: null },
+          { name: 'rhum', quantity: null, unit: 'verre', note: '1 shot', section: null },
+          { name: 'ail', quantity: 2, unit: 'gousse', note: 'écrasées', section: null },
         ],
       }),
     )
@@ -393,13 +397,13 @@ describe('RecipeFormPage — préremplissage depuis un lien', () => {
     const confirm = await screen.findByRole('alertdialog', { name: 'Remplacer le contenu du formulaire ?' })
     await user.click(within(confirm).getByRole('button', { name: 'Annuler' }))
     expect(api.recipes.importFromUrl).not.toHaveBeenCalled()
-    expect(screen.getByLabelText('Préparation')).toHaveValue('De mamie')
+    expect(screen.getByLabelText('Étapes')).toHaveValue('De mamie')
 
     await user.click(screen.getByRole('button', { name: 'Préremplir' }))
     await user.click(within(await screen.findByRole('alertdialog')).getByRole('button', { name: 'Remplacer' }))
     expect(await screen.findByRole('status')).toHaveTextContent('quiche.fr')
     expect(screen.getByLabelText('Titre')).toHaveValue('Quiche lorraine')
-    expect(screen.getByLabelText('Préparation')).toHaveValue('1. Mélanger.\n2. Cuire.')
+    expect(screen.getByLabelText('Étapes')).toHaveValue('1. Mélanger.\n2. Cuire.')
     // La photo de la page n'est ajoutée que s'il n'y en a aucune
     expect(screen.getAllByTestId('photo-item')).toHaveLength(photosBefore)
   })

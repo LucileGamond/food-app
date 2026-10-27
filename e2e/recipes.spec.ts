@@ -26,7 +26,7 @@ test('crée une recette complète, l’utilise au planning et bloque sa suppress
   await page.getByLabel("Nom de l'ingrédient 1").fill('Pois chiches')
   await page.getByRole('button', { name: 'Ajouter un ingrédient' }).click()
   await page.getByLabel("Nom de l'ingrédient 2").fill('Lait de coco')
-  await page.getByLabel('Préparation').fill('Tout mélanger et laisser mijoter.')
+  await page.getByLabel('Étapes').fill('Tout mélanger et laisser mijoter.')
   await page.getByLabel('Choisir des photos').setInputFiles([
     { name: 'a.png', mimeType: 'image/png', buffer: PNG },
     { name: 'b.png', mimeType: 'image/png', buffer: PNG },

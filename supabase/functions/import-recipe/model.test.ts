@@ -58,12 +58,17 @@ describe('sanitizeRecipe', () => {
       title: 'Crêpes légères',
       servings: 4,
       ingredients: [
-        { name: 'farine', quantity: 250, unit: 'g', note: null },
-        { name: 'œufs', quantity: 3, unit: null, note: 'battus' },
-        { name: 'sel', quantity: null, unit: 'pincée', note: null },
+        { name: 'farine', quantity: 250, unit: 'g', note: null, section: null },
+        { name: 'œufs', quantity: 3, unit: null, note: 'battus', section: null },
+        { name: 'sel', quantity: null, unit: 'pincée', note: null, section: null },
       ],
       steps: '1. Mélanger.\n2. Cuire.',
       tags: ['dessert', 'rapide'],
+      checks: [],
+      source: null,
+      prep_minutes: null,
+      rest_minutes: null,
+      cook_minutes: null,
     })
   })
 
@@ -87,9 +92,9 @@ describe('sanitizeRecipe', () => {
     )
     expect(recipe.title).toBe('Titre de secours')
     expect(recipe.servings).toBeNull()
-    expect(recipe.ingredients[0]).toEqual({ name: 'sucre', quantity: null, unit: 'x'.repeat(30), note: null })
-    expect(recipe.ingredients[1]).toEqual({ name: 'lait', quantity: 0.333, unit: 'l', note: null })
-    expect(recipe.ingredients[2]).toEqual({ name: 'eau', quantity: null, unit: null, note: null })
+    expect(recipe.ingredients[0]).toEqual({ name: 'sucre', quantity: null, unit: 'x'.repeat(30), note: null, section: null })
+    expect(recipe.ingredients[1]).toEqual({ name: 'lait', quantity: 0.333, unit: 'l', note: null, section: null })
+    expect(recipe.ingredients[2]).toEqual({ name: 'eau', quantity: null, unit: null, note: null, section: null })
     expect(recipe.ingredients.length).toBeLessThanOrEqual(60)
     expect(recipe.steps).toBe('')
     expect(recipe.tags).toEqual(['a', 'b', 'c', 'd', 'e'])
@@ -100,6 +105,83 @@ describe('sanitizeRecipe', () => {
     expect(() => sanitizeRecipe({ ...GOOD, is_recipe: false }, null)).toThrow('Aucune recette trouvée sur cette page.')
     expect(() => sanitizeRecipe({ ...GOOD, ingredients: [] }, null)).toThrow(ImportError)
     expect(() => sanitizeRecipe(null, null)).toThrow(ImportError)
+  })
+})
+
+describe('détails : sous-parties, temps, source', () => {
+  it('garde les sous-parties, les temps plausibles et la source', () => {
+    const recipe = sanitizeRecipe(
+      {
+        ...GOOD,
+        ingredients: [{ name: 'beurre', quantity: 50, unit: 'g', section: '  Pour le streusel ' }],
+        prep_minutes: 10,
+        rest_minutes: 120,
+        cook_minutes: 40.5,
+        source: ' Pâtisserie maison, p. 146 ',
+      },
+      null,
+    )
+    expect(recipe.ingredients[0]!.section).toBe('Pour le streusel')
+    expect([recipe.prep_minutes, recipe.rest_minutes, recipe.cook_minutes, recipe.source]).toEqual([10, 120, null, 'Pâtisserie maison, p. 146'])
+    expect(sanitizeRecipe({ ...GOOD, prep_minutes: -5, rest_minutes: 99_999 }, null)).toMatchObject({ prep_minutes: null, rest_minutes: null })
+  })
+})
+
+describe('ordre des sous-parties', () => {
+  it('regroupe chaque sous-partie d’un seul tenant, sans sous-partie d’abord, et suit les points à vérifier', () => {
+    const recipe = sanitizeRecipe(
+      {
+        ...GOOD,
+        ingredients: [
+          { name: 'farine', quantity: 200, unit: 'g', section: 'Pour la pâte' },
+          { name: 'bananes', quantity: 5, unit: null, section: null },
+          { name: 'beurre', quantity: 50, unit: 'g', section: 'Pour le streusel' },
+          { name: 'sucre', quantity: 50, unit: 'g', section: 'Pour la pâte' },
+          { name: 'sel', quantity: null, unit: null, section: null },
+        ],
+        checks: [
+          { ingredient: 1, message: 'Quantité approximative' },
+          { ingredient: 3, message: 'Sucre roux ou blanc ?' },
+        ],
+      },
+      null,
+    )
+    expect(recipe.ingredients.map((i) => [i.name, i.section])).toEqual([
+      ['bananes', null],
+      ['sel', null],
+      ['farine', 'Pour la pâte'],
+      ['sucre', 'Pour la pâte'],
+      ['beurre', 'Pour le streusel'],
+    ])
+    expect(recipe.checks).toEqual([
+      { ingredient: 0, message: 'Quantité approximative' },
+      { ingredient: 3, message: 'Sucre roux ou blanc ?' },
+    ])
+  })
+})
+
+describe('points à vérifier', () => {
+  it('garde les points signalés, rattachés au bon ingrédient', () => {
+    const recipe = sanitizeRecipe(
+      {
+        ...GOOD,
+        ingredients: [{ name: '' }, ...GOOD.ingredients],
+        checks: [
+          { ingredient: 2, message: '  Quantité approximative (4 ou 5)  ' },
+          { ingredient: 0, message: 'Ligne illisible' },
+          { ingredient: null, message: 'Renvoie à la pâte sucrée p. 208' },
+          { ingredient: 1, message: '' },
+          'pas un objet',
+        ],
+      },
+      null,
+    )
+    expect(recipe.checks).toEqual([
+      { ingredient: 1, message: 'Quantité approximative (4 ou 5)' },
+      { ingredient: null, message: 'Ligne illisible' },
+      { ingredient: null, message: 'Renvoie à la pâte sucrée p. 208' },
+    ])
+    expect(sanitizeRecipe({ ...GOOD, checks: Array.from({ length: 20 }, () => ({ ingredient: null, message: 'x' })) }, null).checks).toHaveLength(8)
   })
 })
 

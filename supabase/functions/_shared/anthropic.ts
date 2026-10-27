@@ -2,7 +2,7 @@
 
 export const DEFAULT_MODEL = 'claude-haiku-5-5'
 export const API_URL = 'https://api.anthropic.com/v1/messages'
-const TIMEOUT_MS = 45_000
+const DEFAULT_TIMEOUT_MS = 45_000
 
 /** Erreur avec le statut HTTP à renvoyer et un message lisible. */
 export class HttpError extends Error {
@@ -32,20 +32,27 @@ export interface ModelOptions {
   fetch?: typeof fetch
 }
 
+/** Contenu d'un message : texte seul, ou blocs (images puis texte). */
+export type MessageContent =
+  | string
+  | ({ type: 'text'; text: string } | { type: 'image'; source: { type: 'base64'; media_type: string; data: string } })[]
+
 export interface ToolCall {
   system: string
   tool: Tool
-  message: string
+  message: MessageContent
   maxTokens: number
   /** Début du message d'erreur : « L’analyse de la page a échoué ». */
   failure: string
   /** Précision quand le modèle ne remplit pas l'outil : « réponse sans recette ». */
   missing: string
+  /** Délai maximal de la réponse (45 s par défaut). */
+  timeoutMs?: number
 }
 
 /** Appelle le modèle en lui imposant l'outil, et renvoie ce qu'il a passé à l'outil (non validé). */
 export async function callTool(
-  { system, tool, message, maxTokens, failure, missing }: ToolCall,
+  { system, tool, message, maxTokens, failure, missing, timeoutMs = DEFAULT_TIMEOUT_MS }: ToolCall,
   { apiKey, model = DEFAULT_MODEL, fetch: doFetch = fetch }: ModelOptions,
 ): Promise<{ input: unknown; usage: ModelUsage | null }> {
   let response: Response
@@ -61,7 +68,7 @@ export async function callTool(
         tool_choice: { type: 'tool', name: tool.name },
         messages: [{ role: 'user', content: message }],
       }),
-      signal: AbortSignal.timeout(TIMEOUT_MS),
+      signal: AbortSignal.timeout(timeoutMs),
     })
   } catch {
     throw new HttpError('Le service d’analyse ne répond pas. Réessaie dans un instant.', 503)

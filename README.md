@@ -38,6 +38,15 @@ Application web installable (PWA) pour Lucile et Eric : planning partagé des re
   sinon le texte du contenu principal, sans menus, scripts, pubs ni commentaires : quelques centaines de tokens),
   puis demande à Claude Haiku d'en extraire titre, portions, ingrédients, étapes et tags. La photo de la page est ajoutée.
   Réservé aux utilisateurs connectés ; les adresses locales ou privées sont refusées.
+  **Préremplissage depuis une photo** (page de livre, magazine, scan ; 2 pages au plus) : les photos sont réduites dans
+  le navigateur (1568 px, JPEG), puis `import-recipe` (mode `photos`) demande à Claude Haiku de lire la recette, avec le
+  même outil et la même validation que pour un lien. La photo n'est pas gardée comme photo de la recette.
+  Depuis la galerie du téléphone, « Partager » → Food ouvre directement une nouvelle recette et lit les photos.
+  Après un import, un panneau « À vérifier » liste ce qui paraît douteux (signalé par le modèle, ou repéré par l'app :
+  quantité absente, renvoi « voir p. … », portions ou étapes manquantes) ; chaque point mène au champ et disparaît une fois
+  corrigé. La photo lue reste visible (en grand sur demande) pendant la vérification, sans être enregistrée.
+  Une recette peut avoir une source (livre, page), des temps (préparation, repos, cuisson) et des sous-parties
+  d'ingrédients (« Pour le streusel ») ; un titre déjà utilisé par une autre recette est signalé.
 - **Poids** :
   - une pesée par personne et par jour (20 à 300 kg, une décimale, pas de date future) ;
   - synthèse par personne : dernière pesée, écart avec la précédente et sur la période, min/max ;

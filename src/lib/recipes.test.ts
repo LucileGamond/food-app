@@ -17,6 +17,9 @@ import {
   normalizeTags,
   parseQuantity,
   photoPath,
+  formatDuration,
+  groupBySection,
+  parseDuration,
   recipeToFormValues,
   toSaveRecipeInput,
   validateRecipeForm,
@@ -29,6 +32,10 @@ function form(overrides: Partial<RecipeFormValues> = {}): RecipeFormValues {
     servings: '4',
     notes: '',
     url: '',
+    source: '',
+    prepTime: '',
+    restTime: '',
+    cookTime: '',
     tags: [],
     ingredients: [{ key: 'k1', name: 'Pois chiches', quantity: '400', unit: 'g', note: '' }],
     ...overrides,
@@ -107,7 +114,8 @@ describe('conversion formulaire ↔ données', () => {
       ],
     }))).toEqual({
       id: 'r1', title: 'Curry', notes: null, url: 'https://a.fr', servings: null, tags: ['végé'],
-      ingredients: [{ name: 'Riz', quantity: 1.5, unit: 'kg', note: null }, { name: 'Sel', quantity: null, unit: null, note: null }],
+      source: null, prepMinutes: null, restMinutes: null, cookMinutes: null,
+      ingredients: [{ name: 'Riz', quantity: 1.5, unit: 'kg', note: null, section: null }, { name: 'Sel', quantity: null, unit: null, note: null, section: null }],
     })
     expect(toSaveRecipeInput(null, form()).servings).toBe(4)
   })
@@ -265,5 +273,67 @@ describe('unités et précisions des ingrédients', () => {
     expect(validateRecipeForm(row({ unit: 'c. à s.', note: 'rase' })).ingredientRows).toBeUndefined()
     // Une ligne avec seulement une précision compte comme saisie
     expect(validateRecipeForm({ ...base, ingredients: [{ ...base.ingredients[0]!, note: 'bio' }] }).ingredientRows).toEqual({ [key]: 'Nom manquant' })
+  })
+})
+
+describe('sous-parties mélangées (anciennes données)', () => {
+  it('un ingrédient sans sous-partie après une sous-partie n’y est pas rattaché', () => {
+    const values = recipeToFormValues({
+      title: 'Tarte', servings: null, notes: null, url: null, tags: [],
+      ingredients: [
+        { name: 'farine', quantity: 200, unit: 'g', note: null, section: 'Pour la pâte' },
+        { name: 'sel', quantity: null, unit: null, note: null, section: null },
+      ],
+    })
+    expect(values.ingredients.map((r) => (r.heading ? `# ${r.name}` : r.name))).toEqual(['# Pour la pâte', 'farine', '# ', 'sel'])
+    expect(toSaveRecipeInput(null, values).ingredients.map((i) => [i.name, i.section])).toEqual([
+      ['farine', 'Pour la pâte'],
+      ['sel', null],
+    ])
+  })
+})
+
+describe('temps, source et sous-parties', () => {
+  it('lit et écrit les durées', () => {
+    expect(['45', '45 min', '1 h', '1h30', '1 h 30 min', '2 heures', ' 10 MIN ', ''].map(parseDuration)).toEqual([45, 45, 60, 90, 90, 120, 10, null])
+    expect(parseDuration('une heure')).toBeNaN()
+    expect(parseDuration('h')).toBeNaN()
+    expect([45, 60, 90, 125, null, undefined].map(formatDuration)).toEqual(['45 min', '1 h', '1 h 30', '2 h 05', '', ''])
+  })
+
+  it('valide la source, les durées et les titres de sous-parties', () => {
+    const heading = { key: 'h', name: 'x'.repeat(81), quantity: '', unit: '', note: '', heading: true }
+    const errors = validateRecipeForm(form({ source: 's'.repeat(201), prepTime: 'longtemps', cookTime: '200 h', ingredients: [heading, ...form().ingredients] }))
+    expect(errors).toMatchObject({ source: '200 caractères maximum', prepTime: 'Durée invalide (ex. 45 min, 1 h 30)', cookTime: 'Durée invalide (ex. 45 min, 1 h 30)' })
+    expect(errors.restTime).toBeUndefined()
+    expect(errors.ingredientRows).toEqual({ h: 'Titre trop long (80 caractères maximum)' })
+  })
+
+  it('range les ingrédients sous leur sous-partie, dans les deux sens', () => {
+    const values = recipeToFormValues({
+      title: 'Tarte', servings: 6, notes: null, url: null, tags: [], source: 'Pâtisserie maison, p. 146', prep_minutes: 10, rest_minutes: 120, cook_minutes: null,
+      ingredients: [
+        { name: 'bananes', quantity: 5, unit: null, note: null, section: null },
+        { name: 'beurre', quantity: 40, unit: 'g', note: null, section: 'Pour le beurre d’amande' },
+        { name: 'sucre glace', quantity: 40, unit: 'g', note: null, section: 'Pour le beurre d’amande' },
+        { name: 'beurre demi-sel', quantity: 50, unit: 'g', note: null, section: 'Pour le streusel' },
+      ],
+    })
+    expect(values).toMatchObject({ source: 'Pâtisserie maison, p. 146', prepTime: '10 min', restTime: '2 h', cookTime: '' })
+    expect(values.ingredients.map((r) => (r.heading ? `# ${r.name}` : r.name))).toEqual([
+      'bananes', '# Pour le beurre d’amande', 'beurre', 'sucre glace', '# Pour le streusel', 'beurre demi-sel',
+    ])
+    // Un titre vide ou retiré : les ingrédients suivants n'ont pas (ou plus) de sous-partie.
+    const rows = [...values.ingredients]
+    rows[4] = { ...rows[4]!, name: '  ' }
+    const saved = toSaveRecipeInput(null, { ...values, ingredients: rows })
+    expect(saved.ingredients.map((i) => [i.name, i.section])).toEqual([
+      ['bananes', null], ['beurre', 'Pour le beurre d’amande'], ['sucre glace', 'Pour le beurre d’amande'], ['beurre demi-sel', null],
+    ])
+    expect(saved).toMatchObject({ source: 'Pâtisserie maison, p. 146', prepMinutes: 10, restMinutes: 120, cookMinutes: null })
+    expect(filledIngredients(values.ingredients)).toHaveLength(4)
+    expect(groupBySection(saved.ingredients).map((g) => [g.section, g.items.length])).toEqual([
+      [null, 1], ['Pour le beurre d’amande', 2], [null, 1],
+    ])
   })
 })

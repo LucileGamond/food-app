@@ -1,6 +1,6 @@
 import { ArrowLeft, ArrowRightLeft, CopyCheck, Loader2, SearchX } from 'lucide-react'
 import { useEffect, useRef, useState, type FormEvent } from 'react'
-import { Link, useLocation, useNavigate, useParams } from 'react-router-dom'
+import { Link, useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { toast } from 'sonner'
 import { Button, buttonVariants } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -10,22 +10,28 @@ import { Textarea } from '@/components/ui/textarea'
 import { EmptyState } from '@/components/EmptyState'
 import { IngredientsEditor } from '@/components/recipes/IngredientsEditor'
 import { PhotoUploader, type PhotoDraft } from '@/components/recipes/PhotoUploader'
+import { ImportReview } from '@/components/recipes/ImportReview'
 import { RecipeImportCard } from '@/components/recipes/RecipeImportCard'
 import { TagInput } from '@/components/recipes/TagInput'
 import { useApi } from '@/app/ApiContext'
-import { DuplicateRecipeUrlError, errorMessage } from '@/api'
+import { AppError, DuplicateRecipeUrlError, errorMessage } from '@/api'
 import { isValidUrl } from '@/lib/meals'
-import { compressImage } from '@/lib/image'
+import { compressForReading, compressImage } from '@/lib/image'
+import { importChecks, pendingChecks, type ImportCheck } from '@/lib/importChecks'
+import { takeSharedPhotos } from '@/lib/sharedPhotos'
 import {
   formHasContent,
+  DURATION_FIELDS,
   hasErrors,
   importedImageToFile,
   importedToFormValues,
   recipeToFormValues,
   toSaveRecipeInput,
   validateRecipeForm,
+  type ImportedRecipe,
   type RecipeFormValues,
 } from '@/lib/recipes'
+import { normalizeName } from '@/lib/shopping'
 import { cn } from '@/lib/utils'
 
 const EMPTY: RecipeFormValues = recipeToFormValues({ title: '', servings: null, notes: null, url: null, tags: [] })
@@ -47,6 +53,9 @@ export function RecipeFormPage() {
   const navigate = useNavigate()
   const location = useLocation()
   const from = (location.state as { from?: string } | null)?.from
+  const [searchParams, setSearchParams] = useSearchParams()
+  // Photos partagées depuis la galerie du téléphone (voir public/share-sw.js).
+  const [sharedPhotos, setSharedPhotos] = useState<File[] | undefined>(undefined)
 
   const [status, setStatus] = useState<'loading' | 'ready' | 'notFound'>(id ? 'loading' : 'ready')
   const [wasSaved, setWasSaved] = useState(!id)
@@ -54,17 +63,43 @@ export function RecipeFormPage() {
   const [photos, setPhotos] = useState<PhotoDraft[]>([])
   const [removed, setRemoved] = useState<PhotoDraft[]>([])
   const [tagSuggestions, setTagSuggestions] = useState<string[]>([])
+  const [sources, setSources] = useState<string[]>([])
+  const [savedTitles, setSavedTitles] = useState<{ id: string; title: string }[]>([])
+  // Photos lues lors d'un import, gardées à l'écran (sans être enregistrées) pour vérifier le formulaire.
+  const [readPages, setReadPages] = useState<string[]>([])
   const [submitted, setSubmitted] = useState(false)
   const [saving, setSaving] = useState(false)
   // Recette sauvegardée qui a déjà le même lien (le lien est unique parmi les recettes sauvegardées).
   const [duplicate, setDuplicate] = useState<{ id: string; title: string } | null>(null)
   const [switching, setSwitching] = useState(false)
+  // Points à vérifier après un import, et le formulaire tel que l'import l'a rempli (pour savoir ce qui a été corrigé).
+  const [review, setReview] = useState<{ checks: ImportCheck[]; snapshot: RecipeFormValues } | null>(null)
   const savedId = useRef<string | null>(id ?? null)
   const keyCounter = useRef(0)
 
   useEffect(() => {
     api.recipes.listTags().then(setTagSuggestions, () => setTagSuggestions([]))
+    api.recipes.listSources().then(setSources, () => setSources([]))
+    api.recipes.listSavedSummaries().then(setSavedTitles, () => setSavedTitles([]))
   }, [api])
+
+  // Recette déjà enregistrée sous le même titre (sans accents ni majuscules) : utile surtout après un import.
+  const sameTitle = values.title.trim()
+    ? (savedTitles.find((r) => r.id !== id && normalizeName(r.title) === normalizeName(values.title)) ?? null)
+    : null
+
+  const fromShare = !id && searchParams.get('photos') === 'partage'
+  const sharedTaken = useRef(false)
+  useEffect(() => {
+    // Une seule lecture, même si l'effet est rejoué (mode strict) : la seconde trouverait le cache vide.
+    if (!fromShare || sharedTaken.current) return
+    sharedTaken.current = true
+    void takeSharedPhotos().then((files) => {
+      setSharedPhotos(files)
+      if (files.length === 0) toast.error('Aucune photo reçue : choisis-la depuis « Photo d’un livre ou scan ».')
+      setSearchParams({}, { replace: true })
+    })
+  }, [fromShare, setSearchParams])
 
   // Vérifie, peu après la saisie, si le lien est déjà celui d'une autre recette sauvegardée.
   const url = values.url.trim()
@@ -117,6 +152,22 @@ export function RecipeFormPage() {
     photosRef.current = photos
   }, [photos])
   useEffect(() => () => photosRef.current.forEach((p) => p.kind === 'new' && URL.revokeObjectURL(p.url)), [])
+  const mounted = useRef(true)
+  useEffect(() => {
+    mounted.current = true
+    return () => {
+      mounted.current = false
+    }
+  }, [])
+  const readPagesRef = useRef(readPages)
+  useEffect(() => {
+    readPagesRef.current = readPages
+  }, [readPages])
+  useEffect(() => () => readPagesRef.current.forEach((url) => URL.revokeObjectURL(url)), [])
+
+  const toCheck = review ? pendingChecks(review.checks, review.snapshot, values) : []
+  const flags: Record<string, string[]> = {}
+  for (const check of toCheck) if (check.ingredientKey) (flags[check.ingredientKey] ??= []).push(check.message)
 
   const errors = validateRecipeForm(values)
   const shown = submitted ? errors : {}
@@ -138,9 +189,35 @@ export function RecipeFormPage() {
       throw new DuplicateRecipeUrlError(existing)
     }
     const result = await api.recipes.importFromUrl(url, tagSuggestions)
-    setValues(importedToFormValues(result.recipe, url))
-    setSubmitted(false)
+    applyImport(result.recipe, url)
     if (result.image && photos.length === 0) addPhotos([importedImageToFile(result.image)])
+  }
+
+  /** Préremplit le formulaire en lisant la recette sur 1 ou 2 photos (page de livre, scan). La photo n'est pas gardée. */
+  async function importFromPhotos(files: File[]) {
+    let photos: Blob[]
+    try {
+      photos = await Promise.all(files.map(compressForReading))
+    } catch {
+      // Format que le navigateur ne sait pas lire (HEIC d'iPhone…) ou fichier abîmé.
+      throw new AppError('Cette photo ne peut pas être lue. Essaie une photo JPEG ou PNG (ou une capture d’écran).')
+    }
+    // À l'ouverture depuis un partage, les tags existants ne sont peut-être pas encore chargés.
+    const tags = tagSuggestions.length > 0 ? tagSuggestions : await api.recipes.listTags().catch(() => [] as string[])
+    const result = await api.recipes.importFromPhotos(photos, tags)
+    if (!mounted.current) return
+    applyImport(result.recipe, values.url)
+    setReadPages((previous) => {
+      previous.forEach((url) => URL.revokeObjectURL(url))
+      return files.map((file) => URL.createObjectURL(file))
+    })
+  }
+
+  function applyImport(recipe: ImportedRecipe, url: string) {
+    const next = importedToFormValues(recipe, url)
+    setValues(next)
+    setSubmitted(false)
+    setReview({ checks: importChecks(recipe, next), snapshot: next })
   }
 
   function removePhoto(key: string) {
@@ -254,7 +331,17 @@ export function RecipeFormPage() {
       )}
 
       <div className="mt-6 space-y-8">
-        {(!id || !wasSaved) && <RecipeImportCard initialUrl={values.url} hasContent={formHasContent(values)} onImport={importFromUrl} />}
+        {(!id || !wasSaved) && (
+          <RecipeImportCard
+            initialUrl={values.url}
+            initialPhotos={sharedPhotos}
+            hasContent={formHasContent(values)}
+            onImport={importFromUrl}
+            onImportPhotos={importFromPhotos}
+          />
+        )}
+
+        {review && <ImportReview checks={toCheck} values={values} pages={readPages} onDismiss={() => setReview(null)} />}
 
         {duplicate && (
           <div role="alert" className="rounded-2xl border border-destructive/30 bg-destructive/5 p-5 text-sm">
@@ -290,6 +377,17 @@ export function RecipeFormPage() {
               aria-invalid={Boolean(shown.title) || undefined}
               className="h-10"
             />
+            {sameTitle && (
+              <p role="status" className="flex items-start gap-1.5 text-sm">
+                <CopyCheck className="mt-0.5 size-4 shrink-0 text-brand" aria-hidden />
+                <span>
+                  Une recette « {sameTitle.title} » existe déjà.{' '}
+                  <Link to={`/recettes/${sameTitle.id}`} className="font-medium text-brand underline-offset-4 hover:underline">
+                    La voir
+                  </Link>
+                </span>
+              </p>
+            )}
           </Field>
           <div className="grid gap-5 sm:grid-cols-[8rem_1fr]">
             <Field id="recipe-servings" label="Portions" error={shown.servings}>
@@ -315,6 +413,43 @@ export function RecipeFormPage() {
               />
             </Field>
           </div>
+          <Field id="recipe-source" label="Source" error={shown.source} hint="Livre, magazine, page… (ex. Pâtisserie maison, p. 146)">
+            <Input
+              id="recipe-source"
+              list="recipe-sources"
+              value={values.source}
+              maxLength={200}
+              onChange={(e) => set('source', e.target.value)}
+              aria-invalid={Boolean(shown.source) || undefined}
+              className="h-10"
+            />
+            <datalist id="recipe-sources">
+              {sources.map((source) => (
+                <option key={source} value={source} />
+              ))}
+            </datalist>
+          </Field>
+          <fieldset className="grid grid-cols-3 gap-3">
+            <legend className="mb-2 text-sm font-medium">Temps</legend>
+            {DURATION_FIELDS.map(({ field, label, example }) => (
+              <div key={field} className="space-y-1">
+                <Label htmlFor={`recipe-${field}`} className="text-xs font-normal text-muted-foreground">
+                  {label}
+                </Label>
+                <Input
+                  id={`recipe-${field}`}
+                  placeholder={example}
+                  value={values[field]}
+                  onChange={(e) => set(field, e.target.value)}
+                  aria-invalid={Boolean(shown[field]) || undefined}
+                  className="h-10 placeholder:text-muted-foreground/40"
+                />
+              </div>
+            ))}
+            {DURATION_FIELDS.some(({ field }) => shown[field]) && (
+              <p className="col-span-3 text-sm text-destructive">{DURATION_FIELDS.map(({ field }) => shown[field]).find(Boolean)}</p>
+            )}
+          </fieldset>
           <Field id="recipe-tags" label="Tags" hint="Ex. végé, rapide, dessert">
             <TagInput id="recipe-tags" value={values.tags} suggestions={tagSuggestions} onChange={(tags) => set('tags', tags)} />
           </Field>
@@ -322,12 +457,12 @@ export function RecipeFormPage() {
 
         <section className="space-y-3 rounded-2xl border bg-background p-5 shadow-xs" aria-labelledby="ingredients-heading">
           <h2 id="ingredients-heading" className="font-semibold tracking-tight">Ingrédients</h2>
-          <IngredientsEditor rows={values.ingredients} errors={shown.ingredientRows} onChange={(rows) => set('ingredients', rows)} />
+          <IngredientsEditor rows={values.ingredients} errors={shown.ingredientRows} flags={flags} onChange={(rows) => set('ingredients', rows)} />
           {shown.ingredients && <p className="text-sm text-destructive">{shown.ingredients}</p>}
         </section>
 
         <section className="space-y-3 rounded-2xl border bg-background p-5 shadow-xs">
-          <Field id="recipe-notes" label="Préparation">
+          <Field id="recipe-notes" label="Étapes">
             <Textarea id="recipe-notes" rows={8} value={values.notes} onChange={(e) => set('notes', e.target.value)} placeholder="Étapes de la recette…" />
           </Field>
         </section>

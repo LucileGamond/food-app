@@ -13,3 +13,17 @@ export async function compressImage(file: File): Promise<Blob> {
     useWebWorker: false,
   })
 }
+
+/**
+ * Prépare une photo de page de livre (ou un scan) pour la lecture par le modèle : assez grande pour lire
+ * le texte (1568 px, la taille la plus utile au modèle), assez légère pour l'envoi (≈ 600 Ko).
+ */
+export async function compressForReading(file: File): Promise<Blob> {
+  return imageCompression(file, {
+    maxSizeMB: 0.6,
+    maxWidthOrHeight: 1568,
+    fileType: 'image/jpeg',
+    initialQuality: 0.85,
+    useWebWorker: false,
+  })
+}

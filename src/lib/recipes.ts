@@ -7,6 +7,8 @@ export interface Ingredient {
   unit: string | null
   /** Précision libre : « émincés », « bombée », « à température ambiante »… */
   note: string | null
+  /** Sous-partie de la recette (« Pour le streusel »), null si aucune. */
+  section?: string | null
 }
 
 export interface RecipePhoto {
@@ -23,17 +25,26 @@ export interface Recipe {
   url: string | null
   servings: number | null
   tags: string[]
+  /** Livre, magazine, page… (« Pâtisserie maison, p. 146 »). */
+  source?: string | null
+  prep_minutes?: number | null
+  rest_minutes?: number | null
+  cook_minutes?: number | null
   ingredients: Ingredient[]
   photos: RecipePhoto[]
 }
 
-/** Ligne d'ingrédient telle que saisie dans le formulaire (tout en texte). */
+/**
+ * Ligne de la liste d'ingrédients telle que saisie (tout en texte). Une ligne `heading` est le titre d'une
+ * sous-partie (« Pour le streusel », dans `name`) : les ingrédients qui la suivent en font partie.
+ */
 export interface IngredientDraft {
   key: string
   name: string
   quantity: string
   unit: string
   note: string
+  heading?: boolean
 }
 
 export interface RecipeFormValues {
@@ -42,10 +53,32 @@ export interface RecipeFormValues {
   notes: string
   url: string
   tags: string[]
+  /** Livre, magazine, page… */
+  source: string
+  /** Durées saisies librement (« 45 min », « 1 h 30 »). */
+  prepTime: string
+  restTime: string
+  cookTime: string
   ingredients: IngredientDraft[]
 }
 
-export type RecipeFormErrors = Partial<Record<'title' | 'servings' | 'url' | 'ingredients', string>> & {
+export type DurationField = 'prepTime' | 'restTime' | 'cookTime'
+
+export const DURATION_FIELDS: readonly {
+  field: DurationField
+  label: string
+  column: 'prep_minutes' | 'rest_minutes' | 'cook_minutes'
+  example: string
+}[] = [
+  { field: 'prepTime', label: 'Préparation', column: 'prep_minutes', example: '20 min' },
+  { field: 'restTime', label: 'Repos', column: 'rest_minutes', example: '2 h' },
+  { field: 'cookTime', label: 'Cuisson', column: 'cook_minutes', example: '1 h 15' },
+]
+
+/** Une semaine au plus (limite de la base). */
+export const DURATION_MAX_MINUTES = 7 * 24 * 60
+
+export type RecipeFormErrors = Partial<Record<'title' | 'servings' | 'url' | 'ingredients' | 'source' | DurationField, string>> & {
   ingredientRows?: Record<string, string>
 }
 
@@ -69,6 +102,23 @@ export function formatIngredient(ingredient: Ingredient): string {
   const amount = [formatQuantity(ingredient.quantity), unit].filter(Boolean).join(' ')
   const text = amount ? `${amount} ${ingredient.name}` : ingredient.name
   return ingredient.note ? `${text} (${ingredient.note})` : text
+}
+
+/** « 45 », « 45 min », « 1 h », « 1h30 », « 1 h 30 min » → minutes ; vide → null ; illisible → NaN. */
+export function parseDuration(raw: string): number | null {
+  const text = raw.trim().toLowerCase()
+  if (text === '') return null
+  const match = /^(?:(\d+)\s*h(?:eures?)?)?\s*(?:(\d+)\s*(?:min(?:utes?)?|mn)?)?$/.exec(text)
+  if (!match || (match[1] === undefined && match[2] === undefined)) return Number.NaN
+  return Number(match[1] ?? 0) * 60 + Number(match[2] ?? 0)
+}
+
+/** 45 → « 45 min », 90 → « 1 h 30 », 120 → « 2 h » */
+export function formatDuration(minutes: number | null | undefined): string {
+  if (minutes === null || minutes === undefined) return ''
+  if (minutes < 60) return `${minutes} min`
+  const rest = minutes % 60
+  return rest === 0 ? `${minutes / 60} h` : `${Math.floor(minutes / 60)} h ${String(rest).padStart(2, '0')}`
 }
 
 export const SERVINGS_MAX = 99
@@ -100,9 +150,9 @@ export function normalizeTags(tags: readonly string[]): string[] {
   return result
 }
 
-/** Ingrédients réellement saisis (les lignes entièrement vides sont ignorées). */
+/** Ingrédients réellement saisis (les lignes entièrement vides et les titres de sous-parties sont ignorés). */
 export function filledIngredients(rows: readonly IngredientDraft[]): IngredientDraft[] {
-  return rows.filter((r) => r.name.trim() !== '' || r.quantity.trim() !== '' || r.unit.trim() !== '' || r.note.trim() !== '')
+  return rows.filter((r) => !r.heading && (r.name.trim() !== '' || r.quantity.trim() !== '' || r.unit.trim() !== '' || r.note.trim() !== ''))
 }
 
 export function validateRecipeForm(values: RecipeFormValues): RecipeFormErrors {
@@ -117,10 +167,19 @@ export function validateRecipeForm(values: RecipeFormValues): RecipeFormErrors {
   const url = values.url.trim()
   if (url !== '' && !isValidUrl(url)) errors.url = 'Lien invalide (http:// ou https://)'
 
+  if (values.source.trim().length > 200) errors.source = '200 caractères maximum'
+  for (const { field } of DURATION_FIELDS) {
+    const minutes = parseDuration(values[field])
+    if (minutes !== null && !(minutes <= DURATION_MAX_MINUTES)) errors[field] = 'Durée invalide (ex. 45 min, 1 h 30)'
+  }
+
   const rows = filledIngredients(values.ingredients)
   if (rows.length === 0) errors.ingredients = 'Ajoute au moins un ingrédient'
 
   const rowErrors: Record<string, string> = {}
+  for (const row of values.ingredients) {
+    if (row.heading && row.name.trim().length > 80) rowErrors[row.key] = 'Titre trop long (80 caractères maximum)'
+  }
   for (const row of rows) {
     if (row.name.trim() === '') rowErrors[row.key] = 'Nom manquant'
     else {
@@ -145,11 +204,26 @@ export interface SaveRecipeInput {
   url: string | null
   servings: number | null
   tags: string[]
+  source?: string | null
+  prepMinutes?: number | null
+  restMinutes?: number | null
+  cookMinutes?: number | null
   ingredients: Ingredient[]
 }
 
 export function toSaveRecipeInput(id: string | null, values: RecipeFormValues): SaveRecipeInput {
   const servings = values.servings.trim()
+  // Chaque ingrédient prend la sous-partie du dernier titre qui le précède.
+  let section: string | null = null
+  const ingredients: Ingredient[] = []
+  for (const row of values.ingredients) {
+    if (row.heading) {
+      section = row.name.trim() || null
+      continue
+    }
+    if (filledIngredients([row]).length === 0) continue
+    ingredients.push({ name: row.name.trim(), quantity: parseQuantity(row.quantity), unit: row.unit.trim() || null, note: row.note.trim() || null, section })
+  }
   return {
     id,
     title: values.title.trim(),
@@ -157,12 +231,11 @@ export function toSaveRecipeInput(id: string | null, values: RecipeFormValues): 
     url: values.url.trim() || null,
     servings: servings === '' ? null : Number(servings),
     tags: normalizeTags(values.tags),
-    ingredients: filledIngredients(values.ingredients).map((r) => ({
-      name: r.name.trim(),
-      quantity: parseQuantity(r.quantity),
-      unit: r.unit.trim() || null,
-      note: r.note.trim() || null,
-    })),
+    source: values.source.trim() || null,
+    prepMinutes: parseDuration(values.prepTime),
+    restMinutes: parseDuration(values.restTime),
+    cookMinutes: parseDuration(values.cookTime),
+    ingredients,
   }
 }
 
@@ -178,16 +251,54 @@ export function newIngredientDraft(ingredient?: Ingredient): IngredientDraft {
   }
 }
 
-export function recipeToFormValues(recipe: Pick<Recipe, 'title' | 'servings' | 'notes' | 'url' | 'tags'> & { ingredients?: Ingredient[] }): RecipeFormValues {
-  const ingredients = recipe.ingredients?.length ? recipe.ingredients.map((i) => newIngredientDraft(i)) : [newIngredientDraft()]
+/** Titre d'une sous-partie dans la liste d'ingrédients du formulaire. */
+export function newHeadingDraft(title = ''): IngredientDraft {
+  return { ...newIngredientDraft(), name: title, heading: true }
+}
+
+/** Lignes du formulaire : un titre de sous-partie est inséré à chaque changement de sous-partie. */
+function ingredientRows(ingredients: readonly Ingredient[]): IngredientDraft[] {
+  const rows: IngredientDraft[] = []
+  let section: string | null = null
+  for (const ingredient of ingredients) {
+    const current = ingredient.section?.trim() || null
+    // Un titre vide termine la sous-partie précédente : l'ingrédient n'appartient à aucune.
+    if (current !== section) rows.push(newHeadingDraft(current ?? ''))
+    section = current
+    rows.push(newIngredientDraft(ingredient))
+  }
+  return rows.length > 0 ? rows : [newIngredientDraft()]
+}
+
+type RecipeFormSource = Pick<Recipe, 'title' | 'servings' | 'notes' | 'url' | 'tags' | 'source' | 'prep_minutes' | 'rest_minutes' | 'cook_minutes'> & {
+  ingredients?: Ingredient[]
+}
+
+export function recipeToFormValues(recipe: RecipeFormSource): RecipeFormValues {
   return {
     title: recipe.title,
     servings: recipe.servings === null ? '' : String(recipe.servings),
     notes: recipe.notes ?? '',
     url: recipe.url ?? '',
     tags: [...recipe.tags],
-    ingredients,
+    source: recipe.source ?? '',
+    prepTime: formatDuration(recipe.prep_minutes),
+    restTime: formatDuration(recipe.rest_minutes),
+    cookTime: formatDuration(recipe.cook_minutes),
+    ingredients: ingredientRows(recipe.ingredients ?? []),
   }
+}
+
+/** Ingrédients regroupés par sous-partie, dans l'ordre (sous-partie null : sans titre). */
+export function groupBySection<T extends Pick<Ingredient, 'section'>>(ingredients: readonly T[]): { section: string | null; items: T[] }[] {
+  const groups: { section: string | null; items: T[] }[] = []
+  for (const ingredient of ingredients) {
+    const section = ingredient.section?.trim() || null
+    const last = groups.at(-1)
+    if (last && last.section === section) last.items.push(ingredient)
+    else groups.push({ section, items: [ingredient] })
+  }
+  return groups
 }
 
 export function moveItem<T>(items: readonly T[], from: number, to: number): T[] {
@@ -243,11 +354,18 @@ export interface ImportedRecipe {
   ingredients: Ingredient[]
   steps: string
   tags: string[]
+  /** Points signalés par le modèle (`ingredient` : position dans `ingredients`). Absent avec une ancienne version. */
+  checks?: { ingredient: number | null; message: string }[]
+  /** Livre et page lus sur la photo (« p. 146 »). */
+  source?: string | null
+  prep_minutes?: number | null
+  rest_minutes?: number | null
+  cook_minutes?: number | null
 }
 
 export interface RecipeImport {
   recipe: ImportedRecipe
-  source: 'structured' | 'text'
+  source: 'structured' | 'text' | 'photo'
   image: { data: string; type: string } | null
 }
 
@@ -278,6 +396,10 @@ export function importedToFormValues(imported: ImportedRecipe, url: string): Rec
     notes: imported.steps || null,
     url,
     tags: normalizeTags(imported.tags),
+    source: imported.source ?? null,
+    prep_minutes: imported.prep_minutes ?? null,
+    rest_minutes: imported.rest_minutes ?? null,
+    cook_minutes: imported.cook_minutes ?? null,
     ingredients: imported.ingredients.map(normalizeIngredientUnit),
   })
 }

@@ -61,7 +61,18 @@ describe('import-recipe', () => {
     const result = await call(handle, { url: PAGE_URL, knownTags: ['dessert', 42] })
     expect(result.status).toBe(200)
     expect(result.body).toEqual({
-      recipe: { title: 'Crêpes', servings: 4, ingredients: [{ name: 'farine', quantity: 250, unit: 'g', note: null }], steps: '1. Mélanger.', tags: ['dessert'] },
+      recipe: {
+        title: 'Crêpes',
+        servings: 4,
+        ingredients: [{ name: 'farine', quantity: 250, unit: 'g', note: null, section: null }],
+        steps: '1. Mélanger.',
+        tags: ['dessert'],
+        checks: [],
+        source: null,
+        prep_minutes: null,
+        rest_minutes: null,
+        cook_minutes: null,
+      },
       source: 'structured',
       image: { data: 'AQID', type: 'image/jpeg' },
     })
@@ -191,5 +202,51 @@ describe('import-recipe', () => {
     expect(await call(noKey, { url: 'https://exemple.fr/blog', mode: 'title' })).toMatchObject({ status: 200, body: { title: 'Tarte tatin' } })
     const anonymous = await noKey(post({ url: 'https://exemple.fr/blog', mode: 'title' }, 'Bearer cle-anonyme'))
     expect(anonymous.status).toBe(401)
+  })
+})
+
+describe('import-recipe — photos', () => {
+  const PHOTO = { data: 'iVBORw0KGgoAAAANSUhEUg==', type: 'image/png' }
+
+  it('lit la recette sur une ou deux photos, sans rien télécharger', async () => {
+    const { deps, handle } = setup()
+    const result = await call(handle, { mode: 'photos', images: [PHOTO, { ...PHOTO, type: 'image/jpeg' }], knownTags: ['dessert'] })
+    expect(result).toMatchObject({ status: 200, body: { source: 'photo', image: null, recipe: { title: 'Crêpes', servings: 4 } } })
+    expect(deps.fetchPage).not.toHaveBeenCalled()
+    const body = JSON.parse(String(deps.fetchModel.mock.calls[0]![1]!.body))
+    expect(body.tool_choice).toEqual({ type: 'tool', name: 'enregistrer_recette' })
+    expect(body.messages[0].content).toEqual([
+      { type: 'image', source: { type: 'base64', media_type: 'image/png', data: PHOTO.data } },
+      { type: 'image', source: { type: 'base64', media_type: 'image/jpeg', data: PHOTO.data } },
+      { type: 'text', text: 'Deux photos de la recette.\nTags existants : dessert' },
+    ])
+    expect(body.system).toContain('photos')
+    expect(deps.log).toHaveBeenCalledWith('import réussi', expect.objectContaining({ source: 'photo', input_tokens: 300 }))
+  })
+
+  it.each([
+    [{ mode: 'photos' }, 400, 'Aucune photo reçue.'],
+    [{ mode: 'photos', images: [] }, 400, 'Aucune photo reçue.'],
+    [{ mode: 'photos', images: [PHOTO, PHOTO, PHOTO] }, 400, '2 photos au plus.'],
+    [{ mode: 'photos', images: [{ ...PHOTO, type: 'image/gif' }] }, 400, 'Photo illisible (JPEG, PNG ou WebP).'],
+    [{ mode: 'photos', images: [{ ...PHOTO, data: 'pas du base64 !' }] }, 400, 'Photo illisible (JPEG, PNG ou WebP).'],
+    [{ mode: 'photos', images: ['texte'] }, 400, 'Photo illisible (JPEG, PNG ou WebP).'],
+    [{ mode: 'photos', images: [{ ...PHOTO, data: 'A'.repeat(4_000_004) }] }, 413, 'Photo trop lourde.'],
+  ])('refuse des photos invalides (%#)', async (body, status, error) => {
+    const { deps, handle } = setup()
+    expect(await call(handle, body)).toMatchObject({ status, body: { error } })
+    expect(deps.fetchModel).not.toHaveBeenCalled()
+  })
+
+  it('signale une photo sans recette lisible, et une configuration incomplète', async () => {
+    const unreadable = { content: [{ type: 'tool_use', name: 'enregistrer_recette', input: { is_recipe: false } }] }
+    const { handle } = setup({}, new Response(JSON.stringify(unreadable)))
+    expect(await call(handle, { mode: 'photos', images: [PHOTO] })).toMatchObject({
+      status: 422,
+      body: { error: 'Aucune recette lisible sur cette photo. Essaie une photo plus nette, bien droite.' },
+    })
+    const { deps } = setup()
+    const noKey = createHandler({ ...deps, apiKey: undefined })
+    expect(await call(noKey, { mode: 'photos', images: [PHOTO] })).toMatchObject({ status: 500 })
   })
 })

@@ -11,13 +11,26 @@ export interface RecipeUsage {
 }
 
 /** Erreur renvoyée par l'Edge Function import-recipe → message affichable. */
-async function importError(error: { name?: string; context?: unknown }): Promise<AppError> {
+async function importError(error: { name?: string; context?: unknown }, fallback = "L'import de la recette a échoué."): Promise<AppError> {
   const response = error.context instanceof Response ? error.context : null
   if (!response) return new AppError('Connexion impossible. Vérifie ta connexion internet.', 'network')
   if (response.status === 401) return new AppError('Ta session a expiré. Reconnecte-toi.', 'import-401')
   const body = (await response.json().catch(() => null)) as { error?: unknown } | null
-  const message = typeof body?.error === 'string' ? body.error : "L'import de la recette a échoué."
-  return new AppError(message, `import-${response.status}`)
+  if (typeof body?.error === 'string') return new AppError(body.error, `import-${response.status}`)
+  // Réponse sans message (passerelle) : taille refusée, ou service momentanément indisponible.
+  if (response.status === 413) return new AppError('Photos trop lourdes : essaie avec une seule page, ou une photo plus petite.', 'import-413')
+  if (response.status >= 500) return new AppError('Le service d’analyse ne répond pas. Réessaie dans un instant.', `import-${response.status}`)
+  return new AppError(fallback, `import-${response.status}`)
+}
+
+/** Au-delà, la connexion est sans doute bloquée : mieux vaut le dire que laisser tourner. */
+const IMPORT_TIMEOUT_MS = 100_000
+
+async function toBase64(blob: Blob): Promise<string> {
+  const bytes = new Uint8Array(await blob.arrayBuffer())
+  let binary = ''
+  for (let i = 0; i < bytes.length; i += 0x8000) binary += String.fromCharCode(...bytes.subarray(i, i + 0x8000))
+  return btoa(binary)
 }
 
 export function createRecipesApi(db: AppSupabaseClient) {
@@ -60,7 +73,9 @@ export function createRecipesApi(db: AppSupabaseClient) {
     async getRecipe(id: string): Promise<Recipe | null> {
       const { data, error } = await db
         .from('recipes')
-        .select('id, is_saved, title, notes, url, servings, tags, recipe_ingredients(name, quantity, unit, note, position), recipe_photos(id, storage_path, position)')
+        .select(
+          'id, is_saved, title, notes, url, servings, tags, source, prep_minutes, rest_minutes, cook_minutes, recipe_ingredients(name, quantity, unit, note, section, position), recipe_photos(id, storage_path, position)',
+        )
         .eq('id', id)
         .maybeSingle()
       if (error) throw toAppError(error, 'Impossible de charger la recette.')
@@ -70,9 +85,16 @@ export function createRecipesApi(db: AppSupabaseClient) {
         ...recipe,
         ingredients: [...recipe_ingredients]
           .sort((a, b) => a.position - b.position)
-          .map(({ name, quantity, unit, note }) => ({ name, quantity, unit, note })),
+          .map(({ name, quantity, unit, note, section }) => ({ name, quantity, unit, note, section })),
         photos: [...recipe_photos].sort((a, b) => a.position - b.position),
       }
+    },
+
+    /** Sources déjà utilisées (livres, magazines), pour les proposer à la saisie. */
+    async listSources(): Promise<string[]> {
+      const { data, error } = await db.from('recipes').select('source').eq('is_saved', true).not('source', 'is', null)
+      if (error) throw toAppError(error, 'Impossible de charger les sources.')
+      return [...new Set(data.map((r) => r.source!.trim()))].sort((a, b) => a.localeCompare(b, 'fr'))
     },
 
     /** Nombre de personnes et ingrédients de plusieurs recettes (liste de courses), en une requête. */
@@ -97,11 +119,17 @@ export function createRecipesApi(db: AppSupabaseClient) {
         p_url: input.url ?? '',
         p_servings: input.servings ?? undefined,
         p_tags: input.tags,
+        // '' et 0 effacent ; absent (ancienne version de l'application) conserve la valeur enregistrée.
+        p_source: input.source ?? '',
+        p_prep_minutes: input.prepMinutes ?? 0,
+        p_rest_minutes: input.restMinutes ?? 0,
+        p_cook_minutes: input.cookMinutes ?? 0,
         p_ingredients: input.ingredients.map((i) => ({
           name: i.name,
           quantity: i.quantity === null ? '' : String(i.quantity),
           unit: i.unit ?? '',
           note: i.note ?? '',
+          section: i.section ?? '',
         })),
       })
       if (error?.code === '23505' && input.url) {
@@ -159,9 +187,18 @@ export function createRecipesApi(db: AppSupabaseClient) {
       return [...tags.values()].sort((a, b) => a.localeCompare(b, 'fr'))
     },
 
+    /** Lit une recette sur 1 ou 2 photos (page de livre, scan), déjà réduites, pour préremplir le formulaire. */
+    async importFromPhotos(photos: Blob[], knownTags: string[] = []): Promise<RecipeImport> {
+      const images = await Promise.all(photos.map(async (photo) => ({ type: photo.type || 'image/jpeg', data: await toBase64(photo) })))
+      const { data, error } = await db.functions.invoke<RecipeImport>('import-recipe', { body: { mode: 'photos', images, knownTags }, timeout: IMPORT_TIMEOUT_MS })
+      if (error) throw await importError(error, 'La lecture de la photo a échoué.')
+      if (!data?.recipe) throw new AppError("La lecture de la photo a échoué.")
+      return data
+    },
+
     /** Analyse une page de recette (Edge Function + modèle) pour préremplir le formulaire. */
     async importFromUrl(url: string, knownTags: string[] = []): Promise<RecipeImport> {
-      const { data, error } = await db.functions.invoke<RecipeImport>('import-recipe', { body: { url, knownTags } })
+      const { data, error } = await db.functions.invoke<RecipeImport>('import-recipe', { body: { url, knownTags }, timeout: IMPORT_TIMEOUT_MS })
       if (error) throw await importError(error)
       if (!data?.recipe) throw new AppError("L'import de la recette a échoué.")
       return data

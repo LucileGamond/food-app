@@ -22,7 +22,13 @@ export default defineConfig({
         display: 'standalone',
         start_url: '/',
         // Partage Android (menu « Partager » → Food) : le lien arrive dans la liste « À planifier ».
-        share_target: { action: '/partage', method: 'GET', params: { title: 'title', text: 'text', url: 'url' } },
+        // Liens (liste « À planifier ») et photos de recettes : POST multipart, trié par public/share-sw.js.
+        share_target: {
+          action: '/partage',
+          method: 'POST',
+          enctype: 'multipart/form-data',
+          params: { title: 'title', text: 'text', url: 'url', files: [{ name: 'photos', accept: ['image/*'] }] },
+        },
         icons: [
           { src: '/icons/icon-192.png', sizes: '192x192', type: 'image/png' },
           { src: '/icons/icon-512.png', sizes: '512x512', type: 'image/png' },
@@ -30,8 +36,8 @@ export default defineConfig({
         ],
       },
       workbox: {
-        // Notifications Web Push (listes de courses)
-        importScripts: ['push-sw.js'],
+        // Notifications Web Push (listes de courses) et cible de partage (liens, photos)
+        importScripts: ['push-sw.js', 'share-sw.js'],
         navigateFallback: '/index.html',
         globPatterns: ['**/*.{js,css,html,svg,png,woff2}'],
       },
@@ -45,6 +51,8 @@ export default defineConfig({
   test: {
     globals: true,
     environment: 'jsdom',
+    // Les écrans chargés à la demande peuvent dépasser 5 s quand toute la suite tourne en parallèle sur une machine chargée.
+    testTimeout: 10_000,
     setupFiles: ['./src/test/setup.ts'],
     include: ['src/**/*.test.{ts,tsx}', 'scripts/**/*.test.ts', 'supabase/functions/**/*.test.ts'],
     css: false,

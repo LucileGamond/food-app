@@ -18,6 +18,8 @@ export interface ImportedIngredient {
   quantity: number | null
   unit: string | null
   note: string | null
+  /** Sous-partie de la recette (« Pour le streusel »). */
+  section: string | null
 }
 
 export interface ImportedRecipe {
@@ -26,6 +28,18 @@ export interface ImportedRecipe {
   ingredients: ImportedIngredient[]
   steps: string
   tags: string[]
+  /** Points à vérifier signalés par le modèle (ingrédient : position dans `ingredients`, ou null). */
+  checks: ImportCheck[]
+  /** Livre, magazine, page (photo seulement). */
+  source: string | null
+  prep_minutes: number | null
+  rest_minutes: number | null
+  cook_minutes: number | null
+}
+
+export interface ImportCheck {
+  ingredient: number | null
+  message: string
 }
 
 /** Erreur d'import : statut HTTP et message lisible. */
@@ -59,14 +73,41 @@ const TOOL = {
               anyOf: [{ type: 'string' }, { type: 'null' }],
               description: 'Précision facultative : préparation (« émincés »), qualité (« bombée », « bio »), alternative, ou unité hors liste (« 1 shot »).',
             },
+            section: {
+              anyOf: [{ type: 'string' }, { type: 'null' }],
+              description: 'Sous-partie de la recette à laquelle appartient l’ingrédient, telle qu’écrite (« Pour le streusel »), null si la recette n’en a pas.',
+            },
           },
-          required: ['name', 'quantity', 'unit', 'note'],
+          required: ['name', 'quantity', 'unit', 'note', 'section'],
         },
       },
       steps: { type: 'string', description: 'Étapes de préparation numérotées, une par ligne (« 1. … »), reformulées sans rien inventer.' },
       tags: { type: 'array', items: { type: 'string' }, description: '0 à 5 tags courts en minuscules (ex. végé, rapide, dessert).' },
+      checks: {
+        type: 'array',
+        description:
+          'Points que la personne doit vérifier, 0 à 8 : passage illisible ou deviné, quantité approximative (« 4 ou 5 »), renvoi à une autre recette (« voir p. 208 »), unité hors liste. Liste vide si tout est clair.',
+        items: {
+          type: 'object',
+          properties: {
+            ingredient: { anyOf: [{ type: 'integer' }, { type: 'null' }], description: 'Numéro de l’ingrédient concerné dans la liste (à partir de 0), null pour la recette en général.' },
+            message: { type: 'string', description: 'Ce qu’il faut vérifier, en une phrase courte.' },
+          },
+          required: ['ingredient', 'message'],
+        },
+      },
+      prep_minutes: { anyOf: [{ type: 'integer' }, { type: 'null' }], description: 'Temps de préparation en minutes, null si non indiqué.' },
+      rest_minutes: { anyOf: [{ type: 'integer' }, { type: 'null' }], description: 'Temps de repos, de réfrigération ou de levée en minutes, null si non indiqué.' },
+      cook_minutes: {
+        anyOf: [{ type: 'integer' }, { type: 'null' }],
+        description: 'Temps de cuisson en minutes (pour une fourchette « 30 à 40 min », la valeur la plus longue), null si non indiqué.',
+      },
+      source: {
+        anyOf: [{ type: 'string' }, { type: 'null' }],
+        description: 'Photo seulement : titre du livre ou du magazine s’il est visible, et numéro de page (« Pâtisserie maison, p. 146 » ou « p. 146 ») ; null pour une page web.',
+      },
     },
-    required: ['is_recipe', 'title', 'servings', 'ingredients', 'steps', 'tags'],
+    required: ['is_recipe', 'title', 'servings', 'ingredients', 'steps', 'tags', 'checks', 'prep_minutes', 'rest_minutes', 'cook_minutes', 'source'],
   },
 }
 
@@ -89,22 +130,31 @@ export function buildUserMessage(content: PageContent, url: string, knownTags: r
 const str = (v: unknown, max: number): string => (typeof v === 'string' ? v.replace(/\s+/g, ' ').trim().slice(0, max) : '')
 
 /** Ne garde que des valeurs sûres et bornées, quel que soit ce que renvoie le modèle. */
-export function sanitizeRecipe(input: unknown, fallbackTitle: string | null): ImportedRecipe {
+export function sanitizeRecipe(input: unknown, fallbackTitle: string | null, notFound = 'Aucune recette trouvée sur cette page.'): ImportedRecipe {
   const data = (typeof input === 'object' && input !== null ? input : {}) as Record<string, unknown>
-  if (data.is_recipe === false) throw new ImportError('Aucune recette trouvée sur cette page.', 422)
+  if (data.is_recipe === false) throw new ImportError(notFound, 422)
 
+  // Position d'origine de chaque ingrédient gardé : les points à vérifier y font référence.
+  const kept: number[] = []
   const ingredients = (Array.isArray(data.ingredients) ? data.ingredients : [])
     .slice(0, 60)
-    .map((raw): ImportedIngredient | null => {
+    .map((raw, index): ImportedIngredient | null => {
       const item = (typeof raw === 'object' && raw !== null ? raw : {}) as Record<string, unknown>
       const name = str(item.name, 120)
       if (!name) return null
+      kept.push(index)
       const q = typeof item.quantity === 'number' && Number.isFinite(item.quantity) && item.quantity > 0 && item.quantity < 100_000 ? item.quantity : null
-      return { name, quantity: q === null ? null : Math.round(q * 1000) / 1000, unit: str(item.unit, 30) || null, note: str(item.note, 200) || null }
+      return {
+        name,
+        quantity: q === null ? null : Math.round(q * 1000) / 1000,
+        unit: str(item.unit, 30) || null,
+        note: str(item.note, 200) || null,
+        section: str(item.section, 80) || null,
+      }
     })
     .filter((i): i is ImportedIngredient => i !== null)
 
-  if (ingredients.length === 0) throw new ImportError('Aucune recette trouvée sur cette page.', 422)
+  if (ingredients.length === 0) throw new ImportError(notFound, 422)
 
   const servings = typeof data.servings === 'number' && Number.isInteger(data.servings) && data.servings >= 1 && data.servings <= 100 ? data.servings : null
   const steps =
@@ -124,7 +174,36 @@ export function sanitizeRecipe(input: unknown, fallbackTitle: string | null): Im
     ),
   ].slice(0, 5)
 
-  return { title: str(data.title, 200) || str(fallbackTitle, 200) || 'Recette importée', servings, ingredients, steps, tags }
+  // Ingrédients sans sous-partie d'abord, puis chaque sous-partie d'un seul tenant (dans l'ordre d'apparition) :
+  // dans le formulaire, un ingrédient appartient au dernier titre de sous-partie qui le précède.
+  const sections = [...new Set(ingredients.map((i) => i.section))].sort((a, b) => (a === null ? -1 : b === null ? 1 : 0))
+  const order = sections.flatMap((section) => ingredients.flatMap((i, index) => (i.section === section ? [index] : [])))
+  const grouped = order.map((index) => ingredients[index]!)
+
+  const checks = (Array.isArray(data.checks) ? data.checks : [])
+    .slice(0, 8)
+    .flatMap((raw): ImportCheck[] => {
+      const item = (typeof raw === 'object' && raw !== null ? raw : {}) as Record<string, unknown>
+      const message = str(item.message, 160)
+      if (!message) return []
+      const position = typeof item.ingredient === 'number' ? order.indexOf(kept.indexOf(item.ingredient)) : -1
+      return [{ ingredient: position >= 0 ? position : null, message }]
+    })
+
+  const minutes = (v: unknown) => (typeof v === 'number' && Number.isInteger(v) && v > 0 && v <= 10_080 ? v : null)
+
+  return {
+    title: str(data.title, 200) || str(fallbackTitle, 200) || 'Recette importée',
+    servings,
+    ingredients: grouped,
+    steps,
+    tags,
+    checks,
+    source: str(data.source, 200) || null,
+    prep_minutes: minutes(data.prep_minutes),
+    rest_minutes: minutes(data.rest_minutes),
+    cook_minutes: minutes(data.cook_minutes),
+  }
 }
 
 /** Appelle le modèle et renvoie la recette validée. */
@@ -139,11 +218,56 @@ export async function extractRecipe(
       system: SYSTEM,
       tool: TOOL,
       message: buildUserMessage(content, url, knownTags),
-      maxTokens: 4096,
+      maxTokens: 8192,
+      timeoutMs: 60_000,
       failure: 'L’analyse de la page a échoué',
       missing: 'réponse sans recette',
     },
     options,
   )
   return { recipe: sanitizeRecipe(input, content.title), usage }
+}
+
+// ---------------------------------------------------------------------------
+// Photos d'une page de livre ou d'un scan
+
+export interface PhotoInput {
+  /** Image en base64 (sans préfixe data:). */
+  data: string
+  type: 'image/jpeg' | 'image/png' | 'image/webp'
+}
+
+const PHOTO_SYSTEM = [
+  'Tu lis une recette de cuisine sur une ou deux photos (page de livre, magazine, fiche ou scan), en français.',
+  'Recopie fidèlement ce qui est écrit, sans rien inventer : si un passage est illisible, laisse-le de côté.',
+  'Si les photos sont deux pages de la même recette, assemble-les dans l’ordre.',
+  'Range chaque ingrédient dans sa sous-partie (section) quand la recette en a (« Pour le streusel »).',
+  'Signale dans checks tout ce que tu as deviné ou mal lu.',
+  'Traduis en français si la recette est dans une autre langue.',
+  'Pour les tags, réutilise de préférence les tags existants fournis.',
+  `Réponds uniquement en appelant l’outil ${TOOL_NAME}.`,
+].join('\n')
+
+/** Lit la recette sur les photos et la renvoie validée. */
+export async function extractRecipeFromPhotos(
+  photos: readonly PhotoInput[],
+  knownTags: readonly string[],
+  options: ModelOptions,
+): Promise<{ recipe: ImportedRecipe; usage: ModelUsage | null }> {
+  const tags = knownTags.slice(0, MAX_KNOWN_TAGS).join(', ')
+  const text = [photos.length > 1 ? 'Deux photos de la recette.' : 'Photo de la recette.', tags ? `Tags existants : ${tags}` : null].filter(Boolean).join('\n')
+  const { input, usage } = await callTool(
+    {
+      system: PHOTO_SYSTEM,
+      tool: TOOL,
+      message: [...photos.map((p) => ({ type: 'image' as const, source: { type: 'base64' as const, media_type: p.type, data: p.data } })), { type: 'text', text }],
+      maxTokens: 8192,
+      // Lire deux pages et tout rédiger peut prendre plus longtemps qu'une page web déjà structurée.
+      timeoutMs: 90_000,
+      failure: 'La lecture de la photo a échoué',
+      missing: 'réponse sans recette',
+    },
+    options,
+  )
+  return { recipe: sanitizeRecipe(input, null, 'Aucune recette lisible sur cette photo. Essaie une photo plus nette, bien droite.'), usage }
 }

@@ -197,14 +197,14 @@ isOneToOne: false
                   ]
                 },"recipe_ingredients": {
                   Row: {
-                    "id": string,"name": string,"note": string | null,"position": number,"quantity": number | null,"recipe_id": string,"unit": string | null
+                    "id": string,"name": string,"note": string | null,"position": number,"quantity": number | null,"recipe_id": string,"section": string | null,"unit": string | null
                   }
                   ComputedFields: never
                   Insert: {
-                    "id"?: string,"name": string,"note"?: string | null,"position": number,"quantity"?: number | null,"recipe_id": string,"unit"?: string | null
+                    "id"?: string,"name": string,"note"?: string | null,"position": number,"quantity"?: number | null,"recipe_id": string,"section"?: string | null,"unit"?: string | null
                   }
                   Update: {
-                    "id"?: string,"name"?: string,"note"?: string | null,"position"?: number,"quantity"?: number | null,"recipe_id"?: string,"unit"?: string | null
+                    "id"?: string,"name"?: string,"note"?: string | null,"position"?: number,"quantity"?: number | null,"recipe_id"?: string,"section"?: string | null,"unit"?: string | null
                   }
                   Relationships: [
                     {
@@ -237,14 +237,14 @@ isOneToOne: false
                   ]
                 },"recipes": {
                   Row: {
-                    "created_at": string,"created_by": string | null,"id": string,"is_saved": boolean,"notes": string | null,"servings": number | null,"tags": (string)[],"title": string,"updated_at": string,"url": string | null
+                    "cook_minutes": number | null,"created_at": string,"created_by": string | null,"id": string,"is_saved": boolean,"notes": string | null,"prep_minutes": number | null,"rest_minutes": number | null,"servings": number | null,"source": string | null,"tags": (string)[],"title": string,"updated_at": string,"url": string | null
                   }
                   ComputedFields: never
                   Insert: {
-                    "created_at"?: string,"created_by"?: string | null,"id"?: string,"is_saved"?: boolean,"notes"?: string | null,"servings"?: number | null,"tags"?: (string)[],"title": string,"updated_at"?: string,"url"?: string | null
+                    "cook_minutes"?: number | null,"created_at"?: string,"created_by"?: string | null,"id"?: string,"is_saved"?: boolean,"notes"?: string | null,"prep_minutes"?: number | null,"rest_minutes"?: number | null,"servings"?: number | null,"source"?: string | null,"tags"?: (string)[],"title": string,"updated_at"?: string,"url"?: string | null
                   }
                   Update: {
-                    "created_at"?: string,"created_by"?: string | null,"id"?: string,"is_saved"?: boolean,"notes"?: string | null,"servings"?: number | null,"tags"?: (string)[],"title"?: string,"updated_at"?: string,"url"?: string | null
+                    "cook_minutes"?: number | null,"created_at"?: string,"created_by"?: string | null,"id"?: string,"is_saved"?: boolean,"notes"?: string | null,"prep_minutes"?: number | null,"rest_minutes"?: number | null,"servings"?: number | null,"source"?: string | null,"tags"?: (string)[],"title"?: string,"updated_at"?: string,"url"?: string | null
                   }
                   Relationships: [
                     {
@@ -389,7 +389,7 @@ isOneToOne: false
 { Args: { "p_auth": string,"p_endpoint": string,"p_p256dh": string,"p_user_agent"?: string }; Returns: string
                            },
 "save_recipe":
-{ Args: { "p_ingredients": Json,"p_notes"?: string,"p_recipe_id"?: string,"p_servings"?: number,"p_tags"?: (string)[],"p_title": string,"p_url"?: string }; Returns: string
+{ Args: { "p_cook_minutes"?: number,"p_ingredients": Json,"p_notes"?: string,"p_prep_minutes"?: number,"p_recipe_id"?: string,"p_rest_minutes"?: number,"p_servings"?: number,"p_source"?: string,"p_tags"?: (string)[],"p_title": string,"p_url"?: string }; Returns: string
                            },
 "save_weigh_in":
 { Args: { "p_measured_on": string,"p_previous_date"?: string,"p_weights": Json }; Returns: undefined
