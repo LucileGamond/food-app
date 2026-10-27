@@ -38,7 +38,18 @@ jobs:
       - run: npm run test:db
       - run: npm run test:integration
 
-      - run: npx playwright install --with-deps chromium chromium-headless-shell
+      # Navigateurs Playwright en cache (clé : version installée) ; les paquets système restent à installer.
+      - id: playwright
+        run: echo "version=$(node -p "require('@playwright/test/package.json').version")" >> "$GITHUB_OUTPUT"
+      - id: playwright-cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ steps.playwright.outputs.version }}
+      - if: steps.playwright-cache.outputs.cache-hit != 'true'
+        run: npx playwright install --with-deps chromium chromium-headless-shell
+      - if: steps.playwright-cache.outputs.cache-hit == 'true'
+        run: npx playwright install-deps chromium chromium-headless-shell
       - run: npm run test:e2e
       - uses: actions/upload-artifact@v4
         if: failure()
