@@ -1,4 +1,5 @@
-// Appel à l'API Messages d'Anthropic avec un outil imposé, commun aux fonctions qui utilisent un modèle.
+// Appel à l'API Messages d'Anthropic, commun aux fonctions qui utilisent un modèle : outil imposé, ou conversation
+// avec des outils serveur (recherche web) terminée par un outil.
 
 export const DEFAULT_MODEL = 'claude-haiku-5-5'
 export const API_URL = 'https://api.anthropic.com/v1/messages'
@@ -50,25 +51,36 @@ export interface ToolCall {
   timeoutMs?: number
 }
 
-/** Appelle le modèle en lui imposant l'outil, et renvoie ce qu'il a passé à l'outil (non validé). */
-export async function callTool(
-  { system, tool, message, maxTokens, failure, missing, timeoutMs = DEFAULT_TIMEOUT_MS }: ToolCall,
+/** Réponse de l'API Messages (champs utilisés). */
+interface MessagesResponse {
+  content?: ContentBlock[]
+  usage?: ModelUsage
+  stop_reason?: string
+}
+
+/** Bloc de réponse : outil appelé, texte, ou résultat d'un outil serveur (recherche web). */
+export interface ContentBlock {
+  type: string
+  name?: string
+  input?: unknown
+  content?: unknown
+  [key: string]: unknown
+}
+
+/** Envoie une requête à l'API Messages ; les erreurs deviennent des HttpError au message lisible. */
+async function postMessages(
+  body: Record<string, unknown>,
   { apiKey, model = DEFAULT_MODEL, fetch: doFetch = fetch }: ModelOptions,
-): Promise<{ input: unknown; usage: ModelUsage | null }> {
+  failure: string,
+  timeoutMs: number,
+): Promise<MessagesResponse> {
   let response: Response
   try {
     response = await doFetch(API_URL, {
       method: 'POST',
       headers: { 'content-type': 'application/json', 'x-api-key': apiKey, 'anthropic-version': '2023-06-01' },
-      body: JSON.stringify({
-        model,
-        max_tokens: maxTokens,
-        system,
-        tools: [tool],
-        tool_choice: { type: 'tool', name: tool.name },
-        messages: [{ role: 'user', content: message }],
-      }),
-      signal: AbortSignal.timeout(timeoutMs),
+      body: JSON.stringify({ model, ...body }),
+      signal: AbortSignal.timeout(Math.max(1, timeoutMs)),
     })
   } catch {
     throw new HttpError('Le service d’analyse ne répond pas. Réessaie dans un instant.', 503)
@@ -82,19 +94,96 @@ export async function callTool(
     // Le détail renvoyé par l'API (ex. « not_found_error: model: … ») aide à diagnostiquer ; il ne contient aucun secret.
     const error = (await response.json().catch(() => null)) as { error?: { type?: string; message?: string } } | null
     const detail = [error?.error?.type, error?.error?.message].filter(Boolean).join(' : ').slice(0, 200)
+    // Outil de recherche web non activé pour l'organisation (console Anthropic).
+    if (/web.?search/i.test(detail)) throw new HttpError('La recherche web n’est pas activée pour le service d’analyse.', 503)
     throw new HttpError(`${failure} (${response.status}${detail ? ` – ${detail}` : ''}).`, 502)
   }
 
-  const body = (await response.json()) as {
-    content?: { type: string; name?: string; input?: unknown }[]
-    usage?: ModelUsage
-    stop_reason?: string
-  }
+  const parsed = (await response.json()) as MessagesResponse
   // Réponse coupée : le résultat serait incomplet (recette amputée, articles manquants).
-  if (body.stop_reason === 'max_tokens') throw new HttpError(`${failure} (réponse trop longue).`, 502)
+  if (parsed.stop_reason === 'max_tokens') throw new HttpError(`${failure} (réponse trop longue).`, 502)
+  return parsed
+}
+
+/** Appelle le modèle en lui imposant l'outil, et renvoie ce qu'il a passé à l'outil (non validé). */
+export async function callTool(
+  { system, tool, message, maxTokens, failure, missing, timeoutMs = DEFAULT_TIMEOUT_MS }: ToolCall,
+  options: ModelOptions,
+): Promise<{ input: unknown; usage: ModelUsage | null }> {
+  const body = await postMessages(
+    {
+      max_tokens: maxTokens,
+      system,
+      tools: [tool],
+      tool_choice: { type: 'tool', name: tool.name },
+      messages: [{ role: 'user', content: message }],
+    },
+    options,
+    failure,
+    timeoutMs,
+  )
   const call = body.content?.find((block) => block.type === 'tool_use' && block.name === tool.name)
   if (!call) throw new HttpError(`${failure} (${missing}${body.stop_reason ? ` : ${body.stop_reason}` : ''}).`, 502)
   return { input: call.input, usage: body.usage ?? null }
+}
+
+export interface ConversationCall extends Omit<ToolCall, 'timeoutMs'> {
+  /** Outils exécutés par Anthropic (recherche web…), disponibles avant l'outil final. */
+  serverTools: Record<string, unknown>[]
+  /** Délai total de la conversation. */
+  timeoutMs: number
+  /** Reprises après une pause (recherche longue). */
+  maxContinuations?: number
+}
+
+/**
+ * Laisse le modèle utiliser des outils serveur (recherche web) puis appeler l'outil final, sans l'imposer d'emblée
+ * (un outil imposé empêcherait de chercher). Reprend après une pause ; s'il termine sans appeler l'outil, le lui
+ * impose une dernière fois. Renvoie l'entrée de l'outil (non validée) et tous les blocs reçus (résultats de recherche).
+ */
+export async function runConversation(
+  { system, tool, serverTools, message, maxTokens, failure, missing, timeoutMs, maxContinuations = 2 }: ConversationCall,
+  options: ModelOptions,
+): Promise<{ input: unknown; blocks: ContentBlock[]; usage: ModelUsage }> {
+  const deadline = Date.now() + timeoutMs
+  const usage: ModelUsage = { input_tokens: 0, output_tokens: 0 }
+  const blocks: ContentBlock[] = []
+  const messages: { role: 'user' | 'assistant'; content: unknown }[] = [{ role: 'user', content: message }]
+
+  let continuations = 0
+  let forced = false
+  for (;;) {
+    const body = await postMessages(
+      {
+        max_tokens: maxTokens,
+        system,
+        tools: [...serverTools, tool],
+        tool_choice: forced ? { type: 'tool', name: tool.name } : { type: 'auto' },
+        messages,
+      },
+      options,
+      failure,
+      deadline - Date.now(),
+    )
+    usage.input_tokens += body.usage?.input_tokens ?? 0
+    usage.output_tokens += body.usage?.output_tokens ?? 0
+    const content = body.content ?? []
+    blocks.push(...content)
+
+    const call = content.find((block) => block.type === 'tool_use' && block.name === tool.name)
+    if (call) return { input: call.input, blocks, usage }
+
+    messages.push({ role: 'assistant', content })
+    if (body.stop_reason === 'pause_turn' && continuations < maxContinuations) {
+      continuations += 1
+      continue
+    }
+    if (forced || body.stop_reason === 'pause_turn') {
+      throw new HttpError(`${failure} (${missing}${body.stop_reason ? ` : ${body.stop_reason}` : ''}).`, 502)
+    }
+    forced = true
+    messages.push({ role: 'user', content: `Appelle maintenant l’outil ${tool.name} avec ta réponse.` })
+  }
 }
 
 export const CORS_HEADERS = {

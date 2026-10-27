@@ -3,7 +3,7 @@ import type { MealSlot, RecipeSummary } from '@/lib/meals'
 import type { Ingredient, LinkedRecipe, Recipe, RecipeImport, RecipeListItem, SaveRecipeInput } from '@/lib/recipes'
 import type { AppSupabaseClient } from '@/lib/supabase'
 import { PHOTO_BUCKET } from './photos'
-import { AppError, DuplicateRecipeUrlError, RecipeInUseError, toAppError } from './errors'
+import { AppError, DuplicateRecipeUrlError, functionError, RecipeInUseError, toAppError } from './errors'
 
 export interface RecipeUsage {
   meal_date: IsoDate
@@ -14,19 +14,6 @@ export interface RecipeUsage {
 export interface RecipeUsages {
   meals: RecipeUsage[]
   recipes: LinkedRecipe[]
-}
-
-/** Erreur renvoyée par l'Edge Function import-recipe → message affichable. */
-async function importError(error: { name?: string; context?: unknown }, fallback = "L'import de la recette a échoué."): Promise<AppError> {
-  const response = error.context instanceof Response ? error.context : null
-  if (!response) return new AppError('Connexion impossible. Vérifie ta connexion internet.', 'network')
-  if (response.status === 401) return new AppError('Ta session a expiré. Reconnecte-toi.', 'import-401')
-  const body = (await response.json().catch(() => null)) as { error?: unknown } | null
-  if (typeof body?.error === 'string') return new AppError(body.error, `import-${response.status}`)
-  // Réponse sans message (passerelle) : taille refusée, ou service momentanément indisponible.
-  if (response.status === 413) return new AppError('Photos trop lourdes : essaie avec une seule page, ou une photo plus petite.', 'import-413')
-  if (response.status >= 500) return new AppError('Le service d’analyse ne répond pas. Réessaie dans un instant.', `import-${response.status}`)
-  return new AppError(fallback, `import-${response.status}`)
 }
 
 /** Au-delà, la connexion est sans doute bloquée : mieux vaut le dire que laisser tourner. */
@@ -233,7 +220,7 @@ export function createRecipesApi(db: AppSupabaseClient) {
     async importFromPhotos(photos: Blob[], knownTags: string[] = []): Promise<RecipeImport> {
       const images = await Promise.all(photos.map(async (photo) => ({ type: photo.type || 'image/jpeg', data: await toBase64(photo) })))
       const { data, error } = await db.functions.invoke<RecipeImport>('import-recipe', { body: { mode: 'photos', images, knownTags }, timeout: IMPORT_TIMEOUT_MS })
-      if (error) throw await importError(error, 'La lecture de la photo a échoué.')
+      if (error) throw await functionError(error, 'La lecture de la photo a échoué.', 'import')
       if (!data?.recipe) throw new AppError("La lecture de la photo a échoué.")
       return data
     },
@@ -241,7 +228,7 @@ export function createRecipesApi(db: AppSupabaseClient) {
     /** Analyse une page de recette (Edge Function + modèle) pour préremplir le formulaire. */
     async importFromUrl(url: string, knownTags: string[] = []): Promise<RecipeImport> {
       const { data, error } = await db.functions.invoke<RecipeImport>('import-recipe', { body: { url, knownTags }, timeout: IMPORT_TIMEOUT_MS })
-      if (error) throw await importError(error)
+      if (error) throw await functionError(error, "L'import de la recette a échoué.", 'import')
       if (!data?.recipe) throw new AppError("L'import de la recette a échoué.")
       return data
     },

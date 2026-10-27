@@ -1,4 +1,4 @@
-import { AppError, RecipeInUseError, errorMessage, toAppError } from './errors'
+import { AppError, RecipeInUseError, errorMessage, functionError, toAppError } from './errors'
 
 describe('toAppError', () => {
   it('traduit les codes connus', () => {
@@ -27,5 +27,24 @@ describe('errorMessage', () => {
     expect(errorMessage(new AppError('Précis'))).toBe('Précis')
     expect(errorMessage(new Error('technique'))).toBe('Une erreur est survenue.')
     expect(errorMessage('x')).toBe('Une erreur est survenue.')
+  })
+})
+
+describe('functionError', () => {
+  const failed = (status: number, body: unknown = {}) => ({ context: new Response(JSON.stringify(body), { status }) })
+
+  it('reprend le message de la fonction, avec le code préfixé', async () => {
+    expect(await functionError(failed(502, { error: 'Pas assez d’idées trouvées : réessaie.' }), 'Échec.', 'ideas')).toMatchObject({
+      message: 'Pas assez d’idées trouvées : réessaie.',
+      code: 'ideas-502',
+    })
+  })
+
+  it('traduit les réponses sans message', async () => {
+    expect(await functionError({}, 'Échec.', 'ideas')).toMatchObject({ code: 'network', message: 'Connexion impossible. Vérifie ta connexion internet.' })
+    expect(await functionError(failed(401), 'Échec.', 'ideas')).toMatchObject({ code: 'ideas-401', message: 'Ta session a expiré. Reconnecte-toi.' })
+    expect(await functionError(failed(413, null), 'Échec.', 'import')).toMatchObject({ code: 'import-413' })
+    expect(await functionError(failed(504, null), 'Échec.', 'ideas')).toMatchObject({ message: 'Le service d’analyse ne répond pas. Réessaie dans un instant.' })
+    expect(await functionError(failed(400, null), 'Échec.', 'ideas')).toMatchObject({ message: 'Échec.', code: 'ideas-400' })
   })
 })

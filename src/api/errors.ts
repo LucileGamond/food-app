@@ -62,3 +62,19 @@ export function errorMessage(error: unknown): string {
   if (error instanceof AppError) return error.message
   return 'Une erreur est survenue.'
 }
+
+/**
+ * Erreur renvoyée par une Edge Function (import-recipe, suggest-meals) → message affichable. `prefix` préfixe le code
+ * (« import-401 »).
+ */
+export async function functionError(error: { name?: string; context?: unknown }, fallback: string, prefix: string): Promise<AppError> {
+  const response = error.context instanceof Response ? error.context : null
+  if (!response) return new AppError('Connexion impossible. Vérifie ta connexion internet.', 'network')
+  if (response.status === 401) return new AppError('Ta session a expiré. Reconnecte-toi.', `${prefix}-401`)
+  const body = (await response.json().catch(() => null)) as { error?: unknown } | null
+  if (typeof body?.error === 'string') return new AppError(body.error, `${prefix}-${response.status}`)
+  // Réponse sans message (passerelle) : taille refusée, ou service momentanément indisponible.
+  if (response.status === 413) return new AppError('Photos trop lourdes : essaie avec une seule page, ou une photo plus petite.', `${prefix}-413`)
+  if (response.status >= 500) return new AppError('Le service d’analyse ne répond pas. Réessaie dans un instant.', `${prefix}-${response.status}`)
+  return new AppError(fallback, `${prefix}-${response.status}`)
+}

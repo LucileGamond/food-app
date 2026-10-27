@@ -69,7 +69,7 @@ describe('RecipeFormPage — source, temps, sous-parties, doublons', () => {
         ],
       }),
     )
-  })
+  }, 20_000) // Beaucoup de saisie : lent quand toute la suite tourne en parallèle.
 
   it('refuse une durée illisible, et retire une sous-partie', async () => {
     const user = userEvent.setup()

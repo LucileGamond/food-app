@@ -5,6 +5,7 @@ import { Toaster } from 'sonner'
 import { vi } from 'vitest'
 import type { Api } from '@/api'
 import type { RecipeUsages } from '@/api/recipes'
+import type { MealIdea } from '@/lib/mealIdeas'
 import { ApiProvider } from '@/app/ApiContext'
 import { AuthProvider, type AuthClient } from '@/auth/AuthProvider'
 import type { Meal, Profile, RecipeSummary } from '@/lib/meals'
@@ -62,6 +63,9 @@ export function fakeApi(): FakeApi {
       saveWeighIn: vi.fn(async () => undefined),
       deleteWeighIn: vi.fn(async () => undefined),
       subscribe: vi.fn(() => () => undefined),
+    },
+    ideas: {
+      suggestMeals: vi.fn(async () => [] as MealIdea[]),
     },
     inbox: {
       listItems: vi.fn(async () => [] as InboxItem[]),

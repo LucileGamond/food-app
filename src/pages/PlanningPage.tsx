@@ -9,7 +9,7 @@ import {
   type DragEndEvent,
   type DragStartEvent,
 } from '@dnd-kit/core'
-import { CalendarPlus, ChevronLeft, ChevronRight, Copy, MoveRight, RefreshCw, ShoppingCart } from 'lucide-react'
+import { CalendarPlus, ChevronLeft, ChevronRight, Copy, MoveRight, RefreshCw, ShoppingCart, Sparkles } from 'lucide-react'
 import { useCallback, useMemo, useState } from 'react'
 import { useToday } from '@/hooks/useToday'
 import { useNavigate } from 'react-router-dom'
@@ -23,6 +23,7 @@ import { InboxPanel, type InboxDragData } from '@/components/planning/InboxPanel
 import { MealDialog } from '@/components/planning/MealDialog'
 import type { MealAction } from '@/components/planning/MealItem'
 import { MealTargetDialog } from '@/components/planning/MealTargetDialog'
+import { MealIdeasDialog } from '@/components/planning/MealIdeasDialog'
 import { ShoppingFromPlanDialog } from '@/components/planning/ShoppingFromPlanDialog'
 import { useApi } from '@/app/ApiContext'
 import { useAuth } from '@/auth/AuthProvider'
@@ -49,6 +50,7 @@ type DialogState =
   | { kind: 'delete'; meal: Meal }
   | { kind: 'plan' | 'rename'; item: InboxItem }
   | { kind: 'shopping' }
+  | { kind: 'ideas' }
 
 interface MealDragState {
   meal: Meal
@@ -146,7 +148,12 @@ export function PlanningPage({ today: fixedToday }: { today?: IsoDate }) {
         title="Planning"
         description={formatRange(start, PLANNING_DAYS)}
         actions={
-          <div className="flex items-center gap-2">
+          // Téléphone étroit (360 px) : boutons resserrés pour que l'en-tête tienne sur une ligne.
+          <div className="flex items-center gap-1 sm:gap-2">
+            <Button variant="outline" className="h-11 px-2.5 shadow-xs sm:px-3" aria-label="Idées de repas" onClick={() => setDialog({ kind: 'ideas' })}>
+              <Sparkles />
+              <span className="max-sm:hidden">Idées</span>
+            </Button>
             <Button
               variant="outline"
               className="h-11 px-3 shadow-xs"
@@ -262,6 +269,7 @@ export function PlanningPage({ today: fixedToday }: { today?: IsoDate }) {
 
       <InboxRenameDialog item={dialog.kind === 'rename' ? dialog.item : null} onOpenChange={(open) => !open && closeDialog()} onSubmit={inbox.rename} />
 
+      <MealIdeasDialog open={dialog.kind === 'ideas'} onOpenChange={(open) => !open && closeDialog()} today={today} onAdded={() => void inbox.reload()} />
       <ShoppingFromPlanDialog open={dialog.kind === 'shopping'} onOpenChange={(open) => !open && closeDialog()} meals={planning.meals} today={today} />
 
       <ConfirmDialog
