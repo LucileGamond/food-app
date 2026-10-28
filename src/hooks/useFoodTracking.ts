@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { toast } from 'sonner'
 import { errorMessage, type Api } from '@/api'
 import type { IsoDate } from '@/lib/dates'
-import { defaultPeriod, lastConsumptionOn, type FoodPeriod, type PeriodItem } from '@/lib/food'
+import { defaultPeriod, isPendingConsumption, lastConsumptionOn, PENDING_CONSUMPTION_PREFIX, type FoodPeriod, type PeriodItem } from '@/lib/food'
 
 export interface FoodTrackingState {
   periods: FoodPeriod[]
@@ -19,8 +19,6 @@ export interface FoodTrackingState {
   createPeriod: (start: IsoDate, end: IsoDate) => Promise<boolean>
   deletePeriod: (id: string) => Promise<boolean>
 }
-
-const TEMP_PREFIX = 'tmp-'
 
 function updateItem(items: PeriodItem[], itemId: string, update: (item: PeriodItem) => PeriodItem): PeriodItem[] {
   return items.map((i) => (i.id === itemId ? update(i) : i))
@@ -112,7 +110,7 @@ export function useFoodTracking(api: Api, profileId: string | null, today: IsoDa
   const add = useCallback(
     (itemId: string, date: IsoDate) =>
       write(async () => {
-        const temp = { id: `${TEMP_PREFIX}${++tempSeq.current}`, consumed_on: date, created_at: new Date().toISOString() }
+        const temp = { id: `${PENDING_CONSUMPTION_PREFIX}${++tempSeq.current}`, consumed_on: date, created_at: new Date().toISOString() }
         setItems((list) => updateItem(list, itemId, (i) => ({ ...i, consumptions: [...i.consumptions, temp] })))
         try {
           const saved = await api.food.addConsumption(itemId, date)
@@ -135,7 +133,7 @@ export function useFoodTracking(api: Api, profileId: string | null, today: IsoDa
       write(async () => {
         const item = latestItems.current.find((i) => i.id === itemId)
         // Une consommation encore en cours d'enregistrement ne peut pas être retirée.
-        const target = item && lastConsumptionOn({ consumptions: item.consumptions.filter((c) => !c.id.startsWith(TEMP_PREFIX)) }, date)
+        const target = item && lastConsumptionOn({ consumptions: item.consumptions.filter((c) => !isPendingConsumption(c)) }, date)
         if (!target) return
         setItems((list) => updateItem(list, itemId, (i) => ({ ...i, consumptions: i.consumptions.filter((c) => c.id !== target.id) })))
         try {

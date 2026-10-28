@@ -113,6 +113,18 @@ export function consumptionsOn(item: Pick<PeriodItem, 'consumptions'>, date: Iso
   return sortConsumptions(item.consumptions.filter((c) => c.consumed_on === date))
 }
 
+/** Préfixe des consommations affichées avant leur enregistrement (ajout optimiste). */
+export const PENDING_CONSUMPTION_PREFIX = 'tmp-'
+
+export function isPendingConsumption(consumption: Pick<Consumption, 'id'>): boolean {
+  return consumption.id.startsWith(PENDING_CONSUMPTION_PREFIX)
+}
+
+/** Une consommation de ce jour-là peut être retirée (une consommation en cours d'enregistrement ne le peut pas). */
+export function canRemoveOn(item: Pick<PeriodItem, 'consumptions'>, date: IsoDate): boolean {
+  return item.consumptions.some((c) => c.consumed_on === date && !isPendingConsumption(c))
+}
+
 /** Consommation à retirer pour « − » : la dernière notée ce jour-là. */
 export function lastConsumptionOn(item: Pick<PeriodItem, 'consumptions'>, date: IsoDate): Consumption | undefined {
   return consumptionsOn(item, date).at(-1)
@@ -304,7 +316,9 @@ export function validatePlanItem(values: PlanItemFormValues, others: readonly Pl
   else if (category.length > 60) errors.category = '60 caractères maximum'
   if (values.quantity.trim()) {
     const q = parseDecimal(values.quantity)
+    // Colonne numeric(7, 2) : au plus 99 999,99, avec 2 décimales (sinon arrondie, voire refusée par la base).
     if (q === null || q <= 0) errors.quantity = 'Quantité invalide'
+    else if (/[.,]\d{3,}$/.test(values.quantity.trim())) errors.quantity = '2 décimales au plus'
     else if (q >= 100_000) errors.quantity = 'Quantité trop grande'
   }
   if (values.unit.trim().length > 20) errors.unit = '20 caractères maximum'

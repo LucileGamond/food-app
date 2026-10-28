@@ -114,9 +114,12 @@ describe('FoodTrackingPage', () => {
     expect(api.food.addConsumption).toHaveBeenCalledWith('cafe', TODAY)
     expect(within(row('cafe')).getByText('1/7')).toBeInTheDocument()
     expect(screen.getByRole('heading', { name: /Petit-déjeuner1 noté/ })).toBeInTheDocument()
+    // Pas encore enregistrée : « − » n'aurait rien à retirer
+    expect(screen.getByRole('button', { name: 'Retirer « Café au lait » (Petit-déjeuner)' })).toBeDisabled()
 
     await act(async () => pending.resolve(c('new', TODAY)))
     expect(within(row('cafe')).getByText('1/7')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Retirer « Café au lait » (Petit-déjeuner)' })).toBeEnabled()
     // La consommation enregistrée peut être retirée
     await user.click(screen.getByRole('button', { name: 'Retirer « Café au lait » (Petit-déjeuner)' }))
     expect(api.food.removeConsumption).toHaveBeenCalledWith('new')

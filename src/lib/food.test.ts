@@ -9,6 +9,7 @@ import {
   groupItems,
   itemUsage,
   lastConsumptionOn,
+  canRemoveOn,
   mealLabel,
   mealStats,
   nextPosition,
@@ -103,6 +104,13 @@ describe('quotas', () => {
     expect(consumptionsOn(it, '2026-10-20')).toEqual([first, last])
     expect(lastConsumptionOn(it, '2026-10-20')).toBe(last)
     expect(lastConsumptionOn(it, '2026-10-25')).toBeUndefined()
+  })
+
+  it('ne permet de retirer qu’une consommation déjà enregistrée', () => {
+    const pending = { ...c('2026-10-20'), id: 'tmp-1' }
+    expect(canRemoveOn(item({ consumptions: [pending] }), '2026-10-20')).toBe(false)
+    expect(canRemoveOn(item({ consumptions: [pending, c('2026-10-20')] }), '2026-10-20')).toBe(true)
+    expect(canRemoveOn(item({ consumptions: [c('2026-10-21')] }), '2026-10-20')).toBe(false)
   })
 
   it('compte par moment : consommations du jour et éléments hors plan', () => {
@@ -209,6 +217,11 @@ describe('plan', () => {
     expect(validatePlanItem({ ...ok, quantity: 'abc' }, []).quantity).toBe('Quantité invalide')
     expect(validatePlanItem({ ...ok, quantity: '0' }, []).quantity).toBe('Quantité invalide')
     expect(validatePlanItem({ ...ok, quantity: '100000' }, []).quantity).toBe('Quantité trop grande')
+    // La base garde 2 décimales : 99 999,999 déborderait, 0,001 deviendrait 0.
+    expect(validatePlanItem({ ...ok, quantity: '99999,999' }, []).quantity).toBe('2 décimales au plus')
+    expect(validatePlanItem({ ...ok, quantity: '0.001' }, []).quantity).toBe('2 décimales au plus')
+    expect(validatePlanItem({ ...ok, quantity: '99999,99' }, []).quantity).toBeUndefined()
+    expect(validatePlanItem({ ...ok, quantity: ' 1,5 ' }, []).quantity).toBeUndefined()
     expect(validatePlanItem({ ...ok, quantity: '62,5' }, [])).toEqual({})
     expect(validatePlanItem({ ...ok, allowed: '0' }, []).allowed).toBe('Entre 1 et 99')
     expect(validatePlanItem({ ...ok, allowed: '1.5' }, []).allowed).toBe('Entre 1 et 99')

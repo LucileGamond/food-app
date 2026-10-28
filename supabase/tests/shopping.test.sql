@@ -1,6 +1,6 @@
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(27);
+select plan(29);
 
 -- Tests indépendants des données locales (annulés en fin de transaction)
 delete from public.shopping_lists;
@@ -129,6 +129,11 @@ reset role;
 
 -- Tâche planifiée
 select is((select schedule from cron.job where jobname = 'notify-shopping'), '*/3 * * * *', 'tâche planifiée toutes les 3 minutes');
+select is((select count(*)::int from cron.job where jobname = 'notify-shopping'), 1, 'une seule tâche notify-shopping');
+select ok(
+  (select command from cron.job where jobname = 'notify-shopping') like '%exists (select 1 from vault.decrypted_secrets where name = ''notify_shopping_secret'')%',
+  'appel seulement si le Vault contient aussi le secret'
+);
 
 select * from finish();
 rollback;

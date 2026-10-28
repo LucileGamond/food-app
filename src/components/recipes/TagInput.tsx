@@ -58,7 +58,12 @@ export function TagInput({ id, value, suggestions, onChange }: Props) {
         placeholder="Ajouter un tag puis Entrée"
         onChange={(e) => {
           const text = e.target.value
-          if (available.some((s) => s === text)) commit(text)
+          // Choix dans la liste de suggestions : validé tout de suite. Une frappe qui égale une suggestion (« pâtes »,
+          // en tapant « pâtes fraîches ») ne l'est pas. Le choix arrive sans inputType (Firefox) ou en
+          // « insertReplacementText » (Chrome).
+          const { inputType } = e.nativeEvent as InputEvent
+          const typed = Boolean(inputType) && inputType !== 'insertReplacementText'
+          if (!typed && available.includes(text)) commit(text)
           else setDraft(text)
         }}
         onKeyDown={handleKeyDown}

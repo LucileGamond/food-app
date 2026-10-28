@@ -66,7 +66,7 @@ describe('message', () => {
   })
 })
 
-function setup(events: ShoppingEvent[], subscriptions: Record<string, DeviceSubscription[]> = {}) {
+function setup(events: ShoppingEvent[], subscriptions: Record<string, DeviceSubscription[]> = {}, reserved = new Set<number>()) {
   const deps = {
     secret: 'secret-cron',
     now: () => NOW,
@@ -74,7 +74,8 @@ function setup(events: ShoppingEvent[], subscriptions: Record<string, DeviceSubs
     loadSubscriptions: vi.fn(async (exclude: string) => Object.entries(subscriptions).flatMap(([profile, list]) => (profile === exclude ? [] : list))),
     send: vi.fn<Deps['send']>(async () => 'sent'),
     deleteSubscriptions: vi.fn(async () => undefined),
-    markNotified: vi.fn(async () => undefined),
+    // Base simulée : un événement n'est réservé qu'une fois, même par deux exécutions.
+    reserveEvents: vi.fn(async (ids: number[]) => ids.filter((id) => !reserved.has(id) && Boolean(reserved.add(id)))),
     purgeOldEvents: vi.fn(async () => undefined),
     log: vi.fn(),
   }
@@ -90,7 +91,7 @@ describe('envoi', () => {
     expect(deps.loadSubscriptions).toHaveBeenCalledWith('eric')
     expect(deps.send.mock.calls.map(([sub]) => sub.id)).toEqual(['tel-lucile', 'pc-lucile'])
     expect(deps.send.mock.calls[0]![1]).toMatchObject({ body: 'Eric a ajouté Farine' })
-    expect(deps.markNotified).toHaveBeenCalledWith([seq])
+    expect(deps.reserveEvents).toHaveBeenCalledWith([seq])
     expect(deps.purgeOldEvents).toHaveBeenCalled()
   })
 
@@ -99,16 +100,33 @@ describe('envoi', () => {
     deps.send.mockResolvedValueOnce('gone').mockResolvedValueOnce('failed').mockResolvedValueOnce('sent')
     expect(await notifyPending(deps)).toEqual({ groups: 1, sent: 1, failed: 1, removed: 1 })
     expect(deps.deleteSubscriptions).toHaveBeenCalledWith(['a'])
-    expect(deps.markNotified).toHaveBeenCalled()
+    expect(deps.reserveEvents).toHaveBeenCalled()
+  })
+
+  it('réserve les événements avant l’envoi : deux exécutions simultanées n’envoient qu’une fois', async () => {
+    const events = [event('ADDED', 'Farine'), event('ADDED', 'Pain', { list_id: 'l2', list_name: 'Apéro' })]
+    const reserved = new Set<number>()
+    const first = setup(events, { lucile: [device('a')] }, reserved)
+    const second = setup(events, { lucile: [device('a')] }, reserved)
+    const [a, b] = await Promise.all([notifyPending(first), notifyPending(second)])
+    expect(a.sent + b.sent).toBe(2)
+    expect(first.send.mock.calls.length + second.send.mock.calls.length).toBe(2)
+    expect(a.groups + b.groups).toBe(2)
+  })
+
+  it('n’annonce que les événements réservés par cette exécution', async () => {
+    const farine = event('ADDED', 'Farine')
+    const lait = event('ADDED', 'Lait')
+    const deps = setup([farine, lait], { lucile: [device('a')] }, new Set([farine.id]))
+    expect(await notifyPending(deps)).toEqual({ groups: 1, sent: 1, failed: 0, removed: 0 })
+    expect(deps.send.mock.calls[0]![1]).toMatchObject({ body: 'Eric a ajouté Lait' })
   })
 
   it('n’essaie plus un appareil expiré, et le retire même si un groupe échoue ensuite', async () => {
-    const deps = setup(
-      [event('ADDED', 'Farine'), event('ADDED', 'Pain', { list_id: 'l2', list_name: 'Apéro' }), event('ADDED', 'Vin', { list_id: 'l3', list_name: 'Fête' })],
-      { lucile: [device('a')] },
-    )
+    const events = [event('ADDED', 'Farine'), event('ADDED', 'Pain', { list_id: 'l2', list_name: 'Apéro' }), event('ADDED', 'Vin', { list_id: 'l3', list_name: 'Fête' })]
+    const deps = setup(events, { lucile: [device('a')] })
     deps.send.mockResolvedValueOnce('gone')
-    deps.markNotified.mockResolvedValueOnce(undefined).mockRejectedValueOnce(new Error('base indisponible'))
+    deps.reserveEvents.mockResolvedValueOnce([events[0]!.id]).mockRejectedValueOnce(new Error('base indisponible'))
     await expect(notifyPending(deps)).rejects.toThrow('base indisponible')
     expect(deps.send).toHaveBeenCalledTimes(1)
     expect(deps.deleteSubscriptions).toHaveBeenCalledWith(['a'])
@@ -118,7 +136,7 @@ describe('envoi', () => {
     const deps = setup([event('ADDED', 'Farine', { created_at: minutesAgo(1) })], { lucile: [device('a')] })
     expect(await notifyPending(deps)).toEqual({ groups: 0, sent: 0, failed: 0, removed: 0 })
     expect(deps.send).not.toHaveBeenCalled()
-    expect(deps.markNotified).not.toHaveBeenCalled()
+    expect(deps.reserveEvents).not.toHaveBeenCalled()
     expect(deps.deleteSubscriptions).not.toHaveBeenCalled()
   })
 })

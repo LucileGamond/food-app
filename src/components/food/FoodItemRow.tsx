@@ -2,7 +2,7 @@ import { Minus, Plus } from 'lucide-react'
 import { memo } from 'react'
 import { Button } from '@/components/ui/button'
 import { formatShortDate, type IsoDate } from '@/lib/dates'
-import { consumptionsOn, formatPortion, itemUsage, mealLabel, type PeriodItem } from '@/lib/food'
+import { canRemoveOn, consumptionsOn, formatPortion, itemUsage, mealLabel, type PeriodItem } from '@/lib/food'
 import { cn } from '@/lib/utils'
 
 interface Props {
@@ -63,7 +63,8 @@ export const FoodItemRow = memo(function FoodItemRow({ item, date, onAdd, onRemo
           variant="outline"
           size="icon-lg"
           aria-label={`Retirer ${label}`}
-          disabled={today === 0}
+          // Juste après « + », la consommation n'est pas encore enregistrée : rien à retirer.
+          disabled={!canRemoveOn(item, date)}
           onClick={() => onRemove(item.id, date)}
         >
           <Minus />

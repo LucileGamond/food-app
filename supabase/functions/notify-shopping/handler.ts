@@ -21,7 +21,11 @@ export interface Deps {
   loadSubscriptions: (excludeProfileId: string) => Promise<DeviceSubscription[]>
   send: (subscription: DeviceSubscription, payload: PushPayload) => Promise<SendResult>
   deleteSubscriptions: (ids: string[]) => Promise<void>
-  markNotified: (eventIds: number[]) => Promise<void>
+  /**
+   * Marque comme notifiés ceux des événements qui ne le sont pas encore, en une seule opération, et renvoie ceux-là :
+   * deux exécutions simultanées ne peuvent pas réserver (et donc envoyer) les mêmes.
+   */
+  reserveEvents: (eventIds: number[]) => Promise<number[]>
   purgeOldEvents: () => Promise<void>
   log?: (message: string, data?: Record<string, unknown>) => void
 }
@@ -35,11 +39,16 @@ export interface RunReport {
 
 export async function notifyPending(deps: Deps): Promise<RunReport> {
   const groups = readyGroups(await deps.loadPendingEvents(), deps.now(), QUIET_MS)
-  const report: RunReport = { groups: groups.length, sent: 0, failed: 0, removed: 0 }
+  const report: RunReport = { groups: 0, sent: 0, failed: 0, removed: 0 }
   const gone = new Set<string>()
 
   try {
-    for (const group of groups) {
+    for (const ready of groups) {
+      // Réservés avant l'envoi (et donc marqués même s'il échoue : pas de rafale de notifications en retard).
+      const reserved = new Set(await deps.reserveEvents(ready.events.map((e) => e.id)))
+      const group = { ...ready, events: ready.events.filter((e) => reserved.has(e.id)) }
+      if (group.events.length === 0) continue // déjà pris par une autre exécution
+      report.groups += 1
       const payload = buildShoppingMessage(group)
       for (const subscription of await deps.loadSubscriptions(group.actor_id)) {
         if (gone.has(subscription.id)) continue // expiré : déjà constaté pour un groupe précédent
@@ -48,8 +57,6 @@ export async function notifyPending(deps: Deps): Promise<RunReport> {
         else if (result === 'gone') gone.add(subscription.id)
         else report.failed += 1
       }
-      // Marqués même en cas d'échec d'envoi : pas de rafale de notifications en retard.
-      await deps.markNotified(group.events.map((e) => e.id))
     }
   } finally {
     // Abonnements expirés retirés même si un groupe a échoué en cours de route.

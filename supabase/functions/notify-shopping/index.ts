@@ -66,9 +66,16 @@ Deno.serve(
       const { error } = await db.from('push_subscriptions').delete().in('id', ids)
       if (error) throw error
     },
-    async markNotified(eventIds) {
-      const { error } = await db.from('shopping_events').update({ notified_at: new Date().toISOString() }).in('id', eventIds)
+    async reserveEvents(eventIds) {
+      // Une seule requête UPDATE : une exécution concurrente attend le verrou de la ligne puis ne la retrouve plus.
+      const { data, error } = await db
+        .from('shopping_events')
+        .update({ notified_at: new Date().toISOString() })
+        .in('id', eventIds)
+        .is('notified_at', null)
+        .select('id')
       if (error) throw error
+      return data.map((row) => row.id as number)
     },
     async purgeOldEvents() {
       const { error } = await db
