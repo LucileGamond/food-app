@@ -78,7 +78,7 @@ const SYSTEM = [
   'Évite les plats proches de ceux mangés ou prévus récemment.',
   'Prends les recettes enregistrées qui conviennent, et complète avec des recettes trouvées par la recherche web sur des sites de recettes en français.',
   'N’invente jamais de recette ni d’adresse : une recette web doit venir d’un résultat de recherche, avec son adresse exacte.',
-  `Termine en appelant l’outil ${TOOL_NAME}.`,
+  `N’écris pas de texte : après tes recherches, appelle directement l’outil ${TOOL_NAME}.`,
 ].join('\n')
 
 const str = (v: unknown, max: number): string => (typeof v === 'string' ? v.replace(/\s+/g, ' ').trim().slice(0, max) : '')
@@ -148,6 +148,14 @@ export function searchResultUrls(blocks: readonly ContentBlock[]): Map<string, {
   return results
 }
 
+/** Dernière demande après une réponse coupée : les résultats déjà trouvés, à utiliser sans chercher à nouveau. */
+export function retryWithResults(blocks: readonly ContentBlock[]): string {
+  const results = [...searchResultUrls(blocks).values()].slice(0, 30)
+  if (results.length === 0) return 'Aucun résultat de recherche disponible : propose des recettes enregistrées.'
+  const lines = results.map((r) => `${r.title} | ${r.url}`).join('\n')
+  return `Résultats de recherche déjà trouvés (titre | adresse), à utiliser sans nouvelle recherche :\n${lines}`
+}
+
 /**
  * Ne garde que des idées sûres : recette enregistrée connue (titre repris de la recette), ou adresse présente dans les
  * résultats de recherche ; sans doublon ; textes bornés.
@@ -202,8 +210,10 @@ export async function suggestMeals(
         },
       ],
       message: buildUserMessage(input),
-      // La réflexion du modèle (activée par défaut sur Haiku 5.5) compte dans cette limite.
-      maxTokens: 8192,
+      // La réflexion du modèle compte dans cette limite : peu de réflexion, et de la marge (la sortie coûte peu).
+      maxTokens: 16_000,
+      effort: 'low',
+      retryAfterTruncation: retryWithResults,
       failure: 'La recherche d’idées a échoué',
       missing: 'réponse sans idées',
       timeoutMs: TIMEOUT_MS,

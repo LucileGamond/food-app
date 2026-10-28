@@ -73,6 +73,8 @@ async function postMessages(
   { apiKey, model = DEFAULT_MODEL, fetch: doFetch = fetch }: ModelOptions,
   failure: string,
   timeoutMs: number,
+  /** Accepter une réponse coupée (`max_tokens`) : l'appelant la traite. */
+  acceptTruncated = false,
 ): Promise<MessagesResponse> {
   let response: Response
   try {
@@ -101,7 +103,7 @@ async function postMessages(
 
   const parsed = (await response.json()) as MessagesResponse
   // Réponse coupée : le résultat serait incomplet (recette amputée, articles manquants).
-  if (parsed.stop_reason === 'max_tokens') throw new HttpError(`${failure} (réponse trop longue).`, 502)
+  if (parsed.stop_reason === 'max_tokens' && !acceptTruncated) throw new HttpError(`${failure} (réponse trop longue).`, 502)
   return parsed
 }
 
@@ -134,21 +136,29 @@ export interface ConversationCall extends Omit<ToolCall, 'timeoutMs'> {
   timeoutMs: number
   /** Reprises après une pause (recherche longue). */
   maxContinuations?: number
+  /** Profondeur de réflexion du modèle (`output_config.effort`). */
+  effort?: 'low' | 'medium' | 'high'
+  /**
+   * Réponse coupée (trop longue) avant l'outil final : texte ajouté au message de départ pour une dernière demande,
+   * outil imposé, à partir des blocs déjà reçus (ex. la liste des résultats de recherche, pour ne pas chercher à nouveau).
+   */
+  retryAfterTruncation: (blocks: readonly ContentBlock[]) => string
 }
 
 /**
  * Laisse le modèle utiliser des outils serveur (recherche web) puis appeler l'outil final, sans l'imposer d'emblée
  * (un outil imposé empêcherait de chercher). Reprend après une pause ; s'il termine sans appeler l'outil, le lui
- * impose une dernière fois. Renvoie l'entrée de l'outil (non validée) et tous les blocs reçus (résultats de recherche).
+ * impose une dernière fois ; si sa réponse est coupée, repart d'une demande courte (outil imposé) qui reprend ce qu'il a
+ * déjà trouvé. Renvoie l'entrée de l'outil (non validée) et tous les blocs reçus (résultats de recherche).
  */
 export async function runConversation(
-  { system, tool, serverTools, message, maxTokens, failure, missing, timeoutMs, maxContinuations = 2 }: ConversationCall,
+  { system, tool, serverTools, message, maxTokens, failure, missing, timeoutMs, maxContinuations = 2, effort, retryAfterTruncation }: ConversationCall,
   options: ModelOptions,
 ): Promise<{ input: unknown; blocks: ContentBlock[]; usage: ModelUsage }> {
   const deadline = Date.now() + timeoutMs
   const usage: ModelUsage = { input_tokens: 0, output_tokens: 0 }
   const blocks: ContentBlock[] = []
-  const messages: { role: 'user' | 'assistant'; content: unknown }[] = [{ role: 'user', content: message }]
+  let messages: { role: 'user' | 'assistant'; content: unknown }[] = [{ role: 'user', content: message }]
 
   let continuations = 0
   let forced = false
@@ -160,15 +170,26 @@ export async function runConversation(
         tools: [...serverTools, tool],
         tool_choice: forced ? { type: 'tool', name: tool.name } : { type: 'auto' },
         messages,
+        ...(effort ? { output_config: { effort } } : {}),
       },
       options,
       failure,
       deadline - Date.now(),
+      !forced,
     )
     usage.input_tokens += body.usage?.input_tokens ?? 0
     usage.output_tokens += body.usage?.output_tokens ?? 0
     const content = body.content ?? []
     blocks.push(...content)
+
+    if (body.stop_reason === 'max_tokens') {
+      // Réponse coupée (l'outil final, s'il y figure, est incomplet) : elle n'est pas renvoyée au modèle, une demande
+      // courte la remplace.
+      forced = true
+      const text = typeof message === 'string' ? message : ''
+      messages = [{ role: 'user', content: `${text}\n\n${retryAfterTruncation(blocks)}`.trim() }]
+      continue
+    }
 
     const call = content.find((block) => block.type === 'tool_use' && block.name === tool.name)
     if (call) return { input: call.input, blocks, usage }

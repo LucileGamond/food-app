@@ -219,6 +219,43 @@ describe('suggestMeals', () => {
     await expect(suggestMeals(INPUT, { apiKey: 'k', fetch: fakeFetch(pause(), pause(), pause()) })).rejects.toThrow('pause_turn')
   })
 
+  it('demande peu de réflexion et laisse de la marge à la réponse', async () => {
+    const doFetch = fakeFetch(final(IDEAS))
+    await suggestMeals(INPUT, { apiKey: 'k', fetch: doFetch })
+    expect(sent(doFetch)).toMatchObject({ max_tokens: 16_000, output_config: { effort: 'low' } })
+  })
+
+  it('après une réponse coupée, redemande avec les résultats déjà trouvés, sans nouvelle recherche', async () => {
+    const truncated = turn([...SEARCH, { type: 'text', text: 'Je compare les recettes…' }], 'max_tokens')
+    const doFetch = fakeFetch(truncated, turn([{ type: 'tool_use', id: 't1', name: 'proposer_repas', input: { idees: IDEAS } }]))
+    const result = await suggestMeals(INPUT, { apiKey: 'k', fetch: doFetch })
+    expect(result.ideas).toHaveLength(4)
+
+    const retry = sent(doFetch, 1)
+    expect(retry.tool_choice).toEqual({ type: 'tool', name: 'proposer_repas' })
+    // La réponse coupée n'est pas renvoyée : une seule demande, qui liste les résultats trouvés.
+    expect(retry.messages).toHaveLength(1)
+    expect(retry.messages[0].content).toContain('Recettes enregistrées disponibles')
+    expect(retry.messages[0].content).toContain(
+      'Résultats de recherche déjà trouvés (titre | adresse), à utiliser sans nouvelle recherche :\n' +
+        'Curry de courge aux pois chiches | https://www.marmiton.org/recettes/curry-courge-pois-chiches.aspx\n',
+    )
+  })
+
+  it('après une réponse coupée sans résultat de recherche, se rabat sur les recettes enregistrées', async () => {
+    const doFetch = fakeFetch(turn([{ type: 'text', text: '…' }], 'max_tokens'), final(IDEAS))
+    await suggestMeals(INPUT, { apiKey: 'k', fetch: doFetch })
+    expect(sent(doFetch, 1).messages[0].content).toContain('Aucun résultat de recherche disponible : propose des recettes enregistrées.')
+  })
+
+  it('échoue si la dernière demande est elle aussi coupée', async () => {
+    const cut = () => turn([], 'max_tokens')
+    await expect(suggestMeals(INPUT, { apiKey: 'k', fetch: fakeFetch(cut(), cut()) })).rejects.toMatchObject({
+      message: 'La recherche d’idées a échoué (réponse trop longue).',
+      status: 502,
+    })
+  })
+
   it('refuse moins de 3 idées valides', async () => {
     await expect(suggestMeals(INPUT, { apiKey: 'k', fetch: fakeFetch(final(IDEAS.slice(0, 2))) })).rejects.toMatchObject({
       message: 'Pas assez d’idées trouvées : réessaie.',
@@ -232,7 +269,6 @@ describe('suggestMeals', () => {
     [response({}, 529), 'Le service d’analyse est surchargé. Réessaie dans un instant.', 503],
     [response({ error: { type: 'invalid_request_error', message: 'Web search is not enabled for this organization' } }, 400), 'La recherche web n’est pas activée pour le service d’analyse.', 503],
     [response({ error: { type: 'invalid_request_error', message: 'bad' } }, 400), 'La recherche d’idées a échoué (400 – invalid_request_error : bad).', 502],
-    [response({ content: [], stop_reason: 'max_tokens' }), 'La recherche d’idées a échoué (réponse trop longue).', 502],
     [new Error('réseau'), 'Le service d’analyse ne répond pas. Réessaie dans un instant.', 503],
   ])('traduit les erreurs de l’API (%#)', async (reply, message, status) => {
     await expect(suggestMeals(INPUT, { apiKey: 'k', fetch: fakeFetch(reply) })).rejects.toMatchObject({ message, status })
