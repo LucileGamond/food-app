@@ -16,7 +16,8 @@ export default defineConfig({
     coverage: {
       provider: 'v8',
       include: ['src/api/**'],
-      exclude: ['src/api/index.ts', 'src/**/*.test.*'],
+      // errors.ts : logique pure, couverte (et mesurée) par les tests unitaires.
+      exclude: ['src/api/index.ts', 'src/api/errors.ts', 'src/**/*.test.*'],
       reportsDirectory: 'coverage/integration',
       thresholds: { lines: 85, branches: 85, functions: 85, statements: 85 },
     },
