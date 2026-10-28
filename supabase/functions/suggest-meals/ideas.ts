@@ -8,7 +8,12 @@ export const MAX_RECENT = 40
 /** Au-delà, la fonction Supabase serait coupée (150 s) : mieux vaut une erreur claire. */
 const TIMEOUT_MS = 100_000
 const MIN_IDEAS = 3
+/** Proposés par le modèle, parmi lesquels le code choisit les plus variés. */
 const MAX_IDEAS = 8
+/** Idées montrées. */
+export const SHOWN_IDEAS = 5
+const VEGETARIAN_MIN = 2
+const VEGETARIAN_MAX = 3
 
 export interface Candidate {
   id: string
@@ -44,7 +49,7 @@ const TOOL = {
     properties: {
       idees: {
         type: 'array',
-        description: '7 plats complets et variés.',
+        description: '8 plats complets et variés.',
         items: {
           type: 'object',
           properties: {
@@ -71,9 +76,9 @@ const SEASONS = ['hiver', 'hiver', 'printemps', 'printemps', 'printemps', 'été
 
 const SYSTEM = [
   'Tu proposes des idées de repas (déjeuner ou dîner) à une famille française pour les prochains jours.',
-  'Propose 7 plats. Chaque plat est complet : une protéine (animale ou végétale), des légumes et un féculent.',
-  '2 ou 3 plats sont végétariens (protéine végétale, œufs ou fromage ; ni viande ni poisson).',
-  'Varie au maximum : pas deux fois la même protéine, le même féculent ou le même légume principal.',
+  'Propose 8 plats. Chaque plat est complet : une protéine (animale ou végétale), des légumes et un féculent.',
+  'Au moins 3 plats sont végétariens (protéine végétale, œufs ou fromage ; ni viande ni poisson).',
+  'Les plats doivent être très différents : chaque plat a sa propre protéine, et aucun légume ni féculent ne revient d’un plat à l’autre (pas deux plats à la courge, au riz ou aux pois chiches).',
   'Privilégie les légumes de saison, sans t’y limiter.',
   'Évite les plats proches de ceux mangés ou prévus récemment.',
   'Prends les recettes enregistrées qui conviennent, et complète avec des recettes trouvées par la recherche web sur des sites de recettes en français.',
@@ -193,6 +198,74 @@ export function sanitizeIdeas(output: unknown, input: SuggestInput, blocks: read
   return ideas
 }
 
+// Comparaison des aliments : « Blanc de poulet » et « poulet rôti » partagent le poulet ; « pommes de terre » et
+// « pomme de terre nouvelle », la pomme de terre. Les mots qui ne désignent pas l'aliment sont ignorés.
+const NOT_FOOD = new Set([
+  'aux', 'des', 'les', 'une', 'avec', 'sans', 'facon', 'frais', 'fraiche', 'fraiches', 'sec', 'seche', 'seches',
+  'blanc', 'blanche', 'rouge', 'vert', 'verte', 'jaune', 'noir', 'noire', 'petit', 'petite', 'gros', 'grosse',
+  'jeune', 'nouveau', 'nouvelle', 'roti', 'rotie', 'grille', 'grillee', 'cuit', 'cuite', 'maison', 'bio',
+])
+
+/** Mots significatifs d'un aliment : sans accents ni majuscules, au singulier. */
+export function foodWords(name: string): Set<string> {
+  const words = name
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .split(/[^a-z]+/)
+    .map((w) => (w.length > 3 ? w.replace(/[sx]$/, '') : w))
+    .filter((w) => w.length >= 3 && !NOT_FOOD.has(w))
+  return new Set(words)
+}
+
+const sameFood = (a: string, b: string) => {
+  const words = foodWords(b)
+  return [...foodWords(a)].some((w) => words.has(w))
+}
+
+/** Ressemblance entre deux plats : même protéine (le plus gênant), même féculent, légumes en commun. */
+function overlap(a: Idea, b: Idea): number {
+  let score = 0
+  if (a.protein && b.protein && sameFood(a.protein, b.protein)) score += 10
+  if (a.starch && b.starch && sameFood(a.starch, b.starch)) score += 4
+  for (const vegetable of a.vegetables) if (b.vegetables.some((other) => sameFood(vegetable, other))) score += 3
+  return score
+}
+
+/**
+ * Les plats les plus variés (le modèle ne varie pas toujours assez) : choisis un à un, chaque fois celui qui ressemble
+ * le moins aux plats déjà retenus, avec 2 ou 3 plats végétariens quand c'est possible. L'ordre du modèle départage les
+ * égalités.
+ */
+export function pickVaried(ideas: readonly Idea[], count = SHOWN_IDEAS): Idea[] {
+  const picked: Idea[] = []
+  const rest = [...ideas]
+  while (picked.length < count && rest.length > 0) {
+    const vegetarian = picked.filter((i) => i.vegetarian).length
+    const slots = count - picked.length
+    const allowed = rest.filter((idea) => {
+      if (idea.vegetarian && vegetarian >= VEGETARIAN_MAX) return false
+      // Places restantes réservées aux plats végés manquants.
+      if (!idea.vegetarian && VEGETARIAN_MIN - vegetarian >= slots) return false
+      return true
+    })
+    const pool = allowed.length > 0 ? allowed : rest
+    let best = pool[0]!
+    let bestScore = Infinity
+    for (const idea of pool) {
+      const score = picked.reduce((sum, other) => sum + overlap(idea, other), 0)
+      if (score < bestScore) {
+        best = idea
+        bestScore = score
+      }
+    }
+    picked.push(best)
+    rest.splice(rest.indexOf(best), 1)
+  }
+  // Affichés dans l'ordre du modèle.
+  return picked.sort((a, b) => ideas.indexOf(a) - ideas.indexOf(b))
+}
+
 export async function suggestMeals(
   input: SuggestInput,
   options: ModelOptions & { webSearchTool?: string },
@@ -220,8 +293,9 @@ export async function suggestMeals(
     },
     options,
   )
-  const ideas = sanitizeIdeas(output, input, blocks)
-  if (ideas.length < MIN_IDEAS) throw new HttpError('Pas assez d’idées trouvées : réessaie.', 502)
+  const valid = sanitizeIdeas(output, input, blocks)
+  if (valid.length < MIN_IDEAS) throw new HttpError('Pas assez d’idées trouvées : réessaie.', 502)
+  const ideas = pickVaried(valid)
   return {
     ideas,
     vegetarian: ideas.filter((i) => i.vegetarian).length,

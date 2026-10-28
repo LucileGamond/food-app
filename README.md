@@ -28,8 +28,9 @@ Application web installable (PWA) pour Lucile et Eric : planning partagé des re
   L'Edge Function `tidy-shopping` demande ensuite à Claude Haiku d'unifier les noms, de corriger les rayons et de
   repérer les basiques du placard (décochés par défaut), sans jamais toucher aux quantités ; en cas d'échec, l'aperçu
   reste utilisable sans ce regroupement. Ce qui n'a pas pu être repris est listé pour être complété à la main.
-  **Idées de repas** (bouton « Idées » du planning) : l'Edge Function `suggest-meals` demande à Claude Haiku 6 plats
-  complets (protéine, légumes, féculent), dont 2 ou 3 végés, variés et plutôt de saison. Il pioche dans les recettes
+  **Idées de repas** (bouton « Idées » du planning) : l'Edge Function `suggest-meals` demande à Claude Haiku 8 plats
+  complets (protéine, légumes, féculent), plutôt de saison ; le code en garde 5, les plus variés (protéines, féculents et
+  légumes différents), dont 2 ou 3 végés quand c'est possible. Haiku pioche dans les recettes
   enregistrées (sauf celles mangées ou prévues sur les 15 derniers et 7 prochains jours) et cherche des recettes sur
   internet avec l'outil de recherche web d'Anthropic (4 recherches au plus). Une adresse est gardée seulement si elle
   figure dans les résultats de recherche. Les idées cochées vont dans « À planifier ». Nécessite d'activer la recherche

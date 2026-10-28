@@ -1,5 +1,17 @@
 import { createHandler, type Deps } from './handler.ts'
-import { buildUserMessage, MAX_CANDIDATES, MAX_RECENT, parseInput, sanitizeIdeas, searchResultUrls, suggestMeals, type SuggestInput } from './ideas.ts'
+import {
+  buildUserMessage,
+  foodWords,
+  MAX_CANDIDATES,
+  MAX_RECENT,
+  parseInput,
+  pickVaried,
+  sanitizeIdeas,
+  searchResultUrls,
+  suggestMeals,
+  type Idea,
+  type SuggestInput,
+} from './ideas.ts'
 
 const INPUT: SuggestInput = {
   today: '2026-10-27',
@@ -175,6 +187,55 @@ describe('sanitizeIdeas', () => {
     expect(ideas).toHaveLength(8)
     expect(ideas[0]!.why).toHaveLength(160)
     expect(ideas[0]!.vegetables).toEqual(['a', 'b', 'c'])
+  })
+})
+
+describe('choix des plats les plus variés', () => {
+  const dish = (title: string, protein: string, vegetables: string[], starch: string, vegetarian: boolean): Idea => ({
+    source: 'saved',
+    recipeId: title,
+    title,
+    protein,
+    vegetables,
+    starch,
+    vegetarian,
+    why: '',
+  })
+
+  it('compare les aliments sans accents, pluriel ni qualificatifs', () => {
+    expect([...foodWords('Blanc de poulet rôti')]).toEqual(['poulet'])
+    expect([...foodWords('Pommes de terre nouvelles')]).toEqual(['pomme', 'terre'])
+    expect([...foodWords('Lentilles corail')]).toEqual(['lentille', 'corail'])
+    expect([...foodWords('riz')]).toEqual(['riz'])
+  })
+
+  it('écarte les plats qui répètent une protéine, un féculent ou un légume', () => {
+    const picked = pickVaried(
+      [
+        dish('Curry de courge', 'pois chiches', ['courge'], 'riz', true),
+        dish('Velouté de courge', 'pois chiches grillés', ['courge', 'oignon'], 'pain', true),
+        dish('Risotto à la courge', 'parmesan', ['courges butternut'], 'riz arborio', true),
+        dish('Poulet basquaise', 'blanc de poulet', ['poivron'], 'riz', false),
+        dish('Saumon aux poireaux', 'saumon', ['poireaux'], 'pommes de terre', false),
+        dish('Omelette aux champignons', 'œufs', ['champignons'], 'pâtes', true),
+        dish('Poulet rôti', 'poulet', ['carotte'], 'pomme de terre', false),
+        dish('Dahl de lentilles', 'lentilles corail', ['épinards'], 'quinoa', true),
+      ],
+      5,
+    )
+    expect(picked.map((i) => i.title)).toEqual(['Curry de courge', 'Poulet basquaise', 'Saumon aux poireaux', 'Omelette aux champignons', 'Dahl de lentilles'])
+    expect(picked.filter((i) => i.vegetarian)).toHaveLength(3)
+  })
+
+  it('garde 2 ou 3 plats végés quand c’est possible', () => {
+    const veg = (n: number) => dish(`Végé ${n}`, `protéine ${n}`, [`légume${n}`], `féculent${n}`, true)
+    const meat = (n: number) => dish(`Viande ${n}`, `viande${n}`, [`légumes${n}`], `céréale${n}`, false)
+    expect(pickVaried([veg(1), veg(2), veg(3), veg(4), veg(5), meat(1), meat(2)]).filter((i) => i.vegetarian)).toHaveLength(3)
+    expect(pickVaried([meat(1), meat(2), meat(3), meat(4), veg(1), veg(2)]).filter((i) => i.vegetarian)).toHaveLength(2)
+    // Pas assez de plats végés, ou pas assez d'autres : on fait avec ce qu'il y a.
+    expect(pickVaried([meat(1), meat(2), meat(3), meat(4), meat(5), veg(1)]).filter((i) => i.vegetarian)).toHaveLength(1)
+    expect(pickVaried([veg(1), veg(2), veg(3), veg(4), veg(5), meat(1)]).filter((i) => i.vegetarian)).toHaveLength(4)
+    expect(pickVaried([veg(1), veg(2)])).toHaveLength(2)
   })
 })
 
