@@ -14,6 +14,7 @@ import { PlanningPage } from '@/pages/PlanningPage'
 const RecipesPage = lazy(() => import('@/pages/RecipesPage').then((m) => ({ default: m.RecipesPage })))
 const RecipeBatchImportPage = lazy(() => import('@/pages/RecipeBatchImportPage').then((m) => ({ default: m.RecipeBatchImportPage })))
 const CookingPage = lazy(() => import('@/pages/CookingPage').then((m) => ({ default: m.CookingPage })))
+const RecipePrintPage = lazy(() => import('@/pages/RecipePrintPage').then((m) => ({ default: m.RecipePrintPage })))
 const RecipeDetailPage = lazy(() => import('@/pages/RecipeDetailPage').then((m) => ({ default: m.RecipeDetailPage })))
 const WeightPage = lazy(() => import('@/pages/WeightPage').then((m) => ({ default: m.WeightPage })))
 const FoodTrackingPage = lazy(() => import('@/pages/FoodTrackingPage').then((m) => ({ default: m.FoodTrackingPage })))
@@ -33,6 +34,8 @@ export function App({ api, auth }: { api: Api; auth: AuthClient }) {
           <Route element={<RequireAuth />}>
             {/* Mode cuisine : plein écran, sans la navigation. */}
             <Route path="/recettes/:id/cuisiner" element={<CookingPage />} />
+            {/* Fiche à imprimer ou à enregistrer en PDF. */}
+            <Route path="/recettes/:id/imprimer" element={<RecipePrintPage />} />
             <Route element={<Layout />}>
               <Route path="/planning" element={<PlanningPage />} />
               <Route path="/recettes" element={<RecipesPage />} />

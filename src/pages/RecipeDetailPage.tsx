@@ -1,4 +1,4 @@
-import { ArrowLeft, BookOpen, ChefHat, Clock, ExternalLink, Flame, History, Inbox, Minus, Pencil, Plus, RefreshCw, SearchX, ShoppingCart, Trash2, Users } from 'lucide-react'
+import { ArrowLeft, BookOpen, ChefHat, Clock, ExternalLink, Flame, History, Inbox, Minus, Pencil, Plus, Printer, RefreshCw, SearchX, ShoppingCart, Trash2, Users } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom'
 import { toast } from 'sonner'
@@ -225,6 +225,12 @@ function RecipeDetail({ id }: { id: string }) {
           <Button variant="outline" className="h-10 px-3" onClick={() => void addToInbox()}>
             <Inbox /> À planifier
           </Button>
+          <Link
+            to={`/recettes/${recipe.id}/imprimer${servings !== null ? `?personnes=${servings}` : ''}`}
+            className={cn(buttonVariants({ variant: 'outline' }), 'h-10 px-3')}
+          >
+            <Printer /> Imprimer / PDF
+          </Link>
           <Link to={`/recettes/${recipe.id}/modifier`} className={cn(buttonVariants({ variant: 'outline' }), 'h-10 px-3')}>
             <Pencil /> Modifier
           </Link>

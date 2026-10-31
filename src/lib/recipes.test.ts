@@ -220,6 +220,18 @@ describe('import depuis un lien', () => {
     expect(empty.ingredients).toHaveLength(1)
   })
 
+  it('convertit une recette anglaise en métrique', () => {
+    const values = importedToFormValues(
+      { ...imported, steps: '1. Preheat oven to 350°F.\n2. Pour into a 9-inch pan.', ingredients: [{ name: 'tortillas', quantity: 4, unit: null, note: '8-inch' }, { name: 'flour', quantity: 2, unit: 'cups', note: null }] },
+      '',
+    )
+    expect(values.notes).toBe('1. Preheat oven to 175 °C.\n2. Pour into a 23 cm pan.')
+    expect(values.ingredients.map(({ name, quantity, unit, note }) => ({ name, quantity, unit, note }))).toEqual([
+      { name: 'tortillas', quantity: '4', unit: '', note: '20 cm' },
+      { name: 'flour', quantity: '480', unit: 'ml', note: '' },
+    ])
+  })
+
   it('détecte une saisie que l’import remplacerait', () => {
     const blank = importedToFormValues({ ...imported, steps: '', tags: [], ingredients: [] }, '')
     expect(formHasContent({ ...blank, title: 'Titre', url: 'https://e.fr' })).toBe(false)
@@ -279,6 +291,8 @@ describe('unités et précisions des ingrédients', () => {
     expect(normalizeIngredientUnit({ name: 'rhum', quantity: 1.5, unit: 'shot', note: 'ambré' })).toEqual({ name: 'rhum', quantity: null, unit: null, note: '1,5 shot, ambré' })
     expect(normalizeIngredientUnit({ name: 'farine', quantity: 250, unit: 'g', note: '  ' })).toEqual({ name: 'farine', quantity: 250, unit: 'g', note: null })
     expect(normalizeIngredientUnit({ name: 'œufs', quantity: 3, unit: '', note: null })).toEqual({ name: 'œufs', quantity: 3, unit: null, note: null })
+    expect(normalizeIngredientUnit({ name: 'cassonade', quantity: 0.5, unit: 'cup packed', note: 'brune' })).toEqual({ name: 'cassonade', quantity: 120, unit: 'ml', note: 'packed, brune' })
+    expect(normalizeIngredientUnit({ name: 'beurre', quantity: 8, unit: 'oz', note: null })).toEqual({ name: 'beurre', quantity: 225, unit: 'g', note: null })
     expect(normalizeIngredientUnit({ name: 'thym', quantity: null, unit: 'pluche', note: null })).toEqual({ name: 'thym', quantity: null, unit: null, note: 'pluche' })
   })
 

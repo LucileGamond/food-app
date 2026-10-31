@@ -48,3 +48,45 @@ test('cuisine une recette : ingrédients et étapes à cocher, en plein écran',
   await page.getByRole('button', { name: 'Terminer la recette' }).last().click()
   await expect(page.getByRole('link', { name: 'Cuisiner' })).toBeVisible()
 })
+
+test('minuteurs du mode cuisine, et fiche à imprimer', async ({ page }) => {
+  const { api } = await signedInApi()
+  const id = await api.recipes.saveRecipe({
+    id: null,
+    title: 'Riz au lait',
+    notes: '1. Porter le lait à ébullition.\n2. Cuire 25 à 30 min à feu doux.',
+    url: null,
+    servings: 4,
+    tags: [],
+    ingredients: [{ name: 'riz rond', quantity: 100, unit: 'g', note: null }],
+  })
+  await page.addInitScript(() => {
+    ;(window as Window & { printed?: number }).printed = 0
+    window.print = () => void ((window as Window & { printed?: number }).printed! += 1)
+  })
+
+  await login(page)
+  await page.goto(`/recettes/${id}/cuisiner`)
+  // La durée de l'étape lance un minuteur (la plus courte de la fourchette).
+  await page.getByRole('button', { name: 'Lancer un minuteur de 25 à 30 min' }).click()
+  const bar = page.getByRole('region', { name: 'Minuteurs' })
+  await expect(bar.getByText('Étape 2 · 25 min')).toBeVisible()
+  await expect(bar.getByText(/^(24:5\d|25:00)$/)).toBeVisible()
+  expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([])
+
+  // Rechargement : le minuteur continue.
+  await bar.getByRole('button', { name: 'Mettre en pause : Étape 2 · 25 min' }).click()
+  await page.reload()
+  await expect(page.getByRole('region', { name: 'Minuteurs' }).getByRole('button', { name: 'Reprendre : Étape 2 · 25 min' })).toBeVisible()
+  await page.getByRole('region', { name: 'Minuteurs' }).getByRole('button', { name: 'Supprimer : Étape 2 · 25 min' }).click()
+  await expect(page.getByRole('region', { name: 'Minuteurs' })).toHaveCount(0)
+
+  // Fiche à imprimer : quantités pour le nombre de personnes choisi, boîte d'impression ouverte d'elle-même.
+  await page.goto(`/recettes/${id}`)
+  await page.getByRole('button', { name: 'Une personne de plus' }).click()
+  await page.getByRole('link', { name: 'Imprimer / PDF' }).click()
+  await expect(page.getByRole('heading', { name: 'Riz au lait' })).toBeVisible()
+  await expect(page.getByText('125 g riz rond')).toBeVisible()
+  await expect.poll(() => page.evaluate(() => (window as Window & { printed?: number }).printed)).toBe(1)
+  expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([])
+})

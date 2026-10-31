@@ -13,6 +13,9 @@ export const UNITS = [
   'brin', 'feuille', 'verre', 'tasse', 'bol', 'poignée', 'noix', 'filet', 'morceau',
 ] as const
 
+/** Unités anglaises recopiées telles quelles : l'application les convertit (identiques à src/lib/units.ts, vérifié par un test). */
+export const ENGLISH_UNITS = ['oz', 'lb', 'fl oz', 'cup', 'pint', 'quart', 'gallon', 'stick'] as const
+
 export interface ImportedIngredient {
   name: string
   quantity: number | null
@@ -82,9 +85,9 @@ const TOOL = {
             name: { type: 'string', description: 'Ingrédient seul, en minuscules, sans la quantité (ex. « farine », « œufs »).' },
             quantity: { anyOf: [{ type: 'number' }, { type: 'null' }], description: 'Quantité numérique (½ → 0.5, « un » → 1), null si non précisée.' },
             unit: {
-              anyOf: [{ type: 'string', enum: [...UNITS] }, { type: 'null' }],
+              anyOf: [{ type: 'string', enum: [...UNITS, ...ENGLISH_UNITS] }, { type: 'null' }],
               description:
-                'Unité de la liste (cuillère à soupe → « c. à s. », à café → « c. à c. », grammes → « g »…) ; null pour un nombre de pièces (3 œufs). Unité absente de la liste : null, et la quantité avec son unité dans note.',
+                'Unité de la liste (cuillère à soupe → « c. à s. », à café → « c. à c. », tbsp → « c. à s. », tsp → « c. à c. », grammes → « g »…) ; null pour un nombre de pièces (3 œufs). Unité anglaise (oz, lb, fl oz, cup, pint, quart, gallon, stick) : recopiée telle quelle avec sa quantité, sans la convertir (cup → « cup », jamais « tasse ») ; l’application convertit. Autre unité absente de la liste : null, et la quantité avec son unité dans note.',
             },
             note: {
               anyOf: [{ type: 'string' }, { type: 'null' }],

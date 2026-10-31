@@ -53,6 +53,17 @@ describe('RecipeDetailPage', () => {
     expect(cook).toHaveAttribute('href', '/recettes/r1/cuisiner?personnes=5')
   })
 
+  it('ouvre la fiche à imprimer avec le nombre de personnes choisi', async () => {
+    const user = userEvent.setup()
+    const api = fakeApi()
+    api.recipes.getRecipe.mockResolvedValue(CURRY)
+    renderDetail(api)
+    const print = await screen.findByRole('link', { name: 'Imprimer / PDF' })
+    expect(print).toHaveAttribute('href', '/recettes/r1/imprimer?personnes=4')
+    await user.click(screen.getByRole('button', { name: 'Une personne de moins' }))
+    expect(print).toHaveAttribute('href', '/recettes/r1/imprimer?personnes=3')
+  })
+
   it('propose de reprendre une recette en cours', async () => {
     const api = fakeApi()
     api.recipes.getRecipe.mockResolvedValue({ ...CURRY, notes: '1. Couper.\n2. Cuire.\n3. Servir.' })

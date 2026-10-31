@@ -1,4 +1,4 @@
-import { act, screen, waitFor } from '@testing-library/react'
+import { act, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { Route } from 'react-router-dom'
 import { AppError } from '@/api'
@@ -193,5 +193,78 @@ describe('CookingPage', () => {
     expect(await screen.findByRole('alert')).toHaveTextContent('Hors ligne')
     await userEvent.setup().click(screen.getByRole('button', { name: 'Réessayer' }))
     expect(await screen.findByText('Recette introuvable')).toBeInTheDocument()
+  })
+
+  describe('minuteurs', () => {
+    const KEY = 'food-app:minuteurs:r1'
+    afterEach(() => {
+      localStorage.clear()
+      delete (navigator as { vibrate?: unknown }).vibrate
+    })
+
+    it('lance un minuteur depuis une durée d’étape, le met en pause, ajoute une minute et le supprime', async () => {
+      const { user } = renderCooking()
+      await user.click(await screen.findByRole('button', { name: 'Lancer un minuteur de 30 min' }))
+      const bar = screen.getByRole('region', { name: 'Minuteurs' })
+      expect(within(bar).getByText('Étape 3 · 30 min')).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: /^Minuteur lancé : 30 min ?· / })).toBeInTheDocument()
+      // Gardé dans le navigateur (heure de fin) : il survit au rechargement de la page.
+      expect(JSON.parse(localStorage.getItem(KEY)!)).toMatchObject([{ id: 'etape-2-6', label: 'Étape 3 · 30 min', seconds: 1800 }])
+      // Relancer la même durée ne crée pas de doublon.
+      await user.click(screen.getByRole('button', { name: /^Minuteur lancé : 30 min ?· / }))
+      expect(within(bar).getAllByRole('listitem')).toHaveLength(1)
+
+      await user.click(within(bar).getByRole('button', { name: 'Mettre en pause : Étape 3 · 30 min' }))
+      const remaining = within(bar).getByText(/^(29:5\d|30:00)$/).textContent
+      await user.click(within(bar).getByRole('button', { name: 'Une minute de plus : Étape 3 · 30 min' }))
+      expect(within(bar).getByText(String(Number(remaining!.split(':')[0]) + 1) + ':' + remaining!.split(':')[1])).toBeInTheDocument()
+      await user.click(within(bar).getByRole('button', { name: 'Reprendre : Étape 3 · 30 min' }))
+      expect(within(bar).getByRole('button', { name: 'Mettre en pause : Étape 3 · 30 min' })).toBeInTheDocument()
+
+      await user.click(within(bar).getByRole('button', { name: 'Supprimer : Étape 3 · 30 min' }))
+      expect(screen.queryByRole('region', { name: 'Minuteurs' })).not.toBeInTheDocument()
+      expect(localStorage.getItem(KEY)).toBeNull()
+    })
+
+    it('lance un minuteur libre', async () => {
+      const { user } = renderCooking()
+      await user.click(await screen.findByRole('button', { name: 'Nouveau minuteur' }))
+      const minutes = screen.getByRole('textbox', { name: 'Minutes' })
+      await user.clear(minutes)
+      expect(screen.getByRole('button', { name: 'Lancer' })).toBeDisabled()
+      await user.type(minutes, '5')
+      await user.click(screen.getByRole('button', { name: 'Lancer' }))
+      expect(screen.queryByRole('form', { name: 'Nouveau minuteur' })).not.toBeInTheDocument()
+      const bar = screen.getByRole('region', { name: 'Minuteurs' })
+      expect(within(bar).getByText('Minuteur 5 min')).toBeInTheDocument()
+      expect(within(bar).getByText(/^(4:5\d|5:00)$/)).toBeInTheDocument()
+    })
+
+    it('un minuteur terminé sonne jusqu’à ce qu’on l’arrête, ou repart pour une minute', async () => {
+      const vibrate = vi.fn()
+      Object.defineProperty(navigator, 'vibrate', { value: vibrate, configurable: true })
+      const done = (id: string) => ({ id, label: `Étape ${id}`, seconds: 60, endsAt: Date.now() - 1000, remaining: 60_000 })
+      localStorage.setItem(KEY, JSON.stringify([done('1'), done('2')]))
+      const { user } = renderCooking()
+      const bar = await screen.findByRole('region', { name: 'Minuteurs' })
+      expect(within(bar).getAllByRole('alert')).toHaveLength(2)
+      expect(vibrate).toHaveBeenCalled()
+
+      await user.click(within(bar).getByRole('button', { name: 'Encore une minute : Étape 1' }))
+      expect(within(bar).getAllByRole('alert')).toHaveLength(1)
+      await user.click(within(bar).getByRole('button', { name: 'Arrêter' }))
+      expect(within(bar).queryByRole('alert')).not.toBeInTheDocument()
+      expect(within(bar).getByText(/^(0:5\d|1:00)$/)).toBeInTheDocument()
+    })
+
+    it('« Terminer la recette » supprime les minuteurs', async () => {
+      const api = fakeApi()
+      api.recipes.getProgress.mockResolvedValue({ ingredients: [], steps: [0], updatedAt: '2026-10-30T18:00:00Z' })
+      const { user } = renderCooking(api)
+      await user.click(await screen.findByRole('button', { name: 'Lancer un minuteur de 30 min' }))
+      await user.click(screen.getAllByRole('button', { name: 'Terminer la recette' })[0]!)
+      expect(await screen.findByText('Fiche recette')).toBeInTheDocument()
+      expect(localStorage.getItem(KEY)).toBeNull()
+    })
   })
 })

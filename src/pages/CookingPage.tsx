@@ -1,19 +1,21 @@
-import { Check, CheckCheck, Loader2, Minus, Plus, RefreshCw, SearchX, Sun, X } from 'lucide-react'
+import { Check, CheckCheck, Loader2, Minus, Plus, RefreshCw, SearchX, Sun, Timer as TimerIcon, X } from 'lucide-react'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { toast } from 'sonner'
 import { Button, buttonVariants } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { EmptyState } from '@/components/EmptyState'
-import { LinkifiedText } from '@/components/LinkifiedText'
+import { NewTimerForm, StepText, TimersBar } from '@/components/cooking/CookingTimers'
 import { useApi } from '@/app/ApiContext'
 import { errorMessage } from '@/api'
+import { useTimers } from '@/hooks/useTimers'
 import { useWakeLock } from '@/hooks/useWakeLock'
 import { NO_PROGRESS, splitSteps, toggle, type CookingProgress } from '@/lib/cooking'
+import { formatTimerDuration } from '@/lib/timers'
 import { formatIngredient, groupBySection, scaleIngredients, SERVINGS_MAX, type Recipe } from '@/lib/recipes'
 import { cn } from '@/lib/utils'
 
-/** Mode cuisine : écran allumé, ingrédients et étapes à cocher, en gros ; progression enregistrée (plusieurs jours). */
+/** Mode cuisine : écran allumé, ingrédients et étapes à cocher, en gros ; progression enregistrée (plusieurs jours) ; minuteurs. */
 export function CookingPage() {
   const { id = '' } = useParams()
   return <Cooking key={id} id={id} />
@@ -28,6 +30,8 @@ function Cooking({ id }: { id: string }) {
   const [progress, setProgress] = useState<CookingProgress>(NO_PROGRESS)
   const [finishing, setFinishing] = useState(false)
   const awake = useWakeLock()
+  const timers = useTimers(id)
+  const [newTimer, setNewTimer] = useState(false)
 
   // La progression est chargée avec la recette : sans elle, la première case cochée écraserait celle enregistrée.
   const load = useCallback(() => {
@@ -87,6 +91,7 @@ function Cooking({ id }: { id: string }) {
     await saving.current.running
     try {
       await api.recipes.saveProgress(id, NO_PROGRESS)
+      timers.clear()
       toast.success('Recette terminée')
       navigate(`/recettes/${id}`, { replace: true })
     } catch (e) {
@@ -160,6 +165,9 @@ function Cooking({ id }: { id: string }) {
             <X />
           </Link>
           <h1 className="min-w-0 flex-1 truncate text-lg font-semibold tracking-tight">{recipe.title}</h1>
+          <Button variant="ghost" className="h-10 shrink-0 px-2" onClick={() => setNewTimer((open) => !open)} aria-expanded={newTimer} aria-label="Nouveau minuteur">
+            <TimerIcon /> <span className="max-sm:hidden">Minuteur</span>
+          </Button>
           {started && (
             <Button variant="ghost" className="h-10 shrink-0 px-2" onClick={() => void finish()} disabled={finishing} aria-label="Terminer la recette">
               {finishing ? <Loader2 className="animate-spin" aria-hidden /> : <CheckCheck />} <span className="max-sm:hidden">Terminer</span>
@@ -168,7 +176,20 @@ function Cooking({ id }: { id: string }) {
         </div>
       </header>
 
-      <main className="mx-auto max-w-3xl space-y-8 px-4 pt-5 pb-10">
+      {/* Place pour la barre des minuteurs (une carte par ligne sur téléphone, 45 % de l'écran au plus). */}
+      <main
+        className="mx-auto max-w-3xl space-y-8 px-4 pt-5 pb-10"
+        style={timers.timers.length > 0 ? { paddingBottom: `min(45dvh, ${timers.timers.length * 4.5 + 1.5}rem)` } : undefined}
+      >
+        {newTimer && (
+          <NewTimerForm
+            onStart={(minutes) => {
+              const seconds = Math.round(minutes * 60)
+              timers.start(`libre-${Date.now()}`, `Minuteur ${formatTimerDuration(seconds)}`, seconds)
+            }}
+            onClose={() => setNewTimer(false)}
+          />
+        )}
         {awake && (
           <p className="flex items-center gap-1.5 text-sm text-muted-foreground">
             <Sun className="size-4" aria-hidden /> L’écran reste allumé.
@@ -254,7 +275,14 @@ function Cooking({ id }: { id: string }) {
                       >
                         {done ? <Check className="size-5" aria-hidden /> : i + 1}
                       </button>
-                      <LinkifiedText text={step} className={cn('block pt-1.5 text-lg leading-relaxed', done && 'text-muted-foreground line-through')} />
+                      <StepText
+                        text={step}
+                        step={i}
+                        timers={timers.timers}
+                        now={timers.now}
+                        onStart={timers.start}
+                        className={cn('block pt-1.5 text-lg leading-relaxed', done && 'text-muted-foreground line-through')}
+                      />
                     </div>
                   </li>
                 )
@@ -280,6 +308,15 @@ function Cooking({ id }: { id: string }) {
           {started && <p className="text-center text-sm text-muted-foreground">En quittant, ta progression est gardée : tu pourras reprendre plus tard.</p>}
         </div>
       </main>
+
+      <TimersBar
+        timers={timers.timers}
+        now={timers.now}
+        onPause={timers.pause}
+        onResume={timers.resume}
+        onAddMinute={timers.addMinute}
+        onRemove={timers.remove}
+      />
     </div>
   )
 }

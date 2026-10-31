@@ -1,7 +1,7 @@
 import sql from '../../supabase/migrations/20261027000000_ingredient_units.sql?raw'
 import shoppingSql from '../../supabase/migrations/20261029000000_shopping_lists.sql?raw'
-import { UNITS as FUNCTION_UNITS } from '../../supabase/functions/import-recipe/model.ts'
-import { isUnit, splitUnit, UNIT_ALIASES, unitKey, unitLabel, UNITS } from './units'
+import { ENGLISH_UNITS as FUNCTION_ENGLISH_UNITS, UNITS as FUNCTION_UNITS } from '../../supabase/functions/import-recipe/model.ts'
+import { ENGLISH_UNITS, isUnit, metricText, splitUnit, toMetric, UNIT_ALIASES, unitKey, unitLabel, UNITS } from './units'
 
 describe('unités', () => {
   it('normalise les variantes', () => {
@@ -60,7 +60,53 @@ describe('unités', () => {
     const check = /unit in \((.*?)\)\);/s.exec(sql)?.[1]
     expect(check!.split(',').map((u) => u.trim().replace(/^'|'$/g, ''))).toEqual(UNITS)
     expect(FUNCTION_UNITS).toEqual(UNITS)
+    expect(FUNCTION_ENGLISH_UNITS).toEqual(ENGLISH_UNITS)
     const shopping = /unit in \((.*?)\)\),/s.exec(shoppingSql)?.[1]
     expect(shopping!.split(',').map((u) => u.trim().replace(/^'|'$/g, ''))).toEqual(UNITS)
+  })
+})
+
+describe('unités anglaises', () => {
+  it.each([
+    [4, 'oz', { quantity: 115, unit: 'g', rest: null }],
+    [1, 'ounce', { quantity: 28, unit: 'g', rest: null }],
+    [0.25, 'oz', { quantity: 7, unit: 'g', rest: null }],
+    [2, 'lb', { quantity: 905, unit: 'g', rest: null }],
+    [3, 'Pounds', { quantity: 1.35, unit: 'kg', rest: null }],
+    [1, 'stick', { quantity: 115, unit: 'g', rest: null }],
+    [0.5, 'cup', { quantity: 120, unit: 'ml', rest: null }],
+    [1.5, 'cups packed', { quantity: 360, unit: 'ml', rest: 'packed' }],
+    [2, 'fl oz', { quantity: 60, unit: 'ml', rest: null }],
+    [1, 'quart', { quantity: 945, unit: 'ml', rest: null }],
+    [1, 'gallon', { quantity: 3.8, unit: 'l', rest: null }],
+    [0.02, 'oz', { quantity: 0.6, unit: 'g', rest: null }],
+    [null, 'cups', { quantity: null, unit: 'ml', rest: null }],
+  ])('convertit %s %s', (quantity, unit, expected) => {
+    expect(toMetric(quantity, unit)).toEqual(expected)
+  })
+
+  it('ignore les autres unités', () => {
+    expect(toMetric(2, 'tbsp')).toBeNull()
+    expect(toMetric(2, 'g')).toBeNull()
+    expect(toMetric(2, '')).toBeNull()
+    expect(toMetric(2, null)).toBeNull()
+  })
+
+  it('chaque unité anglaise de la fonction d’import est convertie', () => {
+    for (const unit of ENGLISH_UNITS) expect(toMetric(1, unit)).not.toBeNull()
+  })
+
+  it.each([
+    ['Preheat oven to 350°F.', 'Preheat oven to 175 °C.'],
+    ['Préchauffer le four à 425 °F', 'Préchauffer le four à 220 °C'],
+    ['Bake at 400 degrees F for 20 min', 'Bake at 205 °C for 20 min'],
+    ['Préchauffer à 350 °F (180 °C).', 'Préchauffer à 180 °C.'],
+    ['Graisser un moule de 9 x 13 inches', 'Graisser un moule de 23 x 33 cm'],
+    ['a 9-inch pan', 'a 23 cm pan'],
+    ['un moule de 8 pouces', 'un moule de 20 cm'],
+    ['Cuire 20 min à 180 °C', 'Cuire 20 min à 180 °C'],
+    ['Ajouter 2 fines herbes', 'Ajouter 2 fines herbes'],
+  ])('convertit « %s »', (text, expected) => {
+    expect(metricText(text)).toBe(expected)
   })
 })

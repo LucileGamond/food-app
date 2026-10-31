@@ -1,6 +1,6 @@
 import type { IsoDate } from './dates'
 import { isValidUrl } from './meals'
-import { isUnit, splitUnit, unitLabel } from './units'
+import { isUnit, metricText, splitUnit, toMetric, unitLabel } from './units'
 
 export interface Ingredient {
   name: string
@@ -598,13 +598,15 @@ export function formHasContent(values: RecipeFormValues): boolean {
 }
 
 /**
- * Unité ramenée à la liste : variante reconnue (« cuillères à soupe » → c. à s., mots en plus dans la précision),
- * sinon quantité et unité déplacées dans la précision (« 1 shot »).
+ * Unité ramenée à la liste : unité anglaise convertie (4 oz → 115 g), variante reconnue (« cuillères à soupe » → c. à s.,
+ * mots en plus dans la précision), sinon quantité et unité déplacées dans la précision (« 1 shot »).
  */
 export function normalizeIngredientUnit(ingredient: Ingredient): Ingredient {
   const note = ingredient.note?.trim() || null
   const join = (...parts: (string | null)[]) => parts.filter(Boolean).join(', ') || null
   if (!ingredient.unit || isUnit(ingredient.unit)) return { ...ingredient, unit: ingredient.unit || null, note }
+  const metric = toMetric(ingredient.quantity, ingredient.unit)
+  if (metric) return { ...ingredient, quantity: metric.quantity, unit: metric.unit, note: join(metric.rest, note) }
   const split = splitUnit(ingredient.unit)
   if (split) return { ...ingredient, unit: split.unit, note: join(split.rest, note) }
   const lost = [formatQuantity(ingredient.quantity), ingredient.unit.trim()].filter(Boolean).join(' ')
@@ -625,7 +627,8 @@ export function importedToFormValues(imported: ImportedRecipe, url: string): Rec
   return recipeToFormValues({
     title: imported.title,
     servings: imported.servings !== null && imported.servings <= SERVINGS_MAX ? imported.servings : null,
-    notes: imported.steps || null,
+    // Recette anglaise : températures et dimensions en métrique (les quantités le sont par `normalizeIngredientUnit`).
+    notes: imported.steps ? metricText(imported.steps) : null,
     url,
     tags: normalizeTags(imported.tags),
     ...importedSource(imported),
@@ -637,7 +640,7 @@ export function importedToFormValues(imported: ImportedRecipe, url: string): Rec
     carbs_g: imported.nutrition?.carbs ?? null,
     protein_g: imported.nutrition?.protein ?? null,
     fat_g: imported.nutrition?.fat ?? null,
-    ingredients: imported.ingredients.map(normalizeIngredientUnit),
+    ingredients: imported.ingredients.map((i) => normalizeIngredientUnit({ ...i, note: i.note ? metricText(i.note) : i.note })),
   })
 }
 
