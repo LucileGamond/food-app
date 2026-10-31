@@ -1,6 +1,6 @@
 import { DuplicateRecipeUrlError, RecipeInUseError } from '@/api'
 import { createRecipesApi } from '@/api/recipes'
-import { LUCILE, PNG_1PX, anonClient, resetData, signedInApi } from './helpers'
+import { ERIC, LUCILE, PNG_1PX, anonClient, resetData, signedInApi } from './helpers'
 
 beforeEach(async () => {
   await resetData()
@@ -45,6 +45,7 @@ describe('recipes api', () => {
       cook_minutes: null,
       ingredients: curry.ingredients.map((i) => ({ ...i, section: null, linkedRecipe: null })),
       photos: [],
+      reviews: [],
     })
   })
 
@@ -164,6 +165,50 @@ describe('recipes api', () => {
     const summaries = await api.recipes.listSavedSummaries()
     expect(summaries.map((r) => r.title)).toEqual(['Banana bread', 'Curry de légumes'])
     expect(await api.recipes.listTags()).toEqual(['dessert', 'Rapide', 'végé'])
+  })
+
+  it('liste les recettes avec temps, calories, livre, historique et note moyenne', async () => {
+    const { api } = await signedInApi()
+    const id = await api.recipes.saveRecipe({
+      ...curry,
+      source: 'Ottolenghi',
+      sourcePage: '12',
+      prepMinutes: 15,
+      cookMinutes: 20,
+      nutrition: { per: 'portion', kcal: 450, carbs: null, protein: null, fat: null },
+    })
+    for (const date of ['2026-10-01', '2026-10-20', '2026-11-05']) {
+      await api.meals.createMeal({ date, slot: 'DINNER', people: [LUCILE.id], source: { kind: 'saved', recipeId: id } })
+    }
+    await api.recipes.saveReview(id, { rating: 4, comment: '  Moins épicé  ' })
+    const eric = await signedInApi(ERIC.email)
+    await eric.api.recipes.saveReview(id, { rating: 5, comment: '' })
+
+    const [item] = await api.recipes.listSavedRecipes('2026-10-31')
+    expect(item).toMatchObject({
+      source: 'Ottolenghi',
+      sourcePage: '12',
+      totalMinutes: 35,
+      kcal: 450,
+      nutritionPer: 'portion',
+      vegetarian: true,
+      timesCooked: 2,
+      lastCooked: '2026-10-20',
+      nextPlanned: '2026-11-05',
+      rating: 4.5,
+    })
+    expect(await api.recipes.getHistory(id, '2026-10-31')).toEqual({ timesCooked: 2, lastCooked: '2026-10-20', nextPlanned: '2026-11-05' })
+    expect((await api.recipes.getRecipe(id))!.reviews).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ profileId: LUCILE.id, rating: 4, comment: 'Moins épicé' }),
+        expect.objectContaining({ profileId: ERIC.id, rating: 5, comment: null }),
+      ]),
+    )
+
+    // Avis vidé : retiré
+    await api.recipes.saveReview(id, { rating: null, comment: ' ' })
+    expect((await api.recipes.getRecipe(id))!.reviews!.map((r) => r.profileId)).toEqual([ERIC.id])
+    await expect(api.recipes.saveReview(id, { rating: 9, comment: '' })).rejects.toThrow('Certaines valeurs sont invalides.')
   })
 
   it('sauvegarde une recette ponctuelle sans casser le lien avec le planning', async () => {

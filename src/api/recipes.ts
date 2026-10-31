@@ -1,6 +1,7 @@
-import type { IsoDate } from '@/lib/dates'
 import type { MealSlot, RecipeSummary } from '@/lib/meals'
-import type { Ingredient, LinkedRecipe, NutritionBasis, Recipe, RecipeImport, RecipeListItem, SaveRecipeInput } from '@/lib/recipes'
+import { todayIso, type IsoDate } from '@/lib/dates'
+import { averageRating, isVegetarian, totalMinutes } from '@/lib/recipeList'
+import type { Ingredient, LinkedRecipe, NutritionBasis, Recipe, RecipeHistory, RecipeImport, RecipeListItem, SaveRecipeInput } from '@/lib/recipes'
 import { groupSources } from '@/lib/sources'
 import type { AppSupabaseClient } from '@/lib/supabase'
 import { PHOTO_BUCKET } from './photos'
@@ -37,20 +38,60 @@ export function createRecipesApi(db: AppSupabaseClient) {
 
   return {
     /** Recettes sauvegardées uniquement (les ponctuelles n'apparaissent que dans le planning). */
-    async listSavedRecipes(): Promise<RecipeListItem[]> {
-      const { data, error } = await db
-        .from('recipes')
-        .select('id, title, tags, recipe_ingredients(name), recipe_photos(storage_path, position)')
-        .eq('is_saved', true)
-        .order('title')
-      if (error) throw toAppError(error, 'Impossible de charger les recettes.')
-      return data.map((r) => ({
-        id: r.id,
-        title: r.title,
-        tags: r.tags,
-        ingredientNames: r.recipe_ingredients.map((i) => i.name),
-        mainPhotoPath: [...r.recipe_photos].sort((a, b) => a.position - b.position)[0]?.storage_path ?? null,
-      }))
+    async listSavedRecipes(today: IsoDate = todayIso()): Promise<RecipeListItem[]> {
+      const [recipes, history] = await Promise.all([
+        db
+          .from('recipes')
+          .select(
+            'id, title, tags, created_at, source, source_page, prep_minutes, rest_minutes, cook_minutes, kcal, nutrition_per, recipe_ingredients(name), recipe_photos(storage_path, position), recipe_reviews(rating)',
+          )
+          .eq('is_saved', true)
+          .order('title'),
+        db.rpc('recipe_history', { p_today: today }),
+      ])
+      if (recipes.error) throw toAppError(recipes.error, 'Impossible de charger les recettes.')
+      if (history.error) throw toAppError(history.error, 'Impossible de charger les recettes.')
+      const cooked = new Map(history.data.map((h) => [h.recipe_id, h]))
+      return recipes.data.map((r) => {
+        const ingredientNames = r.recipe_ingredients.map((i) => i.name)
+        const h = cooked.get(r.id)
+        return {
+          id: r.id,
+          title: r.title,
+          tags: r.tags,
+          ingredientNames,
+          mainPhotoPath: [...r.recipe_photos].sort((a, b) => a.position - b.position)[0]?.storage_path ?? null,
+          createdAt: r.created_at,
+          source: r.source,
+          sourcePage: r.source_page,
+          totalMinutes: totalMinutes({ prep: r.prep_minutes, rest: r.rest_minutes, cook: r.cook_minutes }),
+          kcal: r.kcal,
+          nutritionPer: r.nutrition_per as NutritionBasis | null,
+          vegetarian: isVegetarian({ tags: r.tags, ingredientNames }),
+          timesCooked: h?.times_cooked ?? 0,
+          lastCooked: h?.last_cooked ?? null,
+          nextPlanned: h?.next_planned ?? null,
+          rating: averageRating(r.recipe_reviews.map((v) => v.rating)),
+        }
+      })
+    },
+
+    /** Repas du planning avec cette recette : nombre, dernier, prochain. */
+    async getHistory(recipeId: string, today: IsoDate = todayIso()): Promise<RecipeHistory> {
+      const { data, error } = await db.rpc('recipe_history', { p_today: today, p_recipe_id: recipeId })
+      if (error) throw toAppError(error, 'Impossible de charger l’historique.')
+      const h = data[0]
+      return { timesCooked: h?.times_cooked ?? 0, lastCooked: h?.last_cooked ?? null, nextPlanned: h?.next_planned ?? null }
+    },
+
+    /** Note et commentaire de la personne connectée ; sans l'un ni l'autre, son avis est retiré. */
+    async saveReview(recipeId: string, review: { rating: number | null; comment: string }): Promise<void> {
+      const { error } = await db.rpc('save_recipe_review', {
+        p_recipe_id: recipeId,
+        ...(review.rating !== null && { p_rating: review.rating }),
+        ...(review.comment.trim() && { p_comment: review.comment.trim() }),
+      })
+      if (error) throw toAppError(error, 'Impossible d’enregistrer l’avis.')
     },
 
     /** Recettes sauvegardées proposées dans le planning. */
@@ -68,13 +109,13 @@ export function createRecipesApi(db: AppSupabaseClient) {
       const { data, error } = await db
         .from('recipes')
         .select(
-          'id, is_saved, title, notes, url, servings, tags, source, source_page, nutrition_per, kcal, carbs_g, protein_g, fat_g, prep_minutes, rest_minutes, cook_minutes, recipe_ingredients(name, quantity, unit, note, section, position, linked_recipe_id), recipe_photos(id, storage_path, position)',
+          'id, is_saved, title, notes, url, servings, tags, source, source_page, nutrition_per, kcal, carbs_g, protein_g, fat_g, prep_minutes, rest_minutes, cook_minutes, recipe_ingredients(name, quantity, unit, note, section, position, linked_recipe_id), recipe_photos(id, storage_path, position), recipe_reviews(profile_id, rating, comment, updated_at)',
         )
         .eq('id', id)
         .maybeSingle()
       if (error) throw toAppError(error, 'Impossible de charger la recette.')
       if (!data) return null
-      const { recipe_ingredients, recipe_photos, ...recipe } = data
+      const { recipe_ingredients, recipe_photos, recipe_reviews, ...recipe } = data
       // Titres des sous-recettes liées (pas de relation déclarée : voir la migration recipe_links).
       const linkedIds = [...new Set(recipe_ingredients.flatMap((i) => (i.linked_recipe_id ? [i.linked_recipe_id] : [])))]
       const titles = new Map<string, string>()
@@ -94,6 +135,7 @@ export function createRecipesApi(db: AppSupabaseClient) {
             return { name, quantity, unit, note, section, linkedRecipe: title ? { id: linked_recipe_id!, title } : null }
           }),
         photos: [...recipe_photos].sort((a, b) => a.position - b.position),
+        reviews: recipe_reviews.map((r) => ({ profileId: r.profile_id, rating: r.rating, comment: r.comment, updatedAt: r.updated_at })),
       }
     },
 

@@ -1,14 +1,9 @@
-import { mealFixture } from '@/test/fakes'
+import { listItem, mealFixture } from '@/test/fakes'
 import { buildIdeasInput, ideaKey, ideasPeriod, parseIdeas } from './mealIdeas'
 import type { RecipeListItem } from './recipes'
 
-const recipe = (id: string, title: string, ingredientNames: string[] = [], tags: string[] = []): RecipeListItem => ({
-  id,
-  title,
-  tags,
-  ingredientNames,
-  mainPhotoPath: null,
-})
+const recipe = (id: string, title: string, ingredientNames: string[] = [], tags: string[] = []): RecipeListItem =>
+  listItem({ id, title, tags, ingredientNames })
 
 describe('idées de repas', () => {
   it('prend en compte les 15 derniers jours et les 7 prochains', () => {

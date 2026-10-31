@@ -4,7 +4,7 @@ import { AppError } from '@/api'
 import type { InboxItem } from '@/lib/inbox'
 import type { MealIdea } from '@/lib/mealIdeas'
 import type { RecipeListItem } from '@/lib/recipes'
-import { fakeApi, mealFixture, renderWithApp, type FakeApi } from '@/test/fakes'
+import { fakeApi, listItem, mealFixture, renderWithApp, type FakeApi } from '@/test/fakes'
 import { PlanningPage } from './PlanningPage'
 
 const TODAY = '2026-10-27'
@@ -16,7 +16,7 @@ const IDEAS: MealIdea[] = [
   { ...base, source: 'web', url: 'https://www.750g.com/saumon.htm', site: '750g', title: 'Saumon aux poireaux', protein: 'saumon', vegetables: ['poireau'], starch: 'pommes de terre', vegetarian: false, why: '' },
 ]
 
-const recipe = (id: string, title: string): RecipeListItem => ({ id, title, tags: [], ingredientNames: ['riz'], mainPhotoPath: null })
+const recipe = (id: string, title: string): RecipeListItem => listItem({ id, title, ingredientNames: ['riz'] })
 
 function setup(api: FakeApi = fakeApi()) {
   api.recipes.listSavedRecipes.mockResolvedValue([recipe('r1', 'Curry de lentilles'), recipe('r2', 'Tartiflette')])

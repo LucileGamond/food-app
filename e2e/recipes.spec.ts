@@ -41,12 +41,12 @@ test('crée une recette complète, l’utilise au planning et bloque sa suppress
   await expect(page.getByRole('img', { name: 'Curry de légumes' })).toBeVisible()
   await expect(page.getByRole('button', { name: /^Photo \d$/ })).toHaveCount(2)
 
-  // Liste : recherche par ingrédient et filtre par tag
+  // Liste : recherche par ingrédient et filtre végé (tag « végé »)
   await page.getByRole('link', { name: 'Recettes' }).first().click()
   await page.getByRole('searchbox', { name: 'Rechercher une recette' }).fill('coco')
   await expect(page.getByRole('link', { name: /Curry de légumes/ })).toBeVisible()
   await page.getByRole('searchbox', { name: 'Rechercher une recette' }).fill('')
-  await page.getByRole('button', { name: 'végé' }).click()
+  await page.getByRole('group', { name: 'Filtres rapides' }).getByRole('button', { name: 'Végé' }).click()
   await expect(page.getByRole('link', { name: /Curry de légumes/ })).toBeVisible()
 
   // Utilisation au planning

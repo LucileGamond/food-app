@@ -1,3 +1,4 @@
+import type { IsoDate } from './dates'
 import { isValidUrl } from './meals'
 import { isUnit, splitUnit, unitLabel } from './units'
 
@@ -47,6 +48,26 @@ export interface Recipe {
   cook_minutes?: number | null
   ingredients: Ingredient[]
   photos: RecipePhoto[]
+  /** Avis de chacun (absent d'une recette chargée sans eux). */
+  reviews?: RecipeReview[]
+}
+
+/** Note (1 à 5) et / ou commentaire d'une personne sur une recette. */
+export interface RecipeReview {
+  profileId: string
+  rating: number | null
+  comment: string | null
+  updatedAt: string
+}
+
+export const RATING_MAX = 5
+export const REVIEW_COMMENT_MAX = 1000
+
+/** Repas du planning avec cette recette. */
+export interface RecipeHistory {
+  timesCooked: number
+  lastCooked: IsoDate | null
+  nextPlanned: IsoDate | null
 }
 
 /**
@@ -499,6 +520,20 @@ export interface RecipeListItem {
   tags: string[]
   ingredientNames: string[]
   mainPhotoPath: string | null
+  createdAt: string
+  source: string | null
+  sourcePage: string | null
+  /** Préparation, repos et cuisson ; null si aucun temps n'est renseigné. */
+  totalMinutes: number | null
+  kcal: number | null
+  nutritionPer: NutritionBasis | null
+  vegetarian: boolean
+  /** Repas passés du planning (jusqu'à aujourd'hui inclus). */
+  timesCooked: number
+  lastCooked: IsoDate | null
+  nextPlanned: IsoDate | null
+  /** Moyenne des notes de chacun ; null sans note. */
+  rating: number | null
 }
 
 /** Recherche sans accents ni casse dans le titre et les ingrédients, puis filtre par tag. */

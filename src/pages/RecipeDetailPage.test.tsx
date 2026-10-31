@@ -3,7 +3,7 @@ import userEvent from '@testing-library/user-event'
 import { Route } from 'react-router-dom'
 import { AppError, RecipeInUseError } from '@/api'
 import type { Recipe } from '@/lib/recipes'
-import { fakeApi, renderWithApp } from '@/test/fakes'
+import { ERIC, fakeApi, LUCILE, renderWithApp } from '@/test/fakes'
 import { RecipeDetailPage } from './RecipeDetailPage'
 
 const CURRY: Recipe = {
@@ -40,6 +40,74 @@ describe('RecipeDetailPage', () => {
     renderDetail(api)
     expect(await screen.findByText('Pâtisserie maison, p. 146')).toBeInTheDocument()
     expect(screen.getByText('450 kcal · glucides 52,5 g · protéines 18 g (par portion)')).toBeInTheDocument()
+  })
+
+  it('affiche l’historique tiré du planning', async () => {
+    const api = fakeApi()
+    api.recipes.getRecipe.mockResolvedValue(CURRY)
+    api.recipes.getHistory.mockResolvedValue({ timesCooked: 4, lastCooked: '2026-10-12', nextPlanned: '2026-11-05' })
+    renderDetail(api)
+    expect(await screen.findByText('Cuisinée 4 fois, la dernière le 12 octobre · prévue le 5 novembre')).toBeInTheDocument()
+    expect(api.recipes.getHistory).toHaveBeenCalledWith('r1')
+  })
+
+  it('n’affiche pas l’historique s’il ne se charge pas', async () => {
+    const api = fakeApi()
+    api.recipes.getRecipe.mockResolvedValue(CURRY)
+    api.recipes.getHistory.mockRejectedValue(new AppError('Hors ligne'))
+    renderDetail(api)
+    expect(await screen.findByRole('heading', { name: 'Curry de légumes' })).toBeInTheDocument()
+    expect(screen.queryByText(/cuisinée/i)).not.toBeInTheDocument()
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+  })
+
+  it('montre l’avis des autres et enregistre le sien', async () => {
+    const user = userEvent.setup()
+    const api = fakeApi()
+    api.recipes.getRecipe.mockResolvedValue({
+      ...CURRY,
+      reviews: [
+        { profileId: ERIC.id, rating: 5, comment: 'Top, à refaire', updatedAt: '2026-10-20T10:00:00Z' },
+        { profileId: LUCILE.id, rating: 3, comment: null, updatedAt: '2026-10-20T10:00:00Z' },
+      ],
+    })
+    renderDetail(api)
+    const reviews = await screen.findByRole('region', { name: 'Avis' })
+    expect(await within(reviews).findByText('Eric')).toBeInTheDocument()
+    expect(within(reviews).getByRole('img', { name: '5 sur 5' })).toBeInTheDocument()
+    expect(within(reviews).getByText('Top, à refaire')).toBeInTheDocument()
+
+    // Mon avis : la note enregistrée est déjà choisie.
+    await waitFor(() => expect(within(reviews).getByRole('button', { name: '3 sur 5' })).toHaveAttribute('aria-pressed', 'true'))
+    const save = within(reviews).getByRole('button', { name: 'Enregistrer mon avis' })
+    expect(save).toBeDisabled()
+    await user.click(within(reviews).getByRole('button', { name: '4 sur 5' }))
+    await user.type(within(reviews).getByRole('textbox', { name: 'Mon commentaire' }), '  Moins de sucre  ')
+    await user.click(save)
+    expect(api.recipes.saveReview).toHaveBeenCalledWith('r1', { rating: 4, comment: '  Moins de sucre  ' })
+    expect(await screen.findByText('Avis enregistré')).toBeInTheDocument()
+    expect(within(reviews).getByRole('textbox', { name: 'Mon commentaire' })).toHaveValue('Moins de sucre')
+    expect(save).toBeDisabled()
+
+    // Retirer la note et le commentaire : l'avis est retiré.
+    await user.click(within(reviews).getByRole('button', { name: '4 sur 5' }))
+    await user.clear(within(reviews).getByRole('textbox', { name: 'Mon commentaire' }))
+    await user.click(save)
+    expect(api.recipes.saveReview).toHaveBeenLastCalledWith('r1', { rating: null, comment: '' })
+    expect(await screen.findByText('Avis retiré')).toBeInTheDocument()
+  })
+
+  it('signale un avis qui n’a pas pu être enregistré', async () => {
+    const user = userEvent.setup()
+    const api = fakeApi()
+    api.recipes.getRecipe.mockResolvedValue(CURRY)
+    api.recipes.saveReview.mockRejectedValue(new AppError('Impossible d’enregistrer l’avis.'))
+    renderDetail(api)
+    const reviews = await screen.findByRole('region', { name: 'Avis' })
+    await user.click(await within(reviews).findByRole('button', { name: '2 sur 5' }))
+    await user.click(within(reviews).getByRole('button', { name: 'Enregistrer mon avis' }))
+    expect(await screen.findByText('Impossible d’enregistrer l’avis.')).toBeInTheDocument()
+    expect(within(reviews).getByRole('button', { name: 'Enregistrer mon avis' })).toBeEnabled()
   })
 
   it('affiche la recette complète', async () => {

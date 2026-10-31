@@ -1,4 +1,4 @@
-import { ArrowLeft, BookOpen, Clock, ExternalLink, Flame, Inbox, Minus, Pencil, Plus, RefreshCw, SearchX, Trash2, Users } from 'lucide-react'
+import { ArrowLeft, BookOpen, Clock, ExternalLink, Flame, History, Inbox, Minus, Pencil, Plus, RefreshCw, SearchX, Trash2, Users } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom'
 import { toast } from 'sonner'
@@ -10,12 +10,14 @@ import { EmptyState } from '@/components/EmptyState'
 import { LinkifiedText } from '@/components/LinkifiedText'
 import { LinkRecipeDialog } from '@/components/recipes/LinkRecipeDialog'
 import { LinkedRecipesOffer } from '@/components/recipes/LinkedRecipesOffer'
+import { RecipeReviews } from '@/components/recipes/RecipeReviews'
 import { useApi } from '@/app/ApiContext'
 import { errorMessage } from '@/api'
 import type { RecipeUsages } from '@/api/recipes'
 import { useSignedUrls } from '@/hooks/useSignedUrls'
 import { formatDay } from '@/lib/dates'
 import { slotLabel } from '@/lib/meals'
+import { formatHistory } from '@/lib/recipeList'
 import {
   DURATION_FIELDS,
   formatDuration,
@@ -30,6 +32,7 @@ import {
   type LinkedRecipe,
   type PendingLink,
   type Recipe,
+  type RecipeHistory,
 } from '@/lib/recipes'
 import { cn } from '@/lib/utils'
 
@@ -56,9 +59,13 @@ function RecipeDetail({ id }: { id: string }) {
   const [linking, setLinking] = useState<PendingLink | null>(null)
   const closeLinking = useCallback(() => setLinking(null), [])
 
+  // Historique (repas du planning) : secondaire, rien ne s'affiche s'il ne se charge pas.
+  const [history, setHistory] = useState<RecipeHistory | null>(null)
+
   const load = useCallback(() => {
     setError(null)
     api.recipes.getRecipe(id).then(setRecipe, (e: unknown) => setError(errorMessage(e)))
+    api.recipes.getHistory(id).then(setHistory, () => setHistory(null))
   }, [api, id])
 
   useEffect(load, [load])
@@ -189,6 +196,11 @@ function RecipeDetail({ id }: { id: string }) {
               <BookOpen className="size-4" aria-hidden /> {formatSource(recipe.source, recipe.source_page)}
             </p>
           )}
+          {history && (
+            <p className="mt-2 flex items-center gap-1 text-sm text-muted-foreground">
+              <History className="size-4" aria-hidden /> {formatHistory(history)}
+            </p>
+          )}
         </div>
         <div className="flex flex-wrap gap-2">
           <Button variant="outline" className="h-10 px-3" onClick={() => void addToInbox()}>
@@ -311,6 +323,8 @@ function RecipeDetail({ id }: { id: string }) {
           )}
         </section>
       </div>
+
+      <RecipeReviews recipeId={recipe.id} reviews={recipe.reviews ?? []} onSaved={(reviews) => setRecipe({ ...recipe, reviews })} />
 
       <LinkedRecipesOffer
         open={offerRequested && offerDismissed !== location.key && linking === null}

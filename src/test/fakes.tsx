@@ -9,7 +9,7 @@ import type { MealIdea } from '@/lib/mealIdeas'
 import { ApiProvider } from '@/app/ApiContext'
 import { AuthProvider, type AuthClient } from '@/auth/AuthProvider'
 import type { Meal, Profile, RecipeSummary } from '@/lib/meals'
-import type { Ingredient, Recipe, RecipeImport } from '@/lib/recipes'
+import type { Ingredient, Recipe, RecipeHistory, RecipeImport, RecipeListItem } from '@/lib/recipes'
 import type { Consumption, FoodPeriod, PeriodItem, PlanItem } from '@/lib/food'
 import type { InboxItem } from '@/lib/inbox'
 import type { ShoppingItem, ShoppingItemInput, ShoppingList } from '@/lib/shopping'
@@ -19,6 +19,27 @@ import type { WeightEntry } from '@/lib/weights'
 export const LUCILE: Profile = { id: 'u-lucile', display_name: 'Lucile' }
 export const ERIC: Profile = { id: 'u-eric', display_name: 'Eric' }
 export const PROFILES = [ERIC, LUCILE]
+
+/** Recette de la liste : valeurs neutres, à compléter. */
+export function listItem(item: Pick<RecipeListItem, 'id' | 'title'> & Partial<RecipeListItem>): RecipeListItem {
+  return {
+    tags: [],
+    ingredientNames: [],
+    mainPhotoPath: null,
+    createdAt: '2026-10-01T10:00:00Z',
+    source: null,
+    sourcePage: null,
+    totalMinutes: null,
+    kcal: null,
+    nutritionPer: null,
+    vegetarian: false,
+    timesCooked: 0,
+    lastCooked: null,
+    nextPlanned: null,
+    rating: null,
+    ...item,
+  }
+}
 
 type Mocked<T> = { [K in keyof T]: T[K] extends (...args: infer A) => infer R ? ReturnType<typeof vi.fn<(...args: A) => R>> : T[K] }
 export type FakeApi = { [K in keyof Api]: Mocked<Api[K]> }
@@ -39,6 +60,8 @@ export function fakeApi(): FakeApi {
     recipes: {
       listSavedRecipes: vi.fn(async () => []),
       listSavedSummaries: vi.fn(async () => [] as RecipeSummary[]),
+      getHistory: vi.fn(async (): Promise<RecipeHistory> => ({ timesCooked: 0, lastCooked: null, nextPlanned: null })),
+      saveReview: vi.fn(async () => undefined),
       getRecipe: vi.fn(async () => null as Recipe | null),
       saveRecipe: vi.fn(async () => 'saved-recipe'),
       listUsages: vi.fn(async () => ({ meals: [], recipes: [] }) as RecipeUsages),

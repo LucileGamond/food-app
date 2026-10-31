@@ -235,6 +235,32 @@ isOneToOne: false
       referencedColumns: ["id"]
     }
                   ]
+                },"recipe_reviews": {
+                  Row: {
+                    "comment": string | null,"profile_id": string,"rating": number | null,"recipe_id": string,"updated_at": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "comment"?: string | null,"profile_id"?: string,"rating"?: number | null,"recipe_id": string,"updated_at"?: string
+                  }
+                  Update: {
+                    "comment"?: string | null,"profile_id"?: string,"rating"?: number | null,"recipe_id"?: string,"updated_at"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "recipe_reviews_profile_id_fkey"
+      columns: ["profile_id"]
+isOneToOne: false
+      referencedRelation: "profiles"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "recipe_reviews_recipe_id_fkey"
+      columns: ["recipe_id"]
+isOneToOne: false
+      referencedRelation: "recipes"
+      referencedColumns: ["id"]
+    }
+                  ]
                 },"recipes": {
                   Row: {
                     "carbs_g": number | null,"cook_minutes": number | null,"created_at": string,"created_by": string | null,"fat_g": number | null,"id": string,"is_saved": boolean,"kcal": number | null,"notes": string | null,"nutrition_per": string | null,"prep_minutes": number | null,"protein_g": number | null,"rest_minutes": number | null,"servings": number | null,"source": string | null,"source_page": string | null,"tags": (string)[],"title": string,"updated_at": string,"url": string | null
@@ -388,6 +414,11 @@ isOneToOne: false
 "plan_inbox_item":
 { Args: { "p_item_id": string,"p_meal_date": string,"p_people": (string)[],"p_slot": Database["public"]['Enums']["meal_slot"] }; Returns: string
                            },
+"recipe_history":
+{ Args: { "p_recipe_id"?: string,"p_today": string }; Returns: {
+              "last_cooked": string,"next_planned": string,"recipe_id": string,"times_cooked": number
+            }[]
+                           },
 "recipe_url_key":
 { Args: { "p_url": string }; Returns: string
                            },
@@ -396,6 +427,9 @@ isOneToOne: false
                            },
 "save_recipe":
 { Args: { "p_cook_minutes"?: number,"p_ingredients": Json,"p_notes"?: string,"p_nutrition"?: Json,"p_prep_minutes"?: number,"p_recipe_id"?: string,"p_rest_minutes"?: number,"p_servings"?: number,"p_source"?: string,"p_source_page"?: string,"p_tags"?: (string)[],"p_title": string,"p_url"?: string }; Returns: string
+                           },
+"save_recipe_review":
+{ Args: { "p_comment"?: string,"p_rating"?: number,"p_recipe_id": string }; Returns: undefined
                            },
 "save_weigh_in":
 { Args: { "p_measured_on": string,"p_previous_date"?: string,"p_weights": Json }; Returns: undefined
