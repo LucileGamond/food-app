@@ -171,6 +171,25 @@ describe('RecipesPage', () => {
     expect(within(quick).getByRole('button', { name: '30 min max' })).toHaveAttribute('aria-pressed', 'false')
   })
 
+  it('filtre « De saison » et badge sur les cartes (octobre)', async () => {
+    const user = userEvent.setup()
+    const api = fakeApi()
+    api.recipes.listSavedRecipes.mockResolvedValue([
+      ...RECIPES,
+      listItem({ id: 'd', title: 'Soupe de potiron', ingredientNames: ['potiron', 'poireaux', 'crème'] }),
+      listItem({ id: 'e', title: 'Ratatouille', ingredientNames: ['tomates', 'courgettes', 'potiron'] }),
+    ])
+    renderRecipes(api)
+    const soup = await screen.findByRole('link', { name: /Soupe de potiron/ })
+    expect(soup).toHaveTextContent('De saison')
+    expect(screen.getByRole('link', { name: /Ratatouille/ })).not.toHaveTextContent('De saison')
+    expect(screen.getByRole('link', { name: /Pâtes pesto/ })).not.toHaveTextContent('De saison')
+
+    await user.click(within(screen.getByRole('group', { name: 'Filtres rapides' })).getByRole('button', { name: 'De saison' }))
+    expect(titles()).toEqual(['Soupe de potiron'])
+    expect(screen.getByRole('link', { name: 'Ce mois-ci' })).toHaveAttribute('href', '/recettes/saison')
+  })
+
   it('lit les options de l’adresse', async () => {
     const api = fakeApi()
     api.recipes.listSavedRecipes.mockResolvedValue(RECIPES)

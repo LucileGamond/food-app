@@ -42,11 +42,16 @@ describe('PlanningPage — idées de repas', () => {
       today: TODAY,
       candidates: [{ id: 'r1', title: 'Curry de lentilles', ingredients: ['riz'], tags: [] }],
       recent: ['Tartiflette'],
+      produce: expect.arrayContaining(['courge', 'poireau']),
     })
     const items = within(list).getAllByRole('listitem')
     expect(items).toHaveLength(3)
     expect(items[0]).toHaveTextContent('Curry de lentillesVégélentilles · carotte, oignon · rizRapide et de saison Tes recettes')
     expect(items[2]).toHaveTextContent('Viande ou poisson')
+    // De saison en octobre : courge et poireau ; la recette enregistrée n'a aucun légume suivi.
+    expect(within(items[0]!).queryByText('De saison')).not.toBeInTheDocument()
+    expect(within(items[1]!).getByText('De saison')).toBeInTheDocument()
+    expect(within(items[2]!).getByText('De saison')).toBeInTheDocument()
     expect(within(items[1]!).getByRole('link', { name: /Marmiton/ })).toHaveAttribute('href', 'https://www.marmiton.org/recettes/courge.aspx')
     expect(within(dialog).getAllByRole('checkbox').every((c) => c.getAttribute('aria-checked') === 'false')).toBe(true)
     expect(within(dialog).getByRole('button', { name: 'Ajouter à « À planifier »' })).toBeDisabled()

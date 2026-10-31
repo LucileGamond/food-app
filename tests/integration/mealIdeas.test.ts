@@ -19,6 +19,13 @@ describe('idées de repas (Edge Function)', () => {
     )
   })
 
+  it('accepte la saison des recettes et les fruits et légumes du mois', async () => {
+    const { api } = await signedInApi()
+    // Entrée valide (pas de 400) : la fonction va jusqu'à l'appel au modèle, sans clé en local.
+    const input = { ...INPUT, candidates: [{ id: 'r1', title: 'Soupe', ingredients: ['potiron'], tags: [], season: 'in' as const }], produce: ['potiron', 'poireau'] }
+    await expect(api.ideas.suggestMeals(input)).rejects.toMatchObject({ code: 'ideas-500' })
+  })
+
   it('signale un service mal configuré ou injoignable', async () => {
     const { api } = await signedInApi()
     // Sans clé API locale, la configuration est signalée (avec une clé, la recherche aurait lieu : non testé ici).

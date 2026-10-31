@@ -1,4 +1,4 @@
-import { BookOpen, Clock, Flame, History, ImageIcon, Images, Leaf, Link2, Loader2, Plus, RefreshCw, Search, Star, Timer, X } from 'lucide-react'
+import { BookOpen, History, Images, Leaf, Link2, Loader2, Plus, RefreshCw, Search, Sprout, Timer, X } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { toast } from 'sonner'
@@ -6,20 +6,19 @@ import { Button, buttonVariants } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Skeleton } from '@/components/ui/skeleton'
 import { EmptyState } from '@/components/EmptyState'
+import { RecipeCard } from '@/components/recipes/RecipeCard'
 import { PageHeader } from '@/components/Layout'
 import { useApi } from '@/app/ApiContext'
 import { errorMessage } from '@/api'
 import { useSignedUrls } from '@/hooks/useSignedUrls'
 import { applyAutoLinks, autoLinkMessage } from '@/lib/autoLinks'
 import { todayIso, type IsoDate } from '@/lib/dates'
+import { monthOf } from '@/lib/season'
 import {
   applyListOptions,
   bookOrigin,
   collectOrigins,
   DEFAULT_LIST_OPTIONS,
-  formatHistory,
-  formatKcal,
-  formatRating,
   isVegetarianTag,
   MINE_ORIGIN,
   QUICK_FILTERS,
@@ -31,13 +30,13 @@ import {
   type RecipeListOptions,
   type RecipeSort,
 } from '@/lib/recipeList'
-import { collectTags, formatDuration, formatSource, type RecipeListItem } from '@/lib/recipes'
+import { collectTags, type RecipeListItem } from '@/lib/recipes'
 import { cn } from '@/lib/utils'
 
 const selectClass =
   'h-10 min-w-0 rounded-lg border border-input bg-background px-2 text-base md:text-sm focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none dark:bg-input/30'
 
-const QUICK_ICONS: Record<QuickFilter, typeof Timer> = { quick: Timer, vegetarian: Leaf, forgotten: History }
+const QUICK_ICONS: Record<QuickFilter, typeof Timer> = { quick: Timer, vegetarian: Leaf, seasonal: Sprout, forgotten: History }
 
 /** Valeurs proposées dans le filtre par source. */
 function optionValues(origins: ReturnType<typeof collectOrigins>): string[] {
@@ -122,6 +121,10 @@ export function RecipesPage({ today = todayIso() }: { today?: IsoDate }) {
               {linking ? <Loader2 className="animate-spin" aria-hidden /> : <Link2 />}
               <span className="max-sm:hidden">Relier les recettes</span>
             </Button>
+            <Link to="/recettes/saison" className={cn(buttonVariants({ variant: 'outline' }), 'h-10 px-3')} aria-label="Ce mois-ci">
+              <Sprout />
+              <span className="max-sm:hidden">Ce mois-ci</span>
+            </Link>
             <Link to="/recettes/import-serie" className={cn(buttonVariants({ variant: 'outline' }), 'h-10 px-3')} aria-label="Importer en série">
               <Images />
               <span className="max-sm:hidden">Importer en série</span>
@@ -245,7 +248,7 @@ export function RecipesPage({ today = todayIso() }: { today?: IsoDate }) {
             <ul className="grid grid-cols-[minmax(0,1fr)] gap-4 sm:grid-cols-2 lg:grid-cols-3">
               {visible.map((recipe) => (
                 <li key={recipe.id}>
-                  <RecipeCard recipe={recipe} photoUrl={recipe.mainPhotoPath ? urls[recipe.mainPhotoPath] : undefined} />
+                  <RecipeCard recipe={recipe} month={monthOf(today)} photoUrl={recipe.mainPhotoPath ? urls[recipe.mainPhotoPath] : undefined} />
                 </li>
               ))}
             </ul>
@@ -253,60 +256,5 @@ export function RecipesPage({ today = todayIso() }: { today?: IsoDate }) {
         </>
       )}
     </>
-  )
-}
-
-function RecipeCard({ recipe, photoUrl }: { recipe: RecipeListItem; photoUrl: string | undefined }) {
-  const source = formatSource(recipe.source, recipe.sourcePage)
-  const kcal = formatKcal(recipe.kcal, recipe.nutritionPer)
-  return (
-    <Link
-      to={`/recettes/${recipe.id}`}
-      className="group flex h-full flex-col overflow-hidden rounded-2xl border bg-background shadow-xs transition-shadow hover:shadow-md focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none"
-    >
-      <div className="aspect-[4/3] bg-muted">
-        {photoUrl ? (
-          <img src={photoUrl} alt="" className="size-full object-cover transition-transform duration-300 group-hover:scale-[1.02]" />
-        ) : (
-          <div className="flex size-full items-center justify-center">
-            <ImageIcon className="size-6 text-muted-foreground/50" aria-hidden />
-          </div>
-        )}
-      </div>
-      <div className="flex flex-1 flex-col gap-2 p-4">
-        <h2 className="font-medium tracking-tight">{recipe.title}</h2>
-        {(recipe.totalMinutes !== null || kcal || recipe.rating !== null || recipe.vegetarian) && (
-          <p className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted-foreground [&_svg]:size-3.5 [&_svg]:shrink-0">
-            {recipe.rating !== null && (
-              <span className="inline-flex items-center gap-1" aria-label={`Note ${formatRating(recipe.rating)} sur 5`}>
-                <Star className="fill-amber-400 text-amber-400" aria-hidden /> {formatRating(recipe.rating)}
-              </span>
-            )}
-            {recipe.totalMinutes !== null && (
-              <span className="inline-flex items-center gap-1">
-                <Clock aria-hidden /> {formatDuration(recipe.totalMinutes)}
-              </span>
-            )}
-            {kcal && (
-              <span className="inline-flex items-center gap-1">
-                <Flame aria-hidden /> {kcal}
-              </span>
-            )}
-            {recipe.vegetarian && (
-              <span className="inline-flex items-center gap-1">
-                <Leaf aria-hidden /> Végé
-              </span>
-            )}
-          </p>
-        )}
-        {source && (
-          <p className="flex items-center gap-1 truncate text-sm text-muted-foreground">
-            <BookOpen className="size-3.5 shrink-0" aria-hidden /> <span className="truncate">{source}</span>
-          </p>
-        )}
-        {recipe.tags.length > 0 && <p className="truncate text-sm text-muted-foreground">{recipe.tags.join(' · ')}</p>}
-        <p className="mt-auto pt-1 text-xs text-muted-foreground">{formatHistory(recipe)}</p>
-      </div>
-    </Link>
   )
 }

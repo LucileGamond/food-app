@@ -1,4 +1,4 @@
-import { ArrowLeft, BookOpen, ChefHat, Clock, ExternalLink, Flame, History, Inbox, Minus, Pencil, Plus, Printer, RefreshCw, SearchX, ShoppingCart, Trash2, Users } from 'lucide-react'
+import { ArrowLeft, BookOpen, ChefHat, Clock, ExternalLink, Flame, History, Inbox, Minus, Pencil, Plus, Printer, RefreshCw, SearchX, ShoppingCart, Sprout, Trash2, Users } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom'
 import { toast } from 'sonner'
@@ -16,10 +16,11 @@ import { useApi } from '@/app/ApiContext'
 import { errorMessage } from '@/api'
 import type { RecipeUsages } from '@/api/recipes'
 import { useSignedUrls } from '@/hooks/useSignedUrls'
-import { formatDay } from '@/lib/dates'
+import { formatDay, todayIso } from '@/lib/dates'
 import { slotLabel } from '@/lib/meals'
 import { resumeStep, splitSteps, type SavedProgress } from '@/lib/cooking'
 import { formatHistory } from '@/lib/recipeList'
+import { MONTH_NAMES, monthOf, produceList, recipeSeason } from '@/lib/season'
 import {
   DURATION_FIELDS,
   formatDuration,
@@ -164,6 +165,8 @@ function RecipeDetail({ id }: { id: string }) {
   const pendingAt = new Map(pending.map((p) => [p.position, p]))
   const importLinked = (reference: PendingLink) => navigate(linkedImportPath(recipe.id, reference))
   const times = DURATION_FIELDS.flatMap(({ label, column }) => (recipe[column] ? [`${label} ${formatDuration(recipe[column])}`] : []))
+  const month = monthOf(todayIso())
+  const season = recipeSeason(recipe.ingredients.map((i) => i.name), month)
   const stepCount = splitSteps(recipe.notes).length
   const resume = resumeStep(progress, stepCount)
   // Recette en cours : le nombre de personnes de la séance ; sinon celui choisi ici.
@@ -204,6 +207,14 @@ function RecipeDetail({ id }: { id: string }) {
           {formatSource(recipe.source, recipe.source_page) && (
             <p className="mt-2 flex items-center gap-1 text-sm text-muted-foreground">
               <BookOpen className="size-4" aria-hidden /> {formatSource(recipe.source, recipe.source_page)}
+            </p>
+          )}
+          {season.status !== 'none' && (
+            <p className={cn('mt-2 flex items-start gap-1 text-sm', season.status === 'in' ? 'font-medium text-brand' : 'text-muted-foreground')}>
+              <Sprout className="mt-0.5 size-4 shrink-0" aria-hidden />
+              {season.status === 'in'
+                ? `De saison en ${MONTH_NAMES[month - 1]}`
+                : `Hors saison en ${MONTH_NAMES[month - 1]} : ${produceList(season.outOfSeason)}`}
             </p>
           )}
           {history && (

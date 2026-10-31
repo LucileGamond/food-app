@@ -1,4 +1,4 @@
-import { BookOpen, ExternalLink, Loader2, RefreshCw, Sparkles } from 'lucide-react'
+import { BookOpen, ExternalLink, Loader2, RefreshCw, Sparkles, Sprout } from 'lucide-react'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { toast } from 'sonner'
 import { Badge } from '@/components/ui/badge'
@@ -10,6 +10,8 @@ import { useApi } from '@/app/ApiContext'
 import { AppError, errorMessage } from '@/api'
 import type { IsoDate } from '@/lib/dates'
 import { buildIdeasInput, ideaKey, ideasPeriod, type MealIdea } from '@/lib/mealIdeas'
+import type { RecipeListItem } from '@/lib/recipes'
+import { monthOf, recipeSeason } from '@/lib/season'
 
 interface Props {
   open: boolean
@@ -19,7 +21,21 @@ interface Props {
   onAdded: () => void
 }
 
-type State = { kind: 'loading' } | { kind: 'ready'; ideas: MealIdea[] } | { kind: 'error'; message: string }
+type State = { kind: 'loading' } | { kind: 'ready'; ideas: MealIdea[]; seasonal: Set<string> } | { kind: 'error'; message: string }
+
+/** Idées de saison : une recette enregistrée d'après ses ingrédients, une recette web d'après ses légumes. */
+function seasonalIdeas(ideas: readonly MealIdea[], recipes: readonly RecipeListItem[], today: IsoDate): Set<string> {
+  const month = monthOf(today)
+  const byId = new Map(recipes.map((r) => [r.id, r]))
+  return new Set(
+    ideas
+      .filter((idea) => {
+        const names = idea.source === 'saved' ? (byId.get(idea.recipeId)?.ingredientNames ?? idea.vegetables) : idea.vegetables
+        return recipeSeason(names, month).status === 'in'
+      })
+      .map(ideaKey),
+  )
+}
 
 /** Idées de repas pour les prochains jours : on coche celles qui plaisent, elles vont dans « À planifier ». */
 export function MealIdeasDialog({ open, onOpenChange, today, onAdded }: Props) {
@@ -38,7 +54,7 @@ export function MealIdeasDialog({ open, onOpenChange, today, onAdded }: Props) {
       const { from, to } = ideasPeriod(today)
       const [recipes, meals] = await Promise.all([api.recipes.listSavedRecipes(), api.meals.listMeals(from, to)])
       const ideas = await api.ideas.suggestMeals(buildIdeasInput(today, recipes, meals))
-      if (id === requestId.current) setState({ kind: 'ready', ideas })
+      if (id === requestId.current) setState({ kind: 'ready', ideas, seasonal: seasonalIdeas(ideas, recipes, today) })
     } catch (error) {
       if (id === requestId.current) setState({ kind: 'error', message: errorMessage(error) })
     }
@@ -130,6 +146,11 @@ export function MealIdeasDialog({ open, onOpenChange, today, onAdded }: Props) {
                           {idea.title}
                         </label>
                         <Badge variant={idea.vegetarian ? 'secondary' : 'outline'}>{idea.vegetarian ? 'Végé' : 'Viande ou poisson'}</Badge>
+                        {state.seasonal.has(key) && (
+                          <Badge variant="outline" className="border-brand/40 text-brand">
+                            <Sprout aria-hidden /> De saison
+                          </Badge>
+                        )}
                       </div>
                       <p className="text-muted-foreground">{[idea.protein, idea.vegetables.join(', '), idea.starch].filter(Boolean).join(' · ')}</p>
                       {idea.why && <p className="text-xs text-muted-foreground">{idea.why}</p>}

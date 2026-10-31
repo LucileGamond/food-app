@@ -5,6 +5,7 @@ import { HttpError, runConversation, type ContentBlock, type ModelOptions, type 
 
 export const MAX_CANDIDATES = 80
 export const MAX_RECENT = 40
+const MAX_PRODUCE = 80
 /** Au-delà, la fonction Supabase serait coupée (150 s) : mieux vaut une erreur claire. */
 const TIMEOUT_MS = 100_000
 const MIN_IDEAS = 3
@@ -20,12 +21,16 @@ export interface Candidate {
   title: string
   ingredients: string[]
   tags: string[]
+  /** De saison (tous ses fruits et légumes le sont) ou non ; absent si elle n'en a pas. */
+  season?: 'in' | 'out'
 }
 
 export interface SuggestInput {
   today: string
   candidates: Candidate[]
   recent: string[]
+  /** Fruits et légumes de saison ce mois-ci (calendrier ADEME, fourni par l'application). */
+  produce?: string[]
 }
 
 interface IdeaBase {
@@ -79,7 +84,7 @@ const SYSTEM = [
   'Propose 8 plats. Chaque plat est complet : une protéine (animale ou végétale), des légumes et un féculent.',
   'Au moins 3 plats sont végétariens (protéine végétale, œufs ou fromage ; ni viande ni poisson).',
   'Les plats doivent être très différents : chaque plat a sa propre protéine, et aucun légume ni féculent ne revient d’un plat à l’autre (pas deux plats à la courge, au riz ou aux pois chiches).',
-  'Privilégie les légumes de saison, sans t’y limiter.',
+  'Privilégie les plats de saison : les recettes enregistrées marquées « de saison », et pour les recettes web les fruits et légumes de la liste de saison. Évite les recettes marquées « hors saison ».',
   'Évite les plats proches de ceux mangés ou prévus récemment.',
   'Prends les recettes enregistrées qui conviennent, et complète avec des recettes trouvées par la recherche web sur des sites de recettes en français.',
   'N’invente jamais de recette ni d’adresse : une recette web doit venir d’un résultat de recherche, avec son adresse exacte.',
@@ -104,23 +109,27 @@ export function parseInput(body: unknown): SuggestInput {
     const title = str(raw.title, 200)
     if (!id || !title) throw new HttpError('Recette invalide.', 400)
     if (candidates.some((c) => c.id === id)) continue
-    candidates.push({ id, title, ingredients: list(raw.ingredients, 15, 80), tags: list(raw.tags, 5, 30) })
+    const season = raw.season === 'in' || raw.season === 'out' ? raw.season : undefined
+    candidates.push({ id, title, ingredients: list(raw.ingredients, 15, 80), tags: list(raw.tags, 5, 30), ...(season ? { season } : {}) })
   }
   const rawRecent = Array.isArray(data.recent) ? data.recent : []
   if (rawRecent.length > MAX_RECENT) throw new HttpError(`${MAX_RECENT} repas récents au plus.`, 400)
-  return { today, candidates, recent: list(rawRecent, MAX_RECENT, 200) }
+  const produce = list(data.produce, MAX_PRODUCE, 40)
+  return { today, candidates, recent: list(rawRecent, MAX_RECENT, 200), ...(produce.length ? { produce } : {}) }
 }
 
 /** Message envoyé au modèle : saison, recettes enregistrées disponibles, plats récents à éviter. */
-export function buildUserMessage({ today, candidates, recent }: SuggestInput): string {
+export function buildUserMessage({ today, candidates, recent, produce = [] }: SuggestInput): string {
   const season = SEASONS[Number(today.slice(5, 7)) - 1]
+  const label = { in: 'de saison', out: 'hors saison' } as const
   const saved = candidates.length
-    ? candidates.map((c) => [c.id, c.title, c.ingredients.join(', '), c.tags.join(', ')].join(' | ')).join('\n')
+    ? candidates.map((c) => [c.id, c.title, c.ingredients.join(', '), c.tags.join(', '), c.season ? label[c.season] : ''].join(' | ')).join('\n')
     : '(aucune)'
   return [
     `Date : ${today} (${season})`,
+    ...(produce.length ? [`Fruits et légumes de saison ce mois-ci : ${produce.join(', ')}`] : []),
     '',
-    'Recettes enregistrées disponibles (id | titre | ingrédients | tags) :',
+    'Recettes enregistrées disponibles (id | titre | ingrédients | tags | saison) :',
     saved,
     '',
     `Plats mangés ou prévus récemment, à éviter : ${recent.length ? recent.join(' ; ') : '(aucun)'}`,

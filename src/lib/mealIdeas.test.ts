@@ -25,7 +25,26 @@ describe('idées de repas', () => {
       today: '2026-10-27',
       candidates: [{ id: 'r1', title: 'Curry de lentilles', ingredients: ['lentilles', 'riz'], tags: ['végé'] }],
       recent: ['Tartiflette', 'Gratin', 'Pizza'],
+      produce: expect.arrayContaining(['poireau', 'potiron', 'pomme']),
     })
+    expect(input.produce).not.toContain('tomate')
+  })
+
+  it('met les recettes de saison en premier et celles hors saison en dernier', () => {
+    const recipes = [
+      recipe('r1', 'Ratatouille', ['tomates', 'courgettes']),
+      recipe('r2', 'Pâtes carbonara', ['pâtes', 'lardons']),
+      recipe('r3', 'Soupe de potiron', ['potiron', 'poireau']),
+    ]
+    const candidates = buildIdeasInput('2026-11-05', recipes, []).candidates
+    expect(candidates.map((c) => [c.id, c.season])).toEqual([
+      ['r3', 'in'],
+      ['r2', undefined],
+      ['r1', 'out'],
+    ])
+    // Plus de 80 recettes : les hors saison sont celles laissées de côté.
+    const many = [recipe('hs', 'Ratatouille', ['tomates']), ...Array.from({ length: 80 }, (_, i) => recipe(`r${i}`, `Plat ${i}`))]
+    expect(buildIdeasInput('2026-11-05', many, []).candidates.map((c) => c.id)).not.toContain('hs')
   })
 
   it('borne ce qui est envoyé', () => {

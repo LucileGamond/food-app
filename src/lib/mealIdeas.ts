@@ -1,6 +1,7 @@
 import { addDays, type IsoDate } from './dates'
 import type { Meal } from './meals'
 import type { RecipeListItem } from './recipes'
+import { monthOf, produceOfMonth, recipeSeason } from './season'
 
 /** Une recette enregistrée mangée (ou prévue) depuis moins de 15 jours n'est pas reproposée. */
 export const RECENT_DAYS = 15
@@ -12,8 +13,10 @@ const MAX_RECENT = 40
 /** Ce que reçoit la fonction suggest-meals. */
 export interface MealIdeasInput {
   today: IsoDate
-  candidates: { id: string; title: string; ingredients: string[]; tags: string[] }[]
+  candidates: { id: string; title: string; ingredients: string[]; tags: string[]; season?: 'in' | 'out' }[]
   recent: string[]
+  /** Fruits et légumes de saison ce mois-ci (calendrier ADEME). */
+  produce?: string[]
 }
 
 interface MealIdeaBase {
@@ -33,20 +36,33 @@ export function ideasPeriod(today: IsoDate): { from: IsoDate; to: IsoDate } {
   return { from: addDays(today, -RECENT_DAYS), to: addDays(today, UPCOMING_DAYS) }
 }
 
+const SEASON_RANK = { in: 0, none: 1, out: 2 } as const
+
 /**
- * Recettes enregistrées à proposer (sauf celles mangées ou prévues sur la période) et plats récents à éviter.
+ * Recettes enregistrées à proposer (sauf celles mangées ou prévues sur la période), de saison d'abord et hors saison
+ * en dernier (les premières sont gardées), plats récents à éviter et fruits et légumes du mois.
  * `meals` : les repas de `ideasPeriod(today)`.
  */
 export function buildIdeasInput(today: IsoDate, recipes: readonly RecipeListItem[], meals: readonly Meal[]): MealIdeasInput {
   const used = new Set(meals.map((m) => m.recipe.id))
   const recent = [...new Set(meals.map((m) => m.recipe.title.trim()).filter(Boolean))]
+  const month = monthOf(today)
   return {
     today,
     candidates: recipes
       .filter((r) => !used.has(r.id))
+      .map((r) => ({ recipe: r, season: recipeSeason(r.ingredientNames, month).status }))
+      .sort((a, b) => SEASON_RANK[a.season] - SEASON_RANK[b.season])
       .slice(0, MAX_CANDIDATES)
-      .map((r) => ({ id: r.id, title: r.title, ingredients: r.ingredientNames.slice(0, 15), tags: r.tags.slice(0, 5) })),
+      .map(({ recipe: r, season }) => ({
+        id: r.id,
+        title: r.title,
+        ingredients: r.ingredientNames.slice(0, 15),
+        tags: r.tags.slice(0, 5),
+        ...(season === 'none' ? {} : { season }),
+      })),
     recent: recent.slice(0, MAX_RECENT),
+    produce: produceOfMonth(month).map((p) => p.name.toLowerCase()),
   }
 }
 

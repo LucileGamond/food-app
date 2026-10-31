@@ -64,6 +64,30 @@ describe('RecipeDetailPage', () => {
     expect(print).toHaveAttribute('href', '/recettes/r1/imprimer?personnes=3')
   })
 
+  it('dit si la recette est de saison ce mois-ci, ou ce qui ne l’est pas', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] })
+    vi.setSystemTime(new Date('2026-11-10T12:00:00'))
+    try {
+      const api = fakeApi()
+      api.recipes.getRecipe.mockResolvedValueOnce({
+        ...CURRY,
+        ingredients: [
+          { name: 'tomates', quantity: 4, unit: null, note: null },
+          { name: 'courgettes', quantity: 2, unit: null, note: null },
+          { name: 'poireaux', quantity: 2, unit: null, note: null },
+        ],
+      })
+      const { unmount } = renderDetail(api)
+      expect(await screen.findByText('Hors saison en novembre : tomate, courgette')).toBeInTheDocument()
+      unmount()
+      api.recipes.getRecipe.mockResolvedValueOnce({ ...CURRY, ingredients: [{ name: 'poireaux', quantity: 2, unit: null, note: null }] })
+      renderDetail(api)
+      expect(await screen.findByText('De saison en novembre')).toBeInTheDocument()
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
   it('propose de reprendre une recette en cours', async () => {
     const api = fakeApi()
     api.recipes.getRecipe.mockResolvedValue({ ...CURRY, notes: '1. Couper.\n2. Cuire.\n3. Servir.' })

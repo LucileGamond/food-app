@@ -17,9 +17,10 @@ const INPUT: SuggestInput = {
   today: '2026-10-27',
   candidates: [
     { id: 'r1', title: 'Curry de lentilles', ingredients: ['lentilles corail', 'lait de coco', 'riz'], tags: ['végé'] },
-    { id: 'r2', title: 'Poulet basquaise', ingredients: ['poulet', 'poivrons', 'riz'], tags: [] },
+    { id: 'r2', title: 'Poulet basquaise', ingredients: ['poulet', 'poivrons', 'riz'], tags: [], season: 'out' },
   ],
   recent: ['Tartiflette'],
+  produce: ['poireau', 'potiron'],
 }
 
 // Résultat de recherche web tel que renvoyé par l'API (outil serveur).
@@ -80,13 +81,21 @@ describe('parseInput', () => {
         candidates: [
           { id: ' r1 ', title: '  Curry   de lentilles ', ingredients: ['riz', 'riz', '', ...Array.from({ length: 20 }, (_, i) => `i${i}`)], tags: ['végé'] },
           { id: 'r1', title: 'doublon' },
+          { id: 'r2', title: 'Soupe', season: 'in' },
+          { id: 'r3', title: 'Ratatouille', season: 'bientôt' },
         ],
         recent: ['  Tartiflette ', '', 'Tartiflette'],
+        produce: [' poireau ', 'poireau', 'potiron', 3],
       }),
     ).toEqual({
       today: '2026-10-27',
-      candidates: [{ id: 'r1', title: 'Curry de lentilles', ingredients: ['riz', ...Array.from({ length: 14 }, (_, i) => `i${i}`)], tags: ['végé'] }],
+      candidates: [
+        { id: 'r1', title: 'Curry de lentilles', ingredients: ['riz', ...Array.from({ length: 14 }, (_, i) => `i${i}`)], tags: ['végé'] },
+        { id: 'r2', title: 'Soupe', ingredients: [], tags: [], season: 'in' },
+        { id: 'r3', title: 'Ratatouille', ingredients: [], tags: [] },
+      ],
       recent: ['Tartiflette'],
+      produce: ['poireau', 'potiron'],
     })
     expect(parseInput({ today: '2026-10-27' })).toEqual({ today: '2026-10-27', candidates: [], recent: [] })
   })
@@ -108,10 +117,11 @@ describe('buildUserMessage', () => {
     expect(buildUserMessage(INPUT)).toBe(
       [
         'Date : 2026-10-27 (automne)',
+        'Fruits et légumes de saison ce mois-ci : poireau, potiron',
         '',
-        'Recettes enregistrées disponibles (id | titre | ingrédients | tags) :',
-        'r1 | Curry de lentilles | lentilles corail, lait de coco, riz | végé',
-        'r2 | Poulet basquaise | poulet, poivrons, riz | ',
+        'Recettes enregistrées disponibles (id | titre | ingrédients | tags | saison) :',
+        'r1 | Curry de lentilles | lentilles corail, lait de coco, riz | végé | ',
+        'r2 | Poulet basquaise | poulet, poivrons, riz |  | hors saison',
         '',
         'Plats mangés ou prévus récemment, à éviter : Tartiflette',
       ].join('\n'),

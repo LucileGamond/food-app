@@ -12,6 +12,7 @@ import { PlanningPage } from '@/pages/PlanningPage'
 
 // Les écrans Recettes sont chargés à la demande pour alléger le premier affichage.
 const RecipesPage = lazy(() => import('@/pages/RecipesPage').then((m) => ({ default: m.RecipesPage })))
+const SeasonPage = lazy(() => import('@/pages/SeasonPage').then((m) => ({ default: m.SeasonPage })))
 const RecipeBatchImportPage = lazy(() => import('@/pages/RecipeBatchImportPage').then((m) => ({ default: m.RecipeBatchImportPage })))
 const CookingPage = lazy(() => import('@/pages/CookingPage').then((m) => ({ default: m.CookingPage })))
 const RecipePrintPage = lazy(() => import('@/pages/RecipePrintPage').then((m) => ({ default: m.RecipePrintPage })))
@@ -41,6 +42,7 @@ export function App({ api, auth }: { api: Api; auth: AuthClient }) {
               <Route path="/recettes" element={<RecipesPage />} />
               <Route path="/recettes/nouvelle" element={<RecipeFormPage />} />
               <Route path="/recettes/import-serie" element={<RecipeBatchImportPage />} />
+              <Route path="/recettes/saison" element={<SeasonPage />} />
               <Route path="/recettes/:id" element={<RecipeDetailPage />} />
               <Route path="/recettes/:id/modifier" element={<RecipeFormPage />} />
               <Route path="/partage" element={<SharePage />} />

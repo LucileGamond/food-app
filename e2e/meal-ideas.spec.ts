@@ -3,7 +3,7 @@ import { expect, login, test } from './fixtures'
 
 test('propose des idées de repas et ajoute celles choisies à « À planifier »', async ({ page, isMobile }) => {
   // Réponse simulée : aucun appel réel au modèle ni à la recherche web.
-  let sent: { today?: string; candidates?: unknown[]; recent?: unknown[] } = {}
+  let sent: { today?: string; candidates?: unknown[]; recent?: unknown[]; produce?: string[] } = {}
   await page.route('**/functions/v1/suggest-meals', async (route) => {
     sent = route.request().postDataJSON()
     const base = { vegetables: ['courge'], starch: 'riz', why: 'De saison' }
@@ -23,7 +23,10 @@ test('propose des idées de repas et ajoute celles choisies à « À planifier �
   const dialog = page.getByRole('dialog', { name: 'Idées de repas' })
   await expect(dialog.getByRole('list', { name: 'Idées proposées' }).getByRole('listitem')).toHaveCount(3)
   expect(sent.today).toMatch(/^\d{4}-\d{2}-\d{2}$/)
-  expect(sent.candidates).toEqual([])
+  // Recettes enregistrées par les autres tests (même base) : leur nombre dépend de l'ordre des tests.
+  expect(Array.isArray(sent.candidates)).toBe(true)
+  // Fruits et légumes du mois envoyés avec la demande (calendrier ADEME).
+  expect(sent.produce?.length).toBeGreaterThan(5)
   const results = await new AxeBuilder({ page }).include('[role="dialog"]').withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa']).analyze()
   expect(results.violations.map((v) => v.id)).toEqual([])
   await page.screenshot({ path: `test-results/layout/idees-repas-${test.info().project.name}.png`, fullPage: true })

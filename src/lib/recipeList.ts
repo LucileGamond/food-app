@@ -1,4 +1,5 @@
 import { addDays, formatShortDate, type IsoDate } from './dates'
+import { monthOf, recipeSeason } from './season'
 import { guessAisle, normalizeName } from './shopping'
 import { filterRecipes, siteName, type NutritionBasis, type RecipeHistory, type RecipeListItem } from './recipes'
 
@@ -16,7 +17,7 @@ export const RECIPE_SORTS: readonly { value: RecipeSort; label: string }[] = [
   { value: 'book', label: 'Livre et page' },
 ]
 
-export type QuickFilter = 'quick' | 'vegetarian' | 'forgotten'
+export type QuickFilter = 'quick' | 'vegetarian' | 'seasonal' | 'forgotten'
 
 /** Recette rapide : 30 min au plus, repos compris. */
 export const QUICK_MINUTES = 30
@@ -26,6 +27,7 @@ export const FORGOTTEN_DAYS = 30
 export const QUICK_FILTERS: readonly { value: QuickFilter; label: string }[] = [
   { value: 'quick', label: `${QUICK_MINUTES} min max` },
   { value: 'vegetarian', label: 'Végé' },
+  { value: 'seasonal', label: 'De saison' },
   { value: 'forgotten', label: 'Pas cuisinée depuis 1 mois' },
 ]
 
@@ -128,6 +130,7 @@ export function applyListOptions(recipes: readonly RecipeListItem[], options: Re
     .filter((r) => !options.origin || recipeOrigins(r).includes(options.origin))
     .filter((r) => !filters.includes('quick') || (r.totalMinutes !== null && r.totalMinutes <= QUICK_MINUTES))
     .filter((r) => !filters.includes('vegetarian') || r.vegetarian)
+    .filter((r) => !filters.includes('seasonal') || recipeSeason(r.ingredientNames, monthOf(today)).status === 'in')
     .filter((r) => !filters.includes('forgotten') || isForgotten(r, today))
     .sort(COMPARE[options.sort])
 }
