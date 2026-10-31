@@ -1,5 +1,6 @@
 import { BookOpen, CalendarDays, ListChecks, LogOut, Scale, ShoppingCart, UtensilsCrossed } from 'lucide-react'
 import { NavLink, Outlet } from 'react-router-dom'
+import { BuildInfo } from '@/components/BuildInfo'
 import { Button } from '@/components/ui/button'
 import { useApi } from '@/app/ApiContext'
 import { useAuth } from '@/auth/AuthProvider'
@@ -64,6 +65,7 @@ export function Layout() {
         <div className="mt-auto flex items-center gap-1 border-t px-2 pt-4">
           <span className="truncate text-sm text-muted-foreground">{currentProfile?.display_name}</span>
           <span className="flex-1" />
+          <BuildInfo />
           <NotificationsButton notifications={notifications} />
           <Button variant="ghost" size="icon" onClick={() => void logout()} aria-label="Se déconnecter">
             <LogOut />
@@ -75,6 +77,7 @@ export function Layout() {
       <header className="sticky top-0 z-30 flex h-14 items-center justify-between border-b bg-background/90 px-4 backdrop-blur md:hidden">
         <Brand />
         <div className="flex items-center gap-1">
+          <BuildInfo size="icon-lg" />
           <NotificationsButton notifications={notifications} size="icon-lg" />
           <Button variant="ghost" size="icon-lg" onClick={() => void logout()} aria-label="Se déconnecter">
             <LogOut />

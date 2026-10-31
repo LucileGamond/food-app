@@ -1,11 +1,28 @@
 /// <reference types="vitest/config" />
 import tailwindcss from '@tailwindcss/vite'
 import react from '@vitejs/plugin-react'
+import { execSync } from 'node:child_process'
 import { fileURLToPath } from 'node:url'
 import { defineConfig } from 'vite'
 import { VitePWA } from 'vite-plugin-pwa'
 
+/** Dernier commit (numéro court et date), affiché dans l'application ; vide hors d'un dépôt git. */
+function lastCommit(): { hash: string; date: string } {
+  try {
+    const [hash = '', date = ''] = execSync('git log -1 --format=%h%n%cI', { encoding: 'utf8' }).trim().split('\n')
+    return { hash, date }
+  } catch {
+    return { hash: '', date: '' }
+  }
+}
+
+const commit = lastCommit()
+
 export default defineConfig({
+  define: {
+    'import.meta.env.VITE_COMMIT_HASH': JSON.stringify(commit.hash),
+    'import.meta.env.VITE_COMMIT_DATE': JSON.stringify(commit.date),
+  },
   plugins: [
     react(),
     tailwindcss(),
