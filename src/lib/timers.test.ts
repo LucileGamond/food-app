@@ -1,4 +1,4 @@
-import { addMinute, findDurations, formatClock, formatTimerDuration, isRinging, parseTimers, pauseTimer, remainingMs, resumeTimer, startTimer } from './timers'
+import { addMinute, androidTimerUrl, isAndroid, findDurations, formatClock, formatTimerDuration, isRinging, parseTimers, pauseTimer, remainingMs, resumeTimer, startTimer } from './timers'
 
 describe('durées dans les étapes', () => {
   it.each([
@@ -78,5 +78,21 @@ describe('minuteur', () => {
     expect(parseTimers('{"a":1}')).toEqual([])
     expect(parseTimers('pas du json')).toEqual([])
     expect(parseTimers(null)).toEqual([])
+  })
+})
+
+describe('minuteur du téléphone (Android)', () => {
+  it('reconnaît Android', () => {
+    expect(isAndroid('Mozilla/5.0 (Linux; Android 14; Pixel 8) Chrome/130.0 Mobile')).toBe(true)
+    expect(isAndroid('Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X)')).toBe(false)
+    expect(isAndroid('Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/130.0')).toBe(false)
+  })
+
+  it('lance le minuteur de l’Horloge avec la durée restante et le nom', () => {
+    expect(androidTimerUrl(1199.4, 'Étape 3 · 20 min')).toBe(
+      'intent:#Intent;action=android.intent.action.SET_TIMER;i.android.intent.extra.alarm.LENGTH=1199;' +
+        'S.android.intent.extra.alarm.MESSAGE=%C3%89tape%203%20%C2%B7%2020%20min;B.android.intent.extra.alarm.SKIP_UI=false;end',
+    )
+    expect(androidTimerUrl(0.2, 'a;b')).toContain('LENGTH=1;S.android.intent.extra.alarm.MESSAGE=a%3Bb;')
   })
 })
