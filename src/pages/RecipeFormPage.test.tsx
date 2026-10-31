@@ -6,7 +6,7 @@ import { Toaster } from 'sonner'
 import { AppError, DuplicateRecipeUrlError, type Api } from '@/api'
 import { ApiProvider } from '@/app/ApiContext'
 import { AuthProvider } from '@/auth/AuthProvider'
-import type { Recipe } from '@/lib/recipes'
+import type { Recipe, RecipeImport } from '@/lib/recipes'
 import { fakeApi, fakeAuth, type FakeApi } from '@/test/fakes'
 import { RecipeFormPage } from './RecipeFormPage'
 
@@ -344,6 +344,63 @@ describe('RecipeFormPage — préremplissage depuis un lien', () => {
         ],
       }),
     )
+  })
+
+  it('Instagram : la légende collée est analysée avec le lien de la publication', async () => {
+    const user = userEvent.setup()
+    const api = fakeApi()
+    api.recipes.importFromText.mockResolvedValue({ ...IMPORTED, source: 'text', image: null, recipe: { ...IMPORTED.recipe, title: 'Barres framboise' } })
+    renderForm(api, '/recettes/nouvelle')
+    const reel = 'https://www.instagram.com/reel/DfIBDEIIwic/'
+    await user.type(await screen.findByLabelText('Lien de la recette à importer'), reel)
+    const caption = screen.getByLabelText('Légende du reel')
+    expect(screen.getByText(/reste appuyé sur la légende/)).toBeInTheDocument()
+
+    // Sans légende : demandée, rien n'est envoyé.
+    await user.click(screen.getByRole('button', { name: 'Préremplir' }))
+    expect(screen.getByRole('alert')).toHaveTextContent('Colle la légende du reel ci-dessous.')
+    expect(caption).toHaveFocus()
+    expect(api.recipes.importFromUrl).not.toHaveBeenCalled()
+
+    await user.type(caption, 'Barres framboise : 100 g de flocons, 200 g de framboises…')
+    await user.click(screen.getByRole('button', { name: 'Préremplir avec la légende' }))
+    expect(await screen.findByRole('status')).toHaveTextContent('Recette préremplie depuis la légende')
+    expect(api.recipes.importFromText).toHaveBeenCalledWith('Barres framboise : 100 g de flocons, 200 g de framboises…', reel, [])
+    expect(api.recipes.importFromUrl).not.toHaveBeenCalled()
+    expect(screen.getByLabelText('Titre')).toHaveValue('Barres framboise')
+    expect(screen.getByLabelText('Lien')).toHaveValue(reel)
+  })
+
+  it('Instagram : légende déjà enregistrée, ou sans recette', async () => {
+    const user = userEvent.setup()
+    const api = fakeApi()
+    api.recipes.findSavedByUrl.mockResolvedValueOnce({ id: 'r9', title: 'Barres framboise' })
+    api.recipes.importFromText.mockRejectedValueOnce(new AppError('Aucune recette trouvée dans ce texte.'))
+    renderForm(api, '/recettes/nouvelle')
+    await user.type(await screen.findByLabelText('Lien de la recette à importer'), 'https://www.instagram.com/reel/abc/')
+    await user.type(screen.getByLabelText('Légende du reel'), 'Une légende assez longue pour être lue.')
+    await user.click(screen.getByRole('button', { name: 'Préremplir avec la légende' }))
+    // Déjà enregistrée : le formulaire le signale, la légende n'est pas analysée.
+    expect((await screen.findAllByText(/Barres framboise/)).length).toBeGreaterThan(0)
+    expect(api.recipes.importFromText).not.toHaveBeenCalled()
+
+    await user.click(screen.getByRole('button', { name: 'Préremplir avec la légende' }))
+    expect(await screen.findByText('Aucune recette trouvée dans ce texte.')).toBeInTheDocument()
+  })
+
+  it('YouTube : message d’attente adapté, et page où la recette a été trouvée', async () => {
+    const user = userEvent.setup()
+    const api = fakeApi()
+    const pending = deferred<RecipeImport>()
+    api.recipes.importFromUrl.mockReturnValueOnce(pending.promise)
+    renderForm(api, '/recettes/nouvelle')
+    await user.type(await screen.findByLabelText('Lien de la recette à importer'), 'https://www.youtube.com/shorts/eBtsvbgDBD8')
+    expect(screen.queryByLabelText('Légende du reel')).not.toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'Préremplir' }))
+    expect(await screen.findByText(/Lecture de la vidéo/)).toBeInTheDocument()
+    pending.resolve({ ...IMPORTED, source: 'video', image: null, foundUrl: 'https://www.sacreeplanche.fr/gaufres/', recipe: { ...IMPORTED.recipe, source: 'sacreeplanche.fr' } })
+    expect(await screen.findByRole('status')).toHaveTextContent('sacreeplanche.fr (recette de la vidéo trouvée en ligne)')
+    expect(screen.getByLabelText('Lien')).toHaveValue('https://www.youtube.com/shorts/eBtsvbgDBD8')
   })
 
   it('lance l’import avec Entrée sans enregistrer la recette', async () => {

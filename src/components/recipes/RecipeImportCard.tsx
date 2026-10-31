@@ -1,11 +1,12 @@
-import { Camera, CheckCircle2, Link2, Loader2, Plus, ScanText, Sparkles, X } from 'lucide-react'
+import { Camera, CheckCircle2, ClipboardPaste, Link2, Loader2, Plus, ScanText, Sparkles, X } from 'lucide-react'
 import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { Textarea } from '@/components/ui/textarea'
 import { ConfirmDialog } from '@/components/ConfirmDialog'
 import { DuplicateRecipeUrlError, errorMessage } from '@/api'
 import { isValidUrl } from '@/lib/meals'
-import { siteName } from '@/lib/recipes'
+import { isInstagramUrl, isYoutubeUrl, siteName } from '@/lib/recipes'
 
 /** Pages lues au plus (une recette sur une double page). */
 export const MAX_RECIPE_PHOTOS = 2
@@ -17,15 +18,17 @@ interface Props {
   initialPhotos?: File[]
   /** Le formulaire contient une saisie que l'import remplacerait. */
   hasContent: boolean
-  /** Lance l'import ; rejette avec une erreur affichable. */
-  onImport: (url: string) => Promise<void>
+  /** Lance l'import ; rejette avec une erreur affichable. Vidéo : renvoie la page où la recette a été trouvée. */
+  onImport: (url: string) => Promise<string | void>
+  /** Analyse un texte collé (légende Instagram) avec le lien de la publication. */
+  onImportText: (text: string, url: string) => Promise<void>
   /** Lit la recette sur les photos ; rejette avec une erreur affichable. `false` : rien de prérempli pour l'instant (choix à faire). */
   onImportPhotos: (photos: File[]) => Promise<boolean | void>
 }
 
 type State =
   | { kind: 'idle' }
-  | { kind: 'loading'; source: 'link' | 'photos' }
+  | { kind: 'loading'; source: 'link' | 'photos' | 'caption' }
   | { kind: 'done'; source: string }
   | { kind: 'error'; message: string }
 
@@ -36,12 +39,18 @@ interface Page {
 }
 
 /** Préremplissage du formulaire à partir de l'adresse d'une recette en ligne, ou de photos d'un livre. */
-export function RecipeImportCard({ initialUrl, initialPhotos, hasContent, onImport, onImportPhotos }: Props) {
+/** Texte collé : en dessous, ce n'est pas une recette. */
+const MIN_CAPTION = 20
+
+export function RecipeImportCard({ initialUrl, initialPhotos, hasContent, onImport, onImportText, onImportPhotos }: Props) {
   const [url, setUrl] = useState(initialUrl)
+  const [caption, setCaption] = useState('')
+  const captionInput = useRef<HTMLTextAreaElement>(null)
+  const instagram = isInstagramUrl(url)
   const [pages, setPages] = useState<Page[]>([])
   const [notice, setNotice] = useState<string | null>(null)
   const [state, setState] = useState<State>({ kind: 'idle' })
-  const [confirming, setConfirming] = useState<'link' | 'photos' | null>(null)
+  const [confirming, setConfirming] = useState<'link' | 'photos' | 'caption' | null>(null)
   const fileInput = useRef<HTMLInputElement>(null)
   const pageSeq = useRef(0)
   const loading = state.kind === 'loading'
@@ -71,12 +80,32 @@ export function RecipeImportCard({ initialUrl, initialPhotos, hasContent, onImpo
     const target = url.trim()
     setState({ kind: 'loading', source: 'link' })
     try {
-      await onImport(target)
-      setState({ kind: 'done', source: siteName(target) })
+      const found = await onImport(target)
+      setState({ kind: 'done', source: found ? `${siteName(found)} (recette de la vidéo trouvée en ligne)` : siteName(target) })
     } catch (error) {
       // Recette déjà enregistrée : le formulaire affiche l'avertissement et les actions possibles.
       setState(error instanceof DuplicateRecipeUrlError ? { kind: 'idle' } : { kind: 'error', message: errorMessage(error) })
     }
+  }
+
+  async function runCaption() {
+    setState({ kind: 'loading', source: 'caption' })
+    try {
+      await onImportText(caption.trim(), url.trim())
+      setState({ kind: 'done', source: 'la légende' })
+    } catch (error) {
+      setState({ kind: 'error', message: errorMessage(error) })
+    }
+  }
+
+  function submitCaption() {
+    if (caption.trim().length < MIN_CAPTION) {
+      setState({ kind: 'error', message: 'Colle la légende du reel ci-dessous.' })
+      captionInput.current?.focus()
+      return
+    }
+    if (hasContent) setConfirming('caption')
+    else void runCaption()
   }
 
   async function runPhotos(list: Page[] = pages) {
@@ -106,6 +135,8 @@ export function RecipeImportCard({ initialUrl, initialPhotos, hasContent, onImpo
       setState({ kind: 'error', message: 'Colle un lien complet (https://…).' })
       return
     }
+    // Instagram ne laisse pas lire ses publications : c'est la légende collée qui est analysée.
+    if (instagram) return submitCaption()
     if (hasContent) setConfirming('link')
     else void runLink()
   }
@@ -157,6 +188,30 @@ export function RecipeImportCard({ initialUrl, initialPhotos, hasContent, onImpo
           {state.kind === 'loading' && state.source === 'link' ? 'Analyse…' : 'Préremplir'}
         </Button>
       </div>
+
+      {instagram && (
+        <div className="mt-3 space-y-2 rounded-xl border bg-background p-3">
+          <label htmlFor="import-caption" className="text-sm font-medium">
+            Légende du reel
+          </label>
+          <p className="text-xs text-muted-foreground">
+            Instagram ne laisse pas lire ses publications. Dans Instagram, reste appuyé sur la légende, choisis « Copier », puis colle-la ici.
+          </p>
+          <Textarea
+            ref={captionInput}
+            id="import-caption"
+            rows={5}
+            value={caption}
+            disabled={loading}
+            onChange={(e) => setCaption(e.target.value)}
+            placeholder="Ingrédients : 200 g de…"
+          />
+          <Button type="button" className="h-10 px-4" disabled={loading || caption.trim() === ''} onClick={submitCaption}>
+            {state.kind === 'loading' && state.source === 'caption' ? <Loader2 className="animate-spin" aria-hidden /> : <ClipboardPaste aria-hidden />}
+            {state.kind === 'loading' && state.source === 'caption' ? 'Analyse…' : 'Préremplir avec la légende'}
+          </Button>
+        </div>
+      )}
 
       <div className="my-4 flex items-center gap-3 text-xs text-muted-foreground" aria-hidden>
         <span className="h-px flex-1 bg-border" />
@@ -227,7 +282,13 @@ export function RecipeImportCard({ initialUrl, initialPhotos, hasContent, onImpo
       <div aria-live="polite" className="text-sm">
         {state.kind === 'loading' && (
           <p className="mt-3 text-muted-foreground">
-            {state.source === 'link' ? 'Lecture de la page et analyse de la recette, quelques secondes…' : 'Lecture de la recette sur la photo, quelques secondes…'}
+            {state.source === 'photos'
+              ? 'Lecture de la recette sur la photo, quelques secondes…'
+              : state.source === 'caption'
+                ? 'Analyse de la légende, quelques secondes…'
+                : isYoutubeUrl(url)
+                  ? 'Lecture de la vidéo : sa description, et si besoin la recette cherchée en ligne (jusqu’à une minute)…'
+                  : 'Lecture de la page et analyse de la recette, quelques secondes…'}
           </p>
         )}
         {state.kind === 'done' && (
@@ -249,9 +310,9 @@ export function RecipeImportCard({ initialUrl, initialPhotos, hasContent, onImpo
         open={confirming !== null}
         onOpenChange={(open) => !open && setConfirming(null)}
         title="Remplacer le contenu du formulaire ?"
-        description={`Le titre, les portions, les ingrédients, la préparation et les tags seront remplacés par ceux ${confirming === 'photos' ? 'de la photo' : 'de la page'}.`}
+        description={`Le titre, les portions, les ingrédients, la préparation et les tags seront remplacés par ceux ${confirming === 'photos' ? 'de la photo' : confirming === 'caption' ? 'de la légende' : 'de la page'}.`}
         confirmLabel="Remplacer"
-        onConfirm={() => (confirming === 'photos' ? runPhotos() : runLink())}
+        onConfirm={() => (confirming === 'photos' ? runPhotos() : confirming === 'caption' ? runCaption() : runLink())}
       />
     </section>
   )

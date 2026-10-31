@@ -331,6 +331,14 @@ export function createRecipesApi(db: AppSupabaseClient) {
       if (error) throw toAppError(error, 'Impossible d’enregistrer les calories.')
     },
 
+    /** Analyse un texte collé (légende Instagram…), avec le lien de la publication, pour préremplir le formulaire. */
+    async importFromText(text: string, url: string | null, knownTags: string[] = []): Promise<RecipeImport> {
+      const { data, error } = await db.functions.invoke<RecipeImport>('import-recipe', { body: { mode: 'text', text, url, knownTags }, timeout: IMPORT_TIMEOUT_MS })
+      if (error) throw await functionError(error, 'L’analyse du texte a échoué.', 'import')
+      if (!data?.recipe) throw new AppError('L’analyse du texte a échoué.')
+      return data
+    },
+
     /** Analyse une page de recette (Edge Function + modèle) pour préremplir le formulaire. */
     async importFromUrl(url: string, knownTags: string[] = []): Promise<RecipeImport> {
       const { data, error } = await db.functions.invoke<RecipeImport>('import-recipe', { body: { url, knownTags }, timeout: IMPORT_TIMEOUT_MS })

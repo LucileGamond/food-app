@@ -59,3 +59,29 @@ describe('import de recette depuis une photo (Edge Function)', () => {
     await expect(api.recipes.importFromPhotos([page])).rejects.toThrow(/Le service d’analyse est mal configuré\.|Le service d’analyse ne répond pas/)
   })
 })
+
+// Vidéos et publications (vraie Edge Function locale, sans clé API Anthropic : jamais d'appel au modèle).
+describe('import depuis Instagram ou YouTube (Edge Function)', () => {
+  it('un lien Instagram demande de coller la légende', async () => {
+    const { api } = await signedInApi()
+    await expect(api.recipes.importFromUrl('https://www.instagram.com/reel/DfIBDEIIwic/')).rejects.toMatchObject({
+      message: 'Instagram ne laisse pas lire ses publications : colle la légende du reel pour importer la recette.',
+      code: 'import-422',
+    })
+  })
+
+  it('légende collée : texte trop court refusé, puis service mal configuré signalé', async () => {
+    const { api } = await signedInApi()
+    await expect(api.recipes.importFromText('trop court', 'https://www.instagram.com/reel/abc/')).rejects.toMatchObject({ code: 'import-400' })
+    await expect(api.recipes.importFromText('Une légende de recette assez longue', 'http://localhost/x')).rejects.toThrow('Adresse non autorisée.')
+    await expect(api.recipes.importFromText('Une légende de recette assez longue', 'https://www.instagram.com/reel/abc/')).rejects.toMatchObject({
+      message: 'Le service d’analyse est mal configuré.',
+      code: 'import-500',
+    })
+  })
+
+  it('une vidéo YouTube passe par la même vérification de configuration', async () => {
+    const { api } = await signedInApi()
+    await expect(api.recipes.importFromUrl('https://www.youtube.com/shorts/vJj1UNgH868')).rejects.toThrow('Le service d’analyse est mal configuré.')
+  })
+})

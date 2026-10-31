@@ -588,8 +588,29 @@ export interface RecipeImport {
   recipe: ImportedRecipe
   /** Photo : toutes les recettes de la page, dans l'ordre. Absent avec une ancienne version de la fonction. */
   recipes?: ImportedRecipe[]
-  source: 'structured' | 'text' | 'photo'
+  source: 'structured' | 'text' | 'photo' | 'video'
   image: { data: string; type: string } | null
+  /** Vidéo : page où la recette écrite a été trouvée (la description ne la donnait pas). */
+  foundUrl?: string
+}
+
+/** Publication Instagram : sa légende ne peut pas être lue, elle est collée par la personne. */
+export function isInstagramUrl(value: string): boolean {
+  try {
+    const host = new URL(value.trim()).hostname
+    return /(^|\.)instagram\.com$/.test(host) || host === 'instagr.am'
+  } catch {
+    return false
+  }
+}
+
+/** Vidéo YouTube : la recette est lue dans la description, ou cherchée en ligne (plus long). */
+export function isYoutubeUrl(value: string): boolean {
+  try {
+    return /(^|\.)(youtube\.com|youtube-nocookie\.com)$|^youtu\.be$/.test(new URL(value.trim()).hostname)
+  } catch {
+    return false
+  }
 }
 
 /** Le formulaire contient déjà une saisie que l'import écraserait (le titre et le lien seuls ne comptent pas). */

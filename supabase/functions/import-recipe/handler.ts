@@ -3,6 +3,8 @@
 // POST { url: string, knownTags?: string[] }
 //   → 200 { recipe, source: 'structured' | 'text', image: { data, type } | null }
 // POST { url: string, mode: 'title' } → 200 { title: string | null } (titre de la page seul, sans modèle)
+//   Vidéo YouTube : description de la vidéo, sinon recette écrite trouvée en ligne → source 'video', foundUrl
+// POST { mode: 'text', text, url?, knownTags? } → 200 { recipe, source: 'text', image: null } (légende Instagram collée)
 // POST { mode: 'photos', images: [{ data, type }], knownTags? } → 200 { recipe, source: 'photo', image: null }
 //   (1 ou 2 photos d'une page de livre ou d'un scan)
 //   → 4xx/5xx { error: message lisible }
@@ -10,9 +12,10 @@
 // `isSignedIn` vérifie en plus qu'il s'agit d'un utilisateur connecté.
 
 import { CORS_HEADERS, json } from '../_shared/anthropic.ts'
-import { extractPage, MIN_TEXT_CHARS } from './extract.ts'
+import { extractPage, MIN_TEXT_CHARS, type PageContent } from './extract.ts'
 import { extractRecipe, extractRecipeFromPhotos, ImportError, type ImportedRecipe, type ModelUsage, type PhotoInput } from './model.ts'
 import { checkPublicUrl, resolvesToPublic, type ResolveDns } from './url.ts'
+import { fetchYoutubeVideo, findWrittenRecipe, INSTAGRAM_CAPTION, isInstagram, NOT_WRITTEN, videoText, youtubeId } from './video.ts'
 
 export { CORS_HEADERS }
 
@@ -27,12 +30,16 @@ export interface ImportResult {
   recipe: ImportedRecipe
   /** Photo : toutes les recettes de la page, dans l'ordre. */
   recipes?: ImportedRecipe[]
-  source: 'structured' | 'text' | 'photo'
+  source: 'structured' | 'text' | 'photo' | 'video'
   image: { data: string; type: string } | null
+  /** Vidéo : page où la recette écrite a été trouvée (la description ne la donnait pas). */
+  foundUrl?: string
 }
 
 export interface Deps {
   apiKey: string | undefined
+  /** Clé de l'API YouTube Data (lecture des descriptions de vidéos). */
+  youtubeApiKey?: string
   model?: string
   /** fetch utilisé pour la page et l'image. */
   fetchPage: typeof fetch
@@ -139,25 +146,114 @@ async function downloadImage(url: string | null, doFetch: typeof fetch, resolve?
   }
 }
 
-export async function importRecipe(body: unknown, deps: Deps): Promise<ImportResult & { usage: ModelUsage | null }> {
+type Result = ImportResult & { usage: ModelUsage | null }
+
+const knownTagsOf = (input: Record<string, unknown>) =>
+  Array.isArray(input.knownTags) ? input.knownTags.filter((t): t is string => typeof t === 'string').map((t) => t.slice(0, 30)) : []
+
+const addUsage = (a: ModelUsage | null, b: ModelUsage | null): ModelUsage | null =>
+  a && b ? { input_tokens: a.input_tokens + b.input_tokens, output_tokens: a.output_tokens + b.output_tokens } : (a ?? b)
+
+export async function importRecipe(body: unknown, deps: Deps): Promise<Result> {
   const input = (typeof body === 'object' && body !== null ? body : {}) as Record<string, unknown>
   const check = checkPublicUrl(input.url)
   if (!check.ok) throw new ImportError(check.reason, 400)
-  const knownTags = Array.isArray(input.knownTags) ? input.knownTags.filter((t): t is string => typeof t === 'string').map((t) => t.slice(0, 30)) : []
+  const knownTags = knownTagsOf(input)
+  // Instagram : rien à lire, la légende doit être collée (mode « text »).
+  if (isInstagram(check.url)) throw new ImportError(INSTAGRAM_CAPTION, 422)
   if (!deps.apiKey) throw new ImportError('Le service d’analyse est mal configuré.', 500)
+  const videoId = youtubeId(check.url)
+  if (videoId) return importYoutube(videoId, knownTags, deps)
+  return importPage(check.url.href, knownTags, deps)
+}
 
-  const page = await download(check.url.href, 'text/html,application/xhtml+xml', MAX_PAGE_BYTES, deps.fetchPage, deps.resolveDns)
+/** Page web téléchargée et lue : données structurées, sinon texte. */
+async function readPage(url: string, deps: Deps): Promise<{ content: PageContent; url: string }> {
+  const page = await download(url, 'text/html,application/xhtml+xml', MAX_PAGE_BYTES, deps.fetchPage, deps.resolveDns)
   if (!/html|xml/i.test(page.type)) throw new ImportError('Cette adresse ne mène pas à une page web.', 415)
   const content = extractPage(decodeHtml(page.bytes, page.type), page.url.href)
   if (!content.structured && content.text.length < MIN_TEXT_CHARS) {
     throw new ImportError('Impossible de lire cette page (elle est peut-être protégée). Saisis la recette à la main.', 422)
   }
+  return { content, url: page.url.href }
+}
 
+/** Recette d'une page lue (appel au modèle) et sa photo. */
+async function importContent({ content, url }: { content: PageContent; url: string }, knownTags: string[], deps: Deps): Promise<Result> {
   const [{ recipe, usage }, image] = await Promise.all([
-    extractRecipe(content, page.url.href, knownTags, { apiKey: deps.apiKey, model: deps.model, fetch: deps.fetchModel }),
+    extractRecipe(content, url, knownTags, { apiKey: deps.apiKey!, model: deps.model, fetch: deps.fetchModel }),
     downloadImage(content.imageUrl, deps.fetchPage, deps.resolveDns),
   ])
   return { recipe, source: content.structured ? 'structured' : 'text', image, usage }
+}
+
+const importPage = async (url: string, knownTags: string[], deps: Deps) => importContent(await readPage(url, deps), knownTags, deps)
+
+/**
+ * Recette d'une vidéo YouTube : d'abord la description ; si elle ne donne pas la recette (au moins 2 ingrédients),
+ * recherche de la page où elle est écrite (blog du créateur…). La miniature de la vidéo sert de photo.
+ */
+async function importYoutube(id: string, knownTags: string[], deps: Deps): Promise<Result> {
+  if (!deps.youtubeApiKey) throw new ImportError('La lecture des vidéos YouTube n’est pas configurée.', 500)
+  const video = await fetchYoutubeVideo(id, deps.youtubeApiKey, deps.fetchPage)
+  const options = { apiKey: deps.apiKey!, model: deps.model, fetch: deps.fetchModel }
+  const thumbnail = downloadImage(video.thumbnail, deps.fetchPage, deps.resolveDns)
+  const videoUrl = `https://www.youtube.com/watch?v=${id}`
+
+  let usage: ModelUsage | null = null
+  try {
+    const content = { structured: null, text: videoText(video), title: video.title, imageUrl: video.thumbnail }
+    const described = await extractRecipe(content, videoUrl, knownTags, options)
+    usage = described.usage
+    if (described.recipe.ingredients.length >= 2) return { recipe: described.recipe, source: 'video', image: await thumbnail, usage }
+  } catch (error) {
+    // Pas de recette dans la description : on la cherche en ligne.
+    if (!(error instanceof ImportError && error.status === 422)) throw error
+  }
+
+  const found = await findWrittenRecipe(video, options)
+  usage = addUsage(usage, found.usage)
+  if (!found.url) throw new ImportError(NOT_WRITTEN, 422)
+  // Page trouvée mais injoignable ou illisible : la recette n'est pas récupérable. Les erreurs du modèle, elles, remontent.
+  let read: Awaited<ReturnType<typeof readPage>>
+  try {
+    read = await readPage(found.url, deps)
+  } catch (error) {
+    if (error instanceof ImportError) throw new ImportError(NOT_WRITTEN, 422)
+    throw error
+  }
+  const page = await importContent(read, knownTags, deps)
+  const site = new URL(found.url).hostname.replace(/^www\./, '')
+  return {
+    recipe: { ...page.recipe, source: page.recipe.source ?? site },
+    source: 'video',
+    image: (await thumbnail) ?? page.image,
+    foundUrl: found.url,
+    usage: addUsage(usage, page.usage),
+  }
+}
+
+export const MIN_PASTED_CHARS = 20
+export const MAX_PASTED_CHARS = 20_000
+
+/** Recette d'un texte collé (légende Instagram…), avec l'adresse de la publication si elle est connue. */
+export async function importText(body: unknown, deps: Deps): Promise<Result> {
+  const input = (typeof body === 'object' && body !== null ? body : {}) as Record<string, unknown>
+  const text = typeof input.text === 'string' ? input.text.trim() : ''
+  if (text.length < MIN_PASTED_CHARS) throw new ImportError('Colle le texte de la recette (la légende complète).', 400)
+  if (text.length > MAX_PASTED_CHARS) throw new ImportError('Texte trop long.', 413)
+  const check = input.url ? checkPublicUrl(input.url) : null
+  if (check && !check.ok) throw new ImportError(check.reason, 400)
+  if (!deps.apiKey) throw new ImportError('Le service d’analyse est mal configuré.', 500)
+  const content = { structured: null, text, title: null, imageUrl: null }
+  try {
+    const options = { apiKey: deps.apiKey, model: deps.model, fetch: deps.fetchModel }
+    const { recipe, usage } = await extractRecipe(content, check?.url.href ?? 'texte collé', knownTagsOf(input), options)
+    return { recipe, source: 'text', image: null, usage }
+  } catch (error) {
+    if (error instanceof ImportError && error.status === 422) throw new ImportError('Aucune recette trouvée dans ce texte.', 422)
+    throw error
+  }
 }
 
 /** Titre d'une page (liste « À planifier ») : téléchargement et lecture des métadonnées, sans appel au modèle. */
@@ -215,7 +311,8 @@ export function createHandler(deps: Deps) {
     try {
       const mode = (body as { mode?: unknown } | null)?.mode
       if (mode === 'title') return json(await fetchTitle(body, deps))
-      const { usage, ...result } = mode === 'photos' ? await importPhotos(body, deps) : await importRecipe(body, deps)
+      const { usage, ...result } =
+        mode === 'photos' ? await importPhotos(body, deps) : mode === 'text' ? await importText(body, deps) : await importRecipe(body, deps)
       deps.log?.('import réussi', { source: result.source, ms: Date.now() - started, ...usage })
       return json(result)
     } catch (error) {

@@ -2,6 +2,9 @@
 // côté Anthropic). Indépendant de Deno pour pouvoir être testé.
 
 import { HttpError, runConversation, type ContentBlock, type ModelOptions, type ModelUsage } from '../_shared/anthropic.ts'
+import { searchResultUrls, urlKey } from '../_shared/search.ts'
+
+export { searchResultUrls }
 
 export const MAX_CANDIDATES = 80
 export const MAX_RECENT = 40
@@ -134,32 +137,6 @@ export function buildUserMessage({ today, candidates, recent, produce = [] }: Su
     '',
     `Plats mangés ou prévus récemment, à éviter : ${recent.length ? recent.join(' ; ') : '(aucun)'}`,
   ].join('\n')
-}
-
-/** Adresse comparable : sans www, sans paramètres ni ancre, sans / final. */
-function urlKey(raw: string): string | null {
-  try {
-    const url = new URL(raw)
-    if (url.protocol !== 'https:' && url.protocol !== 'http:') return null
-    return `${url.hostname.replace(/^www\./, '')}${url.pathname.replace(/\/+$/, '')}`.toLowerCase()
-  } catch {
-    return null
-  }
-}
-
-/** Adresses réellement renvoyées par la recherche web (les seules acceptées pour une recette web). */
-export function searchResultUrls(blocks: readonly ContentBlock[]): Map<string, { url: string; title: string }> {
-  const results = new Map<string, { url: string; title: string }>()
-  for (const block of blocks) {
-    // En cas d'erreur de recherche, `content` est un objet (code d'erreur), pas une liste.
-    if (block.type !== 'web_search_tool_result' || !Array.isArray(block.content)) continue
-    for (const result of block.content as Record<string, unknown>[]) {
-      const url = typeof result?.url === 'string' ? result.url : ''
-      const key = urlKey(url)
-      if (key && !results.has(key)) results.set(key, { url, title: str(result.title, 200) })
-    }
-  }
-  return results
 }
 
 /** Dernière demande après une réponse coupée : les résultats déjà trouvés, à utiliser sans chercher à nouveau. */

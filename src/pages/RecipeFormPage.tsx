@@ -250,6 +250,18 @@ export function RecipeFormPage() {
     const result = await api.recipes.importFromUrl(url, tagSuggestions)
     applyImport(result.recipe, url)
     if (result.image && photos.length === 0) addPhotos([importedImageToFile(result.image)])
+    return result.foundUrl
+  }
+
+  /** Préremplit le formulaire avec un texte collé (légende Instagram) ; le lien de la publication est gardé. */
+  async function importFromText(text: string, url: string) {
+    const existing = await api.recipes.findSavedByUrl(url, savedId.current)
+    if (existing) {
+      setDuplicate(existing)
+      throw new DuplicateRecipeUrlError(existing)
+    }
+    const result = await api.recipes.importFromText(text, url, tagSuggestions)
+    applyImport(result.recipe, url)
   }
 
   /** Préremplit le formulaire en lisant la recette sur 1 ou 2 photos (page de livre, scan). La photo n'est pas gardée. */
@@ -450,6 +462,7 @@ export function RecipeFormPage() {
             initialPhotos={sharedPhotos}
             hasContent={formHasContent(values)}
             onImport={importFromUrl}
+            onImportText={importFromText}
             onImportPhotos={importFromPhotos}
           />
         )}

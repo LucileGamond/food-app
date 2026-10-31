@@ -82,6 +82,7 @@ export function fakeApi(): FakeApi {
       importFromPhotos: vi.fn(async (): Promise<RecipeImport> => ({ recipe: { title: 'Recette lue', servings: null, ingredients: [], steps: '', tags: [] }, source: 'photo', image: null })),
       estimateNutrition: vi.fn(async (): Promise<NutritionEstimate> => ({ per: 'portion', kcal: 0, protein: 0, carbs: 0, fat: 0, ingredients: [] })),
       saveNutrition: vi.fn(async () => undefined),
+      importFromText: vi.fn(async (): Promise<RecipeImport> => ({ recipe: { title: 'Recette de la légende', servings: null, ingredients: [], steps: '', tags: [] }, source: 'text', image: null })),
       importFromUrl: vi.fn(async (): Promise<RecipeImport> => ({ recipe: { title: 'Recette importée', servings: null, ingredients: [], steps: '', tags: [] }, source: 'structured', image: null })),
     },
     photos: {
