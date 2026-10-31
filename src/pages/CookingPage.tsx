@@ -1,6 +1,7 @@
-import { Check, Minus, Plus, RefreshCw, RotateCcw, SearchX, Sun, X } from 'lucide-react'
-import { useCallback, useEffect, useState } from 'react'
-import { Link, useParams, useSearchParams } from 'react-router-dom'
+import { Check, CheckCheck, Loader2, Minus, Plus, RefreshCw, SearchX, Sun, X } from 'lucide-react'
+import { useCallback, useEffect, useRef, useState } from 'react'
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
+import { toast } from 'sonner'
 import { Button, buttonVariants } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { EmptyState } from '@/components/EmptyState'
@@ -8,11 +9,11 @@ import { LinkifiedText } from '@/components/LinkifiedText'
 import { useApi } from '@/app/ApiContext'
 import { errorMessage } from '@/api'
 import { useWakeLock } from '@/hooks/useWakeLock'
-import { loadProgress, saveProgress, splitSteps, toggle, type CookingProgress } from '@/lib/cooking'
+import { NO_PROGRESS, splitSteps, toggle, type CookingProgress } from '@/lib/cooking'
 import { formatIngredient, groupBySection, scaleIngredients, SERVINGS_MAX, type Recipe } from '@/lib/recipes'
 import { cn } from '@/lib/utils'
 
-/** Mode cuisine : écran allumé, ingrédients et étapes à cocher, en gros. */
+/** Mode cuisine : écran allumé, ingrédients et étapes à cocher, en gros ; progression enregistrée (plusieurs jours). */
 export function CookingPage() {
   const { id = '' } = useParams()
   return <Cooking key={id} id={id} />
@@ -23,19 +24,75 @@ function Cooking({ id }: { id: string }) {
   const [params, setParams] = useSearchParams()
   const [recipe, setRecipe] = useState<Recipe | null | undefined>(undefined)
   const [error, setError] = useState<string | null>(null)
-  const [progress, setProgress] = useState<CookingProgress>(() => loadProgress(id))
+  const navigate = useNavigate()
+  const [progress, setProgress] = useState<CookingProgress>(NO_PROGRESS)
+  const [finishing, setFinishing] = useState(false)
   const awake = useWakeLock()
 
+  // La progression est chargée avec la recette : sans elle, la première case cochée écraserait celle enregistrée.
   const load = useCallback(() => {
     setError(null)
-    api.recipes.getRecipe(id).then(setRecipe, (e: unknown) => setError(errorMessage(e)))
-  }, [api, id])
+    Promise.all([api.recipes.getRecipe(id), api.recipes.getProgress(id)]).then(
+      ([loaded, saved]) => {
+        if (saved) {
+          setProgress({ ingredients: saved.ingredients, steps: saved.steps })
+          // Reprise sans nombre de personnes dans l'adresse : celui de la séance précédente.
+          if (saved.people) setParams((p) => (p.has('personnes') ? p : new URLSearchParams({ personnes: String(saved.people) })), { replace: true })
+        }
+        setRecipe(loaded)
+      },
+      (e: unknown) => setError(errorMessage(e)),
+    )
+  }, [api, id, setParams])
 
   useEffect(load, [load])
 
+  // Enregistrement en base, un à la fois : seule la dernière progression compte (cases cochées vite à la suite).
+  const saving = useRef<{ next: CookingProgress | null; running: Promise<void> | null; failed: boolean }>({ next: null, running: null, failed: false })
+  const persist = useCallback(
+    (next: CookingProgress) => {
+      const queue = saving.current
+      queue.next = next
+      if (queue.running) return
+      queue.running = (async () => {
+        while (queue.next) {
+          const current = queue.next
+          queue.next = null
+          try {
+            await api.recipes.saveProgress(id, current)
+            queue.failed = false
+          } catch (e) {
+            // Un seul message tant que l'enregistrement échoue ; les cases restent cochées à l'écran.
+            if (!queue.failed) toast.error(`Progression non enregistrée : ${errorMessage(e)}`)
+            queue.failed = true
+          }
+        }
+        queue.running = null
+      })()
+    },
+    [api, id],
+  )
+
+  // Cases cochées enregistrées avec le nombre de personnes affiché (`servings`, calculé une fois la recette chargée).
   function update(next: CookingProgress) {
     setProgress(next)
-    saveProgress(id, next)
+    persist({ ...next, people: servings })
+  }
+
+  /** Recette terminée : la progression est effacée, retour à la fiche. */
+  async function finish() {
+    setFinishing(true)
+    // Enregistrement en cours terminé d'abord : il ne doit pas recréer la progression après l'effacement.
+    saving.current.next = null
+    await saving.current.running
+    try {
+      await api.recipes.saveProgress(id, NO_PROGRESS)
+      toast.success('Recette terminée')
+      navigate(`/recettes/${id}`, { replace: true })
+    } catch (e) {
+      toast.error(errorMessage(e))
+      setFinishing(false)
+    }
   }
 
   const back = `/recettes/${id}`
@@ -82,7 +139,11 @@ function Cooking({ id }: { id: string }) {
   // Nombre de personnes choisi sur la fiche (adresse), sinon celui de la recette.
   const asked = Number(params.get('personnes'))
   const servings = recipe.servings === null ? null : Number.isInteger(asked) && asked >= 1 && asked <= SERVINGS_MAX ? asked : recipe.servings
-  const setServings = (value: number) => setParams({ personnes: String(Math.min(SERVINGS_MAX, Math.max(1, value))) }, { replace: true })
+  const setServings = (value: number) => {
+    const next = Math.min(SERVINGS_MAX, Math.max(1, value))
+    setParams({ personnes: String(next) }, { replace: true })
+    if (started) persist({ ...progress, people: next })
+  }
   const ingredients = (recipe.servings !== null && servings !== null ? scaleIngredients(recipe.ingredients, recipe.servings, servings) : recipe.ingredients).map(
     (ingredient, position) => ({ ...ingredient, position }),
   )
@@ -100,8 +161,8 @@ function Cooking({ id }: { id: string }) {
           </Link>
           <h1 className="min-w-0 flex-1 truncate text-lg font-semibold tracking-tight">{recipe.title}</h1>
           {started && (
-            <Button variant="ghost" className="h-10 shrink-0 px-2" onClick={() => update({ ingredients: [], steps: [] })}>
-              <RotateCcw /> <span className="max-sm:sr-only">Recommencer</span>
+            <Button variant="ghost" className="h-10 shrink-0 px-2" onClick={() => void finish()} disabled={finishing} aria-label="Terminer la recette">
+              {finishing ? <Loader2 className="animate-spin" aria-hidden /> : <CheckCheck />} <span className="max-sm:hidden">Terminer</span>
             </Button>
           )}
         </div>
@@ -207,9 +268,17 @@ function Cooking({ id }: { id: string }) {
           )}
         </section>
 
-        <Link to={back} className={cn(buttonVariants({ variant: 'outline' }), 'h-11 w-full px-4')}>
-          Quitter le mode cuisine
-        </Link>
+        <div className="space-y-2">
+          {started && (
+            <Button className="h-11 w-full px-4" onClick={() => void finish()} disabled={finishing}>
+              {finishing ? <Loader2 className="animate-spin" aria-hidden /> : <CheckCheck />} Terminer la recette
+            </Button>
+          )}
+          <Link to={back} className={cn(buttonVariants({ variant: 'outline' }), 'h-11 w-full px-4')}>
+            Quitter le mode cuisine
+          </Link>
+          {started && <p className="text-center text-sm text-muted-foreground">En quittant, ta progression est gardée : tu pourras reprendre plus tard.</p>}
+        </div>
       </main>
     </div>
   )

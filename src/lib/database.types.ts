@@ -23,7 +23,27 @@ export type Database = {
           }
         },"public": {
           Tables: {
-            "food_consumptions": {
+            "cooking_progress": {
+                  Row: {
+                    "ingredients": (number)[],"people": number | null,"recipe_id": string,"steps": (number)[],"updated_at": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "ingredients"?: (number)[],"people"?: number | null,"recipe_id": string,"steps"?: (number)[],"updated_at"?: string
+                  }
+                  Update: {
+                    "ingredients"?: (number)[],"people"?: number | null,"recipe_id"?: string,"steps"?: (number)[],"updated_at"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "cooking_progress_recipe_id_fkey"
+      columns: ["recipe_id"]
+isOneToOne: true
+      referencedRelation: "recipes"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"food_consumptions": {
                   Row: {
                     "consumed_on": string,"created_at": string,"created_by": string | null,"id": string,"item_id": string
                   }

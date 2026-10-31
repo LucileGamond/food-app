@@ -234,6 +234,20 @@ describe('recipes api', () => {
     expect(await applyAutoLinks(api)).toEqual({ linked: [], failed: 0 })
   })
 
+  it('enregistre, reprend et efface la progression du mode cuisine, partagée entre nous', async () => {
+    const { api } = await signedInApi()
+    const id = await api.recipes.saveRecipe(curry)
+    expect(await api.recipes.getProgress(id)).toBeNull()
+
+    await api.recipes.saveProgress(id, { ingredients: [0, 2], steps: [0] })
+    await api.recipes.saveProgress(id, { ingredients: [0, 2], steps: [0, 1], people: 6 })
+    const eric = await signedInApi(ERIC.email)
+    expect(await eric.api.recipes.getProgress(id)).toMatchObject({ ingredients: [0, 2], steps: [0, 1], people: 6, updatedAt: expect.any(String) })
+
+    await eric.api.recipes.saveProgress(id, { ingredients: [], steps: [] })
+    expect(await api.recipes.getProgress(id)).toBeNull()
+  })
+
   it('sauvegarde une recette ponctuelle sans casser le lien avec le planning', async () => {
     const { api } = await signedInApi()
     await api.meals.createMeal({

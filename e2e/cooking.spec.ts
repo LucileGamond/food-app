@@ -33,8 +33,10 @@ test('cuisine une recette : ingrédients et étapes à cocher, en plein écran',
   await page.getByRole('checkbox', { name: 'Étape 1 faite' }).click()
   await expect(page.locator('[aria-current="step"]')).toContainText('Étaler la pâte.')
 
-  // Rechargement (écran rallumé, onglet rouvert) : les cases restent cochées.
-  await page.reload()
+  // Quitter puis revenir (un autre jour) : la progression est gardée en base.
+  await page.getByRole('link', { name: 'Quitter le mode cuisine' }).first().click()
+  await page.getByRole('link', { name: 'Reprendre · étape 2/3' }).click()
+  // Reprise avec le nombre de personnes de la séance (5), pas celui de la recette.
   await expect(page.getByRole('checkbox', { name: '5 pommes' })).toHaveAttribute('aria-checked', 'true')
   await expect(page.getByRole('checkbox', { name: 'Étape 1 faite' })).toHaveAttribute('aria-checked', 'true')
 
@@ -42,6 +44,7 @@ test('cuisine une recette : ingrédients et étapes à cocher, en plein écran',
   await page.getByRole('checkbox', { name: 'Étape 3 faite' }).click()
   await expect(page.getByRole('status')).toContainText('Bon appétit')
 
-  await page.getByRole('link', { name: 'Quitter le mode cuisine' }).first().click()
+  // Terminer : la progression est effacée.
+  await page.getByRole('button', { name: 'Terminer la recette' }).last().click()
   await expect(page.getByRole('link', { name: 'Cuisiner' })).toBeVisible()
 })

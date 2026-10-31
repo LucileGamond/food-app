@@ -1,6 +1,7 @@
 import type { MealSlot, RecipeSummary } from '@/lib/meals'
 import { todayIso, type IsoDate } from '@/lib/dates'
 import type { LinkableRecipe } from '@/lib/autoLinks'
+import type { CookingProgress, SavedProgress } from '@/lib/cooking'
 import { averageRating, isVegetarian, totalMinutes } from '@/lib/recipeList'
 import type { Ingredient, LinkedRecipe, NutritionBasis, Recipe, RecipeHistory, RecipeImport, RecipeListItem, SaveRecipeInput } from '@/lib/recipes'
 import { groupSources } from '@/lib/sources'
@@ -84,6 +85,22 @@ export function createRecipesApi(db: AppSupabaseClient) {
       if (error) throw toAppError(error, 'Impossible de charger l’historique.')
       const h = data[0]
       return { timesCooked: h?.times_cooked ?? 0, lastCooked: h?.last_cooked ?? null, nextPlanned: h?.next_planned ?? null }
+    },
+
+    /** Progression du mode cuisine (cases cochées), null si la recette n'est pas en cours. */
+    async getProgress(recipeId: string): Promise<SavedProgress | null> {
+      const { data, error } = await db.from('cooking_progress').select('ingredients, steps, people, updated_at').eq('recipe_id', recipeId).maybeSingle()
+      if (error) throw toAppError(error, 'Impossible de charger la progression.')
+      return data && { ingredients: data.ingredients, steps: data.steps, people: data.people, updatedAt: data.updated_at }
+    },
+
+    /** Enregistre la progression ; sans case cochée, elle est retirée (recette terminée ou remise à zéro). */
+    async saveProgress(recipeId: string, progress: CookingProgress): Promise<void> {
+      const empty = progress.ingredients.length === 0 && progress.steps.length === 0
+      const { error } = empty
+        ? await db.from('cooking_progress').delete().eq('recipe_id', recipeId)
+        : await db.from('cooking_progress').upsert({ recipe_id: recipeId, ingredients: progress.ingredients, steps: progress.steps, people: progress.people ?? null })
+      if (error) throw toAppError(error, 'Impossible d’enregistrer la progression.')
     },
 
     /** Note et commentaire de la personne connectée ; sans l'un ni l'autre, son avis est retiré. */

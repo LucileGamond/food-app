@@ -1,4 +1,4 @@
-// Mode cuisine : étapes tirées du texte de préparation, et cases cochées gardées pendant la séance.
+// Mode cuisine : étapes tirées du texte de préparation, et progression (cases cochées).
 
 /**
  * Début d'étape : « 1. », « 2) », « 3 - », « Étape 4 : », ou une puce (« - », « • »), suivis d'un espace : « 1/2 litre »,
@@ -38,31 +38,25 @@ export function splitSteps(text: string | null | undefined): string[] {
   return paragraphs.length > 1 ? paragraphs : filled
 }
 
-/** Cases cochées (ingrédients, étapes) d'une recette, pour la séance en cours sur cet appareil. */
+/** Cases cochées d'une recette en cours : positions des ingrédients, numéros des étapes (à partir de 0). */
 export interface CookingProgress {
   ingredients: number[]
   steps: number[]
+  /** Nombre de personnes choisi pour les quantités (absent : celui de la recette). */
+  people?: number | null
 }
 
-const progressKey = (recipeId: string) => `cuisine:${recipeId}`
-
-export function loadProgress(recipeId: string): CookingProgress {
-  try {
-    const raw = JSON.parse(sessionStorage.getItem(progressKey(recipeId)) ?? 'null') as Partial<CookingProgress> | null
-    const numbers = (v: unknown) => (Array.isArray(v) ? v.filter((n): n is number => Number.isInteger(n)) : [])
-    return { ingredients: numbers(raw?.ingredients), steps: numbers(raw?.steps) }
-  } catch {
-    return { ingredients: [], steps: [] }
-  }
+export interface SavedProgress extends CookingProgress {
+  updatedAt: string
 }
 
-export function saveProgress(recipeId: string, progress: CookingProgress): void {
-  try {
-    if (progress.ingredients.length === 0 && progress.steps.length === 0) sessionStorage.removeItem(progressKey(recipeId))
-    else sessionStorage.setItem(progressKey(recipeId), JSON.stringify(progress))
-  } catch {
-    // Stockage indisponible (navigation privée…) : les cases restent cochées tant que l'écran est ouvert.
-  }
+export const NO_PROGRESS: CookingProgress = { ingredients: [], steps: [] }
+
+/** Étape à reprendre (numéro à partir de 1) : la première non cochée ; null si rien n'est commencé. */
+export function resumeStep(progress: CookingProgress | null, stepCount: number): number | null {
+  if (!progress || (progress.ingredients.length === 0 && progress.steps.length === 0)) return null
+  const next = Array.from({ length: stepCount }, (_, i) => i).find((i) => !progress.steps.includes(i))
+  return next === undefined ? stepCount : next + 1
 }
 
 /** Ajoute ou retire un numéro de la liste. */

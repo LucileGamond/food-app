@@ -53,6 +53,22 @@ describe('RecipeDetailPage', () => {
     expect(cook).toHaveAttribute('href', '/recettes/r1/cuisiner?personnes=5')
   })
 
+  it('propose de reprendre une recette en cours', async () => {
+    const api = fakeApi()
+    api.recipes.getRecipe.mockResolvedValue({ ...CURRY, notes: '1. Couper.\n2. Cuire.\n3. Servir.' })
+    api.recipes.getProgress.mockResolvedValue({ ingredients: [0], steps: [0], updatedAt: '2026-10-30T18:00:00Z' })
+    renderDetail(api)
+    expect(await screen.findByRole('link', { name: 'Reprendre · étape 2/3' })).toHaveAttribute('href', '/recettes/r1/cuisiner?personnes=4')
+  })
+
+  it('reprend avec le nombre de personnes de la séance', async () => {
+    const api = fakeApi()
+    api.recipes.getRecipe.mockResolvedValue({ ...CURRY, notes: 'Tout cuire.' })
+    api.recipes.getProgress.mockResolvedValue({ ingredients: [0], steps: [], people: 6, updatedAt: '2026-10-30T18:00:00Z' })
+    renderDetail(api)
+    expect(await screen.findByRole('link', { name: 'Reprendre · étape 1/1' })).toHaveAttribute('href', '/recettes/r1/cuisiner?personnes=6')
+  })
+
   it('ajoute les ingrédients aux courses pour le nombre de personnes choisi', async () => {
     const user = userEvent.setup()
     const api = fakeApi()

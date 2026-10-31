@@ -18,6 +18,7 @@ import type { RecipeUsages } from '@/api/recipes'
 import { useSignedUrls } from '@/hooks/useSignedUrls'
 import { formatDay } from '@/lib/dates'
 import { slotLabel } from '@/lib/meals'
+import { resumeStep, splitSteps, type SavedProgress } from '@/lib/cooking'
 import { formatHistory } from '@/lib/recipeList'
 import {
   DURATION_FIELDS,
@@ -63,11 +64,14 @@ function RecipeDetail({ id }: { id: string }) {
 
   // Historique (repas du planning) : secondaire, rien ne s'affiche s'il ne se charge pas.
   const [history, setHistory] = useState<RecipeHistory | null>(null)
+  // Recette en cours (mode cuisine, sur plusieurs jours) : « Reprendre » à la place de « Cuisiner ».
+  const [progress, setProgress] = useState<SavedProgress | null>(null)
 
   const load = useCallback(() => {
     setError(null)
     api.recipes.getRecipe(id).then(setRecipe, (e: unknown) => setError(errorMessage(e)))
     api.recipes.getHistory(id).then(setHistory, () => setHistory(null))
+    api.recipes.getProgress(id).then(setProgress, () => setProgress(null))
   }, [api, id])
 
   useEffect(load, [load])
@@ -160,6 +164,10 @@ function RecipeDetail({ id }: { id: string }) {
   const pendingAt = new Map(pending.map((p) => [p.position, p]))
   const importLinked = (reference: PendingLink) => navigate(linkedImportPath(recipe.id, reference))
   const times = DURATION_FIELDS.flatMap(({ label, column }) => (recipe[column] ? [`${label} ${formatDuration(recipe[column])}`] : []))
+  const stepCount = splitSteps(recipe.notes).length
+  const resume = resumeStep(progress, stepCount)
+  // Recette en cours : le nombre de personnes de la séance ; sinon celui choisi ici.
+  const cookPeople = resume !== null && progress?.people ? progress.people : servings
   const setServings = (value: number) => setPeople({ recipeId: recipe.id, value: Math.min(SERVINGS_MAX, Math.max(1, value)) })
 
   return (
@@ -206,10 +214,10 @@ function RecipeDetail({ id }: { id: string }) {
         </div>
         <div className="flex flex-wrap gap-2">
           <Link
-            to={`/recettes/${recipe.id}/cuisiner${servings !== null ? `?personnes=${servings}` : ''}`}
+            to={`/recettes/${recipe.id}/cuisiner${cookPeople !== null ? `?personnes=${cookPeople}` : ''}`}
             className={cn(buttonVariants(), 'h-10 px-3')}
           >
-            <ChefHat /> Cuisiner
+            <ChefHat /> {resume === null ? 'Cuisiner' : stepCount === 0 ? 'Reprendre' : `Reprendre · étape ${resume}/${stepCount}`}
           </Link>
           <Button variant="outline" className="h-10 px-3" onClick={() => setShopping(true)} disabled={recipe.ingredients.length === 0}>
             <ShoppingCart /> Courses

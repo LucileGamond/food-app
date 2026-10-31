@@ -1,4 +1,4 @@
-import { act, screen } from '@testing-library/react'
+import { act, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { Route } from 'react-router-dom'
 import { AppError } from '@/api'
@@ -51,7 +51,6 @@ function mockWakeLock() {
 }
 
 describe('CookingPage', () => {
-  beforeEach(() => sessionStorage.clear())
   afterEach(() => {
     delete (navigator as { wakeLock?: unknown }).wakeLock
   })
@@ -71,36 +70,95 @@ describe('CookingPage', () => {
     expect(screen.getByRole('checkbox', { name: '5 pommes' })).toBeInTheDocument()
   })
 
-  it('coche ingrédients et étapes, met en avant l’étape en cours, et s’en souvient pendant la séance', async () => {
-    const { user } = renderCooking()
+  it('coche ingrédients et étapes, met en avant l’étape en cours, et enregistre la progression', async () => {
+    const { user, api } = renderCooking()
     await screen.findByRole('heading', { name: 'Tarte aux pommes' })
     const step = (n: number) => screen.getByRole('checkbox', { name: `Étape ${n} faite` })
     const current = () => document.querySelector('[aria-current="step"]')?.textContent
 
     expect(current()).toContain('Préchauffer')
+    expect(screen.queryByRole('button', { name: 'Terminer la recette' })).not.toBeInTheDocument()
     await user.click(screen.getByRole('checkbox', { name: '6 pommes' }))
     expect(screen.getByRole('checkbox', { name: '6 pommes' })).toHaveAttribute('aria-checked', 'true')
     await user.click(step(1))
     expect(step(1)).toHaveAttribute('aria-checked', 'true')
     expect(current()).toContain('Étaler')
-    expect(JSON.parse(sessionStorage.getItem('cuisine:r1')!)).toEqual({ ingredients: [0], steps: [0] })
+    await waitFor(() => expect(api.recipes.saveProgress).toHaveBeenLastCalledWith('r1', { ingredients: [0], steps: [0], people: 6 }))
+    expect(screen.getByText(/ta progression est gardée/)).toBeInTheDocument()
 
     await user.click(step(2))
     await user.click(step(3))
     expect(screen.getByRole('status')).toHaveTextContent('Toutes les étapes sont faites')
-
-    await user.click(screen.getByRole('button', { name: 'Recommencer' }))
-    expect(step(1)).toHaveAttribute('aria-checked', 'false')
-    expect(sessionStorage.getItem('cuisine:r1')).toBeNull()
   })
 
-  it('reprend les cases cochées de la séance', async () => {
-    sessionStorage.setItem('cuisine:r1', JSON.stringify({ ingredients: [1], steps: [0, 1] }))
-    renderCooking(fakeApi(), '/recettes/r1/cuisiner')
+  it('reprend la progression enregistrée (autre jour, autre appareil)', async () => {
+    const api = fakeApi()
+    api.recipes.getProgress.mockResolvedValue({ ingredients: [1], steps: [0, 1], updatedAt: '2026-10-30T18:00:00Z' })
+    renderCooking(api, '/recettes/r1/cuisiner')
     expect(await screen.findByRole('checkbox', { name: '50 g sucre' })).toHaveAttribute('aria-checked', 'true')
     expect(document.querySelector('[aria-current="step"]')?.textContent).toContain('Cuire')
-    // Sans nombre dans l'adresse : celui de la recette.
+    expect(api.recipes.getProgress).toHaveBeenCalledWith('r1')
+    // Sans nombre dans l'adresse ni dans la séance : celui de la recette.
     expect(screen.getByText('4 personnes')).toBeInTheDocument()
+  })
+
+  it('reprend avec le nombre de personnes de la séance, et l’enregistre quand il change', async () => {
+    const api = fakeApi()
+    api.recipes.getProgress.mockResolvedValue({ ingredients: [], steps: [0], people: 2, updatedAt: '2026-10-30T18:00:00Z' })
+    const { user } = renderCooking(api, '/recettes/r1/cuisiner')
+    expect(await screen.findByText('2 personnes')).toBeInTheDocument()
+    expect(screen.getByRole('checkbox', { name: '2 pommes' })).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'Une personne de plus' }))
+    await waitFor(() => expect(api.recipes.saveProgress).toHaveBeenLastCalledWith('r1', { ingredients: [], steps: [0], people: 3 }))
+  })
+
+  it('« Terminer la recette » efface la progression et revient à la fiche', async () => {
+    const api = fakeApi()
+    api.recipes.getProgress.mockResolvedValue({ ingredients: [], steps: [0], updatedAt: '2026-10-30T18:00:00Z' })
+    const { user } = renderCooking(api)
+    await user.click((await screen.findAllByRole('button', { name: 'Terminer la recette' }))[0]!)
+    expect(api.recipes.saveProgress).toHaveBeenCalledWith('r1', { ingredients: [], steps: [] })
+    expect(await screen.findByText('Fiche recette')).toBeInTheDocument()
+    expect(screen.getByText('Recette terminée')).toBeInTheDocument()
+  })
+
+  it('« Terminer » attend l’enregistrement en cours, et reste sur place s’il échoue', async () => {
+    const user = userEvent.setup()
+    const api = fakeApi()
+    let release: () => void = () => undefined
+    api.recipes.saveProgress
+      .mockImplementationOnce(() => new Promise<void>((r) => (release = r)))
+      .mockRejectedValueOnce(new AppError('Hors ligne'))
+    renderCooking(api)
+    await user.click(await screen.findByRole('checkbox', { name: 'Étape 1 faite' }))
+    const finish = screen.getAllByRole('button', { name: 'Terminer la recette' })[0]!
+    await user.click(finish)
+    // L'effacement n'est envoyé qu'après l'enregistrement en cours.
+    expect(api.recipes.saveProgress).toHaveBeenCalledTimes(1)
+    release()
+    expect(await screen.findByText('Hors ligne')).toBeInTheDocument()
+    expect(api.recipes.saveProgress).toHaveBeenLastCalledWith('r1', { ingredients: [], steps: [] })
+    expect(screen.getByRole('heading', { name: 'Tarte aux pommes' })).toBeInTheDocument()
+  })
+
+  it('signale une seule fois un enregistrement en échec, les cases restent cochées', async () => {
+    const api = fakeApi()
+    api.recipes.saveProgress.mockRejectedValue(new AppError('Hors ligne'))
+    const { user } = renderCooking(api)
+    await user.click(await screen.findByRole('checkbox', { name: 'Étape 1 faite' }))
+    await user.click(screen.getByRole('checkbox', { name: 'Étape 2 faite' }))
+    await waitFor(() => expect(api.recipes.saveProgress).toHaveBeenCalledTimes(2))
+    expect(screen.getAllByText('Progression non enregistrée : Hors ligne')).toHaveLength(1)
+    expect(screen.getByRole('checkbox', { name: 'Étape 2 faite' })).toHaveAttribute('aria-checked', 'true')
+  })
+
+  it('sans progression lisible, ne commence pas à zéro par-dessus : erreur et réessai', async () => {
+    const api = fakeApi()
+    api.recipes.getProgress.mockRejectedValueOnce(new AppError('Impossible de charger la progression.'))
+    const { user } = renderCooking(api)
+    expect(await screen.findByRole('alert')).toHaveTextContent('Impossible de charger la progression.')
+    await user.click(screen.getByRole('button', { name: 'Réessayer' }))
+    expect(await screen.findByRole('heading', { name: 'Tarte aux pommes' })).toBeInTheDocument()
   })
 
   it('garde l’écran allumé et le redemande au retour sur l’onglet', async () => {

@@ -1,4 +1,4 @@
-import { loadProgress, saveProgress, splitSteps, toggle } from './cooking'
+import { resumeStep, splitSteps, toggle } from './cooking'
 
 describe('splitSteps', () => {
   it('une étape par numéro, numéros retirés', () => {
@@ -35,28 +35,12 @@ describe('splitSteps', () => {
 })
 
 describe('progression', () => {
-  beforeEach(() => sessionStorage.clear())
-
-  it('gardée pour la séance, retirée quand tout est décoché', () => {
-    expect(loadProgress('r1')).toEqual({ ingredients: [], steps: [] })
-    saveProgress('r1', { ingredients: [0, 2], steps: [1] })
-    expect(loadProgress('r1')).toEqual({ ingredients: [0, 2], steps: [1] })
-    expect(loadProgress('r2')).toEqual({ ingredients: [], steps: [] })
-    saveProgress('r1', { ingredients: [], steps: [] })
-    expect(sessionStorage.length).toBe(0)
-  })
-
-  it('ignore un contenu illisible ou un stockage indisponible', () => {
-    sessionStorage.setItem('cuisine:r1', '{pas du json')
-    expect(loadProgress('r1')).toEqual({ ingredients: [], steps: [] })
-    sessionStorage.setItem('cuisine:r1', JSON.stringify({ ingredients: [1, 'x', 2.5], steps: 'non' }))
-    expect(loadProgress('r1')).toEqual({ ingredients: [1], steps: [] })
-
-    const setItem = vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
-      throw new Error('QuotaExceeded')
-    })
-    expect(() => saveProgress('r1', { ingredients: [1], steps: [] })).not.toThrow()
-    setItem.mockRestore()
+  it('étape à reprendre : la première non cochée', () => {
+    expect(resumeStep(null, 3)).toBeNull()
+    expect(resumeStep({ ingredients: [], steps: [] }, 3)).toBeNull()
+    expect(resumeStep({ ingredients: [1], steps: [] }, 3)).toBe(1)
+    expect(resumeStep({ ingredients: [], steps: [0, 2] }, 3)).toBe(2)
+    expect(resumeStep({ ingredients: [], steps: [0, 1, 2] }, 3)).toBe(3)
   })
 
   it('toggle', () => {
