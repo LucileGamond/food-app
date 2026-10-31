@@ -6,6 +6,7 @@ import { Button, buttonVariants } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { EmptyState } from '@/components/EmptyState'
 import { NewTimerForm, StepText, TimersBar } from '@/components/cooking/CookingTimers'
+import { VoiceControl } from '@/components/cooking/VoiceControl'
 import { useApi } from '@/app/ApiContext'
 import { errorMessage } from '@/api'
 import { useTimers } from '@/hooks/useTimers'
@@ -15,7 +16,7 @@ import { formatTimerDuration } from '@/lib/timers'
 import { formatIngredient, groupBySection, scaleIngredients, SERVINGS_MAX, type Recipe } from '@/lib/recipes'
 import { cn } from '@/lib/utils'
 
-/** Mode cuisine : écran allumé, ingrédients et étapes à cocher, en gros ; progression enregistrée (plusieurs jours) ; minuteurs. */
+/** Mode cuisine : écran allumé, ingrédients et étapes à cocher, en gros ; progression enregistrée (plusieurs jours) ; minuteurs ; mode vocal. */
 export function CookingPage() {
   const { id = '' } = useParams()
   return <Cooking key={id} id={id} />
@@ -195,6 +196,7 @@ function Cooking({ id }: { id: string }) {
             <Sun className="size-4" aria-hidden /> L’écran reste allumé.
           </p>
         )}
+        <VoiceControl steps={steps} progress={progress} ingredients={ingredients} timers={timers} onUpdate={update} />
 
         <section aria-labelledby="cooking-ingredients">
           <div className="mb-3 flex flex-wrap items-center justify-between gap-2">

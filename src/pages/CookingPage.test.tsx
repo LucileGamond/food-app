@@ -283,4 +283,169 @@ describe('CookingPage', () => {
       expect(localStorage.getItem(KEY)).toBeNull()
     })
   })
+
+  describe('mode vocal', () => {
+    type Result = ArrayLike<{ transcript: string }> & { isFinal: boolean }
+    class FakeRecognition {
+      static last: FakeRecognition | null = null
+      lang = ''
+      continuous = false
+      interimResults = false
+      onresult: ((event: { resultIndex: number; results: Result[] }) => void) | null = null
+      onerror: ((event: { error: string }) => void) | null = null
+      onend: (() => void) | null = null
+      start = vi.fn()
+      stop = vi.fn()
+      abort = vi.fn(() => this.onend?.())
+      constructor() {
+        FakeRecognition.last = this
+      }
+      say(text: string) {
+        act(() => this.onresult?.({ resultIndex: 0, results: [Object.assign([{ transcript: text }], { isFinal: true })] }))
+      }
+    }
+    const spoken: string[] = []
+    const last = () => spoken.at(-1)
+
+    beforeEach(() => {
+      spoken.length = 0
+      FakeRecognition.last = null
+      vi.stubGlobal('webkitSpeechRecognition', FakeRecognition)
+      vi.stubGlobal(
+        'SpeechSynthesisUtterance',
+        class {
+          lang = ''
+          onend: (() => void) | null = null
+          onerror: (() => void) | null = null
+          text: string
+          constructor(text: string) {
+            this.text = text
+          }
+        },
+      )
+      // La voix « lit » aussitôt : l'écoute reprend juste après.
+      vi.stubGlobal('speechSynthesis', {
+        cancel: vi.fn(),
+        speak: vi.fn((u: { text: string; onend: (() => void) | null }) => {
+          spoken.push(u.text)
+          u.onend?.()
+        }),
+      })
+    })
+    afterEach(() => {
+      vi.unstubAllGlobals()
+      localStorage.clear()
+    })
+
+    it('avance dans les étapes à la voix et lit les réponses', async () => {
+      const { user, api } = renderCooking()
+      await user.click(await screen.findByRole('button', { name: 'Activer le mode vocal' }))
+      const recognition = FakeRecognition.last!
+      expect(recognition.lang).toBe('fr-FR')
+      expect(recognition.start).toHaveBeenCalled()
+      expect(last()).toBe('Mode vocal activé. Étape 1. Préchauffer le four.')
+      expect(screen.getByRole('button', { name: 'Couper le mode vocal' })).toHaveAttribute('aria-pressed', 'true')
+
+      recognition.say('Suivant')
+      expect(last()).toBe('Étape 2. Étaler la pâte.')
+      expect(screen.getByRole('checkbox', { name: 'Étape 1 faite' })).toHaveAttribute('aria-checked', 'true')
+      await waitFor(() => expect(api.recipes.saveProgress).toHaveBeenLastCalledWith('r1', { ingredients: [], steps: [0], people: 6 }))
+      expect(screen.getByText(/Entendu : « Suivant »/)).toBeInTheDocument()
+
+      recognition.say('répète')
+      expect(last()).toBe('Étape 2. Étaler la pâte.')
+      recognition.say('précédent')
+      expect(last()).toBe('Étape 1. Préchauffer le four.')
+      expect(screen.getByRole('checkbox', { name: 'Étape 1 faite' })).toHaveAttribute('aria-checked', 'false')
+      recognition.say('précédent')
+      expect(last()).toBe('C’est la première étape. Étape 1. Préchauffer le four.')
+
+      recognition.say('les ingrédients')
+      expect(last()).toBe('6 pommes. 75 grammes sucre.')
+      recognition.say('lance le minuteur')
+      expect(last()).toBe('Pas de durée dans cette étape. Utilise le bouton minuteur.')
+      recognition.say('il fait beau')
+      expect(last()).toBe('Pas de durée dans cette étape. Utilise le bouton minuteur.')
+
+      recognition.say('aide')
+      expect(last()).toMatch(/^Dis « suivant »/)
+      // Silence : le navigateur coupe l'écoute, elle est relancée.
+      recognition.start.mockClear()
+      vi.useFakeTimers()
+      try {
+        act(() => recognition.onend?.())
+        act(() => vi.advanceTimersByTime(300))
+      } finally {
+        vi.useRealTimers()
+      }
+      expect(recognition.start).toHaveBeenCalled()
+
+      await user.click(screen.getByRole('button', { name: 'Couper le mode vocal' }))
+      expect(recognition.abort).toHaveBeenCalled()
+      expect(screen.getByRole('button', { name: 'Activer le mode vocal' })).toHaveAttribute('aria-pressed', 'false')
+    })
+
+    it('gère les minuteurs à la voix', async () => {
+      const api = fakeApi()
+      api.recipes.getProgress.mockResolvedValue({ ingredients: [], steps: [0, 1], updatedAt: '2026-10-30T18:00:00Z' })
+      const { user } = renderCooking(api)
+      await user.click(await screen.findByRole('button', { name: 'Activer le mode vocal' }))
+      const recognition = FakeRecognition.last!
+      expect(last()).toBe('Mode vocal activé. Étape 3. Cuire 30 min.')
+
+      recognition.say('combien de temps')
+      expect(last()).toBe('Aucun minuteur.')
+      recognition.say('lance le minuteur')
+      expect(last()).toBe('Minuteur de 30 minutes lancé.')
+      const bar = screen.getByRole('region', { name: 'Minuteurs' })
+      expect(within(bar).getByText('Étape 3 · 30 min')).toBeInTheDocument()
+      recognition.say('combien de temps il reste')
+      expect(last()).toMatch(/^Étape 3, 30 min : il reste (30 minutes|29 minutes et 5\d secondes)$/)
+      recognition.say('pause')
+      expect(last()).toBe('Minuteur en pause.')
+      expect(within(bar).getByRole('button', { name: /^Reprendre/ })).toBeInTheDocument()
+      recognition.say('pause')
+      expect(last()).toBe('Aucun minuteur en cours.')
+      recognition.say('reprends')
+      expect(last()).toBe('Minuteur relancé.')
+      recognition.say('reprends')
+      expect(last()).toBe('Aucun minuteur en pause.')
+      recognition.say('stop')
+      expect(last()).toBe('D’accord.')
+
+      recognition.say('suivant')
+      expect(last()).toBe('Toutes les étapes sont faites. Bon appétit !')
+      recognition.say('suivant')
+      expect(last()).toBe('Toutes les étapes sont faites. Bon appétit !')
+    })
+
+    it('arrête un minuteur qui sonne', async () => {
+      localStorage.setItem('food-app:minuteurs:r1', JSON.stringify([{ id: 'a', label: 'Étape 3 · 30 min', seconds: 1800, endsAt: Date.now() - 1000, remaining: 0 }]))
+      const { user } = renderCooking()
+      await user.click(await screen.findByRole('button', { name: 'Activer le mode vocal' }))
+      FakeRecognition.last!.say('combien de temps')
+      expect(last()).toBe('Étape 3, 30 min : c’est prêt')
+      FakeRecognition.last!.say('arrête')
+      expect(last()).toBe('Minuteur arrêté.')
+      expect(screen.queryByRole('region', { name: 'Minuteurs' })).not.toBeInTheDocument()
+    })
+
+    it('silence sans erreur, service en panne, micro refusé : messages', async () => {
+      const { user } = renderCooking()
+      await user.click(await screen.findByRole('button', { name: 'Activer le mode vocal' }))
+      act(() => FakeRecognition.last!.onerror?.({ error: 'no-speech' }))
+      expect(screen.getByText(/^J’écoute/)).toBeInTheDocument()
+      act(() => FakeRecognition.last!.onerror?.({ error: 'network' }))
+      expect(screen.getByText(/ne répond pas/)).toBeInTheDocument()
+      act(() => FakeRecognition.last!.onerror?.({ error: 'not-allowed' }))
+      expect(screen.getByText(/Micro refusé/)).toBeInTheDocument()
+    })
+
+    it('sans reconnaissance vocale dans le navigateur, rien n’est proposé', async () => {
+      vi.stubGlobal('webkitSpeechRecognition', undefined)
+      renderCooking()
+      await screen.findByRole('heading', { name: 'Tarte aux pommes' })
+      expect(screen.queryByRole('region', { name: 'Mode vocal' })).not.toBeInTheDocument()
+    })
+  })
 })

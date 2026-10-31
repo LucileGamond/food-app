@@ -90,3 +90,60 @@ test('minuteurs du mode cuisine, et fiche à imprimer', async ({ page }) => {
   await expect.poll(() => page.evaluate(() => (window as Window & { printed?: number }).printed)).toBe(1)
   expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([])
 })
+
+test('mode vocal : étapes et minuteur à la voix', async ({ page }) => {
+  const { api } = await signedInApi()
+  const id = await api.recipes.saveRecipe({
+    id: null,
+    title: 'Pâtes au beurre',
+    notes: '1. Faire bouillir l’eau.\n2. Cuire les pâtes 10 min.',
+    url: null,
+    servings: 2,
+    tags: [],
+    ingredients: [{ name: 'pâtes', quantity: 200, unit: 'g', note: null }],
+  })
+  // Pas de micro dans le navigateur de test : reconnaissance et voix simulées ; window.say() « dit » une phrase.
+  await page.addInitScript(() => {
+    const w = window as unknown as Record<string, unknown>
+    const spoken: string[] = []
+    w.spoken = spoken
+    class FakeRecognition {
+      lang = ''
+      continuous = false
+      interimResults = false
+      onresult: ((event: unknown) => void) | null = null
+      onerror: ((event: unknown) => void) | null = null
+      onend: (() => void) | null = null
+      constructor() {
+        w.say = (text: string) => this.onresult?.({ resultIndex: 0, results: [Object.assign([{ transcript: text }], { isFinal: true })] })
+      }
+      start() {}
+      stop() {}
+      abort() {}
+    }
+    w.SpeechRecognition = FakeRecognition
+    w.webkitSpeechRecognition = FakeRecognition
+    Object.defineProperty(window, 'speechSynthesis', {
+      value: { cancel() {}, speak: (u: { text: string; onend?: () => void }) => (spoken.push(u.text), u.onend?.()) },
+    })
+  })
+  const say = (text: string) => page.evaluate((t) => (window as unknown as { say: (t: string) => void }).say(t), text)
+  const lastSpoken = () => page.evaluate(() => (window as unknown as { spoken: string[] }).spoken.at(-1))
+
+  await login(page)
+  await page.goto(`/recettes/${id}/cuisiner`)
+  await page.getByRole('button', { name: 'Activer le mode vocal' }).click()
+  await expect.poll(lastSpoken).toBe('Mode vocal activé. Étape 1. Faire bouillir l’eau.')
+  await expect(page.getByRole('region', { name: 'Mode vocal' })).toContainText('J’écoute')
+  expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([])
+
+  await say('étape suivante')
+  await expect.poll(lastSpoken).toBe('Étape 2. Cuire les pâtes 10 min.')
+  await expect(page.getByRole('checkbox', { name: 'Étape 1 faite' })).toHaveAttribute('aria-checked', 'true')
+  await say('lance le minuteur')
+  await expect.poll(lastSpoken).toBe('Minuteur de 10 minutes lancé.')
+  await expect(page.getByRole('region', { name: 'Minuteurs' }).getByText('Étape 2 · 10 min')).toBeVisible()
+
+  await page.getByRole('button', { name: 'Couper le mode vocal' }).click()
+  await expect(page.getByRole('button', { name: 'Activer le mode vocal' })).toBeVisible()
+})
