@@ -1,6 +1,11 @@
 import { defineConfig, devices } from '@playwright/test'
 
 // Tests de bout en bout contre la Supabase locale (`npx supabase start`) et le serveur Vite.
+
+// Même fuseau que le navigateur (timezoneId) pour les dates calculées par les tests : sinon, autour de minuit, le
+// serveur de CI (UTC) et l'application (Paris) ne sont pas le même jour.
+process.env.TZ = 'Europe/Paris'
+
 export default defineConfig({
   testDir: './e2e',
   fullyParallel: false,
