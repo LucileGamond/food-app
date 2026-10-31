@@ -100,7 +100,14 @@ export function useVoiceControl(onHeard: (text: string) => void) {
       speechSynthesis.cancel()
       const utterance = new SpeechSynthesisUtterance(text)
       utterance.lang = 'fr-FR'
+      // Chrome sur Android ne signale pas toujours la fin de la lecture : reprise de secours après la durée estimée
+      // (environ 15 caractères par seconde, plus une marge), une seule fois.
+      let resumed = false
+      const fallback = window.setTimeout(() => resume(), 2000 + text.length * 70)
       const resume = () => {
+        if (resumed) return
+        resumed = true
+        window.clearTimeout(fallback)
         speaking.current = false
         if (enabled.current) listen()
       }
@@ -110,6 +117,8 @@ export function useVoiceControl(onHeard: (text: string) => void) {
       if (enabled.current) setStatus('speaking')
       recognition.current?.abort()
       speechSynthesis.speak(utterance)
+      // Autre défaut de Chrome : la synthèse peut rester en pause après un passage en arrière-plan.
+      speechSynthesis.resume?.()
     },
     [listen],
   )

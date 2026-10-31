@@ -414,6 +414,23 @@ describe('CookingPage', () => {
       expect(screen.queryByRole('region', { name: 'Minuteurs' })).not.toBeInTheDocument()
     })
 
+    it('reprend l’écoute même si la fin de la lecture n’est jamais signalée (Chrome Android)', async () => {
+      vi.stubGlobal('speechSynthesis', { cancel: vi.fn(), resume: vi.fn(), speak: vi.fn((u: { text: string }) => spoken.push(u.text)) })
+      vi.useFakeTimers({ shouldAdvanceTime: true })
+      try {
+        const { user } = renderCooking()
+        await user.click(await screen.findByRole('button', { name: 'Activer le mode vocal' }))
+        expect(screen.getByText('Lecture…')).toBeInTheDocument()
+        const recognition = FakeRecognition.last!
+        recognition.start.mockClear()
+        act(() => vi.advanceTimersByTime(10_000))
+        expect(recognition.start).toHaveBeenCalled()
+        expect(screen.getByText(/^J’écoute/)).toBeInTheDocument()
+      } finally {
+        vi.useRealTimers()
+      }
+    })
+
     it('silence sans erreur, service en panne, micro refusé : messages', async () => {
       const { user } = renderCooking()
       await user.click(await screen.findByRole('button', { name: 'Activer le mode vocal' }))
