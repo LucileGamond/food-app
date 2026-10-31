@@ -1,4 +1,4 @@
-import { ArrowLeft, BookOpen, ChefHat, Clock, ExternalLink, Flame, History, Inbox, Minus, Pencil, Plus, RefreshCw, SearchX, Trash2, Users } from 'lucide-react'
+import { ArrowLeft, BookOpen, ChefHat, Clock, ExternalLink, Flame, History, Inbox, Minus, Pencil, Plus, RefreshCw, SearchX, ShoppingCart, Trash2, Users } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom'
 import { toast } from 'sonner'
@@ -11,6 +11,7 @@ import { LinkifiedText } from '@/components/LinkifiedText'
 import { LinkRecipeDialog } from '@/components/recipes/LinkRecipeDialog'
 import { LinkedRecipesOffer } from '@/components/recipes/LinkedRecipesOffer'
 import { RecipeReviews } from '@/components/recipes/RecipeReviews'
+import { RecipeShoppingDialog } from '@/components/recipes/RecipeShoppingDialog'
 import { useApi } from '@/app/ApiContext'
 import { errorMessage } from '@/api'
 import type { RecipeUsages } from '@/api/recipes'
@@ -57,6 +58,7 @@ function RecipeDetail({ id }: { id: string }) {
   const offerRequested = Boolean((location.state as { offerLinks?: boolean } | null)?.offerLinks)
   const [offerDismissed, setOfferDismissed] = useState<string | null>(null)
   const [linking, setLinking] = useState<PendingLink | null>(null)
+  const [shopping, setShopping] = useState(false)
   const closeLinking = useCallback(() => setLinking(null), [])
 
   // Historique (repas du planning) : secondaire, rien ne s'affiche s'il ne se charge pas.
@@ -209,6 +211,9 @@ function RecipeDetail({ id }: { id: string }) {
           >
             <ChefHat /> Cuisiner
           </Link>
+          <Button variant="outline" className="h-10 px-3" onClick={() => setShopping(true)} disabled={recipe.ingredients.length === 0}>
+            <ShoppingCart /> Courses
+          </Button>
           <Button variant="outline" className="h-10 px-3" onClick={() => void addToInbox()}>
             <Inbox /> À planifier
           </Button>
@@ -339,6 +344,7 @@ function RecipeDetail({ id }: { id: string }) {
         onImport={importLinked}
         onLink={setLinking}
       />
+      <RecipeShoppingDialog recipe={shopping ? recipe : null} people={servings} onOpenChange={setShopping} />
       <LinkRecipeDialog reference={linking} recipeId={recipe.id} onClose={closeLinking} onLink={link} />
 
       <ConfirmDialog

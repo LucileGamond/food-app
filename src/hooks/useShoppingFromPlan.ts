@@ -7,6 +7,7 @@ import { nextPosition, type ShoppingItemInput } from '@/lib/shopping'
 import {
   applyTidy,
   buildDraft,
+  fromMeal,
   mealSource,
   mergeIntoList,
   skippedInput,
@@ -43,6 +44,7 @@ export interface ShoppingFromPlanState {
   tidyFailed: boolean
   submitting: boolean
   prepare: (meals: Meal[]) => Promise<void>
+  prepareIngredients: (sources: MealIngredients[]) => Promise<void>
   back: () => void
   reset: () => void
   toggle: (id: string) => void
@@ -78,6 +80,35 @@ export function useShoppingFromPlan(api: Api): ShoppingFromPlanState {
   // Chaque préparation a son numéro : une préparation annulée (retour, fermeture) n'écrit plus rien.
   const runId = useRef(0)
   const lineSeq = useRef(0)
+
+  // Aperçu : lignes regroupées (et rangées par le modèle si possible), ingrédients non repris à part.
+  const finish = useCallback(
+    async (run: number, found: MealIngredients[], missing: SkippedEntry[]) => {
+      const draft = buildDraft(found)
+      lineSeq.current = draft.length
+      let tidied = draft
+      let failed = false
+      if (draft.length > 0) {
+        setPhase('tidy')
+        try {
+          const tidy = await api.shopping.tidy(
+            draft.slice(0, MAX_TIDY_LINES).map(({ id, name, quantity, unit, aisle }) => ({ id, name, quantity, unit, aisle })),
+          )
+          tidied = applyTidy(draft, tidy)
+        } catch {
+          failed = true
+        }
+        if (run !== runId.current) return
+      }
+
+      setLines(tidied)
+      setSkipped(missing)
+      setUnscaled([...new Set(found.filter((s) => s.servings === null).map((s) => s.title))])
+      setTidyFailed(failed)
+      setStep('preview')
+    },
+    [api],
+  )
 
   const prepare = useCallback(
     async (meals: Meal[]) => {
@@ -117,11 +148,11 @@ export function useShoppingFromPlan(api: Api): ShoppingFromPlanState {
         if (source === 'recipe') {
           const recipe = recipes.find((r) => r.id === meal.recipe.id)
           if (!recipe || recipe.ingredients.length === 0) return skippedMeal(meal, 'no-ingredients')
-          return { meal, servings: recipe.servings, ingredients: recipe.ingredients }
+          return fromMeal(meal, recipe.servings, recipe.ingredients)
         }
         if (source === 'link') {
           const page = await readPage(meal.recipe.url!)
-          return page ? { meal, ...page } : skippedMeal(meal, 'unreadable-page')
+          return page ? fromMeal(meal, page.servings, page.ingredients) : skippedMeal(meal, 'unreadable-page')
         }
         return skippedMeal(meal, 'no-ingredients')
       })
@@ -131,30 +162,20 @@ export function useShoppingFromPlan(api: Api): ShoppingFromPlanState {
         else found.push(result)
       }
 
-      const draft = buildDraft(found)
-      lineSeq.current = draft.length
-      let tidied = draft
-      let failed = false
-      if (draft.length > 0) {
-        setPhase('tidy')
-        try {
-          const tidy = await api.shopping.tidy(
-            draft.slice(0, MAX_TIDY_LINES).map(({ id, name, quantity, unit, aisle }) => ({ id, name, quantity, unit, aisle })),
-          )
-          tidied = applyTidy(draft, tidy)
-        } catch {
-          failed = true
-        }
-        if (run !== runId.current) return
-      }
-
-      setLines(tidied)
-      setSkipped(missing)
-      setUnscaled([...new Set(found.filter((s) => s.servings === null).map((s) => s.meal.recipe.title))])
-      setTidyFailed(failed)
-      setStep('preview')
+      await finish(run, found, missing)
     },
-    [api],
+    [api, finish],
+  )
+
+  /** Aperçu directement à partir d'ingrédients connus (une recette, pour un nombre de personnes choisi). */
+  const prepareIngredients = useCallback(
+    async (sources: MealIngredients[]) => {
+      const run = ++runId.current
+      setStep('loading')
+      setPhase('tidy')
+      await finish(run, sources, [])
+    },
+    [finish],
   )
 
   const back = useCallback(() => {
@@ -223,5 +244,5 @@ export function useShoppingFromPlan(api: Api): ShoppingFromPlanState {
     [api, lines, skipped],
   )
 
-  return { step, phase, lines, skipped, unscaled, tidyFailed, submitting, prepare, back, reset, toggle, update, addSkipped, submit }
+  return { step, phase, lines, skipped, unscaled, tidyFailed, submitting, prepare, prepareIngredients, back, reset, toggle, update, addSkipped, submit }
 }

@@ -1,5 +1,6 @@
 import { DuplicateRecipeUrlError, RecipeInUseError } from '@/api'
 import { createRecipesApi } from '@/api/recipes'
+import { applyAutoLinks } from '@/lib/autoLinks'
 import { ERIC, LUCILE, PNG_1PX, anonClient, resetData, signedInApi } from './helpers'
 
 beforeEach(async () => {
@@ -210,6 +211,27 @@ describe('recipes api', () => {
     await api.recipes.saveReview(id, { rating: null, comment: ' ' })
     expect((await api.recipes.getRecipe(id))!.reviews!.map((r) => r.profileId)).toEqual([ERIC.id])
     await expect(api.recipes.saveReview(id, { rating: 9, comment: '' })).rejects.toThrow('Certaines valeurs sont invalides.')
+  })
+
+  it('relie les recettes d’un même livre par la page du renvoi, une seule fois', async () => {
+    const { api } = await signedInApi()
+    const base = { id: null, notes: null, url: null, servings: 6, tags: [], source: 'Pâtisserie maison' }
+    const tarte = await api.recipes.saveRecipe({
+      ...base,
+      title: 'Tarte au citron',
+      sourcePage: '146',
+      ingredients: [
+        { name: 'pâte sucrée', quantity: 1, unit: null, note: 'voir p. 208' },
+        { name: 'citrons', quantity: 4, unit: null, note: null },
+      ],
+    })
+    const pate = await api.recipes.saveRecipe({ ...base, title: 'Pâte sucrée', sourcePage: '208', ingredients: [{ name: 'farine', quantity: 250, unit: 'g', note: null }] })
+    await api.recipes.saveRecipe({ ...base, title: 'Sablés', source: 'Ottolenghi', sourcePage: '208', ingredients: [{ name: 'beurre', quantity: 100, unit: 'g', note: null }] })
+
+    const first = await applyAutoLinks(api, pate)
+    expect(first).toEqual({ linked: [expect.objectContaining({ recipeId: tarte, linkedId: pate })], failed: 0 })
+    expect((await api.recipes.getRecipe(tarte))!.ingredients[0]!.linkedRecipe).toEqual({ id: pate, title: 'Pâte sucrée' })
+    expect(await applyAutoLinks(api)).toEqual({ linked: [], failed: 0 })
   })
 
   it('sauvegarde une recette ponctuelle sans casser le lien avec le planning', async () => {

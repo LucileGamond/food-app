@@ -1,6 +1,7 @@
-import { BookOpen, Clock, Flame, History, ImageIcon, Images, Leaf, Plus, RefreshCw, Search, Star, Timer, X } from 'lucide-react'
+import { BookOpen, Clock, Flame, History, ImageIcon, Images, Leaf, Link2, Loader2, Plus, RefreshCw, Search, Star, Timer, X } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
+import { toast } from 'sonner'
 import { Button, buttonVariants } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -9,6 +10,7 @@ import { PageHeader } from '@/components/Layout'
 import { useApi } from '@/app/ApiContext'
 import { errorMessage } from '@/api'
 import { useSignedUrls } from '@/hooks/useSignedUrls'
+import { applyAutoLinks, autoLinkMessage } from '@/lib/autoLinks'
 import { todayIso, type IsoDate } from '@/lib/dates'
 import {
   applyListOptions,
@@ -81,6 +83,23 @@ export function RecipesPage({ today = todayIso() }: { today?: IsoDate }) {
   const urls = useSignedUrls(api, photoPaths)
   const filtered = options.query !== '' || options.tag !== null || options.origin !== null || options.filters.length > 0
 
+  const [linking, setLinking] = useState(false)
+
+  /** Lie entre elles les recettes d'un même livre (renvois « voir p. 208 ») : nouvelles comme déjà enregistrées. */
+  async function linkBooks() {
+    setLinking(true)
+    try {
+      const { linked, failed } = await applyAutoLinks(api)
+      if (linked.length > 0) toast.success(autoLinkMessage(linked))
+      else if (failed === 0) toast.info('Aucun nouveau lien : les renvois « voir p. … » sont déjà liés, ou leur page n’est pas encore importée.')
+      if (failed > 0) toast.error(`${failed} lien${failed > 1 ? 's' : ''} n’${failed > 1 ? 'ont' : 'a'} pas pu être créé${failed > 1 ? 's' : ''} : réessaie.`)
+    } catch (e) {
+      toast.error(errorMessage(e))
+    } finally {
+      setLinking(false)
+    }
+  }
+
   function toggleFilter(filter: QuickFilter) {
     const active = options.filters.includes(filter)
     setOptions({ filters: active ? options.filters.filter((f) => f !== filter) : [...options.filters, filter] })
@@ -99,6 +118,10 @@ export function RecipesPage({ today = todayIso() }: { today?: IsoDate }) {
         description="Vos recettes sauvegardées"
         actions={
           <div className="flex items-center gap-2">
+            <Button variant="outline" className="h-10 px-3" onClick={() => void linkBooks()} disabled={linking} aria-label="Relier les recettes">
+              {linking ? <Loader2 className="animate-spin" aria-hidden /> : <Link2 />}
+              <span className="max-sm:hidden">Relier les recettes</span>
+            </Button>
             <Link to="/recettes/import-serie" className={cn(buttonVariants({ variant: 'outline' }), 'h-10 px-3')} aria-label="Importer en série">
               <Images />
               <span className="max-sm:hidden">Importer en série</span>

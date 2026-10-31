@@ -101,6 +101,23 @@ describe('RecipeBatchImportPage', () => {
     expect(within(row!).getByRole('link', { name: 'Pâte brisée' })).toHaveAttribute('href', '/recettes/id-Pâte brisée')
     expect(within(row!).getByRole('link', { name: 'Quiche lorraine' })).toHaveAttribute('href', '/recettes/id-Quiche lorraine')
     expect(api.recipes.saveRecipe.mock.calls.map(([input]) => input.sourcePage)).toEqual(['12', '12'])
+    // Fin de l'import : les recettes du livre sont reliées entre elles.
+    expect(api.recipes.listLinkable).toHaveBeenCalled()
+  })
+
+  it('indique les liens créés entre recettes à la fin de l’import', async () => {
+    const { user, api, photos } = setup()
+    api.recipes.importFromPhotos.mockResolvedValue(read('Tarte', '146'))
+    api.recipes.saveRecipe.mockResolvedValue('t')
+    const ing = { position: 0, name: 'pâte sucrée', note: 'voir p. 208', linkedRecipeId: null }
+    api.recipes.listLinkable.mockResolvedValue([
+      { id: 't', title: 'Tarte', source: 'Pâtisserie maison', sourcePage: '146', ingredients: [ing] },
+      { id: 'p', title: 'Pâte sucrée', source: 'Pâtisserie maison', sourcePage: '208', ingredients: [] },
+    ])
+    await user.type(await screen.findByLabelText('Livre'), 'Pâtisserie maison')
+    await user.upload(photos(), [image('p146.jpg')])
+    await user.click(screen.getByRole('button', { name: 'Lancer l’import (1)' }))
+    expect(await screen.findByText('1 lien créé entre recettes')).toBeInTheDocument()
   })
 
   it('relit une page dont une recette n’a pas pu être enregistrée, sans doubler celle qui l’a été', async () => {

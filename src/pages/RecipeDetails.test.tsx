@@ -1,4 +1,5 @@
 import { render, screen, waitFor, within } from '@testing-library/react'
+import { AppError } from '@/api'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { Toaster } from 'sonner'
@@ -90,6 +91,34 @@ describe('RecipeFormPage — source, temps, sous-parties, doublons', () => {
     await user.click(screen.getByRole('button', { name: 'Enregistrer' }))
     expect(await screen.findByText('Durée invalide (ex. 45 min, 1 h 30)')).toBeInTheDocument()
     expect(api.recipes.saveRecipe).not.toHaveBeenCalled()
+  })
+
+  it('après l’enregistrement, lie la recette aux recettes du même livre', async () => {
+    const user = userEvent.setup()
+    const api = fakeApi()
+    api.recipes.saveRecipe.mockResolvedValue('p')
+    api.recipes.listLinkable.mockResolvedValue([
+      { id: 't', title: 'Tarte au citron', source: 'Pâtisserie maison', sourcePage: '146', ingredients: [{ position: 0, name: 'pâte sucrée', note: 'p. 208', linkedRecipeId: null }] },
+      { id: 'p', title: 'Pâte sucrée', source: 'Pâtisserie maison', sourcePage: '208', ingredients: [] },
+    ])
+    renderForm(api)
+    await user.type(await screen.findByLabelText('Titre'), 'Pâte sucrée')
+    await user.type(screen.getByLabelText("Nom de l'ingrédient 1"), 'farine')
+    await user.click(screen.getByRole('button', { name: 'Enregistrer' }))
+    expect(await screen.findByText('« Tarte au citron » renvoie maintenant à « Pâte sucrée »')).toBeInTheDocument()
+    expect(api.recipes.linkIngredient).toHaveBeenCalledWith('t', { position: 0, name: 'pâte sucrée' }, 'p')
+  })
+
+  it('un échec des liens automatiques ne bloque pas l’enregistrement', async () => {
+    const user = userEvent.setup()
+    const api = fakeApi()
+    api.recipes.listLinkable.mockRejectedValue(new AppError('Hors ligne'))
+    renderForm(api)
+    await user.type(await screen.findByLabelText('Titre'), 'Pâte sucrée')
+    await user.type(screen.getByLabelText("Nom de l'ingrédient 1"), 'farine')
+    await user.click(screen.getByRole('button', { name: 'Enregistrer' }))
+    expect((await screen.findAllByText('Recette enregistrée')).length).toBeGreaterThan(0)
+    expect(screen.queryByText('Hors ligne')).not.toBeInTheDocument()
   })
 
   it('prévient qu’une recette du même titre existe déjà', async () => {

@@ -53,6 +53,51 @@ describe('RecipeDetailPage', () => {
     expect(cook).toHaveAttribute('href', '/recettes/r1/cuisiner?personnes=5')
   })
 
+  it('ajoute les ingrédients aux courses pour le nombre de personnes choisi', async () => {
+    const user = userEvent.setup()
+    const api = fakeApi()
+    api.recipes.getRecipe.mockResolvedValue(CURRY)
+    api.shopping.tidy.mockRejectedValue(new AppError('indisponible'))
+    renderWithApp(<RecipeDetailPage />, {
+      api,
+      route: '/recettes/r1',
+      path: '/recettes/:id',
+      extraRoutes: <Route path="/courses/:id" element={<p>Liste de courses</p>} />,
+    })
+    await user.click(await screen.findByRole('button', { name: 'Une personne de moins' }))
+    await user.click(screen.getByRole('button', { name: 'Courses' }))
+
+    const dialog = await screen.findByRole('dialog', { name: 'Ajouter aux courses' })
+    expect(dialog).toHaveTextContent('Curry de légumes · 3 personnes')
+    // 400 g pour 4 → 300 g pour 3 ; le sel est un basique du placard, décoché.
+    expect(await within(dialog).findByText('300 g')).toBeInTheDocument()
+    expect(within(dialog).getByRole('checkbox', { name: 'Acheter « Sel »' })).not.toBeChecked()
+
+    await user.click(within(dialog).getByRole('button', { name: 'Créer la liste (1 article)' }))
+    expect(api.shopping.createList).toHaveBeenCalled()
+    expect(api.shopping.addItems).toHaveBeenCalledWith('new-list', [{ name: 'Pois chiches', quantity: 300, unit: 'g', aisle: expect.any(String) }], 0)
+    expect(await screen.findByText('Liste de courses')).toBeInTheDocument()
+  })
+
+  it('complète une liste existante', async () => {
+    const user = userEvent.setup()
+    const api = fakeApi()
+    api.recipes.getRecipe.mockResolvedValue(CURRY)
+    api.shopping.listLists.mockResolvedValue([{ id: 'l1', name: 'Semaine', updated_at: '2026-10-30T10:00:00Z', total: 0, checked: 0 }])
+    renderWithApp(<RecipeDetailPage />, {
+      api,
+      route: '/recettes/r1',
+      path: '/recettes/:id',
+      extraRoutes: <Route path="/courses/:id" element={<p>Liste de courses</p>} />,
+    })
+    await user.click(await screen.findByRole('button', { name: 'Courses' }))
+    const dialog = await screen.findByRole('dialog', { name: 'Ajouter aux courses' })
+    await user.click(await within(dialog).findByRole('radio', { name: 'Compléter une liste' }))
+    await user.click(within(dialog).getByRole('button', { name: 'Ajouter (1 article)' }))
+    expect(api.shopping.addItems).toHaveBeenCalledWith('l1', [expect.objectContaining({ name: 'Pois chiches', quantity: 400 })], 0)
+    expect(await screen.findByText('Liste de courses')).toBeInTheDocument()
+  })
+
   it('affiche l’historique tiré du planning', async () => {
     const api = fakeApi()
     api.recipes.getRecipe.mockResolvedValue(CURRY)

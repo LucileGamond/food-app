@@ -7,6 +7,7 @@ import {
   capitalize,
   defaultSelection,
   isPantry,
+  fromMeal,
   mealIngredients,
   mealSource,
   mealWhen,
@@ -27,7 +28,7 @@ const TARTIFLETTE = mealFixture({ id: 'm1', meal_date: '2026-10-26', slot: 'DINN
 const GRATIN = mealFixture({ id: 'm2', meal_date: '2026-10-27', people: [LUCILE.id], recipe: { id: 'r2', is_saved: true, title: 'Gratin' } })
 
 function source(meal = TARTIFLETTE, servings: number | null = 4, ingredients: Ingredient[] = []): MealIngredients {
-  return { meal, servings, ingredients }
+  return fromMeal(meal, servings, ingredients)
 }
 
 describe('repas', () => {

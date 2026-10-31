@@ -5,6 +5,7 @@ import { Toaster } from 'sonner'
 import { vi } from 'vitest'
 import type { Api } from '@/api'
 import type { RecipeUsages } from '@/api/recipes'
+import type { LinkableRecipe } from '@/lib/autoLinks'
 import type { MealIdea } from '@/lib/mealIdeas'
 import { ApiProvider } from '@/app/ApiContext'
 import { AuthProvider, type AuthClient } from '@/auth/AuthProvider'
@@ -63,6 +64,7 @@ export function fakeApi(): FakeApi {
       listSavedSummaries: vi.fn(async () => [] as RecipeSummary[]),
       getHistory: vi.fn(async (): Promise<RecipeHistory> => ({ timesCooked: 0, lastCooked: null, nextPlanned: null })),
       saveReview: vi.fn(async () => undefined),
+      listLinkable: vi.fn(async () => [] as LinkableRecipe[]),
       getRecipe: vi.fn(async () => null as Recipe | null),
       saveRecipe: vi.fn(async () => 'saved-recipe'),
       listUsages: vi.fn(async () => ({ meals: [], recipes: [] }) as RecipeUsages),

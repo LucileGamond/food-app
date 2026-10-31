@@ -1,5 +1,6 @@
 import type { MealSlot, RecipeSummary } from '@/lib/meals'
 import { todayIso, type IsoDate } from '@/lib/dates'
+import type { LinkableRecipe } from '@/lib/autoLinks'
 import { averageRating, isVegetarian, totalMinutes } from '@/lib/recipeList'
 import type { Ingredient, LinkedRecipe, NutritionBasis, Recipe, RecipeHistory, RecipeImport, RecipeListItem, SaveRecipeInput } from '@/lib/recipes'
 import { groupSources } from '@/lib/sources'
@@ -93,6 +94,24 @@ export function createRecipesApi(db: AppSupabaseClient) {
         ...(review.comment.trim() && { p_comment: review.comment.trim() }),
       })
       if (error) throw toAppError(error, 'Impossible d’enregistrer l’avis.')
+    },
+
+    /** Recettes sauvegardées avec livre, page et ingrédients : pour les liens automatiques entre recettes d'un livre. */
+    async listLinkable(): Promise<LinkableRecipe[]> {
+      const { data, error } = await db
+        .from('recipes')
+        .select('id, title, source, source_page, recipe_ingredients(position, name, note, linked_recipe_id)')
+        .eq('is_saved', true)
+      if (error) throw toAppError(error, 'Impossible de charger les recettes.')
+      return data.map((r) => ({
+        id: r.id,
+        title: r.title,
+        source: r.source,
+        sourcePage: r.source_page,
+        ingredients: [...r.recipe_ingredients]
+          .sort((a, b) => a.position - b.position)
+          .map((i) => ({ position: i.position, name: i.name, note: i.note, linkedRecipeId: i.linked_recipe_id })),
+      }))
     },
 
     /** Recettes sauvegardées proposées dans le planning. */

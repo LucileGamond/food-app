@@ -20,6 +20,7 @@ import {
   type RecipeOutcome,
 } from '@/lib/batchImport'
 import { findSource, recipeKey } from '@/lib/sources'
+import { applyAutoLinks } from '@/lib/autoLinks'
 import { cn } from '@/lib/utils'
 
 type Phase = 'setup' | 'running' | 'paused' | 'done'
@@ -80,6 +81,8 @@ export function RecipeBatchImportPage() {
   const [items, setItems] = useState<BatchItem[]>([])
   const [phase, setPhase] = useState<Phase>('setup')
   const [submitted, setSubmitted] = useState(false)
+  // Liens créés entre recettes du livre (renvois « voir p. 208 ») depuis le début de l'import.
+  const [linksMade, setLinksMade] = useState(0)
   const paused = useRef(false)
   const known = useRef(new Map<string, string>())
   const tags = useRef<string[]>([])
@@ -125,6 +128,9 @@ export function RecipeBatchImportPage() {
       },
       { concurrency: BATCH_CONCURRENCY, isPaused: () => paused.current },
     )
+    // Recettes du livre liées entre elles (renvois « voir p. 208 »), y compris avec celles déjà enregistrées.
+    const auto = await applyAutoLinks(api).catch(() => null)
+    if (auto) setLinksMade((n) => n + auto.linked.length)
     setPhase(paused.current ? 'paused' : 'done')
   }
 
@@ -257,6 +263,11 @@ export function RecipeBatchImportPage() {
                 .map(([status, text]) => text(counts[status]))
                 .join(' · ') || 'Lecture des premières images…'}
             </p>
+            {linksMade > 0 && (
+              <p className="text-sm text-muted-foreground">
+                {linksMade} lien{linksMade > 1 ? 's' : ''} créé{linksMade > 1 ? 's' : ''} entre recettes
+              </p>
+            )}
             {phase === 'running' && <p className="text-xs text-muted-foreground">Garde cette page ouverte jusqu’à la fin.</p>}
             {phase === 'done' && (
               <div className="flex flex-wrap gap-2">

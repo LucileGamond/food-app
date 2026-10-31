@@ -201,6 +201,40 @@ describe('RecipesPage', () => {
     expect(titles()).toEqual(['Soupe de mamie'])
   })
 
+  it('relie les recettes d’un même livre et dit ce qui a été fait', async () => {
+    const user = userEvent.setup()
+    const api = fakeApi()
+    api.recipes.listSavedRecipes.mockResolvedValue(RECIPES)
+    const ing = (name: string, note: string | null = null) => ({ position: 0, name, note, linkedRecipeId: null })
+    api.recipes.listLinkable
+      .mockResolvedValueOnce([
+        { id: 't', title: 'Tarte au citron', source: 'Pâtisserie maison', sourcePage: '146', ingredients: [ing('pâte sucrée', 'voir p. 208')] },
+        { id: 'p', title: 'Pâte sucrée', source: 'Pâtisserie maison', sourcePage: '208', ingredients: [] },
+      ])
+      .mockResolvedValueOnce([])
+    renderRecipes(api)
+    await screen.findByRole('link', { name: /Banana bread/ })
+
+    await user.click(screen.getByRole('button', { name: 'Relier les recettes' }))
+    expect(await screen.findByText('« Tarte au citron » renvoie maintenant à « Pâte sucrée »')).toBeInTheDocument()
+    expect(api.recipes.linkIngredient).toHaveBeenCalledWith('t', { position: 0, name: 'pâte sucrée' }, 'p')
+
+    await user.click(screen.getByRole('button', { name: 'Relier les recettes' }))
+    expect(await screen.findByText(/Aucun nouveau lien/)).toBeInTheDocument()
+  })
+
+  it('signale un échec du chargement des recettes à relier', async () => {
+    const user = userEvent.setup()
+    const api = fakeApi()
+    api.recipes.listSavedRecipes.mockResolvedValue(RECIPES)
+    api.recipes.listLinkable.mockRejectedValue(new AppError('Impossible de charger les recettes.'))
+    renderRecipes(api)
+    await screen.findByRole('link', { name: /Banana bread/ })
+    await user.click(screen.getByRole('button', { name: 'Relier les recettes' }))
+    expect(await screen.findByText('Impossible de charger les recettes.')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Relier les recettes' })).toBeEnabled()
+  })
+
   it('affiche un état vide avec un bouton de création', async () => {
     renderRecipes()
     expect(await screen.findByText('Aucune recette')).toBeInTheDocument()

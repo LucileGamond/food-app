@@ -61,11 +61,20 @@ export function skippedInput(entry: SkippedEntry): ShoppingItemInput {
 // ---------------------------------------------------------------------------
 // Construction des lignes
 
+/** Ingrédients d'un repas du planning, ou d'une recette pour un nombre de personnes choisi. */
 export interface MealIngredients {
-  meal: Meal
+  /** Titre du repas ou de la recette (affiché sous chaque article). */
+  title: string
+  /** Nombre de personnes à servir. */
+  people: number
   /** Nombre de personnes prévu par la recette (null si inconnu : quantités prises telles quelles). */
   servings: number | null
   ingredients: Ingredient[]
+}
+
+/** Ingrédients d'un repas : autant de personnes que de convives. */
+export function fromMeal(meal: Meal, servings: number | null, ingredients: Ingredient[]): MealIngredients {
+  return { title: meal.recipe.title, people: meal.people.length, servings, ingredients }
 }
 
 export interface DraftLine {
@@ -117,9 +126,8 @@ export function isPantry(name: string): boolean {
   return PANTRY_PATTERN.test(normalizeName(name).replace(/[’']/g, ' '))
 }
 
-/** Quantités adaptées au nombre de personnes du repas (si la recette indique pour combien elle est prévue). */
-export function mealIngredients({ meal, servings, ingredients }: MealIngredients): Ingredient[] {
-  const people = meal.people.length
+/** Quantités adaptées au nombre de personnes (si la recette indique pour combien elle est prévue). */
+export function mealIngredients({ people, servings, ingredients }: MealIngredients): Ingredient[] {
   return servings && people > 0 ? scaleIngredients(ingredients, servings, people) : ingredients.map((i) => ({ ...i }))
 }
 
@@ -177,7 +185,7 @@ export function buildDraft(sources: readonly MealIngredients[]): DraftLine[] {
       const known = ingredient.unit === null || isUnit(ingredient.unit)
       const quantity = known ? ingredient.quantity : null
       const pantry = isPantry(name)
-      const meal = source.meal.recipe.title
+      const meal = source.title
       const issues: LineIssue[] = []
       if (!known) issues.push({ kind: 'unknown-unit', text: formatIngredient({ ...ingredient, name, note: null }), meal })
       else if (quantity === null && ingredient.note && /\d/.test(ingredient.note)) {

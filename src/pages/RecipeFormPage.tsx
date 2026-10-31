@@ -40,6 +40,7 @@ import {
   type RecipeFormValues,
 } from '@/lib/recipes'
 import { findSource, recipeKey } from '@/lib/sources'
+import { applyAutoLinks, autoLinkMessage } from '@/lib/autoLinks'
 import { cn } from '@/lib/utils'
 
 const EMPTY: RecipeFormValues = recipeToFormValues({ title: '', servings: null, notes: null, url: null, tags: [] })
@@ -342,6 +343,10 @@ export function RecipeFormPage() {
         )
       }
       if (finalIds.length > 1) await api.photos.reorderPhotos(finalIds)
+
+      // Liens avec les recettes du même livre (renvois « voir p. 208 », dans les deux sens), sans bloquer l'enregistrement.
+      const auto = await applyAutoLinks(api, recipeId).catch(() => null)
+      if (auto && auto.linked.length > 0) toast.success(autoLinkMessage(auto.linked))
 
       if (linkTarget) {
         await linkToParent(recipeId, 'Recette enregistrée et liée', 'Recette enregistrée, mais pas liée')
