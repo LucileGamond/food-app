@@ -163,7 +163,7 @@ describe('recipes api', () => {
     expect(list[1]).toMatchObject({ ingredientNames: ['Pois chiches', 'Lait de coco', 'Sel'], mainPhotoPath: null })
 
     const summaries = await api.recipes.listSavedSummaries()
-    expect(summaries.map((r) => r.title)).toEqual(['Banana bread', 'Curry de légumes'])
+    expect(summaries.map((r) => [r.title, r.source])).toEqual([['Banana bread', null], ['Curry de légumes', null]])
     expect(await api.recipes.listTags()).toEqual(['dessert', 'Rapide', 'végé'])
   })
 
@@ -188,6 +188,7 @@ describe('recipes api', () => {
     expect(item).toMatchObject({
       source: 'Ottolenghi',
       sourcePage: '12',
+      url: 'https://exemple.fr/curry',
       totalMinutes: 35,
       kcal: 450,
       nutritionPer: 'portion',

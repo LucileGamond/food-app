@@ -29,6 +29,7 @@ export function listItem(item: Pick<RecipeListItem, 'id' | 'title'> & Partial<Re
     createdAt: '2026-10-01T10:00:00Z',
     source: null,
     sourcePage: null,
+    url: null,
     totalMinutes: null,
     kcal: null,
     nutritionPer: null,

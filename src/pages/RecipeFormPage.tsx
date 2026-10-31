@@ -39,8 +39,7 @@ import {
   type ImportedRecipe,
   type RecipeFormValues,
 } from '@/lib/recipes'
-import { normalizeName } from '@/lib/shopping'
-import { findSource } from '@/lib/sources'
+import { findSource, recipeKey } from '@/lib/sources'
 import { cn } from '@/lib/utils'
 
 const EMPTY: RecipeFormValues = recipeToFormValues({ title: '', servings: null, notes: null, url: null, tags: [] })
@@ -96,7 +95,7 @@ export function RecipeFormPage() {
   const [removed, setRemoved] = useState<PhotoDraft[]>([])
   const [tagSuggestions, setTagSuggestions] = useState<string[]>([])
   const [sources, setSources] = useState<string[]>([])
-  const [savedTitles, setSavedTitles] = useState<{ id: string; title: string }[]>([])
+  const [savedTitles, setSavedTitles] = useState<{ id: string; title: string; source?: string | null }[]>([])
   // Photos lues lors d'un import, gardées à l'écran (sans être enregistrées) pour vérifier le formulaire.
   const [readPages, setReadPages] = useState<string[]>([])
   const [submitted, setSubmitted] = useState(false)
@@ -137,10 +136,14 @@ export function RecipeFormPage() {
     }
   }, [api, linkTarget])
 
-  // Recette déjà enregistrée sous le même titre (sans accents ni majuscules) : utile surtout après un import.
+  // Recette déjà enregistrée sous le même titre et avec le même livre (sans accents ni majuscules) : utile surtout
+  // après un import. Le même titre dans un autre livre est une autre recette.
   const sameTitle = values.title.trim()
-    ? (savedTitles.find((r) => r.id !== id && normalizeName(r.title) === normalizeName(values.title)) ?? null)
+    ? (savedTitles.find((r) => r.id !== id && recipeKey(r.title, r.source) === recipeKey(values.title, values.source)) ?? null)
     : null
+  // Sous-recette : une recette du même titre, quel que soit son livre, peut être liée au lieu d'en créer une.
+  const linkCandidate =
+    linkTarget && values.title.trim() ? (savedTitles.find((r) => r.id !== id && recipeKey(r.title, null) === recipeKey(values.title, null)) ?? null) : null
 
   const fromShare = !id && searchParams.get('photos') === 'partage'
   const sharedTaken = useRef(false)
@@ -509,9 +512,9 @@ export function RecipeFormPage() {
                 </span>
               </p>
             )}
-            {sameTitle && linkTarget && (
-              <Button type="button" variant="outline" className="h-10 px-3" disabled={saving} onClick={() => void linkExisting(sameTitle)}>
-                <Link2 /> Lier à « {sameTitle.title} » sans créer de recette
+            {linkCandidate && (
+              <Button type="button" variant="outline" className="h-10 px-3" disabled={saving} onClick={() => void linkExisting(linkCandidate)}>
+                <Link2 /> Lier à « {linkCandidate.title} » sans créer de recette
               </Button>
             )}
           </Field>

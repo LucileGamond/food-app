@@ -14,7 +14,7 @@ const read = (title: string, page: string | null = null): RecipeImport => ({
   source: 'photo',
   image: null,
 })
-const summary = (id: string, title: string): RecipeSummary => ({ id, is_saved: true, title, notes: null, url: null, tags: [] })
+const summary = (id: string, title: string, source: string | null = 'Pâtisserie maison'): RecipeSummary => ({ id, is_saved: true, title, notes: null, url: null, tags: [], source })
 const image = (name: string) => new File(['x'], name, { type: 'image/jpeg' })
 
 function setup(api: FakeApi = fakeApi()) {

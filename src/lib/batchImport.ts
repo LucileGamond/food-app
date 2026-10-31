@@ -3,6 +3,7 @@ import { AppError } from '@/api/errors'
 import { compressForReading } from './image'
 import { hasErrors, importedToFormValues, toSaveRecipeInput, validateRecipeForm, type ImportedRecipe, type RecipeFormErrors } from './recipes'
 import { normalizeName } from './shopping'
+import { recipeKey } from './sources'
 
 /** Images lues en même temps : plus rapide, sans trop solliciter le service d'analyse. */
 export const BATCH_CONCURRENCY = 2
@@ -70,7 +71,7 @@ export interface BatchContext {
   /** Livre saisi pour toute la série. */
   book: string
   tags: string[]
-  /** Titres déjà enregistrés ou importés dans cette série (normalisés) → recette ; complété au fil de l'import. */
+  /** Recettes déjà enregistrées ou importées dans cette série (`recipeKey` : titre et livre) → recette ; complété au fil de l'import. */
   known: Map<string, string>
 }
 
@@ -81,7 +82,8 @@ const firstError = (errors: RecipeFormErrors) =>
 async function saveRecipe(recipe: ImportedRecipe, { api, book, known }: BatchContext): Promise<BatchRecipe> {
   const values = { ...importedToFormValues(recipe, ''), source: book }
   const title = values.title.trim()
-  const key = normalizeName(title)
+  // Même titre dans un autre livre : une autre recette.
+  const key = recipeKey(title, book)
   const existing = known.get(key)
   if (existing !== undefined) return { status: 'duplicate', title, recipeId: existing || undefined, message: 'Déjà enregistrée' }
 

@@ -12,14 +12,17 @@ import { useSignedUrls } from '@/hooks/useSignedUrls'
 import { todayIso, type IsoDate } from '@/lib/dates'
 import {
   applyListOptions,
-  collectBooks,
+  bookOrigin,
+  collectOrigins,
   DEFAULT_LIST_OPTIONS,
   formatHistory,
   formatKcal,
   formatRating,
   isVegetarianTag,
+  MINE_ORIGIN,
   QUICK_FILTERS,
   RECIPE_SORTS,
+  siteOrigin,
   readListOptions,
   writeListOptions,
   type QuickFilter,
@@ -33,6 +36,11 @@ const selectClass =
   'h-10 min-w-0 rounded-lg border border-input bg-background px-2 text-base md:text-sm focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none dark:bg-input/30'
 
 const QUICK_ICONS: Record<QuickFilter, typeof Timer> = { quick: Timer, vegetarian: Leaf, forgotten: History }
+
+/** Valeurs proposées dans le filtre par source. */
+function optionValues(origins: ReturnType<typeof collectOrigins>): string[] {
+  return [...(origins.mine ? [MINE_ORIGIN] : []), ...origins.books.map(bookOrigin), ...origins.sites.map(siteOrigin)]
+}
 
 function Chip({ active, onClick, children }: { active: boolean; onClick: () => void; children: React.ReactNode }) {
   return (
@@ -67,11 +75,11 @@ export function RecipesPage({ today = todayIso() }: { today?: IsoDate }) {
   useEffect(load, [load])
 
   const tags = useMemo(() => collectTags(recipes ?? []).filter((t) => !isVegetarianTag(t)), [recipes])
-  const books = useMemo(() => collectBooks(recipes ?? []), [recipes])
+  const origins = useMemo(() => collectOrigins(recipes ?? []), [recipes])
   const visible = useMemo(() => applyListOptions(recipes ?? [], options, today), [recipes, options, today])
   const photoPaths = useMemo(() => (recipes ?? []).flatMap((r) => (r.mainPhotoPath ? [r.mainPhotoPath] : [])), [recipes])
   const urls = useSignedUrls(api, photoPaths)
-  const filtered = options.query !== '' || options.tag !== null || options.book !== null || options.filters.length > 0
+  const filtered = options.query !== '' || options.tag !== null || options.origin !== null || options.filters.length > 0
 
   function toggleFilter(filter: QuickFilter) {
     const active = options.filters.includes(filter)
@@ -147,23 +155,35 @@ export function RecipesPage({ today = todayIso() }: { today?: IsoDate }) {
                   </option>
                 ))}
               </select>
-              {books.length > 0 && (
-                <select
-                  aria-label="Filtrer par livre"
-                  value={options.book ?? ''}
-                  onChange={(e) => setOptions({ book: e.target.value || null })}
-                  className={cn(selectClass, 'flex-[1_1_10rem] sm:max-w-56 sm:flex-none', !options.book && 'text-muted-foreground')}
-                >
-                  <option value="">Tous les livres</option>
-                  {/* Livre choisi absent de la liste (adresse ancienne) : affiché pour pouvoir le retirer. */}
-                  {options.book && !books.includes(options.book) && <option value={options.book}>{options.book}</option>}
-                  {books.map((b) => (
-                    <option key={b} value={b}>
-                      {b}
-                    </option>
-                  ))}
-                </select>
-              )}
+              <select
+                aria-label="Filtrer par source"
+                value={options.origin ?? ''}
+                onChange={(e) => setOptions({ origin: e.target.value || null })}
+                className={cn(selectClass, 'flex-[1_1_10rem] sm:max-w-60 sm:flex-none', !options.origin && 'text-muted-foreground')}
+              >
+                <option value="">Toutes les sources</option>
+                {origins.mine && <option value={MINE_ORIGIN}>Mes recettes (sans source)</option>}
+                {origins.books.length > 0 && (
+                  <optgroup label="Livres">
+                    {origins.books.map((b) => (
+                      <option key={b} value={bookOrigin(b)}>
+                        {b}
+                      </option>
+                    ))}
+                  </optgroup>
+                )}
+                {origins.sites.length > 0 && (
+                  <optgroup label="Sites">
+                    {origins.sites.map((site) => (
+                      <option key={site} value={siteOrigin(site)}>
+                        {site}
+                      </option>
+                    ))}
+                  </optgroup>
+                )}
+                {/* Source choisie absente de la liste (adresse ancienne) : affichée pour pouvoir la retirer. */}
+                {options.origin && !optionValues(origins).includes(options.origin) && <option value={options.origin}>{options.origin}</option>}
+              </select>
             </div>
 
             <div className="flex flex-wrap gap-2" role="group" aria-label="Filtres rapides">

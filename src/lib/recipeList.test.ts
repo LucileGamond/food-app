@@ -2,7 +2,7 @@ import { listItem } from '@/test/fakes'
 import {
   applyListOptions,
   averageRating,
-  collectBooks,
+  collectOrigins,
   DEFAULT_LIST_OPTIONS,
   formatHistory,
   formatKcal,
@@ -11,6 +11,7 @@ import {
   isVegetarian,
   isVegetarianTag,
   readListOptions,
+  recipeOrigins,
   totalMinutes,
   writeListOptions,
 } from './recipeList'
@@ -63,29 +64,32 @@ describe('applyListOptions', () => {
   const recipes = [
     listItem({ id: '1', title: 'B', source: 'Livre', sourcePage: '146-147', totalMinutes: null, rating: null }),
     listItem({ id: '2', title: 'A', source: 'Livre', sourcePage: '30', totalMinutes: 30, rating: 2, vegetarian: true }),
-    listItem({ id: '3', title: 'C', source: null, sourcePage: null, totalMinutes: 31, rating: 5 }),
+    listItem({ id: '3', title: 'C', source: null, sourcePage: null, url: 'https://www.marmiton.org/c', totalMinutes: 31, rating: 5 }),
+    listItem({ id: '5', title: 'E', totalMinutes: null }),
     listItem({ id: '4', title: 'D', source: 'Autre', sourcePage: null, totalMinutes: 10, rating: 4, lastCooked: '2026-10-30' }),
   ]
   const run = (patch: Partial<typeof DEFAULT_LIST_OPTIONS>) => applyListOptions(recipes, { ...DEFAULT_LIST_OPTIONS, ...patch }, TODAY).map((r) => r.title)
 
   it('trie, valeurs absentes en dernier', () => {
-    expect(run({})).toEqual(['A', 'B', 'C', 'D'])
-    expect(run({ sort: 'quick' })).toEqual(['D', 'A', 'C', 'B'])
-    expect(run({ sort: 'rating' })).toEqual(['C', 'D', 'A', 'B'])
-    expect(run({ sort: 'book' })).toEqual(['D', 'A', 'B', 'C'])
+    expect(run({})).toEqual(['A', 'B', 'C', 'D', 'E'])
+    expect(run({ sort: 'quick' })).toEqual(['D', 'A', 'C', 'B', 'E'])
+    expect(run({ sort: 'rating' })).toEqual(['C', 'D', 'A', 'B', 'E'])
+    expect(run({ sort: 'book' })).toEqual(['D', 'A', 'B', 'C', 'E'])
   })
 
-  it('filtre par livre et filtres rapides, cumulés', () => {
-    expect(run({ book: 'Livre' })).toEqual(['A', 'B'])
+  it('filtre par source (livre, site, mes recettes) et filtres rapides, cumulés', () => {
+    expect(run({ origin: 'livre:Livre' })).toEqual(['A', 'B'])
+    expect(run({ origin: 'site:marmiton.org' })).toEqual(['C'])
+    expect(run({ origin: 'perso' })).toEqual(['E'])
     expect(run({ filters: ['quick'] })).toEqual(['A', 'D'])
     expect(run({ filters: ['quick', 'vegetarian'] })).toEqual(['A'])
-    expect(run({ filters: ['forgotten'] })).toEqual(['A', 'B', 'C'])
+    expect(run({ filters: ['forgotten'] })).toEqual(['A', 'B', 'C', 'E'])
   })
 })
 
 describe('options dans l’adresse', () => {
   it('aller-retour, sans les valeurs par défaut', () => {
-    const options = { query: 'tarte', tag: 'dessert', book: 'Pâtisserie maison', filters: ['quick', 'forgotten'] as const, sort: 'book' as const }
+    const options = { query: 'tarte', tag: 'dessert', origin: 'livre:Pâtisserie maison', filters: ['quick', 'forgotten'] as const, sort: 'book' as const }
     const params = writeListOptions({ ...options, filters: [...options.filters] })
     expect(readListOptions(params)).toEqual({ ...options, filters: [...options.filters] })
     expect(writeListOptions(DEFAULT_LIST_OPTIONS).toString()).toBe('')
@@ -97,8 +101,17 @@ describe('options dans l’adresse', () => {
 })
 
 describe('affichage', () => {
-  it('collectBooks : livres distincts triés', () => {
-    expect(collectBooks([{ source: 'b' }, { source: null }, { source: 'A' }, { source: 'b' }])).toEqual(['A', 'b'])
+  it('collectOrigins : livres et sites distincts triés, et recettes sans source', () => {
+    const recipes = [
+      { source: 'b', url: null },
+      { source: null, url: 'https://www.marmiton.org/x' },
+      { source: 'A', url: 'https://cuisine.exemple.fr/y' },
+      { source: 'b', url: 'https://marmiton.org/z' },
+    ]
+    expect(collectOrigins(recipes)).toEqual({ books: ['A', 'b'], sites: ['cuisine.exemple.fr', 'marmiton.org'], mine: false })
+    expect(collectOrigins([...recipes, { source: null, url: null }]).mine).toBe(true)
+    expect(recipeOrigins({ source: 'A', url: 'https://cuisine.exemple.fr/y' })).toEqual(['livre:A', 'site:cuisine.exemple.fr'])
+    expect(recipeOrigins({ source: null, url: null })).toEqual(['perso'])
   })
 
   it('averageRating : moyenne au dixième', () => {

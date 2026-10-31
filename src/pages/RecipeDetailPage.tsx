@@ -1,4 +1,4 @@
-import { ArrowLeft, BookOpen, Clock, ExternalLink, Flame, History, Inbox, Minus, Pencil, Plus, RefreshCw, SearchX, Trash2, Users } from 'lucide-react'
+import { ArrowLeft, BookOpen, ChefHat, Clock, ExternalLink, Flame, History, Inbox, Minus, Pencil, Plus, RefreshCw, SearchX, Trash2, Users } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom'
 import { toast } from 'sonner'
@@ -203,6 +203,12 @@ function RecipeDetail({ id }: { id: string }) {
           )}
         </div>
         <div className="flex flex-wrap gap-2">
+          <Link
+            to={`/recettes/${recipe.id}/cuisiner${servings !== null ? `?personnes=${servings}` : ''}`}
+            className={cn(buttonVariants(), 'h-10 px-3')}
+          >
+            <ChefHat /> Cuisiner
+          </Link>
           <Button variant="outline" className="h-10 px-3" onClick={() => void addToInbox()}>
             <Inbox /> À planifier
           </Button>

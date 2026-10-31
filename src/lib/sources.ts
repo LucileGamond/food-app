@@ -30,3 +30,11 @@ export function filterSources(text: string, sources: readonly string[]): string[
   const key = normalizeName(text)
   return key ? sources.filter((s) => normalizeName(s).includes(key)) : [...sources]
 }
+
+/**
+ * Clé d'une recette pour repérer les doublons : même titre et même source (livre), à la casse, aux accents et aux
+ * espaces près. Le même titre dans un autre livre (ou sans livre) est une autre recette.
+ */
+export function recipeKey(title: string, source: string | null | undefined): string {
+  return `${normalizeName(title)}|${normalizeName(source ?? '')}`
+}

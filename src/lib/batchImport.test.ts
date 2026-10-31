@@ -3,7 +3,7 @@ import { compressForReading } from '@/lib/image'
 import { fakeApi } from '@/test/fakes'
 import { imageFiles, importOne, mergeRetry, needsRetry, runQueue, tally, type BatchContext } from './batchImport'
 import type { RecipeImport } from './recipes'
-import { normalizeName } from './shopping'
+import { recipeKey } from './sources'
 
 vi.mock('@/lib/image', () => ({ compressForReading: vi.fn(async (file: File) => new Blob([file.name], { type: 'image/jpeg' })) }))
 
@@ -79,7 +79,7 @@ describe('import en série', () => {
       expect(ctx.api.recipes.saveRecipe).toHaveBeenCalledWith(
         expect.objectContaining({ title: 'Tarte au citron', source: 'Pâtisserie maison', sourcePage: '146', servings: 4, tags: ['dessert'] }),
       )
-      expect(ctx.known.get('tarte au citron')).toBe('r9')
+      expect(ctx.known.get(recipeKey('Tarte au citron', 'Pâtisserie maison'))).toBe('r9')
     })
 
     it('ignore une page qui n’est pas une recette', async () => {
@@ -88,11 +88,21 @@ describe('import en série', () => {
       expect(await importOne(file('sommaire.jpg'), ctx)).toEqual({ status: 'skipped', message: 'Pas une recette', recipes: [] })
     })
 
-    it('saute un titre déjà enregistré ou déjà importé dans la série', async () => {
-      const ctx = context([['tarte au citron', 'r1']])
+    it('saute une recette du même titre et du même livre, déjà enregistrée ou importée dans la série', async () => {
+      const ctx = context([[recipeKey('tarte au citron', 'PATISSERIE MAISON'), 'r1']])
       ctx.api.recipes.importFromPhotos.mockResolvedValue(read('Tarte au Citron'))
       expect((await importOne(file('a.jpg'), ctx)).recipes).toEqual([{ status: 'duplicate', title: 'Tarte au Citron', recipeId: 'r1', message: 'Déjà enregistrée' }])
       expect(ctx.api.recipes.saveRecipe).not.toHaveBeenCalled()
+    })
+
+    it('enregistre une recette du même titre venant d’un autre livre ou sans livre', async () => {
+      const ctx = context([
+        [recipeKey('Tarte au citron', 'Ottolenghi'), 'r1'],
+        [recipeKey('Tarte au citron', null), 'r2'],
+      ])
+      ctx.api.recipes.importFromPhotos.mockResolvedValue(read('Tarte au citron'))
+      ctx.api.recipes.saveRecipe.mockResolvedValue('r3')
+      expect((await importOne(file('a.jpg'), ctx)).recipes).toEqual([{ status: 'saved', title: 'Tarte au citron', recipeId: 'r3' }])
     })
 
     it('deux images du même titre lues en parallèle : une seule enregistrée', async () => {
@@ -115,7 +125,7 @@ describe('import en série', () => {
     })
 
     it('enregistre chacune des recettes d’une page', async () => {
-      const ctx = context([[normalizeName('Crêpes'), 'r1']])
+      const ctx = context([[recipeKey('Crêpes', 'Pâtisserie maison'), 'r1']])
       const page = read('Pâte brisée', { page: '12' })
       ctx.api.recipes.importFromPhotos.mockResolvedValue({ ...page, recipes: [page.recipe, read('Quiche', { page: '12' }).recipe, read('Crêpes').recipe] })
       ctx.api.recipes.saveRecipe.mockImplementation(async (input) => `id-${input.title}`)
@@ -144,7 +154,7 @@ describe('import en série', () => {
       ctx.api.recipes.importFromPhotos.mockResolvedValue(read('Flan'))
       ctx.api.recipes.saveRecipe.mockRejectedValueOnce(new AppError('Connexion impossible.'))
       expect((await importOne(file('c.jpg'), ctx)).recipes).toEqual([{ status: 'error', title: 'Flan', message: 'Connexion impossible.' }])
-      expect(ctx.known.has('flan')).toBe(false)
+      expect(ctx.known.has(recipeKey('Flan', 'Pâtisserie maison'))).toBe(false)
     })
   })
 })

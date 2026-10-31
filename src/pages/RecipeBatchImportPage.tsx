@@ -19,8 +19,7 @@ import {
   type BatchStatus,
   type RecipeOutcome,
 } from '@/lib/batchImport'
-import { normalizeName } from '@/lib/shopping'
-import { findSource } from '@/lib/sources'
+import { findSource, recipeKey } from '@/lib/sources'
 import { cn } from '@/lib/utils'
 
 type Phase = 'setup' | 'running' | 'paused' | 'done'
@@ -133,12 +132,12 @@ export function RecipeBatchImportPage() {
     setSubmitted(true)
     if (!book.trim() || items.length === 0) return
     setPhase('running')
-    // Titres déjà enregistrés (doublons sautés) et tags existants (réutilisés par le modèle).
+    // Recettes déjà enregistrées (même titre et même livre : doublons sautés) et tags existants (réutilisés par le modèle).
     const [saved, existingTags] = await Promise.all([
       api.recipes.listSavedSummaries().catch(() => []),
       api.recipes.listTags().catch(() => [] as string[]),
     ])
-    known.current = new Map(saved.map((r) => [normalizeName(r.title), r.id]))
+    known.current = new Map(saved.map((r) => [recipeKey(r.title, r.source), r.id]))
     tags.current = existingTags
     await run(items)
   }

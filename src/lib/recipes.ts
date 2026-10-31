@@ -523,6 +523,7 @@ export interface RecipeListItem {
   createdAt: string
   source: string | null
   sourcePage: string | null
+  url: string | null
   /** Préparation, repos et cuisson ; null si aucun temps n'est renseigné. */
   totalMinutes: number | null
   kcal: number | null

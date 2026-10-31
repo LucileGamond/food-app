@@ -15,6 +15,8 @@ export interface RecipeSummary {
   notes: string | null
   url: string | null
   tags: string[]
+  /** Livre (absent dans les recettes des repas du planning). */
+  source?: string | null
 }
 
 export interface Meal {

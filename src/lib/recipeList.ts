@@ -1,6 +1,6 @@
 import { addDays, formatShortDate, type IsoDate } from './dates'
 import { guessAisle, normalizeName } from './shopping'
-import { filterRecipes, type NutritionBasis, type RecipeHistory, type RecipeListItem } from './recipes'
+import { filterRecipes, siteName, type NutritionBasis, type RecipeHistory, type RecipeListItem } from './recipes'
 
 // ---------------------------------------------------------------------------
 // Tri et filtres de l'écran des recettes
@@ -32,12 +32,13 @@ export const QUICK_FILTERS: readonly { value: QuickFilter; label: string }[] = [
 export interface RecipeListOptions {
   query: string
   tag: string | null
-  book: string | null
+  /** Source : `livre:<nom>`, `site:<domaine>` ou `perso` (voir `recipeOrigins`). */
+  origin: string | null
   filters: readonly QuickFilter[]
   sort: RecipeSort
 }
 
-export const DEFAULT_LIST_OPTIONS: RecipeListOptions = { query: '', tag: null, book: null, filters: [], sort: 'title' }
+export const DEFAULT_LIST_OPTIONS: RecipeListOptions = { query: '', tag: null, origin: null, filters: [], sort: 'title' }
 
 /** Temps total (préparation, repos, cuisson) ; null si aucun n'est renseigné. */
 export function totalMinutes(times: { prep: number | null; rest: number | null; cook: number | null }): number | null {
@@ -72,9 +73,25 @@ export function isForgotten(recipe: Pick<RecipeListItem, 'lastCooked' | 'nextPla
   return recipe.lastCooked === null || recipe.lastCooked < addDays(today, -FORGOTTEN_DAYS)
 }
 
-/** Livres des recettes, triés. */
-export function collectBooks(recipes: readonly Pick<RecipeListItem, 'source'>[]): string[] {
-  return [...new Set(recipes.flatMap((r) => (r.source ? [r.source] : [])))].sort((a, b) => a.localeCompare(b, 'fr'))
+/** Recettes sans livre ni adresse : les siennes. */
+export const MINE_ORIGIN = 'perso'
+export const bookOrigin = (book: string) => `livre:${book}`
+export const siteOrigin = (site: string) => `site:${site}`
+
+/** Sources d'une recette pour le filtre : son livre, le site de son adresse, ou « mes recettes » sans l'un ni l'autre. */
+export function recipeOrigins(recipe: Pick<RecipeListItem, 'source' | 'url'>): string[] {
+  const origins = [...(recipe.source ? [bookOrigin(recipe.source)] : []), ...(recipe.url ? [siteOrigin(siteName(recipe.url))] : [])]
+  return origins.length > 0 ? origins : [MINE_ORIGIN]
+}
+
+/** Livres et sites des recettes (triés), et s'il y a des recettes sans source. */
+export function collectOrigins(recipes: readonly Pick<RecipeListItem, 'source' | 'url'>[]): { books: string[]; sites: string[]; mine: boolean } {
+  const sorted = (values: Iterable<string>) => [...new Set(values)].sort((a, b) => a.localeCompare(b, 'fr'))
+  return {
+    books: sorted(recipes.flatMap((r) => (r.source ? [r.source] : []))),
+    sites: sorted(recipes.flatMap((r) => (r.url ? [siteName(r.url)] : []))),
+    mine: recipes.some((r) => !r.source && !r.url),
+  }
 }
 
 /** Première page d'un numéro (« 146-147 » → 146) ; null s'il n'y en a pas. */
@@ -108,7 +125,7 @@ const COMPARE: Record<RecipeSort, (a: RecipeListItem, b: RecipeListItem) => numb
 export function applyListOptions(recipes: readonly RecipeListItem[], options: RecipeListOptions, today: IsoDate): RecipeListItem[] {
   const { filters } = options
   return filterRecipes(recipes, options.query, options.tag)
-    .filter((r) => !options.book || r.source === options.book)
+    .filter((r) => !options.origin || recipeOrigins(r).includes(options.origin))
     .filter((r) => !filters.includes('quick') || (r.totalMinutes !== null && r.totalMinutes <= QUICK_MINUTES))
     .filter((r) => !filters.includes('vegetarian') || r.vegetarian)
     .filter((r) => !filters.includes('forgotten') || isForgotten(r, today))
@@ -124,7 +141,7 @@ export function readListOptions(params: URLSearchParams): RecipeListOptions {
   return {
     query: params.get('q') ?? '',
     tag: params.get('tag') || null,
-    book: params.get('livre') || null,
+    origin: params.get('source') || null,
     filters: (params.get('filtres') ?? '').split(',').filter(isFilter),
     sort: isSort(sort) ? sort : DEFAULT_LIST_OPTIONS.sort,
   }
@@ -134,7 +151,7 @@ export function writeListOptions(options: RecipeListOptions): URLSearchParams {
   const params = new URLSearchParams()
   if (options.query) params.set('q', options.query)
   if (options.tag) params.set('tag', options.tag)
-  if (options.book) params.set('livre', options.book)
+  if (options.origin) params.set('source', options.origin)
   if (options.filters.length > 0) params.set('filtres', options.filters.join(','))
   if (options.sort !== DEFAULT_LIST_OPTIONS.sort) params.set('tri', options.sort)
   return params

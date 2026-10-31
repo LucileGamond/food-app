@@ -138,9 +138,9 @@ describe('RecipesPage', () => {
     await user.selectOptions(sort, 'Livre et page')
     expect(titles()).toEqual(['Curry de légumes', 'Pâtes pesto', 'Banana bread'])
 
-    const book = screen.getByRole('combobox', { name: 'Filtrer par livre' })
-    expect(within(book).getAllByRole('option').map((o) => o.textContent)).toEqual(['Tous les livres', 'Ottolenghi', 'Pâtisserie maison'])
-    await user.selectOptions(book, 'Pâtisserie maison')
+    const source = screen.getByRole('combobox', { name: 'Filtrer par source' })
+    expect(within(source).getAllByRole('option').map((o) => o.textContent)).toEqual(['Toutes les sources', 'Ottolenghi', 'Pâtisserie maison'])
+    await user.selectOptions(source, 'Pâtisserie maison')
     expect(titles()).toEqual(['Pâtes pesto', 'Banana bread'])
     expect(screen.getByText(/2 recettes sur 3/)).toBeInTheDocument()
 
@@ -174,10 +174,31 @@ describe('RecipesPage', () => {
   it('lit les options de l’adresse', async () => {
     const api = fakeApi()
     api.recipes.listSavedRecipes.mockResolvedValue(RECIPES)
-    renderRecipes(api, '/recettes?filtres=vegetarian,inconnu&tri=quick&livre=Ottolenghi')
+    renderRecipes(api, '/recettes?filtres=vegetarian,inconnu&tri=quick&source=livre%3AOttolenghi')
     await screen.findByRole('link', { name: /Curry/ })
     expect(titles()).toEqual(['Curry de légumes'])
-    expect(screen.getByRole('combobox', { name: 'Filtrer par livre' })).toHaveValue('Ottolenghi')
+    expect(screen.getByRole('combobox', { name: 'Filtrer par source' })).toHaveValue('livre:Ottolenghi')
+  })
+
+  it('filtre par site (début de l’adresse) ou par mes recettes, sans source', async () => {
+    const user = userEvent.setup()
+    const api = fakeApi()
+    api.recipes.listSavedRecipes.mockResolvedValue([
+      ...RECIPES,
+      listItem({ id: 'd', title: 'Gratin', url: 'https://www.marmiton.org/recettes/gratin.aspx' }),
+      listItem({ id: 'e', title: 'Quiche', url: 'https://marmiton.org/recettes/quiche.aspx' }),
+      listItem({ id: 'f', title: 'Soupe de mamie' }),
+    ])
+    renderRecipes(api)
+    await screen.findByRole('link', { name: /Gratin/ })
+    const source = screen.getByRole('combobox', { name: 'Filtrer par source' })
+    expect(within(source).getByRole('group', { name: 'Livres' })).toBeInTheDocument()
+    expect(within(within(source).getByRole('group', { name: 'Sites' })).getAllByRole('option').map((o) => o.textContent)).toEqual(['marmiton.org'])
+
+    await user.selectOptions(source, 'marmiton.org')
+    expect(titles()).toEqual(['Gratin', 'Quiche'])
+    await user.selectOptions(source, 'Mes recettes (sans source)')
+    expect(titles()).toEqual(['Soupe de mamie'])
   })
 
   it('affiche un état vide avec un bouton de création', async () => {

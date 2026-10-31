@@ -43,7 +43,7 @@ export function createRecipesApi(db: AppSupabaseClient) {
         db
           .from('recipes')
           .select(
-            'id, title, tags, created_at, source, source_page, prep_minutes, rest_minutes, cook_minutes, kcal, nutrition_per, recipe_ingredients(name), recipe_photos(storage_path, position), recipe_reviews(rating)',
+            'id, title, tags, created_at, source, source_page, url, prep_minutes, rest_minutes, cook_minutes, kcal, nutrition_per, recipe_ingredients(name), recipe_photos(storage_path, position), recipe_reviews(rating)',
           )
           .eq('is_saved', true)
           .order('title'),
@@ -64,6 +64,7 @@ export function createRecipesApi(db: AppSupabaseClient) {
           createdAt: r.created_at,
           source: r.source,
           sourcePage: r.source_page,
+          url: r.url,
           totalMinutes: totalMinutes({ prep: r.prep_minutes, rest: r.rest_minutes, cook: r.cook_minutes }),
           kcal: r.kcal,
           nutritionPer: r.nutrition_per as NutritionBasis | null,
@@ -98,7 +99,7 @@ export function createRecipesApi(db: AppSupabaseClient) {
     async listSavedSummaries(): Promise<RecipeSummary[]> {
       const { data, error } = await db
         .from('recipes')
-        .select('id, is_saved, title, notes, url, tags')
+        .select('id, is_saved, title, notes, url, tags, source')
         .eq('is_saved', true)
         .order('title')
       if (error) throw toAppError(error, 'Impossible de charger les recettes.')

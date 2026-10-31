@@ -1,4 +1,4 @@
-import { filterSources, findSource, groupSources } from './sources'
+import { filterSources, findSource, groupSources, recipeKey } from './sources'
 
 describe('groupSources', () => {
   it('regroupe les écritures d’une même source sous la plus utilisée, triées par nom', () => {
@@ -30,5 +30,17 @@ describe('filterSources', () => {
     const sources = ['Pâtisserie maison', 'Ottolenghi', 'Simple']
     expect(filterSources('pati', sources)).toEqual(['Pâtisserie maison'])
     expect(filterSources('', sources)).toEqual(sources)
+  })
+})
+
+describe('recipeKey', () => {
+  it('même titre et même livre (casse, accents, espaces près) : même recette', () => {
+    expect(recipeKey(' Tarte au Citron', 'patisserie  maison')).toBe(recipeKey('tarte au citron', 'Pâtisserie maison'))
+    expect(recipeKey('Tarte', null)).toBe(recipeKey('tarte', '  '))
+  })
+
+  it('autre livre, ou sans livre : autre recette', () => {
+    expect(recipeKey('Tarte', 'Ottolenghi')).not.toBe(recipeKey('Tarte', 'Pâtisserie maison'))
+    expect(recipeKey('Tarte', 'Ottolenghi')).not.toBe(recipeKey('Tarte', null))
   })
 })

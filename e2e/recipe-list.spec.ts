@@ -52,7 +52,7 @@ test('trie et filtre les recettes, montre l’historique et enregistre un avis',
   await page.getByRole('button', { name: 'Effacer les filtres' }).click()
   await page.getByRole('combobox', { name: 'Trier les recettes' }).selectOption({ label: 'Pas cuisinées depuis longtemps' })
   await expect(cards.first()).toContainText('Blanquette de veau')
-  await page.getByRole('combobox', { name: 'Filtrer par livre' }).selectOption({ label: 'Ottolenghi' })
+  await page.getByRole('combobox', { name: 'Filtrer par source' }).selectOption({ label: 'Ottolenghi' })
   await expect(cards).toHaveCount(1)
 
   const results = await new AxeBuilder({ page }).analyze()
@@ -69,6 +69,6 @@ test('trie et filtre les recettes, montre l’historique et enregistre un avis',
   await expect(page.getByText('Avis enregistré')).toBeVisible()
 
   await page.goBack()
-  await expect(page.getByRole('combobox', { name: 'Filtrer par livre' })).toHaveValue('Ottolenghi')
+  await expect(page.getByRole('combobox', { name: 'Filtrer par source' })).toHaveValue('livre:Ottolenghi')
   await expect(page.getByRole('link', { name: /Curry de lentilles/ }).getByLabel('Note 4 sur 5')).toBeVisible()
 })

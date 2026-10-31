@@ -104,6 +104,24 @@ describe('RecipeFormPage — source, temps, sous-parties, doublons', () => {
     expect(screen.queryByText(/existe déjà/)).not.toBeInTheDocument()
   })
 
+  it('même titre dans un autre livre : une autre recette, sans avertissement', async () => {
+    const user = userEvent.setup()
+    const api = fakeApi()
+    api.recipes.listSavedSummaries.mockResolvedValue([
+      { id: 'r9', is_saved: true, title: 'Tarte à la banane', notes: null, url: null, tags: [], source: 'Ottolenghi' },
+    ])
+    renderForm(api)
+    await user.type(await screen.findByLabelText('Titre'), 'Tarte à la banane')
+    await user.type(screen.getByLabelText('Livre ou source'), 'Pâtisserie maison')
+    expect(screen.queryByText(/existe déjà/)).not.toBeInTheDocument()
+    // Sans livre non plus : autre recette.
+    await user.clear(screen.getByLabelText('Livre ou source'))
+    expect(screen.queryByText(/existe déjà/)).not.toBeInTheDocument()
+    // Même livre (casse près) : doublon signalé.
+    await user.type(screen.getByLabelText('Livre ou source'), 'OTTOLENGHI')
+    expect(screen.getByText(/existe déjà/)).toBeInTheDocument()
+  })
+
   it('garde la photo lue à l’écran pour comparer, en grand sur demande', async () => {
     const user = userEvent.setup()
     const api = fakeApi()

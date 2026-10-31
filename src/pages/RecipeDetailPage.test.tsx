@@ -42,6 +42,17 @@ describe('RecipeDetailPage', () => {
     expect(screen.getByText('450 kcal · glucides 52,5 g · protéines 18 g (par portion)')).toBeInTheDocument()
   })
 
+  it('ouvre le mode cuisine avec le nombre de personnes choisi', async () => {
+    const user = userEvent.setup()
+    const api = fakeApi()
+    api.recipes.getRecipe.mockResolvedValue(CURRY)
+    renderDetail(api)
+    const cook = await screen.findByRole('link', { name: 'Cuisiner' })
+    expect(cook).toHaveAttribute('href', '/recettes/r1/cuisiner?personnes=4')
+    await user.click(screen.getByRole('button', { name: 'Une personne de plus' }))
+    expect(cook).toHaveAttribute('href', '/recettes/r1/cuisiner?personnes=5')
+  })
+
   it('affiche l’historique tiré du planning', async () => {
     const api = fakeApi()
     api.recipes.getRecipe.mockResolvedValue(CURRY)
