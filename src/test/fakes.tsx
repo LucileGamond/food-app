@@ -13,6 +13,7 @@ import { AuthProvider, type AuthClient } from '@/auth/AuthProvider'
 import type { Meal, Profile, RecipeSummary } from '@/lib/meals'
 import type { Ingredient, Recipe, RecipeHistory, RecipeImport, RecipeListItem } from '@/lib/recipes'
 import type { Consumption, FoodPeriod, PeriodItem, PlanItem } from '@/lib/food'
+import type { NutritionEstimate } from '@/lib/nutritionEstimate'
 import type { InboxItem } from '@/lib/inbox'
 import type { ShoppingItem, ShoppingItemInput, ShoppingList } from '@/lib/shopping'
 import type { TidyLine } from '@/lib/shoppingFromPlan'
@@ -79,6 +80,8 @@ export function fakeApi(): FakeApi {
       linkIngredient: vi.fn(async () => undefined),
       getIngredients: vi.fn(async () => [] as { id: string; servings: number | null; ingredients: Ingredient[] }[]),
       importFromPhotos: vi.fn(async (): Promise<RecipeImport> => ({ recipe: { title: 'Recette lue', servings: null, ingredients: [], steps: '', tags: [] }, source: 'photo', image: null })),
+      estimateNutrition: vi.fn(async (): Promise<NutritionEstimate> => ({ per: 'portion', kcal: 0, protein: 0, carbs: 0, fat: 0, ingredients: [] })),
+      saveNutrition: vi.fn(async () => undefined),
       importFromUrl: vi.fn(async (): Promise<RecipeImport> => ({ recipe: { title: 'Recette importée', servings: null, ingredients: [], steps: '', tags: [] }, source: 'structured', image: null })),
     },
     photos: {

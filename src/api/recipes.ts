@@ -4,6 +4,7 @@ import type { LinkableRecipe } from '@/lib/autoLinks'
 import type { CookingProgress, SavedProgress } from '@/lib/cooking'
 import { averageRating, isVegetarian, totalMinutes } from '@/lib/recipeList'
 import type { Ingredient, LinkedRecipe, NutritionBasis, Recipe, RecipeHistory, RecipeImport, RecipeListItem, SaveRecipeInput } from '@/lib/recipes'
+import { estimateInput, parseEstimate, type NutritionEstimate } from '@/lib/nutritionEstimate'
 import { groupSources } from '@/lib/sources'
 import type { AppSupabaseClient } from '@/lib/supabase'
 import { PHOTO_BUCKET } from './photos'
@@ -22,6 +23,8 @@ export interface RecipeUsages {
 
 /** Au-delà, la connexion est sans doute bloquée : mieux vaut le dire que laisser tourner. */
 const IMPORT_TIMEOUT_MS = 100_000
+/** Un appel au modèle, sans recherche web : quelques secondes en général. */
+const ESTIMATE_TIMEOUT_MS = 60_000
 
 async function toBase64(blob: Blob): Promise<string> {
   const bytes = new Uint8Array(await blob.arrayBuffer())
@@ -308,6 +311,24 @@ export function createRecipesApi(db: AppSupabaseClient) {
       if (error) throw await functionError(error, 'La lecture de la photo a échoué.', 'import')
       if (!data?.recipe) throw new AppError("La lecture de la photo a échoué.")
       return data
+    },
+
+    /** Calories et macros d'après la table Ciqual (Edge Function estimate-nutrition), non enregistrées. */
+    async estimateNutrition(recipe: Pick<Recipe, 'title' | 'servings' | 'ingredients'>): Promise<NutritionEstimate> {
+      const { data, error } = await db.functions.invoke<unknown>('estimate-nutrition', { body: estimateInput(recipe), timeout: ESTIMATE_TIMEOUT_MS })
+      if (error) throw await functionError(error, 'Le calcul des calories a échoué.', 'nutrition')
+      const estimate = parseEstimate(data)
+      if (!estimate) throw new AppError('Le calcul des calories a échoué.')
+      return estimate
+    },
+
+    /** Enregistre les valeurs calculées (sans toucher au reste de la recette). */
+    async saveNutrition(recipeId: string, estimate: Pick<NutritionEstimate, 'per' | 'kcal' | 'carbs' | 'protein' | 'fat'>): Promise<void> {
+      const { error } = await db
+        .from('recipes')
+        .update({ nutrition_per: estimate.per, kcal: estimate.kcal, carbs_g: estimate.carbs, protein_g: estimate.protein, fat_g: estimate.fat })
+        .eq('id', recipeId)
+      if (error) throw toAppError(error, 'Impossible d’enregistrer les calories.')
     },
 
     /** Analyse une page de recette (Edge Function + modèle) pour préremplir le formulaire. */

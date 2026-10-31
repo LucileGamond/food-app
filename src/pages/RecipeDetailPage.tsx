@@ -10,6 +10,7 @@ import { EmptyState } from '@/components/EmptyState'
 import { LinkifiedText } from '@/components/LinkifiedText'
 import { LinkRecipeDialog } from '@/components/recipes/LinkRecipeDialog'
 import { LinkedRecipesOffer } from '@/components/recipes/LinkedRecipesOffer'
+import { NutritionEstimateDialog } from '@/components/recipes/NutritionEstimateDialog'
 import { RecipeReviews } from '@/components/recipes/RecipeReviews'
 import { RecipeShoppingDialog } from '@/components/recipes/RecipeShoppingDialog'
 import { useApi } from '@/app/ApiContext'
@@ -19,6 +20,7 @@ import { useSignedUrls } from '@/hooks/useSignedUrls'
 import { formatDay, todayIso } from '@/lib/dates'
 import { slotLabel } from '@/lib/meals'
 import { resumeStep, splitSteps, type SavedProgress } from '@/lib/cooking'
+import { needsNutrition } from '@/lib/nutritionEstimate'
 import { formatHistory } from '@/lib/recipeList'
 import { MONTH_NAMES, monthOf, produceList, recipeSeason } from '@/lib/season'
 import {
@@ -61,6 +63,7 @@ function RecipeDetail({ id }: { id: string }) {
   const [offerDismissed, setOfferDismissed] = useState<string | null>(null)
   const [linking, setLinking] = useState<PendingLink | null>(null)
   const [shopping, setShopping] = useState(false)
+  const [estimating, setEstimating] = useState(false)
   const closeLinking = useCallback(() => setLinking(null), [])
 
   // Historique (repas du planning) : secondaire, rien ne s'affiche s'il ne se charge pas.
@@ -203,6 +206,15 @@ function RecipeDetail({ id }: { id: string }) {
             <p className="mt-2 flex items-center gap-1 text-sm text-muted-foreground">
               <Flame className="size-4" aria-hidden /> {formatNutrition(recipe)}
             </p>
+          )}
+          {needsNutrition(recipe) && (
+            <button
+              type="button"
+              className="mt-2 flex items-center gap-1 text-sm font-medium text-brand underline-offset-4 hover:underline"
+              onClick={() => setEstimating(true)}
+            >
+              <Flame className="size-4" aria-hidden /> Calculer les calories
+            </button>
           )}
           {formatSource(recipe.source, recipe.source_page) && (
             <p className="mt-2 flex items-center gap-1 text-sm text-muted-foreground">
@@ -370,6 +382,11 @@ function RecipeDetail({ id }: { id: string }) {
         onLink={setLinking}
       />
       <RecipeShoppingDialog recipe={shopping ? recipe : null} people={servings} onOpenChange={setShopping} />
+      <NutritionEstimateDialog
+        recipe={estimating ? recipe : null}
+        onOpenChange={setEstimating}
+        onSaved={(e) => setRecipe({ ...recipe, nutrition_per: e.per, kcal: e.kcal, carbs_g: e.carbs, protein_g: e.protein, fat_g: e.fat })}
+      />
       <LinkRecipeDialog reference={linking} recipeId={recipe.id} onClose={closeLinking} onLink={link} />
 
       <ConfirmDialog

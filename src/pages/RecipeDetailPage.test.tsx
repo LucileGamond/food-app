@@ -88,6 +88,68 @@ describe('RecipeDetailPage', () => {
     }
   })
 
+  it('calcule les calories d’une recette qui n’en a pas, et les enregistre si on valide', async () => {
+    const user = userEvent.setup()
+    const api = fakeApi()
+    api.recipes.getRecipe.mockResolvedValue(CURRY)
+    api.recipes.estimateNutrition.mockResolvedValue({
+      per: 'portion',
+      kcal: 312,
+      carbs: 40.5,
+      protein: 15,
+      fat: 8.2,
+      ingredients: [
+        { name: 'Pois chiches', food: { code: '20532', name: 'Pois chiche, appertisé, égoutté' }, grams: 400, kcal: 1248 },
+        { name: 'Sel', food: null, grams: null, kcal: null },
+      ],
+    })
+    renderDetail(api)
+    await user.click(await screen.findByRole('button', { name: 'Calculer les calories' }))
+    const dialog = await screen.findByRole('dialog', { name: 'Calories et macros' })
+    expect(api.recipes.estimateNutrition).toHaveBeenCalledWith(CURRY)
+    const values = await within(dialog).findByRole('region', { name: 'Valeurs par portion' })
+    expect(values).toHaveTextContent('Calories312 kcal')
+    expect(values).toHaveTextContent('Glucides40,5 g')
+    expect(within(dialog).getByText('Pois chiche, appertisé, égoutté · 400 g')).toBeInTheDocument()
+    expect(within(dialog).getByText('non compté')).toBeInTheDocument()
+
+    await user.click(within(dialog).getByRole('button', { name: 'Enregistrer' }))
+    expect(api.recipes.saveNutrition).toHaveBeenCalledWith('r1', expect.objectContaining({ per: 'portion', kcal: 312, carbs: 40.5, protein: 15, fat: 8.2 }))
+    expect(await screen.findByText('Calories enregistrées')).toBeInTheDocument()
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    expect(screen.getByText('312 kcal · glucides 40,5 g · protéines 15 g · lipides 8,2 g (par portion)')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Calculer les calories' })).not.toBeInTheDocument()
+  })
+
+  it('calcul des calories : erreur et réessai, annulation sans rien enregistrer, pas de bouton si déjà rempli', async () => {
+    const user = userEvent.setup()
+    const api = fakeApi()
+    api.recipes.getRecipe.mockResolvedValue(CURRY)
+    api.recipes.estimateNutrition
+      .mockRejectedValueOnce(new AppError('Aucun ingrédient n’a pu être reconnu dans la table Ciqual.'))
+      .mockResolvedValueOnce({ per: 'recette', kcal: 900, carbs: 1, protein: 2, fat: 3, ingredients: [] })
+    api.recipes.saveNutrition.mockRejectedValueOnce(new AppError('Impossible d’enregistrer les calories.'))
+    const { unmount } = renderDetail(api)
+    await user.click(await screen.findByRole('button', { name: 'Calculer les calories' }))
+    const dialog = await screen.findByRole('dialog', { name: 'Calories et macros' })
+    expect(await within(dialog).findByRole('alert')).toHaveTextContent('Aucun ingrédient n’a pu être reconnu')
+    expect(within(dialog).getByRole('button', { name: 'Enregistrer' })).toBeDisabled()
+    await user.click(within(dialog).getByRole('button', { name: 'Réessayer' }))
+    expect(await within(dialog).findByRole('region', { name: 'Valeurs pour toute la recette' })).toHaveTextContent('900 kcal')
+    await user.click(within(dialog).getByRole('button', { name: 'Enregistrer' }))
+    expect(await screen.findByText('Impossible d’enregistrer les calories.')).toBeInTheDocument()
+    expect(screen.getByRole('dialog')).toBeInTheDocument()
+    await user.click(within(dialog).getByRole('button', { name: 'Annuler' }))
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Calculer les calories' })).toBeInTheDocument()
+    unmount()
+
+    api.recipes.getRecipe.mockResolvedValue({ ...CURRY, kcal: 450 })
+    renderDetail(api)
+    await screen.findByText(/450 kcal/)
+    expect(screen.queryByRole('button', { name: 'Calculer les calories' })).not.toBeInTheDocument()
+  })
+
   it('propose de reprendre une recette en cours', async () => {
     const api = fakeApi()
     api.recipes.getRecipe.mockResolvedValue({ ...CURRY, notes: '1. Couper.\n2. Cuire.\n3. Servir.' })
