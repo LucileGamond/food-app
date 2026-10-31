@@ -1,5 +1,5 @@
 import { BookOpen, History, Images, Leaf, Link2, Loader2, Plus, RefreshCw, Search, Sprout, Timer, X } from 'lucide-react'
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { toast } from 'sonner'
 import { Button, buttonVariants } from '@/components/ui/button'
@@ -66,7 +66,16 @@ export function RecipesPage({ today = todayIso() }: { today?: IsoDate }) {
   // Recherche, filtres et tri dans l'adresse : au retour d'une fiche, la liste est comme on l'a laissée.
   const [params, setParams] = useSearchParams()
   const options = useMemo(() => readListOptions(params), [params])
-  const setOptions = (patch: Partial<RecipeListOptions>) => setParams(writeListOptions({ ...options, ...patch }), { replace: true })
+  // Deux changements rapprochés (« Effacer les filtres » puis un tri) : le second part du premier, pas des options
+  // encore affichées, sinon il remettrait les filtres effacés.
+  const latest = useRef(options)
+  useEffect(() => {
+    latest.current = options
+  }, [options])
+  const setOptions = (patch: Partial<RecipeListOptions>) => {
+    latest.current = { ...latest.current, ...patch }
+    setParams(writeListOptions(latest.current), { replace: true })
+  }
 
   const load = useCallback(() => {
     setError(null)
@@ -100,8 +109,8 @@ export function RecipesPage({ today = todayIso() }: { today?: IsoDate }) {
   }
 
   function toggleFilter(filter: QuickFilter) {
-    const active = options.filters.includes(filter)
-    setOptions({ filters: active ? options.filters.filter((f) => f !== filter) : [...options.filters, filter] })
+    const { filters } = latest.current
+    setOptions({ filters: filters.includes(filter) ? filters.filter((f) => f !== filter) : [...filters, filter] })
   }
 
   const newButton = (
@@ -235,7 +244,7 @@ export function RecipesPage({ today = todayIso() }: { today?: IsoDate }) {
             {filtered && (
               <div className="flex items-center gap-2 text-sm text-muted-foreground" aria-live="polite">
                 {visible.length} recette{visible.length > 1 ? 's' : ''} sur {recipes.length}
-                <Button variant="ghost" className="h-8 px-2" onClick={() => setParams(writeListOptions({ ...DEFAULT_LIST_OPTIONS, sort: options.sort }), { replace: true })}>
+                <Button variant="ghost" className="h-8 px-2" onClick={() => setOptions({ ...DEFAULT_LIST_OPTIONS, sort: latest.current.sort })}>
                   <X /> Effacer les filtres
                 </Button>
               </div>

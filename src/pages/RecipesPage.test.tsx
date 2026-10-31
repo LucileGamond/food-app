@@ -1,4 +1,4 @@
-import { screen, within } from '@testing-library/react'
+import { act, fireEvent, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { AppError } from '@/api'
 import { Link, Route } from 'react-router-dom'
@@ -188,6 +188,22 @@ describe('RecipesPage', () => {
     await user.click(within(screen.getByRole('group', { name: 'Filtres rapides' })).getByRole('button', { name: 'De saison' }))
     expect(titles()).toEqual(['Soupe de potiron'])
     expect(screen.getByRole('link', { name: 'Ce mois-ci' })).toHaveAttribute('href', '/recettes/saison')
+  })
+
+  it('un tri choisi juste après « Effacer les filtres » ne remet pas les filtres effacés', async () => {
+    const user = userEvent.setup()
+    const api = fakeApi()
+    api.recipes.listSavedRecipes.mockResolvedValue(RECIPES)
+    renderRecipes(api)
+    await screen.findByRole('link', { name: /Banana bread/ })
+    await user.click(within(screen.getByRole('group', { name: 'Filtres rapides' })).getByRole('button', { name: '30 min max' }))
+    expect(titles()).toHaveLength(2)
+    // Les deux actions avant que l'écran ne se mette à jour.
+    act(() => {
+      fireEvent.click(screen.getByRole('button', { name: 'Effacer les filtres' }))
+      fireEvent.change(screen.getByRole('combobox', { name: 'Trier les recettes' }), { target: { value: 'quick' } })
+    })
+    expect(titles()).toEqual(['Pâtes pesto', 'Curry de légumes', 'Banana bread'])
   })
 
   it('lit les options de l’adresse', async () => {
