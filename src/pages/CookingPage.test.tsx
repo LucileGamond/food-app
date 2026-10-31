@@ -226,22 +226,6 @@ describe('CookingPage', () => {
       expect(localStorage.getItem(KEY)).toBeNull()
     })
 
-    it('sur Android, propose de lancer le minuteur du téléphone avec le temps restant', async () => {
-      const userAgent = vi.spyOn(navigator, 'userAgent', 'get')
-      try {
-        const { user } = renderCooking()
-        await user.click(await screen.findByRole('button', { name: 'Lancer un minuteur de 30 min' }))
-        expect(screen.queryByRole('link', { name: /Minuteur du téléphone/ })).not.toBeInTheDocument()
-
-        userAgent.mockReturnValue('Mozilla/5.0 (Linux; Android 14; Pixel 8) Chrome/130.0 Mobile')
-        await user.click(screen.getByRole('button', { name: /^Mettre en pause/ }))
-        const link = screen.getByRole('link', { name: 'Minuteur du téléphone : Étape 3 · 30 min' })
-        expect(link.getAttribute('href')).toMatch(/^intent:#Intent;action=android\.intent\.action\.SET_TIMER;i\.android\.intent\.extra\.alarm\.LENGTH=(1799|1800);/)
-      } finally {
-        userAgent.mockRestore()
-      }
-    })
-
     it('lance un minuteur libre', async () => {
       const { user } = renderCooking()
       await user.click(await screen.findByRole('button', { name: 'Nouveau minuteur' }))

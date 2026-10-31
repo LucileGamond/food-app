@@ -120,16 +120,3 @@ export function parseTimers(raw: string | null): Timer[] {
     return []
   }
 }
-
-/** Téléphone Android : il a un minuteur (appli Horloge) qu'on peut essayer de lancer. */
-export const isAndroid = (userAgent: string) => /Android/i.test(userAgent)
-
-/**
- * Lien qui lance le minuteur de l'Horloge Android (intention SET_TIMER : durée en secondes et nom), si Chrome
- * l'autorise : il sonne même appli fermée ou téléphone verrouillé.
- */
-export function androidTimerUrl(seconds: number, label: string): string {
-  const length = Math.max(1, Math.round(seconds))
-  const message = encodeURIComponent(label).replace(/;/g, '%3B')
-  return `intent:#Intent;action=android.intent.action.SET_TIMER;i.android.intent.extra.alarm.LENGTH=${length};S.android.intent.extra.alarm.MESSAGE=${message};B.android.intent.extra.alarm.SKIP_UI=false;end`
-}

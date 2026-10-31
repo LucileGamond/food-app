@@ -1,9 +1,9 @@
-import { BellRing, Pause, Play, Plus, Smartphone, Timer as TimerIcon, X } from 'lucide-react'
+import { BellRing, Pause, Play, Plus, Timer as TimerIcon, X } from 'lucide-react'
 import { useState, type FormEvent, type ReactNode } from 'react'
-import { Button, buttonVariants } from '@/components/ui/button'
+import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { LinkifiedText } from '@/components/LinkifiedText'
-import { findDurations, formatClock, formatTimerDuration, isRinging, androidTimerUrl, isAndroid, remainingMs, stepTimerId, TIMER_MAX_SECONDS, type Timer } from '@/lib/timers'
+import { findDurations, formatClock, formatTimerDuration, isRinging, remainingMs, stepTimerId, TIMER_MAX_SECONDS, type Timer } from '@/lib/timers'
 import { cn } from '@/lib/utils'
 
 /** Texte d'une étape où chaque durée (« 20 min ») lance un minuteur ; celle déjà lancée affiche le temps restant. */
@@ -95,7 +95,6 @@ export function TimersBar({
   onRemove: (id: string) => void
 }) {
   if (timers.length === 0) return null
-  const android = isAndroid(navigator.userAgent)
   return (
     <section
       aria-label="Minuteurs"
@@ -144,17 +143,6 @@ export function TimersBar({
                   <Button variant="outline" size="icon-lg" aria-label={`Une minute de plus : ${timer.label}`} onClick={() => onAddMinute(timer.id)}>
                     <Plus />
                   </Button>
-                  {android && (
-                    // Essai : le minuteur du téléphone sonne même appli fermée ou téléphone verrouillé.
-                    <a
-                      href={androidTimerUrl(remainingMs(timer, now) / 1000, timer.label)}
-                      className={cn(buttonVariants({ variant: 'outline', size: 'icon-lg' }))}
-                      aria-label={`Minuteur du téléphone : ${timer.label}`}
-                      title="Minuteur du téléphone"
-                    >
-                      <Smartphone />
-                    </a>
-                  )}
                   <Button variant="ghost" size="icon-lg" aria-label={`Supprimer : ${timer.label}`} onClick={() => onRemove(timer.id)}>
                     <X />
                   </Button>
