@@ -13,6 +13,7 @@ import { PhotoUploader, type PhotoDraft } from '@/components/recipes/PhotoUpload
 import { CheckNote } from '@/components/recipes/CheckNote'
 import { ImportReview } from '@/components/recipes/ImportReview'
 import { RecipeImportCard } from '@/components/recipes/RecipeImportCard'
+import { SourceInput } from '@/components/recipes/SourceInput'
 import { TagInput } from '@/components/recipes/TagInput'
 import { useApi } from '@/app/ApiContext'
 import { AppError, DuplicateRecipeUrlError, errorMessage } from '@/api'
@@ -39,6 +40,7 @@ import {
   type RecipeFormValues,
 } from '@/lib/recipes'
 import { normalizeName } from '@/lib/shopping'
+import { findSource } from '@/lib/sources'
 import { cn } from '@/lib/utils'
 
 const EMPTY: RecipeFormValues = recipeToFormValues({ title: '', servings: null, notes: null, url: null, tags: [] })
@@ -279,9 +281,10 @@ export function RecipeFormPage() {
   }
 
   function applyImport(recipe: ImportedRecipe, url: string) {
-    // Livre et page lus sur la photo, sinon ceux déjà saisis (ou repris de la recette principale).
+    // Livre et page lus sur la photo, sinon ceux déjà saisis (ou repris de la recette principale). Livre lu : l'écriture
+    // de la source existante s'il y en a une.
     const imported = importedToFormValues(recipe, url)
-    const next = { ...imported, source: imported.source || values.source, page: imported.page || values.page }
+    const next = { ...imported, source: (findSource(imported.source, sources) ?? imported.source) || values.source, page: imported.page || values.page }
     setValues(next)
     setSubmitted(false)
     setReview({ checks: importChecks(recipe, next), snapshot: next })
@@ -538,20 +541,13 @@ export function RecipeFormPage() {
           </div>
           <div className="grid grid-cols-[minmax(0,1fr)_6rem] gap-3">
             <Field id="recipe-source" label="Livre ou source" error={shown.source} hint="Ex. Pâtisserie maison">
-              <Input
+              <SourceInput
                 id="recipe-source"
-                list="recipe-sources"
                 value={values.source}
-                maxLength={200}
-                onChange={(e) => set('source', e.target.value)}
-                aria-invalid={Boolean(shown.source) || undefined}
-                className="h-10"
+                sources={sources}
+                onChange={(source) => set('source', source)}
+                invalid={Boolean(shown.source)}
               />
-              <datalist id="recipe-sources">
-                {sources.map((source) => (
-                  <option key={source} value={source} />
-                ))}
-              </datalist>
             </Field>
             <Field id="recipe-page" label="Page" error={shown.page}>
               <Input

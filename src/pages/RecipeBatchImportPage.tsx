@@ -1,8 +1,8 @@
 import { ArrowLeft, CheckCircle2, CircleAlert, CircleDashed, CopyCheck, FolderOpen, Images, Loader2, MinusCircle, Pause, Play, RotateCcw, TriangleAlert } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
+import { SourceInput } from '@/components/recipes/SourceInput'
 import { Button, buttonVariants } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { PageHeader } from '@/components/Layout'
 import { useApi } from '@/app/ApiContext'
@@ -20,6 +20,7 @@ import {
   type RecipeOutcome,
 } from '@/lib/batchImport'
 import { normalizeName } from '@/lib/shopping'
+import { findSource } from '@/lib/sources'
 import { cn } from '@/lib/utils'
 
 type Phase = 'setup' | 'running' | 'paused' | 'done'
@@ -119,7 +120,7 @@ export function RecipeBatchImportPage() {
       queue,
       async (item) => {
         update(item.key, { status: 'reading', message: undefined })
-        const result = await importOne(item.file, { api, book: book.trim(), tags: tags.current, known: known.current })
+        const result = await importOne(item.file, { api, book: findSource(book, sources) ?? book.trim(), tags: tags.current, known: known.current })
         // Image relue après une erreur : ce qui avait abouti reste tel quel.
         update(item.key, { message: undefined, ...mergeRetry(item.recipes, result) })
       },
@@ -165,21 +166,15 @@ export function RecipeBatchImportPage() {
         <section className="mx-auto max-w-2xl space-y-5 rounded-2xl border bg-background p-5 shadow-xs">
           <div className="space-y-2">
             <Label htmlFor="batch-book">Livre</Label>
-            <Input
+            <SourceInput
               id="batch-book"
-              list="batch-books"
               value={book}
-              maxLength={200}
+              sources={sources}
               placeholder="Pâtisserie maison"
-              onChange={(e) => setBook(e.target.value)}
-              aria-invalid={Boolean(bookError) || undefined}
-              className="h-10 placeholder:text-muted-foreground/40"
+              onChange={setBook}
+              invalid={Boolean(bookError)}
+              className="placeholder:text-muted-foreground/40"
             />
-            <datalist id="batch-books">
-              {sources.map((s) => (
-                <option key={s} value={s} />
-              ))}
-            </datalist>
             {bookError ? (
               <p className="text-sm text-destructive">{bookError}</p>
             ) : (

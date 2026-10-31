@@ -1,6 +1,7 @@
 import type { IsoDate } from '@/lib/dates'
 import type { MealSlot, RecipeSummary } from '@/lib/meals'
 import type { Ingredient, LinkedRecipe, NutritionBasis, Recipe, RecipeImport, RecipeListItem, SaveRecipeInput } from '@/lib/recipes'
+import { groupSources } from '@/lib/sources'
 import type { AppSupabaseClient } from '@/lib/supabase'
 import { PHOTO_BUCKET } from './photos'
 import { AppError, DuplicateRecipeUrlError, functionError, RecipeInUseError, toAppError } from './errors'
@@ -96,11 +97,11 @@ export function createRecipesApi(db: AppSupabaseClient) {
       }
     },
 
-    /** Sources déjà utilisées (livres, magazines), pour les proposer à la saisie. */
+    /** Sources déjà utilisées (livres, magazines), regroupées (casse, accents), pour les proposer à la saisie. */
     async listSources(): Promise<string[]> {
       const { data, error } = await db.from('recipes').select('source').eq('is_saved', true).not('source', 'is', null)
       if (error) throw toAppError(error, 'Impossible de charger les sources.')
-      return [...new Set(data.map((r) => r.source!.trim()))].sort((a, b) => a.localeCompare(b, 'fr'))
+      return groupSources(data.map((r) => r.source!))
     },
 
     /** Nombre de personnes et ingrédients de plusieurs recettes (liste de courses), en une requête. */
