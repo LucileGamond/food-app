@@ -102,8 +102,11 @@ export function RecipeBatchImportPage() {
   // Page quittée dans l'application : plus aucune image n'est lancée.
   useEffect(() => () => void (paused.current = true), [])
 
-  function choose(files: FileList | null) {
-    if (!files) return
+  function choose(input: HTMLInputElement) {
+    const files = [...(input.files ?? [])]
+    // Vidé : rouvrir le sélecteur relit la galerie, et choisir les mêmes images remet la liste à jour.
+    input.value = ''
+    if (files.length === 0) return
     setItems(imageFiles(files).map((file, i) => ({ key: `${i}-${fileLabel(file)}`, file, status: 'pending', recipes: [] })))
   }
 
@@ -203,7 +206,7 @@ export function RecipeBatchImportPage() {
               aria-label="Dossier d’images"
               // Attribut non standard (Chrome, Edge, Firefox) : tout le contenu du dossier.
               {...{ webkitdirectory: '' }}
-              onChange={(e) => choose(e.target.files)}
+              onChange={(e) => choose(e.target)}
             />
             <input
               ref={photosInput}
@@ -212,7 +215,7 @@ export function RecipeBatchImportPage() {
               multiple
               className="hidden"
               aria-label="Photos des pages"
-              onChange={(e) => choose(e.target.files)}
+              onChange={(e) => choose(e.target)}
             />
             {items.length > 0 ? (
               <p className="text-sm text-muted-foreground">

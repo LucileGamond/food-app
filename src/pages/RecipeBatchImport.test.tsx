@@ -39,6 +39,18 @@ describe('RecipeBatchImportPage', () => {
     expect(api.recipes.importFromPhotos).not.toHaveBeenCalled()
   })
 
+  it('remet la liste à jour à chaque choix, même avec les mêmes images', async () => {
+    const { user, photos } = setup()
+    await user.upload(photos(), [image('p1.jpg'), image('p2.jpg')])
+    expect(screen.getByText('2 images · de « p1.jpg » à « p2.jpg »')).toBeInTheDocument()
+    expect(photos().value).toBe('')
+
+    await user.upload(photos(), [image('p3.jpg')])
+    expect(screen.getByText('1 image · de « p3.jpg » à « p3.jpg »')).toBeInTheDocument()
+    await user.upload(photos(), [image('p1.jpg'), image('p2.jpg')])
+    expect(screen.getByText('2 images · de « p1.jpg » à « p2.jpg »')).toBeInTheDocument()
+  })
+
   it('importe les images une par une et résume le résultat', async () => {
     const { user, api, photos } = setup()
     api.recipes.importFromPhotos
