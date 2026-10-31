@@ -60,7 +60,9 @@ Application web installable (PWA) pour Lucile et Eric : planning partagé des re
   **Import en série** (Recettes → « Importer en série ») : un dossier d'images (ordinateur) ou plusieurs photos
   (téléphone), une image par page. Le livre est saisi une fois ; chaque image est lue par `import-recipe` (2 à la fois)
   et la recette enregistrée directement, avec la page lue sur l'image, sans points à vérifier ni recettes liées.
-  Les pages sans recette sont ignorées, les titres déjà enregistrés sautés ; pause, reprise et réessai des erreurs.
+  Une page peut contenir plusieurs recettes : chacune est enregistrée (même page) ; depuis le formulaire, l'app demande
+  laquelle préremplir. Les pages sans recette sont ignorées, les titres déjà enregistrés sautés ; pause, reprise et
+  réessai des erreurs (ce qui avait abouti n'est pas refait).
 - **Poids** :
   - une pesée par personne et par jour (20 à 300 kg, une décimale, pas de date future) ;
   - synthèse par personne : dernière pesée, écart avec la précédente et sur la période, min/max ;

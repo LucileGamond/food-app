@@ -1,5 +1,5 @@
 import type { PageContent } from './extract.ts'
-import { buildUserMessage, DEFAULT_MODEL, extractRecipe, ImportError, sanitizeNutrition, sanitizeRecipe } from './model.ts'
+import { buildUserMessage, DEFAULT_MODEL, extractRecipe, ImportError, MAX_PHOTO_RECIPES, sanitizeNutrition, sanitizeRecipe, sanitizeRecipes } from './model.ts'
 
 const STRUCTURED: PageContent = {
   structured: { name: 'Crêpes', yield: '4', ingredients: ['250 g de farine', '3 œufs'], instructions: ['Mélanger.'] },
@@ -277,5 +277,30 @@ describe('extractRecipe', () => {
   ])('traduit les erreurs de l’API (%#)', async (response, status, message) => {
     const promise = extractRecipe(TEXT, 'https://e.fr', [], { apiKey: 'k', fetch: fakeFetch(response) })
     await expect(promise).rejects.toMatchObject({ status, message: expect.stringContaining(message) })
+  })
+})
+
+describe('plusieurs recettes sur une photo', () => {
+  it('garde les recettes de la page, dans l’ordre, et écarte ce qui n’en est pas', () => {
+    const recipes = sanitizeRecipes({
+      recettes: [GOOD, { is_recipe: false }, { ...GOOD, title: 'Pâte brisée', ingredients: [] }, { ...GOOD, title: 'Quiche' }, 'texte'],
+    })
+    expect(recipes.map((r) => r.title)).toEqual(['Crêpes légères', 'Quiche'])
+  })
+
+  it('en garde 4 au plus', () => {
+    const many = Array.from({ length: 6 }, (_, i) => ({ ...GOOD, title: `Recette ${i}` }))
+    expect(sanitizeRecipes({ recettes: many })).toHaveLength(MAX_PHOTO_RECIPES)
+  })
+
+  it('refuse une page sans recette', () => {
+    for (const input of [{ recettes: [] }, { recettes: [{ is_recipe: false }] }, null]) {
+      expect(() => sanitizeRecipes(input)).toThrow(ImportError)
+      try {
+        sanitizeRecipes(input)
+      } catch (error) {
+        expect((error as ImportError).status).toBe(422)
+      }
+    }
   })
 })

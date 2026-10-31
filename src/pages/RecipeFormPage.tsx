@@ -103,6 +103,8 @@ export function RecipeFormPage() {
   const [duplicate, setDuplicate] = useState<{ id: string; title: string } | null>(null)
   const [switching, setSwitching] = useState(false)
   // Points à vérifier après un import, et le formulaire tel que l'import l'a rempli (pour savoir ce qui a été corrigé).
+  // Recettes lues sur une même photo, en attendant que la personne choisisse celle à préremplir.
+  const [pageRecipes, setPageRecipes] = useState<ImportedRecipe[] | null>(null)
   const [review, setReview] = useState<{ checks: ImportCheck[]; snapshot: RecipeFormValues } | null>(null)
   const savedId = useRef<string | null>(id ?? null)
   const keyCounter = useRef(0)
@@ -245,7 +247,7 @@ export function RecipeFormPage() {
   }
 
   /** Préremplit le formulaire en lisant la recette sur 1 ou 2 photos (page de livre, scan). La photo n'est pas gardée. */
-  async function importFromPhotos(files: File[]) {
+  async function importFromPhotos(files: File[]): Promise<boolean> {
     let photos: Blob[]
     try {
       photos = await Promise.all(files.map(compressForReading))
@@ -256,12 +258,24 @@ export function RecipeFormPage() {
     // À l'ouverture depuis un partage, les tags existants ne sont peut-être pas encore chargés.
     const tags = tagSuggestions.length > 0 ? tagSuggestions : await api.recipes.listTags().catch(() => [] as string[])
     const result = await api.recipes.importFromPhotos(photos, tags)
-    if (!mounted.current) return
-    applyImport(result.recipe, values.url)
+    if (!mounted.current) return false
     setReadPages((previous) => {
       previous.forEach((url) => URL.revokeObjectURL(url))
       return files.map((file) => URL.createObjectURL(file))
     })
+    // Plusieurs recettes sur la page : on demande laquelle préremplir.
+    if (result.recipes && result.recipes.length > 1) {
+      setPageRecipes(result.recipes)
+      return false
+    }
+    setPageRecipes(null)
+    applyImport(result.recipe, values.url)
+    return true
+  }
+
+  function choosePageRecipe(recipe: ImportedRecipe) {
+    setPageRecipes(null)
+    applyImport(recipe, values.url)
   }
 
   function applyImport(recipe: ImportedRecipe, url: string) {
@@ -427,6 +441,22 @@ export function RecipeFormPage() {
             onImport={importFromUrl}
             onImportPhotos={importFromPhotos}
           />
+        )}
+
+        {pageRecipes && (
+          <section aria-labelledby="page-recipes-title" className="rounded-2xl border border-brand/25 bg-brand/5 p-4">
+            <h2 id="page-recipes-title" className="text-sm font-semibold">
+              Cette page contient {pageRecipes.length} recettes : laquelle préremplir ?
+            </h2>
+            <p className="mt-0.5 text-xs text-muted-foreground">Pour les autres, relis la même photo ensuite, ou utilise l’import en série.</p>
+            <div className="mt-3 flex flex-wrap gap-2">
+              {pageRecipes.map((recipe, i) => (
+                <Button key={i} type="button" variant="outline" className="h-10 px-3" onClick={() => choosePageRecipe(recipe)}>
+                  {recipe.title}
+                </Button>
+              ))}
+            </div>
+          </section>
         )}
 
         {review && <ImportReview messages={fieldChecks(null)} pages={readPages} onDismiss={() => setReview(null)} />}

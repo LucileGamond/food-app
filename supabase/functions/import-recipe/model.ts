@@ -56,6 +56,9 @@ export interface ImportCheck {
   message: string
 }
 
+/** Recettes lues au plus sur une photo (une page de livre en contient rarement plus). */
+export const MAX_PHOTO_RECIPES = 4
+
 /** Erreur d'import : statut HTTP et message lisible. */
 export const ImportError = HttpError
 export type ImportError = HttpError
@@ -307,31 +310,52 @@ export interface PhotoInput {
   type: 'image/jpeg' | 'image/png' | 'image/webp'
 }
 
+const PHOTO_TOOL_NAME = 'enregistrer_recettes'
+
+/** Photo : une page peut contenir plusieurs recettes, chacune avec le même contenu qu'une recette de page web. */
+const PHOTO_TOOL = {
+  name: PHOTO_TOOL_NAME,
+  description: 'Enregistre les recettes lues sur la photo (une le plus souvent).',
+  input_schema: {
+    type: 'object',
+    properties: {
+      recettes: {
+        type: 'array',
+        description: `Une entrée par recette distincte, avec son propre titre (${MAX_PHOTO_RECIPES} au plus) ; liste vide si la photo ne contient pas de recette.`,
+        items: TOOL.input_schema,
+      },
+    },
+    required: ['recettes'],
+  },
+}
+
 const PHOTO_SYSTEM = [
-  'Tu lis une recette de cuisine sur une ou deux photos (page de livre, magazine, fiche ou scan), en français.',
+  'Tu lis des recettes de cuisine sur une ou deux photos (page de livre, magazine, fiche ou scan), en français.',
   'Recopie fidèlement ce qui est écrit, sans rien inventer : si un passage est illisible, laisse-le de côté.',
   'Si les photos sont deux pages de la même recette, assemble-les dans l’ordre.',
+  'Une page peut contenir plusieurs recettes distinctes, chacune avec son titre : renvoie-les toutes, dans l’ordre de la page.',
+  'Les parties d’une même recette (« Pour la pâte », « Pour la garniture ») ne sont pas des recettes à part.',
   'Range chaque ingrédient dans sa sous-partie (section) quand la recette en a (« Pour le streusel »).',
   'Signale dans checks tout ce que tu as deviné ou mal lu.',
   'Note le titre du livre s’il est visible et le numéro de page imprimé, séparément.',
   'Reprends les valeurs nutritionnelles (calories, glucides, protéines, lipides) si la recette les indique, sans les calculer.',
   'Traduis en français si la recette est dans une autre langue.',
   'Pour les tags, réutilise de préférence les tags existants fournis.',
-  `Réponds uniquement en appelant l’outil ${TOOL_NAME}.`,
+  `Réponds uniquement en appelant l’outil ${PHOTO_TOOL_NAME}.`,
 ].join('\n')
 
-/** Lit la recette sur les photos et la renvoie validée. */
+/** Lit les recettes sur les photos (une le plus souvent) et les renvoie validées, dans l'ordre de la page. */
 export async function extractRecipeFromPhotos(
   photos: readonly PhotoInput[],
   knownTags: readonly string[],
   options: ModelOptions,
-): Promise<{ recipe: ImportedRecipe; usage: ModelUsage | null }> {
+): Promise<{ recipes: ImportedRecipe[]; usage: ModelUsage | null }> {
   const tags = knownTags.slice(0, MAX_KNOWN_TAGS).join(', ')
   const text = [photos.length > 1 ? 'Deux photos de la recette.' : 'Photo de la recette.', tags ? `Tags existants : ${tags}` : null].filter(Boolean).join('\n')
   const { input, usage } = await callTool(
     {
       system: PHOTO_SYSTEM,
-      tool: TOOL,
+      tool: PHOTO_TOOL,
       message: [...photos.map((p) => ({ type: 'image' as const, source: { type: 'base64' as const, media_type: p.type, data: p.data } })), { type: 'text', text }],
       maxTokens: 8192,
       // Lire deux pages et tout rédiger peut prendre plus longtemps qu'une page web déjà structurée.
@@ -341,5 +365,21 @@ export async function extractRecipeFromPhotos(
     },
     options,
   )
-  return { recipe: sanitizeRecipe(input, null, 'Aucune recette lisible sur cette photo. Essaie une photo plus nette, bien droite.'), usage }
+  return { recipes: sanitizeRecipes(input), usage }
+}
+
+const NOT_FOUND_ON_PHOTO = 'Aucune recette lisible sur cette photo. Essaie une photo plus nette, bien droite.'
+
+/** Recettes lues sur une photo : chacune validée ; celles qui ne sont pas des recettes (ou sans ingrédient) sont écartées. */
+export function sanitizeRecipes(input: unknown): ImportedRecipe[] {
+  const data = (typeof input === 'object' && input !== null ? input : {}) as Record<string, unknown>
+  const recipes = (Array.isArray(data.recettes) ? data.recettes : []).slice(0, MAX_PHOTO_RECIPES).flatMap((raw) => {
+    try {
+      return [sanitizeRecipe(raw, null, NOT_FOUND_ON_PHOTO)]
+    } catch {
+      return []
+    }
+  })
+  if (recipes.length === 0) throw new ImportError(NOT_FOUND_ON_PHOTO, 422)
+  return recipes
 }

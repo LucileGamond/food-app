@@ -22,6 +22,13 @@ const MODEL_REPLY = {
   usage: { input_tokens: 300, output_tokens: 120 },
 }
 
+// Photo : une page peut contenir plusieurs recettes.
+const crepes = MODEL_REPLY.content[0]!.input
+const PHOTO_REPLY = {
+  content: [{ type: 'tool_use', name: 'enregistrer_recettes', input: { recettes: [crepes, { ...crepes, title: 'Pâte à crêpes salée' }] } }],
+  usage: { input_tokens: 300, output_tokens: 120 },
+}
+
 type Route = Response | (() => Response) | Error
 
 function routes(map: Record<string, Route>) {
@@ -210,13 +217,15 @@ describe('import-recipe', () => {
 describe('import-recipe — photos', () => {
   const PHOTO = { data: 'iVBORw0KGgoAAAANSUhEUg==', type: 'image/png' }
 
-  it('lit la recette sur une ou deux photos, sans rien télécharger', async () => {
-    const { deps, handle } = setup()
+  it('lit les recettes sur une ou deux photos, sans rien télécharger', async () => {
+    const { deps, handle } = setup({}, new Response(JSON.stringify(PHOTO_REPLY)))
     const result = await call(handle, { mode: 'photos', images: [PHOTO, { ...PHOTO, type: 'image/jpeg' }], knownTags: ['dessert'] })
+    // `recipe` (la première) pour une ancienne version de l'application, `recipes` pour toutes.
     expect(result).toMatchObject({ status: 200, body: { source: 'photo', image: null, recipe: { title: 'Crêpes', servings: 4 } } })
+    expect((result.body as { recipes: { title: string }[] }).recipes.map((r) => r.title)).toEqual(['Crêpes', 'Pâte à crêpes salée'])
     expect(deps.fetchPage).not.toHaveBeenCalled()
     const body = JSON.parse(String(deps.fetchModel.mock.calls[0]![1]!.body))
-    expect(body.tool_choice).toEqual({ type: 'tool', name: 'enregistrer_recette' })
+    expect(body.tool_choice).toEqual({ type: 'tool', name: 'enregistrer_recettes' })
     expect(body.messages[0].content).toEqual([
       { type: 'image', source: { type: 'base64', media_type: 'image/png', data: PHOTO.data } },
       { type: 'image', source: { type: 'base64', media_type: 'image/jpeg', data: PHOTO.data } },
@@ -241,7 +250,7 @@ describe('import-recipe — photos', () => {
   })
 
   it('signale une photo sans recette lisible, et une configuration incomplète', async () => {
-    const unreadable = { content: [{ type: 'tool_use', name: 'enregistrer_recette', input: { is_recipe: false } }] }
+    const unreadable = { content: [{ type: 'tool_use', name: 'enregistrer_recettes', input: { recettes: [{ is_recipe: false }] } }] }
     const { handle } = setup({}, new Response(JSON.stringify(unreadable)))
     expect(await call(handle, { mode: 'photos', images: [PHOTO] })).toMatchObject({
       status: 422,

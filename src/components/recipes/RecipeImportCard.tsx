@@ -19,8 +19,8 @@ interface Props {
   hasContent: boolean
   /** Lance l'import ; rejette avec une erreur affichable. */
   onImport: (url: string) => Promise<void>
-  /** Lit la recette sur les photos ; rejette avec une erreur affichable. */
-  onImportPhotos: (photos: File[]) => Promise<void>
+  /** Lit la recette sur les photos ; rejette avec une erreur affichable. `false` : rien de prérempli pour l'instant (choix à faire). */
+  onImportPhotos: (photos: File[]) => Promise<boolean | void>
 }
 
 type State =
@@ -83,8 +83,8 @@ export function RecipeImportCard({ initialUrl, initialPhotos, hasContent, onImpo
     if (list.length === 0) return
     setState({ kind: 'loading', source: 'photos' })
     try {
-      await onImportPhotos(list.map((p) => p.file))
-      setState({ kind: 'done', source: list.length > 1 ? 'tes photos' : 'ta photo' })
+      const prefilled = await onImportPhotos(list.map((p) => p.file))
+      setState(prefilled === false ? { kind: 'idle' } : { kind: 'done', source: list.length > 1 ? 'tes photos' : 'ta photo' })
     } catch (error) {
       setState({ kind: 'error', message: errorMessage(error) })
     }

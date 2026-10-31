@@ -24,9 +24,10 @@ const recipe = (title: string, page: string | null, nutrition: unknown = null) =
 })
 
 test('importe en série les recettes d’un livre, une image par page', async ({ page }) => {
-  // Une réponse par image, dans l'ordre d'envoi : recette, page sans recette, doublon de la première.
+  // Une réponse par image : page avec 2 recettes, page sans recette, doublon.
+  const tarte = recipe('Tarte au citron', '146', { per: 'portion', kcal: 380, carbs: 45, protein: 6, fat: 19 })
   const replies = [
-    { json: recipe('Tarte au citron', '146', { per: 'portion', kcal: 380, carbs: 45, protein: 6, fat: 19 }) },
+    { json: { ...tarte, recipes: [tarte.recipe, recipe('Pâte sablée', '146').recipe] } },
     { status: 422, json: { error: 'Aucune recette trouvée sur cette photo.' } },
     { json: recipe('Tarte au citron', '147') },
   ]
@@ -56,7 +57,9 @@ test('importe en série les recettes d’un livre, une image par page', async ({
 
   await page.getByRole('button', { name: 'Lancer l’import (3)' }).click()
   await expect(page.getByRole('heading', { name: /Import terminé · 3 \/ 3/ })).toBeVisible()
-  await expect(page.getByText('1 enregistrée · 1 déjà enregistrée · 1 ignorée')).toBeVisible()
+  await expect(page.getByText('2 enregistrées · 1 déjà enregistrée · 1 ignorée')).toBeVisible()
+  await expect(page.getByText(/· 2 recettes/)).toBeVisible()
+  await expect(page.getByRole('link', { name: 'Pâte sablée' })).toBeVisible()
   expect(calls).toBe(3)
   await page.screenshot({ path: `test-results/layout/import-serie-${test.info().project.name}.png`, fullPage: true })
 

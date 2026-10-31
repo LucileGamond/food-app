@@ -73,6 +73,42 @@ describe('RecipeBatchImportPage', () => {
     expect(screen.getByRole('link', { name: 'Voir les recettes' })).toHaveAttribute('href', '/recettes')
   })
 
+  it('enregistre toutes les recettes d’une page qui en contient plusieurs', async () => {
+    const { user, api, photos } = setup()
+    const first = read('Pâte brisée', '12')
+    api.recipes.importFromPhotos.mockResolvedValueOnce({ ...first, recipes: [first.recipe, read('Quiche lorraine', '12').recipe] })
+    api.recipes.saveRecipe.mockImplementation(async (input) => `id-${input.title}`)
+
+    await user.type(await screen.findByLabelText('Livre'), 'Pâtisserie maison')
+    await user.upload(photos(), [image('p12.jpg')])
+    await user.click(screen.getByRole('button', { name: 'Lancer l’import (1)' }))
+
+    expect(await screen.findByText('2 enregistrées')).toBeInTheDocument()
+    const [row] = screen.getAllByTestId('batch-item')
+    expect(row).toHaveTextContent('p12.jpg · 2 recettes')
+    expect(within(row!).getByRole('link', { name: 'Pâte brisée' })).toHaveAttribute('href', '/recettes/id-Pâte brisée')
+    expect(within(row!).getByRole('link', { name: 'Quiche lorraine' })).toHaveAttribute('href', '/recettes/id-Quiche lorraine')
+    expect(api.recipes.saveRecipe.mock.calls.map(([input]) => input.sourcePage)).toEqual(['12', '12'])
+  })
+
+  it('relit une page dont une recette n’a pas pu être enregistrée, sans doubler celle qui l’a été', async () => {
+    const { user, api, photos } = setup()
+    const first = read('Pâte brisée')
+    const page = { ...first, recipes: [first.recipe, read('Quiche').recipe] }
+    api.recipes.importFromPhotos.mockResolvedValue(page)
+    api.recipes.saveRecipe.mockResolvedValueOnce('r-pate').mockRejectedValueOnce(new AppError('Connexion impossible.')).mockResolvedValue('r-quiche')
+
+    await user.type(await screen.findByLabelText('Livre'), 'Pâtisserie maison')
+    await user.upload(photos(), [image('p12.jpg')])
+    await user.click(screen.getByRole('button', { name: 'Lancer l’import (1)' }))
+    expect(await screen.findByText('1 enregistrée · 1 en erreur')).toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: 'Réessayer les erreurs (1)' }))
+    expect(await screen.findByText('2 enregistrées')).toBeInTheDocument()
+    expect(api.recipes.saveRecipe).toHaveBeenCalledTimes(3)
+    expect(screen.queryByText(/Déjà enregistrée/)).not.toBeInTheDocument()
+  })
+
   it('se met en pause et reprend', async () => {
     const { user, api, photos } = setup()
     const pending: ((value: RecipeImport) => void)[] = []

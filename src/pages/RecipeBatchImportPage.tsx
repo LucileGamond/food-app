@@ -6,29 +6,66 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { PageHeader } from '@/components/Layout'
 import { useApi } from '@/app/ApiContext'
-import { BATCH_CONCURRENCY, fileLabel, imageFiles, importOne, runQueue, type BatchItem, type BatchStatus } from '@/lib/batchImport'
+import {
+  BATCH_CONCURRENCY,
+  fileLabel,
+  imageFiles,
+  importOne,
+  mergeRetry,
+  needsRetry,
+  runQueue,
+  tally,
+  type BatchItem,
+  type BatchStatus,
+  type RecipeOutcome,
+} from '@/lib/batchImport'
 import { normalizeName } from '@/lib/shopping'
 import { cn } from '@/lib/utils'
 
 type Phase = 'setup' | 'running' | 'paused' | 'done'
 
-const STATUS: Record<BatchStatus, { label: string; icon: typeof CheckCircle2; className: string }> = {
+type StatusStyle = { label: string; icon: typeof CheckCircle2; className: string }
+
+/** État de l'image (avant lecture, ou sans recette lisible). */
+const IMAGE_STATUS: Record<Exclude<BatchStatus, 'done'>, StatusStyle> = {
   pending: { label: 'En attente', icon: CircleDashed, className: 'text-muted-foreground' },
   reading: { label: 'Lecture…', icon: Loader2, className: 'animate-spin text-brand' },
+  skipped: { label: 'Ignorée', icon: MinusCircle, className: 'text-muted-foreground' },
+  error: { label: 'Erreur', icon: CircleAlert, className: 'text-destructive' },
+}
+
+/** Résultat de chaque recette lue sur l'image. */
+const RECIPE_STATUS: Record<RecipeOutcome, StatusStyle> = {
   saved: { label: 'Enregistrée', icon: CheckCircle2, className: 'text-brand' },
   duplicate: { label: 'Déjà enregistrée', icon: CopyCheck, className: 'text-muted-foreground' },
-  skipped: { label: 'Ignorée', icon: MinusCircle, className: 'text-muted-foreground' },
   incomplete: { label: 'À compléter à la main', icon: TriangleAlert, className: 'text-amber-700 dark:text-amber-400' },
   error: { label: 'Erreur', icon: CircleAlert, className: 'text-destructive' },
 }
 
-const SUMMARY: [BatchStatus, (n: number) => string][] = [
+const SUMMARY: [keyof ReturnType<typeof tally>, (n: number) => string][] = [
   ['saved', (n) => `${n} enregistrée${n > 1 ? 's' : ''}`],
   ['duplicate', (n) => `${n} déjà enregistrée${n > 1 ? 's' : ''}`],
   ['skipped', (n) => `${n} ignorée${n > 1 ? 's' : ''}`],
   ['incomplete', (n) => `${n} à compléter`],
   ['error', (n) => `${n} en erreur`],
 ]
+
+/** Une ligne de résultat : icône, titre éventuel, état et précision. */
+function StatusLine({ style, message, error, children }: { style: StatusStyle; message?: string; error: boolean; children?: React.ReactNode }) {
+  const Icon = style.icon
+  return (
+    <li className="flex items-start gap-2">
+      <Icon className={cn('mt-0.5 size-4 shrink-0', style.className)} aria-hidden />
+      <div className="min-w-0 flex-1">
+        {children}
+        <p className={cn('text-xs', error ? 'text-destructive' : 'text-muted-foreground')}>
+          {style.label}
+          {message && message !== style.label && ` · ${message}`}
+        </p>
+      </div>
+    </li>
+  )
+}
 
 /** Choisir un dossier n'a de sens que sur ordinateur (et seuls certains navigateurs le permettent). */
 function canPickFolder(): boolean {
@@ -67,7 +104,7 @@ export function RecipeBatchImportPage() {
 
   function choose(files: FileList | null) {
     if (!files) return
-    setItems(imageFiles(files).map((file, i) => ({ key: `${i}-${fileLabel(file)}`, file, status: 'pending' })))
+    setItems(imageFiles(files).map((file, i) => ({ key: `${i}-${fileLabel(file)}`, file, status: 'pending', recipes: [] })))
   }
 
   const update = (key: string, patch: Partial<BatchItem>) => setItems((list) => list.map((i) => (i.key === key ? { ...i, ...patch } : i)))
@@ -80,7 +117,8 @@ export function RecipeBatchImportPage() {
       async (item) => {
         update(item.key, { status: 'reading', message: undefined })
         const result = await importOne(item.file, { api, book: book.trim(), tags: tags.current, known: known.current })
-        update(item.key, result)
+        // Image relue après une erreur : ce qui avait abouti reste tel quel.
+        update(item.key, { message: undefined, ...mergeRetry(item.recipes, result) })
       },
       { concurrency: BATCH_CONCURRENCY, isPaused: () => paused.current },
     )
@@ -103,13 +141,14 @@ export function RecipeBatchImportPage() {
 
   const pendingItems = () => items.filter((i) => i.status === 'pending')
   function retryErrors() {
-    const retried = items.filter((i) => i.status === 'error').map((i) => ({ ...i, status: 'pending' as const, message: undefined }))
+    const retried = items.filter(needsRetry).map((i) => ({ ...i, status: 'pending' as const, message: undefined }))
     setItems((list) => list.map((i) => retried.find((r) => r.key === i.key) ?? i))
     void run(retried)
   }
 
   const finished = items.filter((i) => i.status !== 'pending' && i.status !== 'reading').length
-  const counts = Object.fromEntries(SUMMARY.map(([status]) => [status, items.filter((i) => i.status === status).length])) as Record<BatchStatus, number>
+  const counts = tally(items)
+  const toRetry = items.filter(needsRetry).length
   const bookError = submitted && !book.trim() ? 'Indique le livre' : null
 
   return (
@@ -224,9 +263,9 @@ export function RecipeBatchImportPage() {
             {phase === 'running' && <p className="text-xs text-muted-foreground">Garde cette page ouverte jusqu’à la fin.</p>}
             {phase === 'done' && (
               <div className="flex flex-wrap gap-2">
-                {counts.error > 0 && (
+                {toRetry > 0 && (
                   <Button variant="outline" className="h-10 px-3" onClick={retryErrors}>
-                    <RotateCcw /> Réessayer les erreurs ({counts.error})
+                    <RotateCcw /> Réessayer les erreurs ({toRetry})
                   </Button>
                 )}
                 <Link to="/recettes" className={cn(buttonVariants(), 'h-10 px-4')}>
@@ -237,29 +276,33 @@ export function RecipeBatchImportPage() {
           </div>
 
           <ul className="divide-y rounded-2xl border bg-background shadow-xs" aria-label="Images importées">
-            {items.map((item) => {
-              const status = STATUS[item.status]
-              const Icon = status.icon
-              return (
-                <li key={item.key} className="flex items-start gap-3 px-4 py-3 text-sm" data-testid="batch-item">
-                  <Icon className={cn('mt-0.5 size-4 shrink-0', status.className)} aria-hidden />
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate text-xs text-muted-foreground">{fileLabel(item.file)}</p>
-                    {item.recipeId && item.title ? (
-                      <Link to={`/recettes/${item.recipeId}`} className="font-medium underline-offset-4 hover:underline">
-                        {item.title}
-                      </Link>
-                    ) : (
-                      item.title && <p className="font-medium">{item.title}</p>
-                    )}
-                    <p className={cn('text-xs', item.status === 'error' ? 'text-destructive' : 'text-muted-foreground')}>
-                      {status.label}
-                      {item.message && item.message !== status.label && ` · ${item.message}`}
-                    </p>
-                  </div>
-                </li>
-              )
-            })}
+            {items.map((item) => (
+              <li key={item.key} className="space-y-2 px-4 py-3 text-sm" data-testid="batch-item">
+                <p className="truncate text-xs text-muted-foreground">
+                  {fileLabel(item.file)}
+                  {item.recipes.length > 1 && ` · ${item.recipes.length} recettes`}
+                </p>
+                {item.status === 'done' ? (
+                  <ul className="space-y-1.5">
+                    {item.recipes.map((recipe, i) => (
+                      <StatusLine key={i} style={RECIPE_STATUS[recipe.status]} message={recipe.message} error={recipe.status === 'error'}>
+                        {recipe.recipeId ? (
+                          <Link to={`/recettes/${recipe.recipeId}`} className="font-medium underline-offset-4 hover:underline">
+                            {recipe.title}
+                          </Link>
+                        ) : (
+                          <span className="font-medium">{recipe.title}</span>
+                        )}
+                      </StatusLine>
+                    ))}
+                  </ul>
+                ) : (
+                  <ul>
+                    <StatusLine style={IMAGE_STATUS[item.status]} message={item.message} error={item.status === 'error'} />
+                  </ul>
+                )}
+              </li>
+            ))}
           </ul>
         </section>
       )}

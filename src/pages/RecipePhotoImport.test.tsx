@@ -92,6 +92,26 @@ describe('RecipeFormPage — recette depuis une photo', () => {
     expect(screen.queryByRole('button', { name: /^Photo \d$/ })).not.toBeInTheDocument()
   })
 
+  it('demande quelle recette préremplir quand la page en contient plusieurs', async () => {
+    const user = userEvent.setup()
+    const api = fakeApi()
+    const quiche = { ...READ.recipe, title: 'Quiche lorraine', ingredients: [{ name: 'lardons', quantity: 200, unit: 'g', note: null }] }
+    api.recipes.importFromPhotos.mockResolvedValue({ ...READ, recipes: [READ.recipe, quiche] })
+    const { pageInput } = renderForm(api)
+    await user.upload(await waitFor(() => pageInput()), photo('page.jpg'))
+    await user.click(screen.getByRole('button', { name: 'Lire la recette' }))
+
+    const choice = await screen.findByRole('region', { name: 'Cette page contient 2 recettes : laquelle préremplir ?' })
+    expect(screen.queryByRole('status')).not.toBeInTheDocument()
+    expect(screen.getByLabelText('Titre', { exact: true })).toHaveValue('')
+    await user.click(within(choice).getByRole('button', { name: 'Quiche lorraine' }))
+
+    expect(screen.queryByRole('region', { name: /laquelle préremplir/ })).not.toBeInTheDocument()
+    expect(screen.getByLabelText('Titre', { exact: true })).toHaveValue('Quiche lorraine')
+    expect(screen.getByLabelText("Nom de l'ingrédient 1")).toHaveValue('lardons')
+    expect(screen.getByRole('region', { name: 'Photo lue' })).toBeInTheDocument()
+  })
+
   it('signale ce qui est à vérifier, jusqu’à la correction', async () => {
     const user = userEvent.setup()
     const api = fakeApi()

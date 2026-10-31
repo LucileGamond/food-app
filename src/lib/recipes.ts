@@ -548,7 +548,10 @@ export interface ImportedRecipe {
 }
 
 export interface RecipeImport {
+  /** La recette (la première de la page pour une photo). */
   recipe: ImportedRecipe
+  /** Photo : toutes les recettes de la page, dans l'ordre. Absent avec une ancienne version de la fonction. */
+  recipes?: ImportedRecipe[]
   source: 'structured' | 'text' | 'photo'
   image: { data: string; type: string } | null
 }

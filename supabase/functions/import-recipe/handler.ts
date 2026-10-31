@@ -23,7 +23,10 @@ const MAX_REDIRECTS = 4
 const IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp']
 
 export interface ImportResult {
+  /** La recette (la première de la page pour une photo : ce que lit une ancienne version de l'application). */
   recipe: ImportedRecipe
+  /** Photo : toutes les recettes de la page, dans l'ordre. */
+  recipes?: ImportedRecipe[]
   source: 'structured' | 'text' | 'photo'
   image: { data: string; type: string } | null
 }
@@ -193,8 +196,8 @@ export async function importPhotos(body: unknown, deps: Deps): Promise<ImportRes
   const input = body as Record<string, unknown>
   const knownTags = Array.isArray(input.knownTags) ? input.knownTags.filter((t): t is string => typeof t === 'string').map((t) => t.slice(0, 30)) : []
   if (!deps.apiKey) throw new ImportError('Le service d’analyse est mal configuré.', 500)
-  const { recipe, usage } = await extractRecipeFromPhotos(photos, knownTags, { apiKey: deps.apiKey, model: deps.model, fetch: deps.fetchModel })
-  return { recipe, source: 'photo', image: null, usage }
+  const { recipes, usage } = await extractRecipeFromPhotos(photos, knownTags, { apiKey: deps.apiKey, model: deps.model, fetch: deps.fetchModel })
+  return { recipe: recipes[0]!, recipes, source: 'photo', image: null, usage }
 }
 
 export function createHandler(deps: Deps) {
