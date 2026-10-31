@@ -34,6 +34,14 @@ function renderDetail(api = fakeApi()) {
 }
 
 describe('RecipeDetailPage', () => {
+  it('affiche le livre, la page et les valeurs nutritionnelles', async () => {
+    const api = fakeApi()
+    api.recipes.getRecipe.mockResolvedValue({ ...CURRY, source: 'Pâtisserie maison', source_page: '146', nutrition_per: 'portion', kcal: 450, carbs_g: 52.5, protein_g: 18, fat_g: null })
+    renderDetail(api)
+    expect(await screen.findByText('Pâtisserie maison, p. 146')).toBeInTheDocument()
+    expect(screen.getByText('450 kcal · glucides 52,5 g · protéines 18 g (par portion)')).toBeInTheDocument()
+  })
+
   it('affiche la recette complète', async () => {
     const user = userEvent.setup()
     const api = fakeApi()

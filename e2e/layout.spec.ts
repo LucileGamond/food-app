@@ -177,6 +177,11 @@ test('aucun écran ni aucune fenêtre ne déborde', async ({ page, isMobile }) =
   await page.goto(`/recettes/${recipe}/modifier`)
   await expect(page.getByLabel('Titre')).toHaveValue(LONG_TITLE)
   await check(page, 'recette-modifier')
+  await page.goto('/recettes/import-serie')
+  await page.getByLabel('Photos des pages').setInputFiles(
+    Array.from({ length: 3 }, (_, i) => ({ name: `${'page-au-nom-tres-long-'.repeat(3)}${i}.png`, mimeType: 'image/png', buffer: Buffer.from('x') })),
+  )
+  await check(page, 'import-serie')
   await page.goto('/recettes/nouvelle')
   await expect(page.getByRole('button', { name: 'Préremplir' })).toBeVisible()
   await check(page, 'recette-nouvelle')

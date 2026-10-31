@@ -32,8 +32,16 @@ export interface Recipe {
   url: string | null
   servings: number | null
   tags: string[]
-  /** Livre, magazine, page… (« Pâtisserie maison, p. 146 »). */
+  /** Livre ou magazine (« Pâtisserie maison »). */
   source?: string | null
+  /** Page dans le livre (« 146 », « 146-147 »). */
+  source_page?: string | null
+  /** Valeurs nutritionnelles indiquées par la recette, et ce à quoi elles se rapportent. */
+  nutrition_per?: NutritionBasis | null
+  kcal?: number | null
+  carbs_g?: number | null
+  protein_g?: number | null
+  fat_g?: number | null
   prep_minutes?: number | null
   rest_minutes?: number | null
   cook_minutes?: number | null
@@ -61,8 +69,16 @@ export interface RecipeFormValues {
   notes: string
   url: string
   tags: string[]
-  /** Livre, magazine, page… */
+  /** Livre ou magazine. */
   source: string
+  /** Page dans le livre. */
+  page: string
+  /** Valeurs nutritionnelles saisies (texte), et leur base. */
+  nutritionPer: NutritionBasis
+  kcal: string
+  carbs: string
+  protein: string
+  fat: string
   /** Durées saisies librement (« 45 min », « 1 h 30 »). */
   prepTime: string
   restTime: string
@@ -71,6 +87,33 @@ export interface RecipeFormValues {
 }
 
 export type DurationField = 'prepTime' | 'restTime' | 'cookTime'
+
+/** Base des valeurs nutritionnelles : une portion, toute la recette, ou 100 g. */
+export type NutritionBasis = 'portion' | 'recette' | '100 g'
+
+export const NUTRITION_BASES: readonly { value: NutritionBasis; label: string }[] = [
+  { value: 'portion', label: 'par portion' },
+  { value: 'recette', label: 'pour toute la recette' },
+  { value: '100 g', label: 'pour 100 g' },
+]
+
+export interface Nutrition {
+  per: NutritionBasis
+  kcal: number | null
+  carbs: number | null
+  protein: number | null
+  fat: number | null
+}
+
+export type MacroField = 'carbs' | 'protein' | 'fat'
+
+export const MACRO_FIELDS: readonly { field: MacroField; label: string; column: 'carbs_g' | 'protein_g' | 'fat_g' }[] = [
+  { field: 'carbs', label: 'Glucides', column: 'carbs_g' },
+  { field: 'protein', label: 'Protéines', column: 'protein_g' },
+  { field: 'fat', label: 'Lipides', column: 'fat_g' },
+]
+
+const isNutritionBasis = (v: unknown): v is NutritionBasis => NUTRITION_BASES.some((b) => b.value === v)
 
 export const DURATION_FIELDS: readonly {
   field: DurationField
@@ -86,7 +129,7 @@ export const DURATION_FIELDS: readonly {
 /** Une semaine au plus (limite de la base). */
 export const DURATION_MAX_MINUTES = 7 * 24 * 60
 
-export type RecipeFormErrors = Partial<Record<'title' | 'servings' | 'url' | 'ingredients' | 'source' | DurationField, string>> & {
+export type RecipeFormErrors = Partial<Record<'title' | 'servings' | 'url' | 'ingredients' | 'source' | 'page' | 'nutrition' | DurationField, string>> & {
   ingredientRows?: Record<string, string>
 }
 
@@ -176,6 +219,15 @@ export function validateRecipeForm(values: RecipeFormValues): RecipeFormErrors {
   if (url !== '' && !isValidUrl(url)) errors.url = 'Lien invalide (http:// ou https://)'
 
   if (values.source.trim().length > 200) errors.source = '200 caractères maximum'
+  if (values.page.trim().length > 20) errors.page = '20 caractères maximum'
+  const kcal = parseQuantity(values.kcal)
+  if (kcal !== null && !(Number.isInteger(kcal) && kcal <= 20_000)) errors.nutrition = 'Calories : nombre entier, 20 000 au plus'
+  for (const { field, label } of MACRO_FIELDS) {
+    const grams = parseQuantity(values[field])
+    if (grams !== null && !(grams <= 5000 && /^[^.,]*([.,]\d)?$/.test(values[field].trim()))) {
+      errors.nutrition ??= `${label} : en grammes, 1 décimale au plus`
+    }
+  }
   for (const { field } of DURATION_FIELDS) {
     const minutes = parseDuration(values[field])
     if (minutes !== null && !(minutes <= DURATION_MAX_MINUTES)) errors[field] = 'Durée invalide (ex. 45 min, 1 h 30)'
@@ -213,6 +265,9 @@ export interface SaveRecipeInput {
   servings: number | null
   tags: string[]
   source?: string | null
+  sourcePage?: string | null
+  /** null : aucune valeur nutritionnelle. */
+  nutrition?: Nutrition | null
   prepMinutes?: number | null
   restMinutes?: number | null
   cookMinutes?: number | null
@@ -247,6 +302,8 @@ export function toSaveRecipeInput(id: string | null, values: RecipeFormValues): 
     servings: servings === '' ? null : Number(servings),
     tags: normalizeTags(values.tags),
     source: values.source.trim() || null,
+    sourcePage: values.page.trim() || null,
+    nutrition: formNutrition(values),
     prepMinutes: parseDuration(values.prepTime),
     restMinutes: parseDuration(values.restTime),
     cookMinutes: parseDuration(values.cookTime),
@@ -286,7 +343,24 @@ function ingredientRows(ingredients: readonly Ingredient[]): IngredientDraft[] {
   return rows.length > 0 ? rows : [newIngredientDraft()]
 }
 
-type RecipeFormSource = Pick<Recipe, 'title' | 'servings' | 'notes' | 'url' | 'tags' | 'source' | 'prep_minutes' | 'rest_minutes' | 'cook_minutes'> & {
+type RecipeFormSource = Pick<
+  Recipe,
+  | 'title'
+  | 'servings'
+  | 'notes'
+  | 'url'
+  | 'tags'
+  | 'source'
+  | 'source_page'
+  | 'prep_minutes'
+  | 'rest_minutes'
+  | 'cook_minutes'
+  | 'nutrition_per'
+  | 'kcal'
+  | 'carbs_g'
+  | 'protein_g'
+  | 'fat_g'
+> & {
   ingredients?: Ingredient[]
 }
 
@@ -298,6 +372,12 @@ export function recipeToFormValues(recipe: RecipeFormSource): RecipeFormValues {
     url: recipe.url ?? '',
     tags: [...recipe.tags],
     source: recipe.source ?? '',
+    page: recipe.source_page ?? '',
+    nutritionPer: recipe.nutrition_per ?? 'portion',
+    kcal: formatQuantity(recipe.kcal ?? null),
+    carbs: formatQuantity(recipe.carbs_g ?? null),
+    protein: formatQuantity(recipe.protein_g ?? null),
+    fat: formatQuantity(recipe.fat_g ?? null),
     prepTime: formatDuration(recipe.prep_minutes),
     restTime: formatDuration(recipe.rest_minutes),
     cookTime: formatDuration(recipe.cook_minutes),
@@ -329,9 +409,43 @@ export function pendingLinks(ingredients: readonly Ingredient[]): PendingLink[] 
 }
 
 /** Source d'une sous-recette : celle de la recette principale, à la page indiquée (« Pâtisserie maison, p. 208 »). */
-export function linkedSource(parentSource: string | null | undefined, page: string): string {
-  const book = (parentSource ?? '').replace(/[,\s]*\b(?:p\.|page)\s*\d+\s*$/i, '').trim()
-  return [book, page].filter(Boolean).join(', ')
+export function linkedSource(parentSource: string | null | undefined, page: string): { source: string; page: string } {
+  return { source: parentSource?.trim() ?? '', page: page.replace(/^p\.\s*/i, '') }
+}
+
+const SOURCE_WITH_PAGE = /^(.*?)\b(?:p\.|pp\.|pages?)\s*(\d+(?:\s*[-–]\s*\d+)?)$/i
+
+/** « Pâtisserie maison, p. 146 » → livre et page ; null si le texte ne finit pas par une page (comme split_source en base). */
+export function splitSource(text: string): { source: string; page: string } | null {
+  const match = SOURCE_WITH_PAGE.exec(text.trim())
+  if (!match) return null
+  return { source: match[1]!.replace(/[\s,;–-]+$/, '').trim(), page: match[2]! }
+}
+
+/** Valeurs nutritionnelles du formulaire, ou null si aucune n'est saisie. */
+function formNutrition(values: RecipeFormValues): Nutrition | null {
+  const read = (raw: string) => {
+    const n = parseQuantity(raw)
+    return n === null || Number.isNaN(n) ? null : n
+  }
+  const nutrition = { per: values.nutritionPer, kcal: read(values.kcal), carbs: read(values.carbs), protein: read(values.protein), fat: read(values.fat) }
+  return [nutrition.kcal, nutrition.carbs, nutrition.protein, nutrition.fat].some((n) => n !== null) ? nutrition : null
+}
+
+/** « 450 kcal · glucides 52 g · protéines 18 g · lipides 14 g (par portion) » ; vide sans valeur. */
+export function formatNutrition(recipe: Pick<Recipe, 'nutrition_per' | 'kcal' | 'carbs_g' | 'protein_g' | 'fat_g'>): string {
+  const parts = [
+    recipe.kcal != null ? `${formatQuantity(recipe.kcal)} kcal` : null,
+    ...MACRO_FIELDS.map(({ label, column }) => (recipe[column] != null ? `${label.toLowerCase()} ${formatQuantity(recipe[column]!)} g` : null)),
+  ].filter(Boolean)
+  if (parts.length === 0) return ''
+  const basis = NUTRITION_BASES.find((b) => b.value === (recipe.nutrition_per ?? 'portion'))!
+  return `${parts.join(' · ')} (${basis.label})`
+}
+
+/** « Pâtisserie maison, p. 146 », « p. 146 » ou « Pâtisserie maison » ; vide sans livre ni page. */
+export function formatSource(source: string | null | undefined, page: string | null | undefined): string {
+  return [source?.trim(), page?.trim() && `p. ${page.trim()}`].filter(Boolean).join(', ')
 }
 
 /** Formulaire de nouvelle recette pour importer la sous-recette d'un ingrédient. */
@@ -422,8 +536,12 @@ export interface ImportedRecipe {
   tags: string[]
   /** Points signalés par le modèle (`ingredient` : position dans `ingredients`). Absent avec une ancienne version. */
   checks?: { ingredient: number | null; message: string }[]
-  /** Livre et page lus sur la photo (« p. 146 »). */
+  /** Livre lu sur la photo (une ancienne version de la fonction y met aussi la page : « Pâtisserie maison, p. 146 »). */
   source?: string | null
+  /** Page lue sur la photo (« 146 »). Absente avec une ancienne version de la fonction. */
+  page?: string | null
+  /** Valeurs nutritionnelles indiquées par la recette. Absentes avec une ancienne version de la fonction. */
+  nutrition?: { per: string | null; kcal: number | null; carbs: number | null; protein: number | null; fat: number | null } | null
   prep_minutes?: number | null
   rest_minutes?: number | null
   cook_minutes?: number | null
@@ -454,6 +572,15 @@ export function normalizeIngredientUnit(ingredient: Ingredient): Ingredient {
   return { ...ingredient, quantity: null, unit: null, note: join(lost, note) }
 }
 
+/** Livre et page d'une recette importée (découpés si la fonction les a réunis dans la source). */
+function importedSource(imported: ImportedRecipe): { source: string | null; source_page: string | null } {
+  const source = imported.source?.trim() || null
+  const page = imported.page?.trim() || null
+  if (page || !source) return { source, source_page: page }
+  const split = splitSource(source)
+  return split ? { source: split.source || null, source_page: split.page } : { source, source_page: null }
+}
+
 /** Remplace le contenu du formulaire par la recette importée ; le lien devient l'adresse importée. */
 export function importedToFormValues(imported: ImportedRecipe, url: string): RecipeFormValues {
   return recipeToFormValues({
@@ -462,10 +589,15 @@ export function importedToFormValues(imported: ImportedRecipe, url: string): Rec
     notes: imported.steps || null,
     url,
     tags: normalizeTags(imported.tags),
-    source: imported.source ?? null,
+    ...importedSource(imported),
     prep_minutes: imported.prep_minutes ?? null,
     rest_minutes: imported.rest_minutes ?? null,
     cook_minutes: imported.cook_minutes ?? null,
+    nutrition_per: isNutritionBasis(imported.nutrition?.per) ? imported.nutrition.per : null,
+    kcal: imported.nutrition?.kcal ?? null,
+    carbs_g: imported.nutrition?.carbs ?? null,
+    protein_g: imported.nutrition?.protein ?? null,
+    fat_g: imported.nutrition?.fat ?? null,
     ingredients: imported.ingredients.map(normalizeIngredientUnit),
   })
 }

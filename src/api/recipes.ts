@@ -1,6 +1,6 @@
 import type { IsoDate } from '@/lib/dates'
 import type { MealSlot, RecipeSummary } from '@/lib/meals'
-import type { Ingredient, LinkedRecipe, Recipe, RecipeImport, RecipeListItem, SaveRecipeInput } from '@/lib/recipes'
+import type { Ingredient, LinkedRecipe, NutritionBasis, Recipe, RecipeImport, RecipeListItem, SaveRecipeInput } from '@/lib/recipes'
 import type { AppSupabaseClient } from '@/lib/supabase'
 import { PHOTO_BUCKET } from './photos'
 import { AppError, DuplicateRecipeUrlError, functionError, RecipeInUseError, toAppError } from './errors'
@@ -67,7 +67,7 @@ export function createRecipesApi(db: AppSupabaseClient) {
       const { data, error } = await db
         .from('recipes')
         .select(
-          'id, is_saved, title, notes, url, servings, tags, source, prep_minutes, rest_minutes, cook_minutes, recipe_ingredients(name, quantity, unit, note, section, position, linked_recipe_id), recipe_photos(id, storage_path, position)',
+          'id, is_saved, title, notes, url, servings, tags, source, source_page, nutrition_per, kcal, carbs_g, protein_g, fat_g, prep_minutes, rest_minutes, cook_minutes, recipe_ingredients(name, quantity, unit, note, section, position, linked_recipe_id), recipe_photos(id, storage_path, position)',
         )
         .eq('id', id)
         .maybeSingle()
@@ -84,6 +84,8 @@ export function createRecipesApi(db: AppSupabaseClient) {
       }
       return {
         ...recipe,
+        // La base n'accepte que ces valeurs (contrainte de la colonne).
+        nutrition_per: recipe.nutrition_per as NutritionBasis | null,
         ingredients: [...recipe_ingredients]
           .sort((a, b) => a.position - b.position)
           .map(({ name, quantity, unit, note, section, linked_recipe_id }) => {
@@ -125,6 +127,9 @@ export function createRecipesApi(db: AppSupabaseClient) {
         p_tags: input.tags,
         // '' et 0 effacent ; absent (ancienne version de l'application) conserve la valeur enregistrée.
         p_source: input.source ?? '',
+        p_source_page: input.sourcePage ?? '',
+        // {} efface les valeurs nutritionnelles ; absent (ancienne version de l'application), elles sont conservées.
+        p_nutrition: input.nutrition ?? {},
         p_prep_minutes: input.prepMinutes ?? 0,
         p_rest_minutes: input.restMinutes ?? 0,
         p_cook_minutes: input.cookMinutes ?? 0,

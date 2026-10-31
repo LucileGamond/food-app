@@ -30,7 +30,8 @@ test('importe la recette à laquelle renvoie un ingrédient, puis la lie', async
   // Recette principale qui renvoie à deux autres pages
   await page.goto('/recettes/nouvelle')
   await page.getByLabel('Titre', { exact: true }).fill('Tarte à la banane')
-  await page.getByLabel('Source').fill('Pâtisserie maison, p. 146')
+  await page.getByLabel('Livre ou source').fill('Pâtisserie maison')
+  await page.getByLabel('Page', { exact: true }).fill('146')
   await page.getByLabel("Nom de l'ingrédient 1").fill('pâte sucrée')
   await page.getByLabel("Quantité de l'ingrédient 1").fill('200')
   await page.getByLabel("Unité de l'ingrédient 1").selectOption('g')
@@ -49,11 +50,13 @@ test('importe la recette à laquelle renvoie un ingrédient, puis la lie', async
 
   // Sous-recette lue sur la photo de la page 208
   await expect(page.getByRole('note')).toContainText('Recette de « pâte sucrée » (p. 208) pour « Tarte à la banane »')
-  await expect(page.getByLabel('Source')).toHaveValue('Pâtisserie maison, p. 208')
+  await expect(page.getByLabel('Livre ou source')).toHaveValue('Pâtisserie maison')
+  await expect(page.getByLabel('Page', { exact: true })).toHaveValue('208')
   await page.locator('input[type="file"][accept="image/*"]').setInputFiles({ name: 'page-208.png', mimeType: 'image/png', buffer: PNG_1PX })
   await page.getByRole('button', { name: 'Lire la recette' }).click()
   await expect(page.getByLabel("Nom de l'ingrédient 2")).toHaveValue('beurre')
-  await expect(page.getByLabel('Source')).toHaveValue('Pâtisserie maison, p. 208')
+  await expect(page.getByLabel('Livre ou source')).toHaveValue('Pâtisserie maison')
+  await expect(page.getByLabel('Page', { exact: true })).toHaveValue('208')
   await page.getByRole('button', { name: 'Enregistrer' }).click()
 
   // Retour sur la tarte : le renvoi restant est proposé, puis gardé pour plus tard

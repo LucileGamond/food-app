@@ -17,7 +17,8 @@ insert into ids select public.save_recipe(
     {"name":"beurre","quantity":"50","unit":"g","note":"","section":" Pour le streusel "}]'::jsonb,
   null, '1. Cuire.', null, 6, '{}', ' Pâtisserie maison, p. 146 ', 10, 120, 40
 );
-select is((select source from public.recipes), 'Pâtisserie maison, p. 146', 'source enregistrée');
+-- (sans p_source_page, la page écrite dans la source en est extraite : voir recipe_source_page.test.sql)
+select is((select source from public.recipes), 'Pâtisserie maison', 'source enregistrée');
 select is((select array[prep_minutes, rest_minutes, cook_minutes] from public.recipes), array[10, 120, 40], 'temps enregistrés');
 select is((select array_agg(section order by position) from public.recipe_ingredients), array[null, 'Pour le streusel'], 'sous-parties enregistrées');
 
@@ -28,7 +29,7 @@ select public.save_recipe(
   (select id from ids), '1. Cuire.', null, 6, '{}'
 );
 select is((select title from public.recipes), 'Tarte modifiée', 'modification enregistrée');
-select is((select source from public.recipes), 'Pâtisserie maison, p. 146', 'source conservée');
+select is((select source from public.recipes), 'Pâtisserie maison', 'source conservée');
 select is((select array[prep_minutes, rest_minutes, cook_minutes] from public.recipes), array[10, 120, 40], 'temps conservés');
 select is((select array_agg(section order by position) from public.recipe_ingredients), array[null, 'Pour le streusel'], 'sous-parties conservées');
 

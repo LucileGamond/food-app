@@ -30,11 +30,25 @@ export interface ImportedRecipe {
   tags: string[]
   /** Points à vérifier signalés par le modèle (ingrédient : position dans `ingredients`, ou null). */
   checks: ImportCheck[]
-  /** Livre, magazine, page (photo seulement). */
+  /** Livre ou magazine (photo seulement). */
   source: string | null
+  /** Numéro de page (photo seulement : « 146 »). */
+  page: string | null
+  /** Valeurs nutritionnelles indiquées par la recette. */
+  nutrition: Nutrition | null
   prep_minutes: number | null
   rest_minutes: number | null
   cook_minutes: number | null
+}
+
+export const NUTRITION_BASES = ['portion', 'recette', '100 g'] as const
+
+export interface Nutrition {
+  per: (typeof NUTRITION_BASES)[number]
+  kcal: number | null
+  carbs: number | null
+  protein: number | null
+  fat: number | null
 }
 
 export interface ImportCheck {
@@ -108,10 +122,31 @@ const TOOL = {
       },
       source: {
         anyOf: [{ type: 'string' }, { type: 'null' }],
-        description: 'Photo seulement : titre du livre ou du magazine s’il est visible, et numéro de page (« Pâtisserie maison, p. 146 » ou « p. 146 ») ; null pour une page web.',
+        description: 'Photo seulement : titre du livre ou du magazine s’il est visible (sans la page) ; null sinon, et pour une page web.',
+      },
+      page: {
+        anyOf: [{ type: 'string' }, { type: 'null' }],
+        description: 'Photo seulement : numéro de page imprimé (« 146 », « 146-147 ») ; null s’il n’est pas lisible, et pour une page web.',
+      },
+      nutrition: {
+        anyOf: [
+          {
+            type: 'object',
+            properties: {
+              per: { type: 'string', enum: [...NUTRITION_BASES], description: 'Ce à quoi se rapportent les valeurs : une portion, toute la recette, ou 100 g.' },
+              kcal: { anyOf: [{ type: 'number' }, { type: 'null' }], description: 'Calories (kcal).' },
+              carbs: { anyOf: [{ type: 'number' }, { type: 'null' }], description: 'Glucides, en grammes.' },
+              protein: { anyOf: [{ type: 'number' }, { type: 'null' }], description: 'Protéines, en grammes.' },
+              fat: { anyOf: [{ type: 'number' }, { type: 'null' }], description: 'Lipides, en grammes.' },
+            },
+            required: ['per', 'kcal', 'carbs', 'protein', 'fat'],
+          },
+          { type: 'null' },
+        ],
+        description: 'Valeurs nutritionnelles seulement si la recette les indique (calories, glucides, protéines, lipides) ; null sinon. Ne calcule rien.',
       },
     },
-    required: ['is_recipe', 'title', 'servings', 'ingredients', 'steps', 'tags', 'checks', 'prep_minutes', 'rest_minutes', 'cook_minutes', 'source'],
+    required: ['is_recipe', 'title', 'servings', 'ingredients', 'steps', 'tags', 'checks', 'prep_minutes', 'rest_minutes', 'cook_minutes', 'source', 'page', 'nutrition'],
   },
 }
 
@@ -120,6 +155,7 @@ const SYSTEM = [
   'N’invente rien : si une information manque, laisse-la vide ou null.',
   'Traduis en français si la page est dans une autre langue.',
   'Pour les tags, réutilise de préférence les tags existants fournis.',
+  'Reprends les valeurs nutritionnelles (calories, glucides, protéines, lipides) si la page les donne, sans les calculer.',
   `Réponds uniquement en appelant l’outil ${TOOL_NAME}.`,
 ].join('\n')
 
@@ -132,6 +168,21 @@ export function buildUserMessage(content: PageContent, url: string, knownTags: r
 }
 
 const str = (v: unknown, max: number): string => (typeof v === 'string' ? v.replace(/\s+/g, ' ').trim().slice(0, max) : '')
+
+/** Valeurs nutritionnelles plausibles (bornées comme en base), ou null si aucune. */
+export function sanitizeNutrition(input: unknown): Nutrition | null {
+  const data = (typeof input === 'object' && input !== null ? input : {}) as Record<string, unknown>
+  const amount = (v: unknown, max: number, digits: number) =>
+    typeof v === 'number' && Number.isFinite(v) && v >= 0 && v <= max ? Math.round(v * 10 ** digits) / 10 ** digits : null
+  const nutrition: Nutrition = {
+    per: (NUTRITION_BASES as readonly unknown[]).includes(data.per) ? (data.per as Nutrition['per']) : 'portion',
+    kcal: amount(data.kcal, 20_000, 0),
+    carbs: amount(data.carbs, 5000, 1),
+    protein: amount(data.protein, 5000, 1),
+    fat: amount(data.fat, 5000, 1),
+  }
+  return [nutrition.kcal, nutrition.carbs, nutrition.protein, nutrition.fat].some((v) => v !== null) ? nutrition : null
+}
 
 /** Ne garde que des valeurs sûres et bornées, quel que soit ce que renvoie le modèle. */
 export function sanitizeRecipe(input: unknown, fallbackTitle: string | null, notFound = 'Aucune recette trouvée sur cette page.'): ImportedRecipe {
@@ -207,6 +258,7 @@ export function sanitizeRecipe(input: unknown, fallbackTitle: string | null, not
     })
 
   const minutes = (v: unknown) => (typeof v === 'number' && Number.isInteger(v) && v > 0 && v <= 10_080 ? v : null)
+  const page = str(data.page, 20).replace(/^p(?:age)?\.?\s*/i, '') || null
 
   return {
     title: str(data.title, 200) || str(fallbackTitle, 200) || 'Recette importée',
@@ -216,6 +268,8 @@ export function sanitizeRecipe(input: unknown, fallbackTitle: string | null, not
     tags,
     checks,
     source: str(data.source, 200) || null,
+    page,
+    nutrition: sanitizeNutrition(data.nutrition),
     prep_minutes: minutes(data.prep_minutes),
     rest_minutes: minutes(data.rest_minutes),
     cook_minutes: minutes(data.cook_minutes),
@@ -259,6 +313,8 @@ const PHOTO_SYSTEM = [
   'Si les photos sont deux pages de la même recette, assemble-les dans l’ordre.',
   'Range chaque ingrédient dans sa sous-partie (section) quand la recette en a (« Pour le streusel »).',
   'Signale dans checks tout ce que tu as deviné ou mal lu.',
+  'Note le titre du livre s’il est visible et le numéro de page imprimé, séparément.',
+  'Reprends les valeurs nutritionnelles (calories, glucides, protéines, lipides) si la recette les indique, sans les calculer.',
   'Traduis en français si la recette est dans une autre langue.',
   'Pour les tags, réutilise de préférence les tags existants fournis.',
   `Réponds uniquement en appelant l’outil ${TOOL_NAME}.`,

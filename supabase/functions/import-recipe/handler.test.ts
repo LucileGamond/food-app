@@ -69,6 +69,8 @@ describe('import-recipe', () => {
         tags: ['dessert'],
         checks: [],
         source: null,
+        page: null,
+        nutrition: null,
         prep_minutes: null,
         rest_minutes: null,
         cook_minutes: null,

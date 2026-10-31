@@ -1,4 +1,4 @@
-import { BookOpen, ImageIcon, Plus, RefreshCw, Search } from 'lucide-react'
+import { BookOpen, ImageIcon, Images, Plus, RefreshCw, Search } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { Button, buttonVariants } from '@/components/ui/button'
@@ -39,7 +39,19 @@ export function RecipesPage() {
 
   return (
     <>
-      <PageHeader title="Recettes" description="Vos recettes sauvegardées" actions={newButton} />
+      <PageHeader
+        title="Recettes"
+        description="Vos recettes sauvegardées"
+        actions={
+          <div className="flex items-center gap-2">
+            <Link to="/recettes/import-serie" className={cn(buttonVariants({ variant: 'outline' }), 'h-10 px-3')} aria-label="Importer en série">
+              <Images />
+              <span className="max-sm:hidden">Importer en série</span>
+            </Link>
+            {newButton}
+          </div>
+        }
+      />
 
       {error ? (
         <div role="alert" className="flex flex-col items-start gap-3 rounded-xl border border-destructive/30 bg-destructive/5 p-4 text-sm">

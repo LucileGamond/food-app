@@ -28,7 +28,8 @@ const TARTE: Recipe = {
   url: null,
   servings: 6,
   tags: [],
-  source: 'Pâtisserie maison, p. 146',
+  source: 'Pâtisserie maison',
+  source_page: '146',
   ingredients: [
     { name: 'pâte sucrée', quantity: 200, unit: 'g', note: 'voir p. 208' },
     { name: 'bananes', quantity: 5, unit: null, note: null },
@@ -73,7 +74,8 @@ describe('recettes liées', () => {
     // Formulaire de la sous-recette : titre et source préremplis, rattachée à la tarte
     expect(await screen.findByRole('heading', { name: 'Nouvelle recette' })).toBeInTheDocument()
     expect(screen.getByLabelText('Titre', { exact: true })).toHaveValue('Pâte sucrée')
-    await waitFor(() => expect(screen.getByLabelText('Source')).toHaveValue('Pâtisserie maison, p. 208'))
+    await waitFor(() => expect(screen.getByLabelText('Livre ou source')).toHaveValue('Pâtisserie maison'))
+    expect(screen.getByLabelText('Page')).toHaveValue('208')
     expect(screen.getByRole('note')).toHaveTextContent('Recette de « pâte sucrée » (p. 208) pour « Tarte à la banane » : elle y sera liée à l’enregistrement.')
     expect(screen.getByRole('link', { name: 'Retour' })).toHaveAttribute('href', `/recettes/${PARENT}`)
 

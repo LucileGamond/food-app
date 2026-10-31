@@ -34,6 +34,12 @@ describe('recipes api', () => {
       servings: 4,
       tags: ['végé', 'Rapide'],
       source: null,
+      source_page: null,
+      nutrition_per: null,
+      kcal: null,
+      carbs_g: null,
+      protein_g: null,
+      fat_g: null,
       prep_minutes: null,
       rest_minutes: null,
       cook_minutes: null,
@@ -47,7 +53,9 @@ describe('recipes api', () => {
     const id = await api.recipes.saveRecipe({
       ...curry,
       url: null,
-      source: '  Pâtisserie maison, p. 146 ',
+      source: '  Pâtisserie maison ',
+      sourcePage: ' 146 ',
+      nutrition: { per: '100 g', kcal: 320, carbs: 42.5, protein: 4, fat: 15.2 },
       prepMinutes: 10,
       restMinutes: 120,
       cookMinutes: 40,
@@ -57,12 +65,24 @@ describe('recipes api', () => {
       ],
     })
     const recipe = await api.recipes.getRecipe(id)
-    expect(recipe).toMatchObject({ source: 'Pâtisserie maison, p. 146', prep_minutes: 10, rest_minutes: 120, cook_minutes: 40 })
+    expect(recipe).toMatchObject({
+      source: 'Pâtisserie maison',
+      source_page: '146',
+      nutrition_per: '100 g',
+      kcal: 320,
+      carbs_g: 42.5,
+      protein_g: 4,
+      fat_g: 15.2,
+      prep_minutes: 10,
+      rest_minutes: 120,
+      cook_minutes: 40,
+    })
+    expect(await api.recipes.listSources()).toEqual(['Pâtisserie maison'])
     expect(recipe!.ingredients.map((i) => i.section)).toEqual([null, 'Pour le streusel'])
 
     // Modification sans ces informations : elles sont effacées
     await api.recipes.saveRecipe({ ...curry, id, url: null })
-    expect(await api.recipes.getRecipe(id)).toMatchObject({ source: null, prep_minutes: null, rest_minutes: null, cook_minutes: null })
+    expect(await api.recipes.getRecipe(id)).toMatchObject({ source: null, source_page: null, kcal: null, nutrition_per: null, prep_minutes: null, rest_minutes: null, cook_minutes: null })
     expect(await api.recipes.listSources()).toEqual([])
     await expect(api.recipes.saveRecipe({ ...curry, url: null, prepMinutes: 99_999 })).rejects.toBeInstanceOf(Error)
   })

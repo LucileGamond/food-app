@@ -1,4 +1,4 @@
-import { ArrowLeft, BookOpen, Clock, ExternalLink, Inbox, Minus, Pencil, Plus, RefreshCw, SearchX, Trash2, Users } from 'lucide-react'
+import { ArrowLeft, BookOpen, Clock, ExternalLink, Flame, Inbox, Minus, Pencil, Plus, RefreshCw, SearchX, Trash2, Users } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom'
 import { toast } from 'sonner'
@@ -20,6 +20,8 @@ import {
   DURATION_FIELDS,
   formatDuration,
   formatIngredient,
+  formatNutrition,
+  formatSource,
   groupBySection,
   linkedImportPath,
   pendingLinks,
@@ -177,9 +179,14 @@ function RecipeDetail({ id }: { id: string }) {
               </Badge>
             ))}
           </div>
-          {recipe.source && (
+          {formatNutrition(recipe) && (
             <p className="mt-2 flex items-center gap-1 text-sm text-muted-foreground">
-              <BookOpen className="size-4" aria-hidden /> {recipe.source}
+              <Flame className="size-4" aria-hidden /> {formatNutrition(recipe)}
+            </p>
+          )}
+          {formatSource(recipe.source, recipe.source_page) && (
+            <p className="mt-2 flex items-center gap-1 text-sm text-muted-foreground">
+              <BookOpen className="size-4" aria-hidden /> {formatSource(recipe.source, recipe.source_page)}
             </p>
           )}
         </div>

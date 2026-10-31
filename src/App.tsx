@@ -12,6 +12,7 @@ import { PlanningPage } from '@/pages/PlanningPage'
 
 // Les écrans Recettes sont chargés à la demande pour alléger le premier affichage.
 const RecipesPage = lazy(() => import('@/pages/RecipesPage').then((m) => ({ default: m.RecipesPage })))
+const RecipeBatchImportPage = lazy(() => import('@/pages/RecipeBatchImportPage').then((m) => ({ default: m.RecipeBatchImportPage })))
 const RecipeDetailPage = lazy(() => import('@/pages/RecipeDetailPage').then((m) => ({ default: m.RecipeDetailPage })))
 const WeightPage = lazy(() => import('@/pages/WeightPage').then((m) => ({ default: m.WeightPage })))
 const FoodTrackingPage = lazy(() => import('@/pages/FoodTrackingPage').then((m) => ({ default: m.FoodTrackingPage })))
@@ -33,6 +34,7 @@ export function App({ api, auth }: { api: Api; auth: AuthClient }) {
               <Route path="/planning" element={<PlanningPage />} />
               <Route path="/recettes" element={<RecipesPage />} />
               <Route path="/recettes/nouvelle" element={<RecipeFormPage />} />
+              <Route path="/recettes/import-serie" element={<RecipeBatchImportPage />} />
               <Route path="/recettes/:id" element={<RecipeDetailPage />} />
               <Route path="/recettes/:id/modifier" element={<RecipeFormPage />} />
               <Route path="/partage" element={<SharePage />} />

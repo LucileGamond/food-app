@@ -122,6 +122,8 @@ describe('RecipeFormPage — nouvelle recette', () => {
       servings: 6,
       tags: ['été'],
       source: null,
+      sourcePage: null,
+      nutrition: null,
       prepMinutes: null,
       restMinutes: null,
       cookMinutes: null,

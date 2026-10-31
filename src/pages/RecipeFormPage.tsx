@@ -28,6 +28,9 @@ import {
   importedToFormValues,
   linkedSource,
   linkedTitle,
+  MACRO_FIELDS,
+  NUTRITION_BASES,
+  type NutritionBasis,
   parseLinkedImport,
   recipeToFormValues,
   toSaveRecipeInput,
@@ -119,7 +122,8 @@ export function RecipeFormPage() {
         // Recette principale supprimée entre-temps : la sous-recette devient une recette comme une autre.
         if (!recipe?.is_saved) return setLinkTarget(null)
         setParent({ title: recipe.title })
-        setValues((v) => ({ ...v, source: v.source || linkedSource(recipe.source, linkTarget.reference.page) }))
+        const linked = linkedSource(recipe.source, linkTarget.reference.page)
+        setValues((v) => ({ ...v, source: v.source || linked.source, page: v.page || linked.page }))
       },
       // Hors ligne : le lien sera tenté à l'enregistrement (et reproposé s'il échoue).
       () => undefined,
@@ -261,9 +265,9 @@ export function RecipeFormPage() {
   }
 
   function applyImport(recipe: ImportedRecipe, url: string) {
-    // Source lue sur la photo, sinon celle déjà saisie (ou déduite de la recette principale).
+    // Livre et page lus sur la photo, sinon ceux déjà saisis (ou repris de la recette principale).
     const imported = importedToFormValues(recipe, url)
-    const next = { ...imported, source: imported.source || values.source }
+    const next = { ...imported, source: imported.source || values.source, page: imported.page || values.page }
     setValues(next)
     setSubmitted(false)
     setReview({ checks: importChecks(recipe, next), snapshot: next })
@@ -502,22 +506,36 @@ export function RecipeFormPage() {
               />
             </Field>
           </div>
-          <Field id="recipe-source" label="Source" error={shown.source} hint="Livre, magazine, page… (ex. Pâtisserie maison, p. 146)">
-            <Input
-              id="recipe-source"
-              list="recipe-sources"
-              value={values.source}
-              maxLength={200}
-              onChange={(e) => set('source', e.target.value)}
-              aria-invalid={Boolean(shown.source) || undefined}
-              className="h-10"
-            />
-            <datalist id="recipe-sources">
-              {sources.map((source) => (
-                <option key={source} value={source} />
-              ))}
-            </datalist>
-          </Field>
+          <div className="grid grid-cols-[minmax(0,1fr)_6rem] gap-3">
+            <Field id="recipe-source" label="Livre ou source" error={shown.source} hint="Ex. Pâtisserie maison">
+              <Input
+                id="recipe-source"
+                list="recipe-sources"
+                value={values.source}
+                maxLength={200}
+                onChange={(e) => set('source', e.target.value)}
+                aria-invalid={Boolean(shown.source) || undefined}
+                className="h-10"
+              />
+              <datalist id="recipe-sources">
+                {sources.map((source) => (
+                  <option key={source} value={source} />
+                ))}
+              </datalist>
+            </Field>
+            <Field id="recipe-page" label="Page" error={shown.page}>
+              <Input
+                id="recipe-page"
+                inputMode="numeric"
+                value={values.page}
+                maxLength={20}
+                placeholder="146"
+                onChange={(e) => set('page', e.target.value)}
+                aria-invalid={Boolean(shown.page) || undefined}
+                className="h-10 placeholder:text-muted-foreground/40"
+              />
+            </Field>
+          </div>
           <fieldset className="grid grid-cols-3 gap-3">
             <legend className="mb-2 text-sm font-medium">Temps</legend>
             {DURATION_FIELDS.map(({ field, label, example }) => (
@@ -538,6 +556,56 @@ export function RecipeFormPage() {
             {DURATION_FIELDS.some(({ field }) => shown[field]) && (
               <p className="col-span-3 text-sm text-destructive">{DURATION_FIELDS.map(({ field }) => shown[field]).find(Boolean)}</p>
             )}
+          </fieldset>
+          <fieldset className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+            <legend className="mb-2 text-sm font-medium">Valeurs nutritionnelles</legend>
+            <div className="space-y-1">
+              <Label htmlFor="recipe-kcal" className="text-xs font-normal text-muted-foreground">
+                Calories (kcal)
+              </Label>
+              <Input
+                id="recipe-kcal"
+                inputMode="numeric"
+                placeholder="450"
+                value={values.kcal}
+                onChange={(e) => set('kcal', e.target.value)}
+                aria-invalid={Boolean(shown.nutrition) || undefined}
+                className="h-10 placeholder:text-muted-foreground/40"
+              />
+            </div>
+            {MACRO_FIELDS.map(({ field, label }) => (
+              <div key={field} className="space-y-1">
+                <Label htmlFor={`recipe-${field}`} className="text-xs font-normal text-muted-foreground">
+                  {label} (g)
+                </Label>
+                <Input
+                  id={`recipe-${field}`}
+                  inputMode="decimal"
+                  value={values[field]}
+                  onChange={(e) => set(field, e.target.value)}
+                  aria-invalid={Boolean(shown.nutrition) || undefined}
+                  className="h-10"
+                />
+              </div>
+            ))}
+            <div className="col-span-2 flex items-center gap-2 sm:col-span-4">
+              <Label htmlFor="recipe-nutrition-per" className="text-xs font-normal text-muted-foreground">
+                Valeurs
+              </Label>
+              <select
+                id="recipe-nutrition-per"
+                value={values.nutritionPer}
+                onChange={(e) => set('nutritionPer', e.target.value as NutritionBasis)}
+                className="h-9 rounded-lg border border-input bg-transparent px-2 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 dark:bg-input/30"
+              >
+                {NUTRITION_BASES.map((b) => (
+                  <option key={b.value} value={b.value}>
+                    {b.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+            {shown.nutrition && <p className="col-span-2 text-sm text-destructive sm:col-span-4">{shown.nutrition}</p>}
           </fieldset>
           <Field id="recipe-tags" label="Tags" hint="Ex. végé, rapide, dessert">
             <TagInput id="recipe-tags" value={values.tags} suggestions={tagSuggestions} onChange={(tags) => set('tags', tags)} />

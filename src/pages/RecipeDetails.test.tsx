@@ -43,7 +43,8 @@ describe('RecipeFormPage — source, temps, sous-parties, doublons', () => {
     api.recipes.listSources.mockResolvedValue(['Pâtisserie maison'])
     renderForm(api)
     await user.type(await screen.findByLabelText('Titre'), 'Tarte à la banane')
-    await user.type(screen.getByLabelText('Source'), 'Pâtisserie maison, p. 146')
+    await user.type(screen.getByLabelText('Livre ou source'), 'Pâtisserie maison')
+    await user.type(screen.getByLabelText('Page'), '146')
     await waitFor(() => expect(document.querySelector('#recipe-sources option')).toHaveAttribute('value', 'Pâtisserie maison'))
     await user.type(screen.getByLabelText('Préparation'), '10 min')
     await user.type(screen.getByLabelText('Repos'), '2 h')
@@ -59,7 +60,8 @@ describe('RecipeFormPage — source, temps, sous-parties, doublons', () => {
     expect(await screen.findByText('Fiche recette')).toBeInTheDocument()
     expect(api.recipes.saveRecipe).toHaveBeenCalledWith(
       expect.objectContaining({
-        source: 'Pâtisserie maison, p. 146',
+        source: 'Pâtisserie maison',
+        sourcePage: '146',
         prepMinutes: 10,
         restMinutes: 120,
         cookMinutes: 90,
@@ -110,7 +112,8 @@ describe('RecipeFormPage — source, temps, sous-parties, doublons', () => {
         steps: '1. Cuire.',
         tags: [],
         checks: [],
-        source: 'p. 146',
+        source: 'Pâtisserie maison',
+        page: '146',
         prep_minutes: 10,
         rest_minutes: null,
         cook_minutes: 40,
@@ -122,7 +125,8 @@ describe('RecipeFormPage — source, temps, sous-parties, doublons', () => {
     await user.upload(await waitFor(() => pageInput()), new File(['x'], 'page.jpg', { type: 'image/jpeg' }))
     await user.click(screen.getByRole('button', { name: 'Lire la recette' }))
     const review = await screen.findByRole('region', { name: 'Photo lue' })
-    expect(screen.getByLabelText('Source')).toHaveValue('p. 146')
+    expect(screen.getByLabelText('Livre ou source')).toHaveValue('Pâtisserie maison')
+    expect(screen.getByLabelText('Page')).toHaveValue('146')
     expect(screen.getByLabelText('Cuisson')).toHaveValue('40 min')
     expect(screen.getByLabelText('Titre de la sous-partie 1')).toHaveValue('Pour le streusel')
 

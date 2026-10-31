@@ -53,8 +53,14 @@ Application web installable (PWA) pour Lucile et Eric : planning partagé des re
   Après un import, un panneau « À vérifier » liste ce qui paraît douteux (signalé par le modèle, ou repéré par l'app :
   quantité absente, renvoi « voir p. … », portions ou étapes manquantes) ; chaque point mène au champ et disparaît une fois
   corrigé. La photo lue reste visible (en grand sur demande) pendant la vérification, sans être enregistrée.
-  Une recette peut avoir une source (livre, page), des temps (préparation, repos, cuisson) et des sous-parties
-  d'ingrédients (« Pour le streusel ») ; un titre déjà utilisé par une autre recette est signalé.
+  Une recette peut avoir un livre et une page (deux champs), des temps (préparation, repos, cuisson), des valeurs
+  nutritionnelles (calories, glucides, protéines, lipides, par portion, pour la recette ou pour 100 g, reprises si la
+  recette les indique) et des sous-parties d'ingrédients (« Pour le streusel ») ; un titre déjà utilisé par une autre
+  recette est signalé.
+  **Import en série** (Recettes → « Importer en série ») : un dossier d'images (ordinateur) ou plusieurs photos
+  (téléphone), une image par page. Le livre est saisi une fois ; chaque image est lue par `import-recipe` (2 à la fois)
+  et la recette enregistrée directement, avec la page lue sur l'image, sans points à vérifier ni recettes liées.
+  Les pages sans recette sont ignorées, les titres déjà enregistrés sautés ; pause, reprise et réessai des erreurs.
 - **Poids** :
   - une pesée par personne et par jour (20 à 300 kg, une décimale, pas de date future) ;
   - synthèse par personne : dernière pesée, écart avec la précédente et sur la période, min/max ;

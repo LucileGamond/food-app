@@ -21,6 +21,9 @@ import {
   groupBySection,
   linkedImportPath,
   linkedSource,
+  formatNutrition,
+  formatSource,
+  splitSource,
   linkedTitle,
   pageReference,
   parseLinkedImport,
@@ -39,6 +42,12 @@ function form(overrides: Partial<RecipeFormValues> = {}): RecipeFormValues {
     notes: '',
     url: '',
     source: '',
+    page: '',
+    nutritionPer: 'portion',
+    kcal: '',
+    carbs: '',
+    protein: '',
+    fat: '',
     prepTime: '',
     restTime: '',
     cookTime: '',
@@ -120,7 +129,7 @@ describe('conversion formulaire ↔ données', () => {
       ],
     }))).toEqual({
       id: 'r1', title: 'Curry', notes: null, url: 'https://a.fr', servings: null, tags: ['végé'],
-      source: null, prepMinutes: null, restMinutes: null, cookMinutes: null,
+      source: null, sourcePage: null, nutrition: null, prepMinutes: null, restMinutes: null, cookMinutes: null,
       ingredients: [
         { name: 'Riz', quantity: 1.5, unit: 'kg', note: null, section: null },
         { name: 'Sel', quantity: null, unit: null, note: null, section: null },
@@ -373,11 +382,9 @@ describe('recettes liées', () => {
   })
 
   it('déduit la source et le titre de la sous-recette', () => {
-    expect(linkedSource('Pâtisserie maison, p. 146', 'p. 208')).toBe('Pâtisserie maison, p. 208')
-    expect(linkedSource('Pâtisserie maison page 146', 'p. 208')).toBe('Pâtisserie maison, p. 208')
-    expect(linkedSource('Pâtisserie maison', 'p. 208')).toBe('Pâtisserie maison, p. 208')
-    expect(linkedSource(null, 'p. 208')).toBe('p. 208')
-    expect(linkedSource('Pâtisserie maison', '')).toBe('Pâtisserie maison')
+    expect(linkedSource(' Pâtisserie maison ', 'p. 208')).toEqual({ source: 'Pâtisserie maison', page: '208' })
+    expect(linkedSource(null, 'p. 208')).toEqual({ source: '', page: '208' })
+    expect(linkedSource('Pâtisserie maison', '')).toEqual({ source: 'Pâtisserie maison', page: '' })
     expect(linkedTitle('  pâte sucrée ')).toBe('Pâte sucrée')
   })
 
@@ -398,5 +405,50 @@ describe('recettes liées', () => {
     const values = recipeToFormValues({ title: 'Tarte', servings: 6, notes: null, url: null, tags: [], ingredients: [{ ...ingredient('pâte sucrée'), linkedRecipe }] })
     expect(values.ingredients[0]!.linkedRecipe).toEqual(linkedRecipe)
     expect(toSaveRecipeInput('r1', values).ingredients[0]!.linkedRecipe).toEqual(linkedRecipe)
+  })
+})
+
+describe('livre, page et valeurs nutritionnelles', () => {
+  it('découpe une source qui contient la page, comme la base', () => {
+    expect(splitSource('Pâtisserie maison, p. 146')).toEqual({ source: 'Pâtisserie maison', page: '146' })
+    expect(splitSource('p. 146')).toEqual({ source: '', page: '146' })
+    expect(splitSource('Magazine – pp. 12-13')).toEqual({ source: 'Magazine', page: '12-13' })
+    expect(splitSource('Ottolenghi Simple')).toBeNull()
+    expect(formatSource('Pâtisserie maison', '146')).toBe('Pâtisserie maison, p. 146')
+    expect(formatSource(null, ' 146 ')).toBe('p. 146')
+    expect(formatSource('Pâtisserie maison', '')).toBe('Pâtisserie maison')
+    expect(formatSource(null, null)).toBe('')
+  })
+
+  it('reprend le livre, la page et les valeurs nutritionnelles d’un import', () => {
+    const base = { title: 'Tarte', servings: 6, ingredients: [{ name: 'beurre', quantity: 50, unit: 'g', note: null }], steps: '', tags: [] }
+    expect(importedToFormValues({ ...base, source: 'Pâtisserie maison', page: '146' }, '')).toMatchObject({ source: 'Pâtisserie maison', page: '146' })
+    // Ancienne version de la fonction : la page dans la source
+    expect(importedToFormValues({ ...base, source: 'Pâtisserie maison, p. 146' }, '')).toMatchObject({ source: 'Pâtisserie maison', page: '146' })
+    expect(importedToFormValues({ ...base, source: 'Ottolenghi' }, '')).toMatchObject({ source: 'Ottolenghi', page: '' })
+    const values = importedToFormValues({ ...base, nutrition: { per: '100 g', kcal: 320, carbs: 42.5, protein: 4, fat: null } }, '')
+    expect(values).toMatchObject({ nutritionPer: '100 g', kcal: '320', carbs: '42,5', protein: '4', fat: '' })
+    expect(toSaveRecipeInput(null, values).nutrition).toEqual({ per: '100 g', kcal: 320, carbs: 42.5, protein: 4, fat: null })
+    expect(importedToFormValues({ ...base, nutrition: { per: 'bol', kcal: 1, carbs: null, protein: null, fat: null } }, '').nutritionPer).toBe('portion')
+  })
+
+  it('valide les valeurs nutritionnelles et n’envoie rien si aucune n’est saisie', () => {
+    expect(validateRecipeForm(form({ kcal: '450', carbs: '52,5', protein: '18', fat: '14' })).nutrition).toBeUndefined()
+    expect(validateRecipeForm(form({ kcal: '450,5' })).nutrition).toBe('Calories : nombre entier, 20 000 au plus')
+    expect(validateRecipeForm(form({ kcal: '30000' })).nutrition).toBe('Calories : nombre entier, 20 000 au plus')
+    expect(validateRecipeForm(form({ carbs: '12,25' })).nutrition).toBe('Glucides : en grammes, 1 décimale au plus')
+    expect(validateRecipeForm(form({ fat: 'beaucoup' })).nutrition).toBe('Lipides : en grammes, 1 décimale au plus')
+    expect(validateRecipeForm(form({ page: 'x'.repeat(21) })).page).toBe('20 caractères maximum')
+    expect(toSaveRecipeInput(null, form()).nutrition).toBeNull()
+    expect(toSaveRecipeInput(null, form({ page: ' 146 ' })).sourcePage).toBe('146')
+  })
+
+  it('affiche les valeurs nutritionnelles', () => {
+    expect(formatNutrition({ nutrition_per: 'portion', kcal: 450, carbs_g: 52.5, protein_g: 18, fat_g: 14 })).toBe(
+      '450 kcal · glucides 52,5 g · protéines 18 g · lipides 14 g (par portion)',
+    )
+    expect(formatNutrition({ nutrition_per: '100 g', kcal: null, carbs_g: null, protein_g: 4, fat_g: null })).toBe('protéines 4 g (pour 100 g)')
+    expect(formatNutrition({ kcal: 300 })).toBe('300 kcal (par portion)')
+    expect(formatNutrition({})).toBe('')
   })
 })

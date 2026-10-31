@@ -1,5 +1,5 @@
 import type { PageContent } from './extract.ts'
-import { buildUserMessage, DEFAULT_MODEL, extractRecipe, ImportError, sanitizeRecipe } from './model.ts'
+import { buildUserMessage, DEFAULT_MODEL, extractRecipe, ImportError, sanitizeNutrition, sanitizeRecipe } from './model.ts'
 
 const STRUCTURED: PageContent = {
   structured: { name: 'Crêpes', yield: '4', ingredients: ['250 g de farine', '3 œufs'], instructions: ['Mélanger.'] },
@@ -66,6 +66,8 @@ describe('sanitizeRecipe', () => {
       tags: ['dessert', 'rapide'],
       checks: [],
       source: null,
+      page: null,
+      nutrition: null,
       prep_minutes: null,
       rest_minutes: null,
       cook_minutes: null,
@@ -124,6 +126,26 @@ describe('détails : sous-parties, temps, source', () => {
     expect(recipe.ingredients[0]!.section).toBe('Pour le streusel')
     expect([recipe.prep_minutes, recipe.rest_minutes, recipe.cook_minutes, recipe.source]).toEqual([10, 120, null, 'Pâtisserie maison, p. 146'])
     expect(sanitizeRecipe({ ...GOOD, prep_minutes: -5, rest_minutes: 99_999 }, null)).toMatchObject({ prep_minutes: null, rest_minutes: null })
+  })
+
+  it('garde le livre et la page séparément', () => {
+    expect(sanitizeRecipe({ ...GOOD, source: ' Pâtisserie maison ', page: ' p. 146 ' }, null)).toMatchObject({ source: 'Pâtisserie maison', page: '146' })
+    expect(sanitizeRecipe({ ...GOOD, page: 'Page 12-13' }, null).page).toBe('12-13')
+    expect(sanitizeRecipe({ ...GOOD, page: 'x'.repeat(40) }, null).page).toHaveLength(20)
+    expect(sanitizeRecipe({ ...GOOD, page: 146 }, null).page).toBeNull()
+  })
+
+  it('garde les valeurs nutritionnelles plausibles', () => {
+    expect(sanitizeRecipe({ ...GOOD, nutrition: { per: '100 g', kcal: 320.4, carbs: 42.56, protein: 4, fat: 15.2 } }, null).nutrition).toEqual({
+      per: '100 g',
+      kcal: 320,
+      carbs: 42.6,
+      protein: 4,
+      fat: 15.2,
+    })
+    expect(sanitizeNutrition({ per: 'bol', kcal: 450, carbs: -3, protein: '20', fat: 99_999 })).toEqual({ per: 'portion', kcal: 450, carbs: null, protein: null, fat: null })
+    expect(sanitizeNutrition({ per: 'portion', kcal: null, carbs: null, protein: null, fat: null })).toBeNull()
+    expect(sanitizeNutrition(null)).toBeNull()
   })
 })
 
