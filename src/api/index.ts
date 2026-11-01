@@ -1,11 +1,13 @@
 import type { AppSupabaseClient } from '@/lib/supabase'
 import { createFoodApi } from './food'
+import { createHydrationApi } from './hydration'
 import { createIdeasApi } from './ideas'
 import { createInboxApi } from './inbox'
 import { createMealsApi } from './meals'
 import { createPhotosApi } from './photos'
 import { createPushApi } from './push'
 import { createRecipesApi } from './recipes'
+import { createSettingsApi } from './settings'
 import { createShoppingApi } from './shopping'
 import { createWeightsApi } from './weights'
 
@@ -20,6 +22,8 @@ export function createApi(db: AppSupabaseClient) {
     shopping: createShoppingApi(db),
     push: createPushApi(db),
     ideas: createIdeasApi(db),
+    settings: createSettingsApi(db),
+    hydration: createHydrationApi(db),
   }
 }
 

@@ -18,6 +18,8 @@ import type { InboxItem } from '@/lib/inbox'
 import type { ShoppingItem, ShoppingItemInput, ShoppingList } from '@/lib/shopping'
 import type { TidyLine } from '@/lib/shoppingFromPlan'
 import type { WeightEntry } from '@/lib/weights'
+import type { WaterIntake } from '@/lib/hydration'
+import { DEFAULT_SETTINGS, type UserSettings } from '@/lib/settings'
 
 export const LUCILE: Profile = { id: 'u-lucile', display_name: 'Lucile' }
 export const ERIC: Profile = { id: 'u-eric', display_name: 'Eric' }
@@ -141,6 +143,15 @@ export function fakeApi(): FakeApi {
       saveSubscription: vi.fn(async () => undefined),
       isSubscribed: vi.fn(async () => false),
       deleteSubscription: vi.fn(async () => undefined),
+    },
+    settings: {
+      getSettings: vi.fn(async (): Promise<UserSettings> => DEFAULT_SETTINGS),
+      saveSettings: vi.fn(async () => undefined),
+    },
+    hydration: {
+      listIntakes: vi.fn(async () => [] as WaterIntake[]),
+      addIntake: vi.fn(async (volumeMl: number): Promise<WaterIntake> => ({ id: `w-${Math.random()}`, volume_ml: volumeMl, drunk_at: new Date().toISOString() })),
+      deleteIntake: vi.fn(async () => undefined),
     },
     food: {
       listPlan: vi.fn(async () => [] as PlanItem[]),

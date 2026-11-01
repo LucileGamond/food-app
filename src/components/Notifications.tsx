@@ -33,10 +33,10 @@ export function NotificationsButton({ notifications, size = 'icon' }: { notifica
             <DialogTitle>Notifications</DialogTitle>
             <DialogDescription>
               {status === 'on'
-                ? 'Activées sur cet appareil : tu es prévenu(e) quand l’autre modifie une liste de courses.'
+                ? 'Activées sur cet appareil. Choisis lesquelles recevoir dans les réglages.'
                 : status === 'denied'
                   ? 'Bloquées par le téléphone. Autorise-les pour Food dans les réglages (Applications → Food → Notifications), puis rouvre l’application.'
-                  : 'Être prévenu(e) sur cet appareil quand l’autre modifie une liste de courses (une notification par série de modifications).'}
+                  : 'Être prévenu(e) sur cet appareil : modifications des listes de courses, rappels pour boire… (au choix dans les réglages).'}
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
@@ -82,7 +82,7 @@ export function NotificationsPrompt({ notifications }: { notifications: Notifica
       <BellRing className="size-5 shrink-0 text-brand" aria-hidden />
       <p className="min-w-0 flex-1 text-sm">
         <span className="font-medium">Activer les notifications ?</span>{' '}
-        <span className="text-muted-foreground">Tu seras prévenu(e) quand l’autre modifie une liste de courses.</span>
+        <span className="text-muted-foreground">Listes de courses modifiées, rappels pour boire… au choix dans les réglages.</span>
       </p>
       <div className="flex gap-2">
         <Button variant="ghost" className="h-9" onClick={dismiss}>

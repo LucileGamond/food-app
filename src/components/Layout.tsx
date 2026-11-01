@@ -1,20 +1,21 @@
-import { BookOpen, CalendarDays, ListChecks, LogOut, Scale, ShoppingCart, UtensilsCrossed } from 'lucide-react'
-import { NavLink, Outlet } from 'react-router-dom'
+import { BookOpen, CalendarDays, GlassWater, ListChecks, LogOut, Scale, Settings, ShoppingCart, UtensilsCrossed, type LucideIcon } from 'lucide-react'
+import { Link, Navigate, NavLink, Outlet, useLocation } from 'react-router-dom'
 import { BuildInfo } from '@/components/BuildInfo'
-import { Button } from '@/components/ui/button'
-import { useApi } from '@/app/ApiContext'
+import { Button, buttonVariants } from '@/components/ui/button'
+import { SettingsProvider, useSettings } from '@/app/SettingsContext'
 import { useAuth } from '@/auth/AuthProvider'
 import { NotificationsButton, NotificationsPrompt } from '@/components/Notifications'
-import { useNotifications } from '@/hooks/useNotifications'
+import { homePath, isPageEnabled, pageOf, PAGES, type PageKey } from '@/lib/settings'
 import { cn } from '@/lib/utils'
 
-const NAV = [
-  { to: '/planning', label: 'Planning', icon: CalendarDays },
-  { to: '/recettes', label: 'Recettes', icon: BookOpen },
-  { to: '/plan', label: 'Plan', icon: ListChecks },
-  { to: '/courses', label: 'Courses', icon: ShoppingCart },
-  { to: '/poids', label: 'Poids', icon: Scale },
-]
+const ICONS: Record<PageKey, LucideIcon> = {
+  planning: CalendarDays,
+  recettes: BookOpen,
+  plan: ListChecks,
+  courses: ShoppingCart,
+  poids: Scale,
+  hydratation: GlassWater,
+}
 
 function Brand() {
   return (
@@ -28,9 +29,21 @@ function Brand() {
 }
 
 export function Layout() {
+  return (
+    <SettingsProvider>
+      <Shell />
+    </SettingsProvider>
+  )
+}
+
+function Shell() {
   const { currentProfile, signOut } = useAuth()
-  // Notifications : réglage global de l'application, pour cet appareil.
-  const notifications = useNotifications(useApi())
+  const { settings, loading, notifications } = useSettings()
+  const { pathname } = useLocation()
+  // Pages choisies dans les réglages (chacun les siennes).
+  const nav = PAGES.filter((p) => isPageEnabled(settings, p.key)).map((p) => ({ ...p, icon: ICONS[p.key] }))
+  const page = pageOf(pathname)
+  if (!loading && page && !isPageEnabled(settings, page)) return <Navigate to={homePath(settings)} replace />
 
   async function logout() {
     // Avant la déconnexion (droits nécessaires) : l'appareil ne reçoit plus les notifications de ce compte.
@@ -46,7 +59,7 @@ export function Layout() {
           <Brand />
         </div>
         <nav aria-label="Navigation principale" className="mt-8 flex flex-col gap-1">
-          {NAV.map(({ to, label, icon: Icon }) => (
+          {nav.map(({ to, label, icon: Icon }) => (
             <NavLink
               key={to}
               to={to}
@@ -67,6 +80,7 @@ export function Layout() {
           <span className="flex-1" />
           <BuildInfo />
           <NotificationsButton notifications={notifications} />
+          <SettingsLink />
           <Button variant="ghost" size="icon" onClick={() => void logout()} aria-label="Se déconnecter">
             <LogOut />
           </Button>
@@ -79,6 +93,7 @@ export function Layout() {
         <div className="flex items-center gap-1">
           <BuildInfo size="icon-lg" />
           <NotificationsButton notifications={notifications} size="icon-lg" />
+          <SettingsLink size="icon-lg" />
           <Button variant="ghost" size="icon-lg" onClick={() => void logout()} aria-label="Se déconnecter">
             <LogOut />
           </Button>
@@ -93,9 +108,10 @@ export function Layout() {
       {/* Onglets (mobile) */}
       <nav
         aria-label="Navigation principale"
-        className="fixed inset-x-0 bottom-0 z-30 grid grid-cols-5 border-t bg-background/95 pb-[env(safe-area-inset-bottom)] backdrop-blur md:hidden"
+        style={{ gridTemplateColumns: `repeat(${Math.max(nav.length, 1)}, minmax(0, 1fr))` }}
+        className="fixed inset-x-0 bottom-0 z-30 grid border-t bg-background/95 pb-[env(safe-area-inset-bottom)] backdrop-blur md:hidden"
       >
-        {NAV.map(({ to, label, icon: Icon }) => (
+        {nav.map(({ to, label, icon: Icon }) => (
           <NavLink
             key={to}
             to={to}
@@ -112,6 +128,14 @@ export function Layout() {
         ))}
       </nav>
     </div>
+  )
+}
+
+function SettingsLink({ size = 'icon' }: { size?: 'icon' | 'icon-lg' }) {
+  return (
+    <Link to="/reglages" aria-label="Réglages" className={buttonVariants({ variant: 'ghost', size })}>
+      <Settings />
+    </Link>
   )
 }
 

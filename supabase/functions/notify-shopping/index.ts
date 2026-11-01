@@ -1,5 +1,5 @@
-// Edge Function Supabase : notifications Web Push des modifications de listes de courses.
-// Appelée par pg_cron (voir la migration shopping_notifications). Secrets :
+// Edge Function Supabase : notifications Web Push des modifications de listes de courses et rappels d'hydratation.
+// Appelée par pg_cron (voir les migrations shopping_notifications et settings_hydration). Secrets :
 //   NOTIFY_SECRET  secret partagé avec la tâche planifiée (en-tête x-cron-secret)
 //   VAPID_KEYS     paire de clés VAPID au format JWK : {"publicKey": {...}, "privateKey": {...}}
 //   VAPID_SUBJECT  contact du serveur d'envoi (URL https ou mailto:)
@@ -7,6 +7,7 @@
 import { ApplicationServer, importVapidKeys, PushMessageError } from '@negrel/webpush'
 import { createClient } from '@supabase/supabase-js'
 import { createHandler, type DeviceSubscription } from './handler.ts'
+import type { HydrationReminder } from './hydration.ts'
 import type { PushPayload, ShoppingEvent } from './message.ts'
 
 const db = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!, { auth: { persistSession: false } })
@@ -57,9 +58,23 @@ Deno.serve(
       }))
     },
     async loadSubscriptions(excludeProfileId) {
-      const { data, error } = await db.from('push_subscriptions').select('id, endpoint, p256dh, auth').neq('profile_id', excludeProfileId)
+      const { data, error } = await db.from('push_subscriptions').select('id, endpoint, p256dh, auth, profile_id').neq('profile_id', excludeProfileId)
+      if (error) throw error
+      // Personnes qui ont coupé les notifications des courses (ou masqué la page) dans leurs réglages.
+      const muted = await db.from('user_settings').select('profile_id').or('muted_notifications.cs.{courses},disabled_pages.cs.{courses}')
+      if (muted.error) throw muted.error
+      const excluded = new Set(muted.data.map((row) => row.profile_id as string))
+      return data.filter((row) => !excluded.has(row.profile_id)).map(({ profile_id: _, ...subscription }) => subscription)
+    },
+    async loadProfileSubscriptions(profileId) {
+      const { data, error } = await db.from('push_subscriptions').select('id, endpoint, p256dh, auth').eq('profile_id', profileId)
       if (error) throw error
       return data
+    },
+    async claimHydrationReminders() {
+      const { data, error } = await db.rpc('claim_hydration_reminders')
+      if (error) throw error
+      return data as HydrationReminder[]
     },
     send,
     async deleteSubscriptions(ids) {

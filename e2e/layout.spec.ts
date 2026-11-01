@@ -25,6 +25,9 @@ async function seed() {
       { name: 'ail', quantity: 2, unit: 'gousse', note: null },
     ],
   })
+  // Suivi d'hydratation activé, avec quelques verres
+  await api.settings.saveSettings({ disabledPages: [], mutedNotifications: [], hydrationGoalMl: 1500 })
+  for (const volume of [200, 330, 200]) await api.hydration.addIntake(volume)
   for (let i = 0; i < 4; i++) {
     await api.recipes.saveRecipe({ id: null, title: `${LONG_TITLE} n° ${i + 2}`, notes: null, url: null, servings: 2, tags: ['rapide', 'été'], ingredients: [{ name: 'riz', quantity: 1, unit: 'kg', note: null }] })
   }
@@ -223,6 +226,14 @@ test('aucun écran ni aucune fenêtre ne déborde', async ({ page, isMobile }) =
   await page.getByRole('button', { name: 'Nouvelle pesée' }).first().click()
   await check(page, 'poids-pesee', page.getByRole('dialog', { name: 'Nouvelle pesée' }))
   await closeDialog(page)
+
+  // Hydratation et réglages
+  await page.goto('/hydratation')
+  await expect(page.getByRole('region', { name: 'Aujourd’hui' })).toBeVisible()
+  await check(page, 'hydratation')
+  await page.goto('/reglages')
+  await expect(page.getByRole('textbox', { name: 'Objectif par jour (litres)' })).toBeVisible()
+  await check(page, 'reglages')
 
   // Courses
   await page.goto('/courses')

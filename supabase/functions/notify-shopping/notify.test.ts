@@ -1,4 +1,5 @@
-import { createHandler, notifyPending, sameSecret, type Deps, type DeviceSubscription } from './handler.ts'
+import { createHandler, notifyHydration, notifyPending, sameSecret, type Deps, type DeviceSubscription } from './handler.ts'
+import { buildHydrationMessage, liters, type HydrationReminder } from './hydration.ts'
 import { buildShoppingMessage, joinFr, QUIET_MS, readyGroups, shorten, type ShoppingEvent, type ShoppingEventKind } from './message.ts'
 
 const NOW = Date.parse('2026-10-25T12:00:00Z')
@@ -66,7 +67,12 @@ describe('message', () => {
   })
 })
 
-function setup(events: ShoppingEvent[], subscriptions: Record<string, DeviceSubscription[]> = {}, reserved = new Set<number>()) {
+function setup(
+  events: ShoppingEvent[],
+  subscriptions: Record<string, DeviceSubscription[]> = {},
+  reserved = new Set<number>(),
+  reminders: HydrationReminder[] = [],
+) {
   const deps = {
     secret: 'secret-cron',
     now: () => NOW,
@@ -77,6 +83,8 @@ function setup(events: ShoppingEvent[], subscriptions: Record<string, DeviceSubs
     // Base simulée : un événement n'est réservé qu'une fois, même par deux exécutions.
     reserveEvents: vi.fn(async (ids: number[]) => ids.filter((id) => !reserved.has(id) && Boolean(reserved.add(id)))),
     purgeOldEvents: vi.fn(async () => undefined),
+    loadProfileSubscriptions: vi.fn(async (profile: string) => subscriptions[profile] ?? []),
+    claimHydrationReminders: vi.fn(async () => reminders),
     log: vi.fn(),
   }
   return deps
@@ -141,8 +149,53 @@ describe('envoi', () => {
   })
 })
 
+describe('rappels d’hydratation', () => {
+  it('écrit le message selon ce qui a été bu', () => {
+    expect(liters(1500)).toBe('1,5 L')
+    expect(liters(200)).toBe('0,2 L')
+    expect(buildHydrationMessage({ profile_id: 'lucile', drunk_ml: 0, goal_ml: 1500 })).toEqual({
+      title: 'Pense à boire 💧',
+      body: 'Rien bu depuis ce matin : un verre d’eau ? Objectif 1,5 L.',
+      url: '/hydratation',
+      tag: 'hydration',
+    })
+    expect(buildHydrationMessage({ profile_id: 'lucile', drunk_ml: 530, goal_ml: 2000 }).body).toBe('4 h sans boire. 0,5 L sur 2 L aujourd’hui.')
+  })
+
+  it('envoie aux appareils de la personne concernée seulement, et retire les expirés', async () => {
+    const deps = setup([], { lucile: [device('tel'), device('pc')], eric: [device('tel-eric')] }, new Set(), [{ profile_id: 'lucile', drunk_ml: 200, goal_ml: 1500 }])
+    deps.send.mockResolvedValueOnce('sent').mockResolvedValueOnce('gone')
+    expect(await notifyHydration(deps)).toEqual({ groups: 1, sent: 1, failed: 0, removed: 1 })
+    expect(deps.loadProfileSubscriptions).toHaveBeenCalledWith('lucile')
+    expect(deps.send.mock.calls.map(([sub]) => sub.id)).toEqual(['tel', 'pc'])
+    expect(deps.deleteSubscriptions).toHaveBeenCalledWith(['pc'])
+    expect(deps.loadPendingEvents).not.toHaveBeenCalled()
+  })
+
+  it('compte les échecs et ne fait rien sans rappel dû', async () => {
+    const deps = setup([], { lucile: [device('tel')] }, new Set(), [{ profile_id: 'lucile', drunk_ml: 0, goal_ml: 1500 }])
+    deps.send.mockResolvedValueOnce('failed')
+    expect(await notifyHydration(deps)).toEqual({ groups: 1, sent: 0, failed: 1, removed: 0 })
+    expect(await notifyHydration(setup([]))).toEqual({ groups: 0, sent: 0, failed: 0, removed: 0 })
+  })
+})
+
 describe('handler', () => {
-  const post = (secret?: string) => new Request('https://fn.local/notify-shopping', { method: 'POST', headers: secret ? { 'x-cron-secret': secret } : {} })
+  const post = (secret?: string, body?: unknown) =>
+    new Request('https://fn.local/notify-shopping', {
+      method: 'POST',
+      headers: secret ? { 'x-cron-secret': secret } : {},
+      body: body === undefined ? undefined : JSON.stringify(body),
+    })
+
+  it('choisit la tâche d’après le corps de la requête', async () => {
+    const deps = setup([event('ADDED', 'Farine')], { lucile: [device('a')] }, new Set(), [{ profile_id: 'lucile', drunk_ml: 0, goal_ml: 1500 }])
+    const response = await createHandler(deps)(post('secret-cron', { job: 'hydration' }))
+    expect(await response.json()).toEqual({ groups: 1, sent: 1, failed: 0, removed: 0 })
+    expect(deps.claimHydrationReminders).toHaveBeenCalled()
+    expect(deps.loadPendingEvents).not.toHaveBeenCalled()
+    expect(deps.send.mock.calls[0]![1]).toMatchObject({ tag: 'hydration' })
+  })
 
   it('exige le secret partagé avec la tâche planifiée', async () => {
     const deps = setup([])

@@ -373,6 +373,46 @@ isOneToOne: false
       referencedColumns: ["id"]
     }
                   ]
+                },"user_settings": {
+                  Row: {
+                    "disabled_pages": (string)[],"hydration_goal_ml": number,"hydration_reminded_at": string | null,"muted_notifications": (string)[],"profile_id": string,"updated_at": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "disabled_pages"?: (string)[],"hydration_goal_ml"?: number,"hydration_reminded_at"?: string | null,"muted_notifications"?: (string)[],"profile_id"?: string,"updated_at"?: string
+                  }
+                  Update: {
+                    "disabled_pages"?: (string)[],"hydration_goal_ml"?: number,"hydration_reminded_at"?: string | null,"muted_notifications"?: (string)[],"profile_id"?: string,"updated_at"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "user_settings_profile_id_fkey"
+      columns: ["profile_id"]
+isOneToOne: true
+      referencedRelation: "profiles"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"water_intakes": {
+                  Row: {
+                    "created_at": string,"drunk_at": string,"id": string,"profile_id": string,"volume_ml": number
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "created_at"?: string,"drunk_at"?: string,"id"?: string,"profile_id"?: string,"volume_ml": number
+                  }
+                  Update: {
+                    "created_at"?: string,"drunk_at"?: string,"id"?: string,"profile_id"?: string,"volume_ml"?: number
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "water_intakes_profile_id_fkey"
+      columns: ["profile_id"]
+isOneToOne: false
+      referencedRelation: "profiles"
+      referencedColumns: ["id"]
+    }
+                  ]
                 },"weight_entries": {
                   Row: {
                     "created_at": string,"created_by": string | null,"id": string,"measured_on": string,"profile_id": string,"updated_at": string,"weight_kg": number
@@ -408,6 +448,11 @@ isOneToOne: false
             "add_to_inbox":
 { Args: { "p_list"?: string,"p_photos"?: (string)[],"p_recipe_id"?: string,"p_title"?: string,"p_url"?: string }; Returns: string
                            },
+"claim_hydration_reminders":
+{ Args: { "p_now"?: string }; Returns: {
+              "drunk_ml": number,"goal_ml": number,"profile_id": string
+            }[]
+                           },
 "create_food_period":
 { Args: { "p_end": string,"p_profile_id": string,"p_start": string }; Returns: string
                            },
@@ -420,6 +465,11 @@ isOneToOne: false
 "find_saved_recipe_by_url":
 { Args: { "p_exclude"?: string,"p_url": string }; Returns: {
               "id": string,"title": string
+            }[]
+                           },
+"hydration_reminders_due":
+{ Args: { "p_now"?: string }; Returns: {
+              "drunk_ml": number,"goal_ml": number,"profile_id": string
             }[]
                            },
 "link_recipe_ingredient":
