@@ -75,7 +75,7 @@ test('importe une recette depuis des captures de la légende d’un reel Instagr
   const reel = 'https://www.instagram.com/reel/DecMC7uh4zl/'
   await page.getByLabel('Lien de la recette à importer').fill(reel)
   await expect(page.getByRole('button', { name: 'Captures de la légende' })).toBeVisible()
-  await page.locator('input[type="file"][accept="image/*"]').setInputFiles([
+  await page.locator('input[type="file"][accept="image/*"]:not([capture])').setInputFiles([
     { name: 'capture-1.png', mimeType: 'image/png', buffer: png },
     { name: 'capture-2.png', mimeType: 'image/png', buffer: png },
     { name: 'capture-3.png', mimeType: 'image/png', buffer: png },

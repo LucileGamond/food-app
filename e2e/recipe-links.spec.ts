@@ -52,7 +52,7 @@ test('importe la recette à laquelle renvoie un ingrédient, puis la lie', async
   await expect(page.getByRole('note')).toContainText('Recette de « pâte sucrée » (p. 208) pour « Tarte à la banane »')
   await expect(page.getByLabel('Livre ou source')).toHaveValue('Pâtisserie maison')
   await expect(page.getByLabel('Page', { exact: true })).toHaveValue('208')
-  await page.locator('input[type="file"][accept="image/*"]').setInputFiles({ name: 'page-208.png', mimeType: 'image/png', buffer: PNG_1PX })
+  await page.locator('input[type="file"][accept="image/*"]:not([capture])').setInputFiles({ name: 'page-208.png', mimeType: 'image/png', buffer: PNG_1PX })
   await page.getByRole('button', { name: 'Lire la recette' }).click()
   await expect(page.getByLabel("Nom de l'ingrédient 2")).toHaveValue('beurre')
   await expect(page.getByLabel('Livre ou source')).toHaveValue('Pâtisserie maison')

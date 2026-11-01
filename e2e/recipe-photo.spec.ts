@@ -34,7 +34,7 @@ test('crée une recette à partir de la photo d’une page de livre', async ({ p
   await login(page)
   await page.goto('/recettes/nouvelle')
 
-  await page.locator('input[type="file"][accept="image/*"]').setInputFiles([
+  await page.locator('input[type="file"][accept="image/*"]:not([capture])').setInputFiles([
     { name: 'page-146.png', mimeType: 'image/png', buffer: PNG_1PX },
     { name: 'page-147.png', mimeType: 'image/png', buffer: PNG_1PX },
   ])
@@ -84,7 +84,7 @@ test('reprend la photo du plat imprimée sur la page, recadrée, comme photo de 
   })
   await login(page)
   await page.goto('/recettes/nouvelle')
-  await page.locator('input[type="file"][accept="image/*"]').setInputFiles([{ name: 'page-30.png', mimeType: 'image/png', buffer: PNG_1PX }])
+  await page.locator('input[type="file"][accept="image/*"]:not([capture])').setInputFiles([{ name: 'page-30.png', mimeType: 'image/png', buffer: PNG_1PX }])
   await page.getByRole('button', { name: 'Lire la recette' }).click()
   await expect(page.getByRole('status')).toContainText('Recette préremplie depuis ta photo.')
   // Recadrée dans le navigateur, puis ajoutée aux photos de la recette.
