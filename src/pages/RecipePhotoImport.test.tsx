@@ -75,7 +75,11 @@ describe('RecipeFormPage — recette depuis une photo', () => {
     await user.click(within(pages).getByRole('button', { name: 'Ajouter une page' }))
     await user.upload(pageInput(), photo('page-147.jpg'))
     expect(within(pages).getAllByRole('img')).toHaveLength(2)
+    // 3 images au plus : encore une possible, puis plus aucune.
+    await user.upload(pageInput(), photo('page-148.jpg'))
+    expect(within(pages).getAllByRole('img')).toHaveLength(3)
     expect(within(pages).queryByRole('button', { name: 'Ajouter une page' })).not.toBeInTheDocument()
+    await user.click(within(pages).getByRole('button', { name: 'Retirer la page 3' }))
 
     await user.click(screen.getByRole('button', { name: 'Lire la recette' }))
     expect(await screen.findByRole('status')).toHaveTextContent('Recette préremplie depuis tes photos.')
@@ -155,21 +159,53 @@ describe('RecipeFormPage — recette depuis une photo', () => {
     expect(screen.queryByText(/À vérifier/)).not.toBeInTheDocument()
   })
 
-  it('garde 2 pages au plus, ignore ce qui n’est pas une image, et permet de retirer une page', async () => {
+  it('garde 3 images au plus, ignore ce qui n’est pas une image, et permet de retirer une page', async () => {
     const user = userEvent.setup({ applyAccept: false })
     const api = fakeApi()
     const { pageInput } = renderForm(api)
     await screen.findByRole('button', { name: "Photo d'un livre ou scan" })
-    await user.upload(pageInput(), [photo('a.jpg'), new File(['%PDF'], 'b.pdf', { type: 'application/pdf' }), photo('c.png', 'image/png'), photo('d.jpg')])
+    await user.upload(pageInput(), [photo('a.jpg'), new File(['%PDF'], 'b.pdf', { type: 'application/pdf' }), photo('c.png', 'image/png'), photo('d.jpg'), photo('e.jpg')])
     const pages = screen.getByRole('list', { name: 'Pages à lire' })
-    expect(within(pages).getAllByRole('img').map((i) => i.getAttribute('src'))).toEqual(['blob:a.jpg', 'blob:c.png'])
-    expect(screen.getByText('2 pages au plus : seules les premières sont gardées.')).toBeInTheDocument()
+    expect(within(pages).getAllByRole('img').map((i) => i.getAttribute('src'))).toEqual(['blob:a.jpg', 'blob:c.png', 'blob:d.jpg'])
+    expect(screen.getByText('3 images au plus : seules les premières sont gardées.')).toBeInTheDocument()
 
     await user.click(within(pages).getByRole('button', { name: 'Retirer la page 1' }))
-    expect(within(pages).getAllByRole('img').map((i) => i.getAttribute('src'))).toEqual(['blob:c.png'])
+    expect(within(pages).getAllByRole('img').map((i) => i.getAttribute('src'))).toEqual(['blob:c.png', 'blob:d.jpg'])
     expect(URL.revokeObjectURL).toHaveBeenCalledWith('blob:a.jpg')
     await user.click(within(pages).getByRole('button', { name: 'Retirer la page 1' }))
+    await user.click(within(pages).getByRole('button', { name: 'Retirer la page 1' }))
     expect(screen.getByRole('button', { name: "Photo d'un livre ou scan" })).toBeInTheDocument()
+  })
+
+  it('Instagram : lit les captures de la légende et garde le lien du reel', async () => {
+    const user = userEvent.setup()
+    const api = fakeApi()
+    api.recipes.importFromPhotos.mockResolvedValue({ recipe: { title: 'Barres framboise', servings: 8, ingredients: [], steps: '1. Mélanger.', tags: [] }, source: 'photo', image: null })
+    const { pageInput } = renderForm(api)
+    const reel = 'https://www.instagram.com/reel/DfIBDEIIwic/'
+    await user.type(await screen.findByLabelText('Lien de la recette à importer'), reel)
+    expect(screen.getByText(/fais 1 à 3 captures d’écran/)).toBeInTheDocument()
+    await user.upload(pageInput(), [photo('capture1.png', 'image/png'), photo('capture2.png', 'image/png')])
+    const shots = screen.getByRole('list', { name: 'Captures à lire' })
+    expect(within(shots).getAllByRole('img')).toHaveLength(2)
+    expect(screen.getByRole('button', { name: 'Ajouter une capture' })).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'Lire la recette' }))
+    expect(await screen.findByRole('status')).toHaveTextContent('Recette préremplie depuis tes captures')
+    expect(api.recipes.importFromPhotos.mock.calls[0]![0]).toHaveLength(2)
+    expect(screen.getByLabelText('Titre')).toHaveValue('Barres framboise')
+    expect(screen.getByLabelText('Lien')).toHaveValue(reel)
+  })
+
+  it('Instagram : captures d’un reel déjà enregistré, non lues', async () => {
+    const user = userEvent.setup()
+    const api = fakeApi()
+    api.recipes.findSavedByUrl.mockResolvedValueOnce({ id: 'r9', title: 'Barres framboise' })
+    const { pageInput } = renderForm(api)
+    await user.type(await screen.findByLabelText('Lien de la recette à importer'), 'https://www.instagram.com/reel/abc/')
+    await user.upload(pageInput(), [photo('capture1.png', 'image/png')])
+    await user.click(screen.getByRole('button', { name: 'Lire la recette' }))
+    expect((await screen.findAllByText(/Barres framboise/)).length).toBeGreaterThan(0)
+    expect(api.recipes.importFromPhotos).not.toHaveBeenCalled()
   })
 
   it('demande avant de remplacer une saisie, et affiche une erreur de lecture', async () => {

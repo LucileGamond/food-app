@@ -264,8 +264,18 @@ export function RecipeFormPage() {
     applyImport(result.recipe, url)
   }
 
-  /** Préremplit le formulaire en lisant la recette sur 1 ou 2 photos (page de livre, scan). La photo n'est pas gardée. */
-  async function importFromPhotos(files: File[]): Promise<boolean> {
+  /**
+   * Préremplit le formulaire en lisant la recette sur 1 à 3 photos (pages de livre, scan, captures d'une légende). Les
+   * photos ne sont pas gardées ; `url` : la publication dont ce sont les captures, gardée comme lien de la recette.
+   */
+  async function importFromPhotos(files: File[], url?: string): Promise<boolean> {
+    if (url) {
+      const existing = await api.recipes.findSavedByUrl(url, savedId.current)
+      if (existing) {
+        setDuplicate(existing)
+        throw new DuplicateRecipeUrlError(existing)
+      }
+    }
     let photos: Blob[]
     try {
       photos = await Promise.all(files.map(compressForReading))
@@ -287,7 +297,7 @@ export function RecipeFormPage() {
       return false
     }
     setPageRecipes(null)
-    applyImport(result.recipe, values.url)
+    applyImport(result.recipe, url ?? values.url)
     return true
   }
 

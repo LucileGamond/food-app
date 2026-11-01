@@ -47,9 +47,9 @@ describe('import de recette depuis une photo (Edge Function)', () => {
     await expect(api.recipes.importFromPhotos([page])).rejects.toMatchObject({ code: 'import-401' })
   })
 
-  it('refuse plus de 2 photos et une photo trop lourde, avec un message clair', async () => {
+  it('refuse plus de 3 photos et une photo trop lourde, avec un message clair', async () => {
     const { api } = await signedInApi()
-    await expect(api.recipes.importFromPhotos([page, page, page])).rejects.toThrow('2 photos au plus.')
+    await expect(api.recipes.importFromPhotos([page, page, page, page])).rejects.toThrow('3 photos au plus.')
     const heavy = new Blob([new Uint8Array(3_100_000)], { type: 'image/jpeg' })
     await expect(api.recipes.importFromPhotos([heavy])).rejects.toThrow('Photo trop lourde.')
   })

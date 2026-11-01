@@ -333,9 +333,10 @@ const PHOTO_TOOL = {
 }
 
 const PHOTO_SYSTEM = [
-  'Tu lis des recettes de cuisine sur une ou deux photos (page de livre, magazine, fiche ou scan), en français.',
+  'Tu lis des recettes de cuisine sur une à trois photos (page de livre, magazine, fiche, scan, ou captures d’écran d’une publication comme la légende d’un reel Instagram), en français.',
   'Recopie fidèlement ce qui est écrit, sans rien inventer : si un passage est illisible, laisse-le de côté.',
-  'Si les photos sont deux pages de la même recette, assemble-les dans l’ordre.',
+  'Si les photos sont des pages ou des captures successives de la même recette, assemble-les dans l’ordre, sans répéter un passage visible sur deux captures.',
+  'Sur une capture d’écran, ignore ce qui n’est pas la recette (nom du compte, mentions J’aime, commentaires, hashtags, boutons).',
   'Une page peut contenir plusieurs recettes distinctes, chacune avec son titre : renvoie-les toutes, dans l’ordre de la page.',
   'Les parties d’une même recette (« Pour la pâte », « Pour la garniture ») ne sont pas des recettes à part.',
   'Range chaque ingrédient dans sa sous-partie (section) quand la recette en a (« Pour le streusel »).',

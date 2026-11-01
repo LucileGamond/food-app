@@ -8,8 +8,8 @@ import { DuplicateRecipeUrlError, errorMessage } from '@/api'
 import { isValidUrl } from '@/lib/meals'
 import { isInstagramUrl, isYoutubeUrl, siteName } from '@/lib/recipes'
 
-/** Pages lues au plus (une recette sur une double page). */
-export const MAX_RECIPE_PHOTOS = 2
+/** Images lues au plus (une recette sur une double page, une longue légende sur plusieurs captures). */
+export const MAX_RECIPE_PHOTOS = 3
 
 interface Props {
   /** Lien déjà connu (ex. recette ponctuelle du planning). */
@@ -22,8 +22,11 @@ interface Props {
   onImport: (url: string) => Promise<string | void>
   /** Analyse un texte collé (légende Instagram) avec le lien de la publication. */
   onImportText: (text: string, url: string) => Promise<void>
-  /** Lit la recette sur les photos ; rejette avec une erreur affichable. `false` : rien de prérempli pour l'instant (choix à faire). */
-  onImportPhotos: (photos: File[]) => Promise<boolean | void>
+  /**
+   * Lit la recette sur les photos ; rejette avec une erreur affichable. `false` : rien de prérempli pour l'instant (choix à
+   * faire). `url` : la publication dont ce sont les captures (Instagram), gardée comme lien de la recette.
+   */
+  onImportPhotos: (photos: File[], url?: string) => Promise<boolean | void>
 }
 
 type State =
@@ -70,7 +73,7 @@ export function RecipeImportCard({ initialUrl, initialPhotos, hasContent, onImpo
   function addPages(files: File[], current: Page[]): Page[] {
     const images = files.filter((f) => f.type.startsWith('image/'))
     const room = MAX_RECIPE_PHOTOS - current.length
-    setNotice(images.length > room ? `${MAX_RECIPE_PHOTOS} pages au plus : seules les premières sont gardées.` : null)
+    setNotice(images.length > room ? `${MAX_RECIPE_PHOTOS} images au plus : seules les premières sont gardées.` : null)
     const next = [...current, ...toPages(images.slice(0, Math.max(room, 0)))]
     setPages(next)
     return next
@@ -112,8 +115,10 @@ export function RecipeImportCard({ initialUrl, initialPhotos, hasContent, onImpo
     if (list.length === 0) return
     setState({ kind: 'loading', source: 'photos' })
     try {
-      const prefilled = await onImportPhotos(list.map((p) => p.file))
-      setState(prefilled === false ? { kind: 'idle' } : { kind: 'done', source: list.length > 1 ? 'tes photos' : 'ta photo' })
+      const files = list.map((p) => p.file)
+      const prefilled = instagram ? await onImportPhotos(files, url.trim()) : await onImportPhotos(files)
+      const source = instagram ? (list.length > 1 ? 'tes captures' : 'ta capture') : list.length > 1 ? 'tes photos' : 'ta photo'
+      setState(prefilled === false ? { kind: 'idle' } : { kind: 'done', source })
     } catch (error) {
       setState({ kind: 'error', message: errorMessage(error) })
     }
@@ -195,7 +200,8 @@ export function RecipeImportCard({ initialUrl, initialPhotos, hasContent, onImpo
             Légende du reel
           </label>
           <p className="text-xs text-muted-foreground">
-            Instagram ne laisse pas lire ses publications. Dans Instagram, reste appuyé sur la légende, choisis « Copier », puis colle-la ici.
+            Instagram ne laisse ni lire ni copier ses légendes. Ouvre la légende en entier (« plus »), fais 1 à {MAX_RECIPE_PHOTOS} captures d’écran
+            et ajoute-les ci-dessous (« Captures de la légende ») : la recette y est lue. Si tu as pu copier la légende, colle-la ici.
           </p>
           <Textarea
             ref={captionInput}
@@ -235,11 +241,11 @@ export function RecipeImportCard({ initialUrl, initialPhotos, hasContent, onImpo
         />
         {pages.length === 0 ? (
           <Button type="button" variant="outline" className="h-10 w-full bg-background sm:w-auto" disabled={loading} onClick={() => fileInput.current?.click()}>
-            <Camera aria-hidden /> Photo d'un livre ou scan
+            <Camera aria-hidden /> {instagram ? 'Captures de la légende' : "Photo d'un livre ou scan"}
           </Button>
         ) : (
           <>
-            <ul className="flex flex-wrap gap-2" aria-label="Pages à lire">
+            <ul className="flex flex-wrap gap-2" aria-label={instagram ? 'Captures à lire' : 'Pages à lire'}>
               {pages.map((page, index) => (
                 <li key={page.key} className="relative">
                   <img src={page.preview} alt={`Page ${index + 1}`} className="h-24 w-20 rounded-lg border bg-background object-cover" />
@@ -265,7 +271,7 @@ export function RecipeImportCard({ initialUrl, initialPhotos, hasContent, onImpo
                     className="flex h-24 w-20 flex-col items-center justify-center gap-1 rounded-lg border border-dashed bg-background text-xs text-muted-foreground hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none disabled:opacity-50"
                   >
                     <Plus className="size-4" aria-hidden />
-                    Ajouter une page
+                    {instagram ? 'Ajouter une capture' : 'Ajouter une page'}
                   </button>
                 </li>
               )}

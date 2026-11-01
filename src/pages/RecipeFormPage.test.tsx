@@ -354,7 +354,7 @@ describe('RecipeFormPage — préremplissage depuis un lien', () => {
     const reel = 'https://www.instagram.com/reel/DfIBDEIIwic/'
     await user.type(await screen.findByLabelText('Lien de la recette à importer'), reel)
     const caption = screen.getByLabelText('Légende du reel')
-    expect(screen.getByText(/reste appuyé sur la légende/)).toBeInTheDocument()
+    expect(screen.getByText(/ni lire ni copier ses légendes/)).toBeInTheDocument()
 
     // Sans légende : demandée, rien n'est envoyé.
     await user.click(screen.getByRole('button', { name: 'Préremplir' }))

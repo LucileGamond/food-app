@@ -61,3 +61,31 @@ test('importe une recette depuis une vidéo YouTube, trouvée sur le blog du cr�
   await expect(page.getByLabel('Titre')).toHaveValue('Gaufres de brocolis')
   await expect(page.getByLabel('Lien', { exact: true })).toHaveValue(short)
 })
+
+test('importe une recette depuis des captures de la légende d’un reel Instagram', async ({ page }) => {
+  let requested: { mode?: string; images?: unknown[] } = {}
+  await page.route('**/functions/v1/import-recipe', async (route) => {
+    requested = route.request().postDataJSON()
+    await route.fulfill({ json: { recipe: recipe('Barres framboise'), recipes: [recipe('Barres framboise')], source: 'photo', image: null } })
+  })
+  // Image PNG valide de 1 pixel (lue par le navigateur avant l'envoi).
+  const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==', 'base64')
+  await login(page)
+  await page.goto('/recettes/nouvelle')
+  const reel = 'https://www.instagram.com/reel/DecMC7uh4zl/'
+  await page.getByLabel('Lien de la recette à importer').fill(reel)
+  await expect(page.getByRole('button', { name: 'Captures de la légende' })).toBeVisible()
+  await page.locator('input[type="file"][accept="image/*"]').setInputFiles([
+    { name: 'capture-1.png', mimeType: 'image/png', buffer: png },
+    { name: 'capture-2.png', mimeType: 'image/png', buffer: png },
+    { name: 'capture-3.png', mimeType: 'image/png', buffer: png },
+  ])
+  await expect(page.getByRole('list', { name: 'Captures à lire' }).getByRole('img')).toHaveCount(3)
+  expect((await new AxeBuilder({ page }).exclude('[data-sonner-toaster]').analyze()).violations).toEqual([])
+  await page.getByRole('button', { name: 'Lire la recette' }).click()
+  await expect(page.getByRole('status')).toContainText('Recette préremplie depuis tes captures')
+  expect(requested.mode).toBe('photos')
+  expect(requested.images).toHaveLength(3)
+  await expect(page.getByLabel('Titre')).toHaveValue('Barres framboise')
+  await expect(page.getByLabel('Lien', { exact: true })).toHaveValue(reel)
+})
