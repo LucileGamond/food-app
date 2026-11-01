@@ -155,7 +155,7 @@ describe('RecipesPage', () => {
     expect(await screen.findByRole('combobox', { name: 'Trier les recettes' })).toHaveValue('book')
   })
 
-  it('filtres rapides : 30 min max, végé, pas cuisinée depuis 1 mois', async () => {
+  it('filtres rapides : 30 min max, végé, pas cuisinée depuis 1 mois, sans photo', async () => {
     const user = userEvent.setup()
     const api = fakeApi()
     api.recipes.listSavedRecipes.mockResolvedValue(RECIPES)
@@ -170,6 +170,11 @@ describe('RecipesPage', () => {
     await user.click(within(quick).getByRole('button', { name: 'Végé' }))
     await user.click(within(quick).getByRole('button', { name: 'Pas cuisinée depuis 1 mois' }))
     expect(titles()).toEqual(['Curry de légumes', 'Pâtes pesto'])
+    await user.click(within(quick).getByRole('button', { name: 'Pas cuisinée depuis 1 mois' }))
+    // Banana bread a une photo : les deux autres non.
+    await user.click(within(quick).getByRole('button', { name: 'Sans photo' }))
+    expect(titles()).toEqual(['Curry de légumes', 'Pâtes pesto'])
+    await user.click(within(quick).getByRole('button', { name: 'Sans photo' }))
 
     await user.click(screen.getByRole('button', { name: 'Effacer les filtres' }))
     expect(titles()).toHaveLength(3)

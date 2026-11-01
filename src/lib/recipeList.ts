@@ -17,7 +17,7 @@ export const RECIPE_SORTS: readonly { value: RecipeSort; label: string }[] = [
   { value: 'book', label: 'Livre et page' },
 ]
 
-export type QuickFilter = 'quick' | 'vegetarian' | 'seasonal' | 'forgotten'
+export type QuickFilter = 'quick' | 'vegetarian' | 'seasonal' | 'forgotten' | 'noPhoto'
 
 /** Recette rapide : 30 min au plus, repos compris. */
 export const QUICK_MINUTES = 30
@@ -29,6 +29,7 @@ export const QUICK_FILTERS: readonly { value: QuickFilter; label: string }[] = [
   { value: 'vegetarian', label: 'Végé' },
   { value: 'seasonal', label: 'De saison' },
   { value: 'forgotten', label: 'Pas cuisinée depuis 1 mois' },
+  { value: 'noPhoto', label: 'Sans photo' },
 ]
 
 export interface RecipeListOptions {
@@ -132,6 +133,7 @@ export function applyListOptions(recipes: readonly RecipeListItem[], options: Re
     .filter((r) => !filters.includes('vegetarian') || r.vegetarian)
     .filter((r) => !filters.includes('seasonal') || recipeSeason(r.ingredientNames, monthOf(today)).status === 'in')
     .filter((r) => !filters.includes('forgotten') || isForgotten(r, today))
+    .filter((r) => !filters.includes('noPhoto') || !r.mainPhotoPath)
     .sort(COMPARE[options.sort])
 }
 

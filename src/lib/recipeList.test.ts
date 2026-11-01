@@ -62,7 +62,7 @@ describe('isForgotten', () => {
 
 describe('applyListOptions', () => {
   const recipes = [
-    listItem({ id: '1', title: 'B', source: 'Livre', sourcePage: '146-147', totalMinutes: null, rating: null }),
+    listItem({ id: '1', title: 'B', source: 'Livre', sourcePage: '146-147', totalMinutes: null, rating: null, mainPhotoPath: '1/a.jpg' }),
     listItem({ id: '2', title: 'A', source: 'Livre', sourcePage: '30', totalMinutes: 30, rating: 2, vegetarian: true }),
     listItem({ id: '3', title: 'C', source: null, sourcePage: null, url: 'https://www.marmiton.org/c', totalMinutes: 31, rating: 5 }),
     listItem({ id: '5', title: 'E', totalMinutes: null }),
@@ -84,6 +84,8 @@ describe('applyListOptions', () => {
     expect(run({ filters: ['quick'] })).toEqual(['A', 'D'])
     expect(run({ filters: ['quick', 'vegetarian'] })).toEqual(['A'])
     expect(run({ filters: ['forgotten'] })).toEqual(['A', 'B', 'C', 'E'])
+    expect(run({ filters: ['noPhoto'] })).toEqual(['A', 'C', 'D', 'E'])
+    expect(run({ filters: ['noPhoto', 'quick'] })).toEqual(['A', 'D'])
   })
 })
 

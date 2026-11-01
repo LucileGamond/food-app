@@ -1,4 +1,4 @@
-import { BookOpen, History, Images, Leaf, Link2, Loader2, Plus, RefreshCw, Search, Sprout, Timer, X } from 'lucide-react'
+import { BookOpen, History, ImageOff, Images, Leaf, Link2, Loader2, Plus, RefreshCw, Search, Sprout, Timer, X } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { toast } from 'sonner'
@@ -37,7 +37,7 @@ import { cn } from '@/lib/utils'
 const selectClass =
   'h-10 min-w-0 rounded-lg border border-input bg-background px-2 text-base md:text-sm focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none dark:bg-input/30'
 
-const QUICK_ICONS: Record<QuickFilter, typeof Timer> = { quick: Timer, vegetarian: Leaf, seasonal: Sprout, forgotten: History }
+const QUICK_ICONS: Record<QuickFilter, typeof Timer> = { quick: Timer, vegetarian: Leaf, seasonal: Sprout, forgotten: History, noPhoto: ImageOff }
 
 /** Valeurs proposées dans le filtre par source. */
 function optionValues(origins: ReturnType<typeof collectOrigins>): string[] {
