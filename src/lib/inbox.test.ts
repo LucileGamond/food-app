@@ -1,4 +1,4 @@
-import { extractUrl, inboxKind, inboxSubtitle, parseInboxInput } from './inbox'
+import { canPrefill, extractUrl, inboxKind, inboxSubtitle, parseInboxInput, photosTitle } from './inbox'
 
 describe('liste « À planifier »', () => {
   it('distingue recette, lien et idée', () => {
@@ -8,6 +8,19 @@ describe('liste « À planifier »', () => {
     expect(inboxSubtitle({ url: null, recipe_id: 'r1' })).toBe('Recette enregistrée')
     expect(inboxSubtitle({ url: 'https://www.marmiton.org/a', recipe_id: null })).toBe('marmiton.org')
     expect(inboxSubtitle({ url: null, recipe_id: null })).toBe('Idée')
+  })
+
+  it('reconnaît les photos en attente, et ce qui peut être prérempli', () => {
+    const photos = { url: null, recipe_id: null, photos: ['pending/a.jpg', 'pending/b.jpg'] }
+    expect(inboxKind(photos)).toBe('photos')
+    expect(inboxSubtitle(photos)).toBe('2 photos')
+    expect(inboxSubtitle({ ...photos, photos: ['pending/a.jpg'] })).toBe('1 photo')
+    expect(inboxKind({ url: null, recipe_id: null, photos: [] })).toBe('idea')
+    expect(canPrefill(photos)).toBe(true)
+    expect(canPrefill({ url: 'https://e.fr/a', recipe_id: null })).toBe(true)
+    expect(canPrefill({ url: null, recipe_id: 'r1' })).toBe(false)
+    expect(canPrefill({ url: null, recipe_id: null })).toBe(false)
+    expect(photosTitle(new Date(2026, 10, 1))).toBe('Photos du 1 nov.')
   })
 
   it('trouve le lien d’un texte partagé', () => {

@@ -29,7 +29,7 @@ export async function addAdhocMeal(page: Page, offset: number, label: 'Midi' | '
   await dialog.getByLabel('Titre').fill(title)
   if (extra.notes) await dialog.getByLabel('Notes').fill(extra.notes)
   if (extra.url) await dialog.getByLabel('Lien de la recette').fill(extra.url)
-  await dialog.getByRole('button', { name: 'Enregistrer' }).click()
+  await dialog.getByRole('button', { name: 'Enregistrer', exact: true }).click()
   await expect(dialog).toBeHidden()
   await expect(slot(page, offset, label).getByText(title, { exact: true })).toBeVisible()
 }

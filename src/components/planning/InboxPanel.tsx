@@ -1,13 +1,13 @@
 import { useDraggable } from '@dnd-kit/core'
-import { BookmarkCheck, CalendarPlus, ChevronDown, ExternalLink, Inbox, Lightbulb, Link2, Loader2, MoreHorizontal, Pencil, Plus, RefreshCw, Trash2 } from 'lucide-react'
+import { Archive, BookmarkCheck, CalendarPlus, ChevronDown, ExternalLink, Images, Inbox, Lightbulb, Link2, Loader2, MoreHorizontal, Pencil, Plus, RefreshCw, ScanText, Trash2 } from 'lucide-react'
 import { useState, type FormEvent } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { Input } from '@/components/ui/input'
 import { Skeleton } from '@/components/ui/skeleton'
 import type { InboxState } from '@/hooks/useInbox'
-import { inboxKind, inboxSubtitle, type InboxItem } from '@/lib/inbox'
+import { canPrefill, inboxKind, inboxSubtitle, type InboxItem } from '@/lib/inbox'
 import { cn } from '@/lib/utils'
 
 /** Données transportées pendant le glisser-déposer d'un élément vers un créneau. */
@@ -20,11 +20,13 @@ interface CardProps {
   onPlan: (item: InboxItem) => void
   onRename: (item: InboxItem) => void
   onRemove: (item: InboxItem) => void
+  onSetAside: (item: InboxItem) => void
 }
 
-const KIND_ICON = { recipe: BookmarkCheck, link: Link2, idea: Lightbulb } as const
+const KIND_ICON = { recipe: BookmarkCheck, link: Link2, photos: Images, idea: Lightbulb } as const
 
-function InboxCard({ item, onPlan, onRename, onRemove }: CardProps) {
+function InboxCard({ item, onPlan, onRename, onRemove, onSetAside }: CardProps) {
+  const navigate = useNavigate()
   const drag = useDraggable({ id: `inbox:${item.id}`, data: { inbox: item } satisfies InboxDragData })
   const kind = inboxKind(item)
   const Icon = KIND_ICON[kind]
@@ -65,6 +67,17 @@ function InboxCard({ item, onPlan, onRename, onRemove }: CardProps) {
               <ExternalLink /> Ouvrir le lien
             </DropdownMenuItem>
           )}
+          {canPrefill(item) && (
+            // Analyse la recette dans le formulaire ; une fois enregistrée, l'élément devient la recette.
+            <DropdownMenuItem onClick={() => void navigate('/recettes/nouvelle', { state: { fromInbox: item } })}>
+              <ScanText /> Préremplir et enregistrer
+            </DropdownMenuItem>
+          )}
+          {kind !== 'recipe' && (
+            <DropdownMenuItem onClick={() => onSetAside(item)}>
+              <Archive /> Mettre de côté
+            </DropdownMenuItem>
+          )}
           {kind !== 'recipe' && (
             <DropdownMenuItem onClick={() => onRename(item)}>
               <Pencil /> Renommer
@@ -83,10 +96,12 @@ interface Props {
   inbox: InboxState
   onPlan: (item: InboxItem) => void
   onRename: (item: InboxItem) => void
+  /** Passe l'élément dans « De côté » (écran Recettes). */
+  onSetAside: (item: InboxItem) => void
 }
 
 /** Liste « À planifier » : liens, recettes et idées à répartir sur la semaine. */
-export function InboxPanel({ inbox, onPlan, onRename }: Props) {
+export function InboxPanel({ inbox, onPlan, onRename, onSetAside }: Props) {
   const [text, setText] = useState('')
   const [adding, setAdding] = useState(false)
   // Sur téléphone, le panneau est replié par défaut pour laisser la place au planning.
@@ -153,7 +168,7 @@ export function InboxPanel({ inbox, onPlan, onRename }: Props) {
           <>
             <ul className="space-y-2" aria-label="Éléments à planifier">
               {inbox.items.map((item) => (
-                <InboxCard key={item.id} item={item} onPlan={onPlan} onRename={onRename} onRemove={(i) => void inbox.remove(i)} />
+                <InboxCard key={item.id} item={item} onPlan={onPlan} onRename={onRename} onRemove={(i) => void inbox.remove(i)} onSetAside={onSetAside} />
               ))}
             </ul>
             <p className="px-1 text-xs text-muted-foreground">Glisse un élément sur un créneau, ou utilise le bouton calendrier.</p>

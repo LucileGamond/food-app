@@ -1,10 +1,11 @@
 /* Cible de partage Android (share_target du manifeste, en POST multipart), importée par le service worker
  * généré (vite-plugin-pwa, workbox.importScripts).
- * - Photos (page de livre, scan) : rangées dans un cache, puis ouverture de « Nouvelle recette » qui les lit.
- * - Lien ou texte : renvoyés vers /partage en GET, comme avant (liste « À planifier »). */
+ * - Photos (pages de livre, captures) : rangées dans un cache, puis ouverture de /partage?photos=partage.
+ * - Lien ou texte : renvoyés vers /partage en GET.
+ * /partage propose ensuite : enregistrer directement, mettre de côté, à planifier, ou préremplir le formulaire. */
 
 const SHARED_PHOTOS_CACHE = 'food-shared-photos'
-const MAX_SHARED_PHOTOS = 2
+const MAX_SHARED_PHOTOS = 3
 
 async function handleShare(request) {
   const origin = self.location.origin
@@ -24,7 +25,7 @@ async function handleShare(request) {
     await Promise.all(
       photos.map((file, index) => cache.put(`${origin}/photo-partagee/${index}`, new Response(file, { headers: { 'content-type': file.type } }))),
     )
-    return Response.redirect(`${origin}/recettes/nouvelle?photos=partage`, 303)
+    return Response.redirect(`${origin}/partage?photos=partage`, 303)
   }
   const params = new URLSearchParams()
   for (const name of ['title', 'text', 'url']) {
@@ -38,6 +39,6 @@ self.addEventListener('fetch', (event) => {
   const url = new URL(event.request.url)
   if (event.request.method === 'POST' && url.origin === self.location.origin && url.pathname === '/partage') {
     // En cas d'imprévu (stockage plein, cache indisponible), on ouvre quand même l'application.
-    event.respondWith(handleShare(event.request).catch(() => Response.redirect(`${self.location.origin}/recettes/nouvelle?photos=partage`, 303)))
+    event.respondWith(handleShare(event.request).catch(() => Response.redirect(`${self.location.origin}/partage?photos=partage`, 303)))
   }
 })

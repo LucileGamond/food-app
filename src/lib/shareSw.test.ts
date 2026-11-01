@@ -29,20 +29,20 @@ function loadWorker(failingCache = false) {
 }
 
 describe('cible de partage (service worker)', () => {
-  it('range les photos partagées (2 au plus) et ouvre « Nouvelle recette »', async () => {
+  it('range les photos partagées (3 au plus) et ouvre le choix de ce qu’on en fait', async () => {
     const { share, stores } = loadWorker()
     const form = new FormData()
-    for (const name of ['a.jpg', 'b.jpg', 'c.jpg']) form.append('photos', new File(['img'], name, { type: 'image/jpeg' }))
+    for (const name of ['a.jpg', 'b.jpg', 'c.jpg', 'e.jpg']) form.append('photos', new File(['img'], name, { type: 'image/jpeg' }))
     form.append('photos', new File(['%PDF'], 'd.pdf', { type: 'application/pdf' }))
     const response = (await share(form))!
     expect(response.status).toBe(303)
-    expect(response.headers.get('location')).toBe(`${ORIGIN}/recettes/nouvelle?photos=partage`)
+    expect(response.headers.get('location')).toBe(`${ORIGIN}/partage?photos=partage`)
     const stored = stores.get(SHARED_PHOTOS_CACHE)!
-    expect([...stored.keys()]).toEqual([`${ORIGIN}/photo-partagee/0`, `${ORIGIN}/photo-partagee/1`])
+    expect([...stored.keys()]).toEqual([`${ORIGIN}/photo-partagee/0`, `${ORIGIN}/photo-partagee/1`, `${ORIGIN}/photo-partagee/2`])
     expect(stored.get(`${ORIGIN}/photo-partagee/0`)!.headers.get('content-type')).toBe('image/jpeg')
   })
 
-  it('renvoie un lien ou un texte vers la liste « À planifier »', async () => {
+  it('renvoie un lien ou un texte vers /partage', async () => {
     const { share, stores } = loadWorker()
     const form = new FormData()
     form.append('title', 'Tarte tatin')
@@ -59,7 +59,7 @@ describe('cible de partage (service worker)', () => {
     form.append('photos', new File(['img'], 'a.jpg', { type: 'image/jpeg' }))
     const response = (await share(form))!
     expect(response.status).toBe(303)
-    expect(response.headers.get('location')).toBe(`${ORIGIN}/recettes/nouvelle?photos=partage`)
+    expect(response.headers.get('location')).toBe(`${ORIGIN}/partage?photos=partage`)
   })
 
   it('laisse passer les autres requêtes', async () => {

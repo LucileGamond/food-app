@@ -32,7 +32,7 @@ test('crée une recette complète, l’utilise au planning et bloque sa suppress
     { name: 'b.png', mimeType: 'image/png', buffer: PNG },
   ])
   await expect(page.getByTestId('photo-item')).toHaveCount(2)
-  await page.getByRole('button', { name: 'Enregistrer' }).click()
+  await page.getByRole('button', { name: 'Enregistrer', exact: true }).click()
 
   // Fiche
   await expect(page.getByRole('heading', { name: 'Curry de légumes' })).toBeVisible()
@@ -56,14 +56,14 @@ test('crée une recette complète, l’utilise au planning et bloque sa suppress
   await dialog.getByRole('tab', { name: 'Recette sauvegardée' }).click()
   await dialog.getByRole('radiogroup', { name: 'Recettes sauvegardées' }).getByText('Curry de légumes').click()
   await expect(dialog.getByRole('radio', { name: /Curry de légumes/ })).toBeChecked()
-  await dialog.getByRole('button', { name: 'Enregistrer' }).click()
+  await dialog.getByRole('button', { name: 'Enregistrer', exact: true }).click()
   await expect(slot(page, 1, 'Soir').getByRole('link', { name: 'Curry de légumes' })).toBeVisible()
 
   // Modification répercutée dans le planning
   await slot(page, 1, 'Soir').getByRole('link', { name: 'Curry de légumes' }).click()
   await page.getByRole('link', { name: 'Modifier' }).click()
   await page.getByLabel('Titre').fill('Curry express')
-  await page.getByRole('button', { name: 'Enregistrer' }).click()
+  await page.getByRole('button', { name: 'Enregistrer', exact: true }).click()
   await expect(page.getByRole('heading', { name: 'Curry express' })).toBeVisible()
   await page.getByRole('link', { name: 'Planning' }).filter({ visible: true }).click()
   await expect(slot(page, 1, 'Soir').getByRole('link', { name: 'Curry express' })).toBeVisible()
@@ -144,7 +144,7 @@ test('préremplit une recette depuis un lien (analyse simulée)', async ({ page 
   await expect(page.getByLabel('Titre')).toHaveValue('Pâte à crêpes')
   await expect(page.getByLabel("Nom de l'ingrédient 2")).toHaveValue('œufs')
   await expect(page.getByTestId('photo-item')).toHaveCount(1)
-  await page.getByRole('button', { name: 'Enregistrer' }).click()
+  await page.getByRole('button', { name: 'Enregistrer', exact: true }).click()
 
   await expect(page.getByRole('heading', { name: 'Pâte à crêpes' })).toBeVisible()
   await expect(page.getByText('250 g farine')).toBeVisible()

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { toast } from 'sonner'
 import { errorMessage, type Api } from '@/api'
-import { parseInboxInput, type InboxItem } from '@/lib/inbox'
+import { parseInboxInput, type InboxItem, type InboxList } from '@/lib/inbox'
 import type { SlotRef } from '@/lib/meals'
 import { siteName } from '@/lib/recipes'
 
@@ -16,10 +16,12 @@ export interface InboxState {
   remove: (item: InboxItem) => Promise<void>
   /** Crée le repas et retire l'élément (mise à jour optimiste). */
   plan: (item: InboxItem, target: SlotRef, people: string[]) => Promise<boolean>
+  /** Passe l'élément dans l'autre liste (« À planifier » ↔ « De côté »). */
+  move: (item: InboxItem, to: InboxList) => Promise<void>
 }
 
-/** Liste « À planifier », partagée et rechargée en temps réel. */
-export function useInbox(api: Api): InboxState {
+/** Liste « À planifier » (ou « De côté »), partagée et rechargée en temps réel. */
+export function useInbox(api: Api, list: InboxList = 'plan'): InboxState {
   const [items, setItems] = useState<InboxItem[]>([])
   const [loading, setLoading] = useState(true)
   const [loadError, setLoadError] = useState<string | null>(null)
@@ -28,16 +30,16 @@ export function useInbox(api: Api): InboxState {
   const reload = useCallback(async () => {
     const id = ++requestId.current
     try {
-      const list = await api.inbox.listItems()
+      const loaded = await api.inbox.listItems(list)
       if (id !== requestId.current) return
-      setItems(list)
+      setItems(loaded)
       setLoadError(null)
     } catch (error) {
       if (id === requestId.current) setLoadError(errorMessage(error))
     } finally {
       if (id === requestId.current) setLoading(false)
     }
-  }, [api])
+  }, [api, list])
 
   useEffect(() => {
     void reload()
@@ -57,7 +59,7 @@ export function useInbox(api: Api): InboxState {
       const input = parseInboxInput(text, sharedTitle)
       if (!input) return false
       try {
-        const id = await api.inbox.addItem(input.kind === 'link' ? { url: input.url, title: input.title } : { title: input.title })
+        const id = await api.inbox.addItem({ ...(input.kind === 'link' ? { url: input.url, title: input.title } : { title: input.title }), list })
         await reload()
         // Lien sans titre partagé : le titre provisoire (nom du site) est remplacé par celui de la page.
         if (input.kind === 'link' && !sharedTitle?.trim()) {
@@ -78,7 +80,7 @@ export function useInbox(api: Api): InboxState {
         return false
       }
     },
-    [api, reload],
+    [api, list, reload],
   )
 
   const rename = useCallback(
@@ -100,7 +102,7 @@ export function useInbox(api: Api): InboxState {
     async (item: InboxItem) => {
       setItems((list) => list.filter((i) => i.id !== item.id))
       try {
-        await api.inbox.deleteItem(item.id)
+        await api.inbox.deleteItem(item.id, item.photos ?? [])
       } catch (error) {
         toast.error(errorMessage(error))
       } finally {
@@ -126,5 +128,20 @@ export function useInbox(api: Api): InboxState {
     [api, reload],
   )
 
-  return { items, loading, loadError, reload, add, rename, remove, plan }
+  const move = useCallback(
+    async (item: InboxItem, to: InboxList) => {
+      setItems((current) => current.filter((i) => i.id !== item.id))
+      try {
+        await api.inbox.moveItem(item.id, to)
+        toast.success(to === 'aside' ? `Mise de côté : ${item.title}` : `Ajoutée à « À planifier » : ${item.title}`)
+      } catch (error) {
+        toast.error(errorMessage(error))
+      } finally {
+        void reload()
+      }
+    },
+    [api, reload],
+  )
+
+  return { items, loading, loadError, reload, add, rename, remove, plan, move }
 }

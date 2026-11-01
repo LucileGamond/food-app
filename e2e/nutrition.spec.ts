@@ -47,7 +47,7 @@ test('calcule les calories d’une recette qui n’en a pas, puis les enregistre
   expect(sent.ingredients?.map((i) => i.name)).toEqual(['poireaux', 'pommes de terre', 'sel'])
   expect((await new AxeBuilder({ page }).include('[role="dialog"]').analyze()).violations).toEqual([])
 
-  await dialog.getByRole('button', { name: 'Enregistrer' }).click()
+  await dialog.getByRole('button', { name: 'Enregistrer', exact: true }).click()
   await expect(page.getByText('215 kcal · glucides 28,4 g · protéines 6,2 g · lipides 8,1 g (par portion)')).toBeVisible()
   await expect(page.getByRole('button', { name: 'Calculer les calories' })).toHaveCount(0)
   // Enregistré en base : toujours là après rechargement.

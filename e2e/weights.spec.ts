@@ -28,7 +28,7 @@ test('ajoute des pesées, les modifie et les supprime depuis le graphique', asyn
   await dialog.getByLabel('Date').fill(daysAgo(10))
   await dialog.getByLabel('Lucile').fill('62,8')
   await dialog.getByLabel('Eric').fill('73.4')
-  await dialog.getByRole('button', { name: 'Enregistrer' }).click()
+  await dialog.getByRole('button', { name: 'Enregistrer', exact: true }).click()
   await expect(dialog).toBeHidden()
 
   // Deuxième pesée, aujourd'hui
@@ -36,7 +36,7 @@ test('ajoute des pesées, les modifie et les supprime depuis le graphique', asyn
   dialog = page.getByRole('dialog', { name: 'Nouvelle pesée' })
   await dialog.getByLabel('Lucile').fill('62,4')
   await dialog.getByLabel('Eric').fill('73.1')
-  await dialog.getByRole('button', { name: 'Enregistrer' }).click()
+  await dialog.getByRole('button', { name: 'Enregistrer', exact: true }).click()
   await expect(dialog).toBeHidden()
 
   const lucile = page.getByRole('article', { name: 'Lucile' })
@@ -52,7 +52,7 @@ test('ajoute des pesées, les modifie et les supprime depuis le graphique', asyn
   await expect(edit.getByLabel('Eric')).toHaveValue('73,1')
   await edit.getByLabel('Lucile').fill('62')
   await edit.getByLabel('Eric').fill('')
-  await edit.getByRole('button', { name: 'Enregistrer' }).click()
+  await edit.getByRole('button', { name: 'Enregistrer', exact: true }).click()
   await expect(edit).toBeHidden()
   await expect(lucile).toContainText('62,0 kg')
   await expect(page.getByRole('article', { name: 'Eric' })).toContainText('73,4 kg')
@@ -72,5 +72,5 @@ test('refuse un poids hors bornes', async ({ page }) => {
   await expect(dialog.getByText('Une décimale maximum')).toBeVisible()
   await dialog.getByLabel('Lucile').fill('12')
   await expect(dialog.getByText('Entre 20 et 300 kg')).toBeVisible()
-  await expect(dialog.getByRole('button', { name: 'Enregistrer' })).toBeDisabled()
+  await expect(dialog.getByRole('button', { name: 'Enregistrer', exact: true })).toBeDisabled()
 })

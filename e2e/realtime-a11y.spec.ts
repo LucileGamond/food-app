@@ -51,7 +51,7 @@ test('les écrans respectent les règles d’accessibilité', async ({ page }) =
   await page.goto('/poids')
   await page.getByRole('button', { name: 'Nouvelle pesée' }).first().click()
   await page.getByRole('dialog').getByLabel('Lucile').fill('62')
-  await page.getByRole('dialog').getByRole('button', { name: 'Enregistrer' }).click()
+  await page.getByRole('dialog').getByRole('button', { name: 'Enregistrer', exact: true }).click()
   await expect(page.getByRole('dialog')).toBeHidden()
   await expect(page.getByRole('img', { name: /Évolution du poids/ })).toBeVisible()
   await expectNoA11yViolations(page)
@@ -62,7 +62,7 @@ test('les écrans respectent les règles d’accessibilité', async ({ page }) =
   await dialog.getByLabel('Catégorie').fill('Boisson')
   await dialog.getByLabel('Aliment').fill('Café')
   await expectNoA11yViolations(page)
-  await dialog.getByRole('button', { name: 'Enregistrer' }).click()
+  await dialog.getByRole('button', { name: 'Enregistrer', exact: true }).click()
   await expect(dialog).toBeHidden()
   await expectNoA11yViolations(page)
 

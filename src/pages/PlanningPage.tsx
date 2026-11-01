@@ -193,7 +193,9 @@ export function PlanningPage({ today: fixedToday }: { today?: IsoDate }) {
         <DndContext sensors={sensors} collisionDetection={pointerWithin} onDragStart={handleDragStart} onDragEnd={handleDragEnd} onDragCancel={() => setDrag(null)}>
           <div className="grid grid-cols-[minmax(0,1fr)] gap-4 lg:grid-cols-[minmax(0,1fr)_17rem] lg:items-start lg:gap-6">
             <div className="lg:order-last">
-              <InboxPanel inbox={inbox} onPlan={(item) => setDialog({ kind: 'plan', item })} onRename={(item) => setDialog({ kind: 'rename', item })} />
+              <InboxPanel inbox={inbox} onPlan={(item) => setDialog({ kind: 'plan', item })} onRename={(item) => setDialog({ kind: 'rename', item })}
+                onSetAside={(item) => void inbox.move(item, 'aside')}
+              />
             </div>
             {planning.loading ? (
               <div className="grid gap-4" aria-busy="true" aria-label="Chargement du planning">

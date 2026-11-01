@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { ConfirmDialog } from '@/components/ConfirmDialog'
+import { ImportChoices } from '@/components/recipes/ImportChoices'
 import { DuplicateRecipeUrlError, errorMessage } from '@/api'
 import { isValidUrl } from '@/lib/meals'
 import { isInstagramUrl, isYoutubeUrl, siteName } from '@/lib/recipes'
@@ -22,6 +23,10 @@ interface Props {
   onImport: (url: string) => Promise<string | void>
   /** Analyse un texte collé (légende Instagram) avec le lien de la publication. */
   onImportText: (text: string, url: string) => Promise<void>
+  /** Lien donné à l'ouverture (partage, liste) : préremplir tout de suite. */
+  autoImport?: boolean
+  /** Proposer aussi d'enregistrer directement, de mettre de côté ou à planifier (nouvelle recette). */
+  choices?: boolean
   /**
    * Lit la recette sur les photos ; rejette avec une erreur affichable. `false` : rien de prérempli pour l'instant (choix à
    * faire). `url` : la publication dont ce sont les captures (Instagram), gardée comme lien de la recette.
@@ -45,7 +50,7 @@ interface Page {
 /** Texte collé : en dessous, ce n'est pas une recette. */
 const MIN_CAPTION = 20
 
-export function RecipeImportCard({ initialUrl, initialPhotos, hasContent, onImport, onImportText, onImportPhotos }: Props) {
+export function RecipeImportCard({ initialUrl, initialPhotos, hasContent, onImport, onImportText, onImportPhotos, autoImport, choices }: Props) {
   const [url, setUrl] = useState(initialUrl)
   const [caption, setCaption] = useState('')
   const captionInput = useRef<HTMLTextAreaElement>(null)
@@ -132,6 +137,18 @@ export function RecipeImportCard({ initialUrl, initialPhotos, hasContent, onImpo
     void runPhotos(addPages(initialPhotos, []))
     // eslint-disable-next-line react-hooks/exhaustive-deps -- une seule fois, à l'arrivée des photos partagées
   }, [initialPhotos])
+
+  // Lien donné à l'ouverture (partage « Préremplir », élément d'une liste) : prérempli tout de suite.
+  const autoStarted = useRef(false)
+  useEffect(() => {
+    if (!autoImport || autoStarted.current || !isValidUrl(initialUrl.trim()) || isInstagramUrl(initialUrl)) return
+    autoStarted.current = true
+    void runLink()
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- une seule fois, à l'ouverture
+  }, [autoImport, initialUrl])
+
+  /** Ce que les choix rapides importeraient : les photos ajoutées, sinon le lien saisi. */
+  const quickSource = pages.length > 0 ? { kind: 'photos' as const, files: pages.map((p) => p.file) } : isValidUrl(url.trim()) && !instagram ? { kind: 'link' as const, url: url.trim() } : null
 
   function handleSubmit(event: FormEvent) {
     event.preventDefault()
@@ -284,6 +301,18 @@ export function RecipeImportCard({ initialUrl, initialPhotos, hasContent, onImpo
         )}
         {notice && <p className="text-xs text-muted-foreground">{notice}</p>}
       </div>
+
+      {choices && (
+        <div className="mt-4 border-t border-brand/15 pt-4">
+          <p className="mb-2 text-sm text-muted-foreground">Ou, sans passer par le formulaire :</p>
+          <ImportChoices
+            source={quickSource}
+            onIncomplete={(message) => {
+              setState({ kind: 'error', message: `Recette incomplète (${message}) : préremplis-la pour la vérifier.` })
+            }}
+          />
+        </div>
+      )}
 
       <div aria-live="polite" className="text-sm">
         {state.kind === 'loading' && (

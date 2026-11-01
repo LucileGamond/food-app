@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input'
 import { Skeleton } from '@/components/ui/skeleton'
 import { EmptyState } from '@/components/EmptyState'
 import { RecipeCard } from '@/components/recipes/RecipeCard'
+import { SetAsideList } from '@/components/recipes/SetAsideList'
 import { PageHeader } from '@/components/Layout'
 import { useApi } from '@/app/ApiContext'
 import { errorMessage } from '@/api'
@@ -142,6 +143,8 @@ export function RecipesPage({ today = todayIso() }: { today?: IsoDate }) {
           </div>
         }
       />
+
+      <SetAsideList />
 
       {error ? (
         <div role="alert" className="flex flex-col items-start gap-3 rounded-xl border border-destructive/30 bg-destructive/5 p-4 text-sm">

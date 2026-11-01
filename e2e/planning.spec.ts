@@ -33,7 +33,7 @@ test('ajoute, modifie, déplace, duplique et supprime un repas', async ({ page }
   const edit = page.getByRole('dialog', { name: 'Modifier le repas' })
   await expect(edit.getByLabel('Titre')).toHaveValue('Pâtes tomate')
   await edit.getByRole('checkbox', { name: 'Eric' }).click()
-  await edit.getByRole('button', { name: 'Enregistrer' }).click()
+  await edit.getByRole('button', { name: 'Enregistrer', exact: true }).click()
   await expect(lunch.getByText('Eric et Lucile')).toBeVisible()
 
   // Déplacer via le menu vers demain soir

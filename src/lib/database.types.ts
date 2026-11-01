@@ -157,14 +157,14 @@ isOneToOne: false
                   ]
                 },"planning_inbox": {
                   Row: {
-                    "created_at": string,"created_by": string | null,"id": string,"recipe_id": string | null,"title": string,"url": string | null
+                    "created_at": string,"created_by": string | null,"id": string,"list": string,"photos": (string)[],"recipe_id": string | null,"title": string,"url": string | null
                   }
                   ComputedFields: never
                   Insert: {
-                    "created_at"?: string,"created_by"?: string | null,"id"?: string,"recipe_id"?: string | null,"title": string,"url"?: string | null
+                    "created_at"?: string,"created_by"?: string | null,"id"?: string,"list"?: string,"photos"?: (string)[],"recipe_id"?: string | null,"title": string,"url"?: string | null
                   }
                   Update: {
-                    "created_at"?: string,"created_by"?: string | null,"id"?: string,"recipe_id"?: string | null,"title"?: string,"url"?: string | null
+                    "created_at"?: string,"created_by"?: string | null,"id"?: string,"list"?: string,"photos"?: (string)[],"recipe_id"?: string | null,"title"?: string,"url"?: string | null
                   }
                   Relationships: [
                     {
@@ -406,7 +406,7 @@ isOneToOne: false
           }
           Functions: {
             "add_to_inbox":
-{ Args: { "p_recipe_id"?: string,"p_title"?: string,"p_url"?: string }; Returns: string
+{ Args: { "p_list"?: string,"p_photos"?: (string)[],"p_recipe_id"?: string,"p_title"?: string,"p_url"?: string }; Returns: string
                            },
 "create_food_period":
 { Args: { "p_end": string,"p_profile_id": string,"p_start": string }; Returns: string
@@ -441,6 +441,9 @@ isOneToOne: false
                            },
 "recipe_url_key":
 { Args: { "p_url": string }; Returns: string
+                           },
+"resolve_inbox_item":
+{ Args: { "p_item_id": string,"p_recipe_id": string }; Returns: (string)[]
                            },
 "save_push_subscription":
 { Args: { "p_auth": string,"p_endpoint": string,"p_p256dh": string,"p_user_agent"?: string }; Returns: string

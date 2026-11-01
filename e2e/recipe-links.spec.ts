@@ -39,7 +39,7 @@ test('importe la recette à laquelle renvoie un ingrédient, puis la lie', async
   await page.getByRole('button', { name: 'Ajouter un ingrédient' }).click()
   await page.getByLabel("Nom de l'ingrédient 2").fill('streusel')
   await page.getByLabel("Précision de l'ingrédient 2").fill('voir p. 40')
-  await page.getByRole('button', { name: 'Enregistrer' }).click()
+  await page.getByRole('button', { name: 'Enregistrer', exact: true }).click()
 
   // Proposition après l'enregistrement
   const offer = page.getByRole('dialog', { name: 'Recettes liées' })
@@ -57,7 +57,7 @@ test('importe la recette à laquelle renvoie un ingrédient, puis la lie', async
   await expect(page.getByLabel("Nom de l'ingrédient 2")).toHaveValue('beurre')
   await expect(page.getByLabel('Livre ou source')).toHaveValue('Pâtisserie maison')
   await expect(page.getByLabel('Page', { exact: true })).toHaveValue('208')
-  await page.getByRole('button', { name: 'Enregistrer' }).click()
+  await page.getByRole('button', { name: 'Enregistrer', exact: true }).click()
 
   // Retour sur la tarte : le renvoi restant est proposé, puis gardé pour plus tard
   const rest = page.getByRole('dialog', { name: 'Recettes liées' })

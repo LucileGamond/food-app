@@ -1,28 +1,47 @@
 import { isValidUrl } from './meals'
 import { siteName } from './recipes'
 
-/** Élément de la liste « À planifier ». */
+/** Liste d'attente : « À planifier » (planning) ou « De côté » (recettes à enregistrer plus tard). */
+export type InboxList = 'plan' | 'aside'
+
+/** Élément d'une liste d'attente : lien, idée, recette enregistrée, ou photos (pages de livre, captures). */
 export interface InboxItem {
   id: string
   title: string
   url: string | null
   recipe_id: string | null
   created_at: string
+  /** Absents avec une base pas encore à jour : « À planifier », sans photo. */
+  list?: InboxList | string
+  photos?: string[]
 }
 
-export type InboxKind = 'recipe' | 'link' | 'idea'
+/** Photos au plus pour un élément (pages d'une recette, captures d'une légende). */
+export const MAX_INBOX_PHOTOS = 3
 
-export function inboxKind(item: Pick<InboxItem, 'url' | 'recipe_id'>): InboxKind {
+export type InboxKind = 'recipe' | 'link' | 'photos' | 'idea'
+
+export function inboxKind(item: Pick<InboxItem, 'url' | 'recipe_id' | 'photos'>): InboxKind {
   if (item.recipe_id) return 'recipe'
-  return item.url ? 'link' : 'idea'
+  if (item.url) return 'link'
+  return item.photos?.length ? 'photos' : 'idea'
 }
 
-/** Sous-titre affiché sous le titre : nom du site, « Recette enregistrée » ou « Idée ». */
-export function inboxSubtitle(item: Pick<InboxItem, 'url' | 'recipe_id'>): string {
+/** Sous-titre affiché sous le titre : nom du site, « Recette enregistrée », nombre de photos ou « Idée ». */
+export function inboxSubtitle(item: Pick<InboxItem, 'url' | 'recipe_id' | 'photos'>): string {
   const kind = inboxKind(item)
   if (kind === 'recipe') return 'Recette enregistrée'
   if (kind === 'link') return siteName(item.url!)
+  if (kind === 'photos') return item.photos!.length > 1 ? `${item.photos!.length} photos` : '1 photo'
   return 'Idée'
+}
+
+/** Un lien ou des photos : la recette peut être préremplie (analyse) puis enregistrée depuis la liste. */
+export const canPrefill = (item: Pick<InboxItem, 'url' | 'recipe_id' | 'photos'>) => ['link', 'photos'].includes(inboxKind(item))
+
+/** Titre provisoire d'un élément photos : « Photos du 1 nov. », à renommer si besoin. */
+export function photosTitle(date = new Date()): string {
+  return `Photos du ${date.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })}`
 }
 
 /** Premier lien http(s) d'un texte (le partage Android met souvent le lien dans le texte). */

@@ -1,7 +1,7 @@
 import { act, fireEvent, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { AppError } from '@/api'
-import { Link, Route } from 'react-router-dom'
+import { Link, Route, useLocation } from 'react-router-dom'
 import { fakeApi, listItem, renderWithApp } from '@/test/fakes'
 import { RecipesPage } from './RecipesPage'
 
@@ -51,7 +51,12 @@ const RECIPES = [
   }),
 ]
 
-const titles = () => screen.getAllByRole('listitem').map((li) => within(li).getByRole('heading').textContent)
+// Cartes de recettes seulement (pas les notifications, gardées d'un test à l'autre).
+const titles = () =>
+  screen
+    .getAllByRole('listitem')
+    .flatMap((li) => within(li).queryAllByRole('heading', { level: 2 }))
+    .map((h) => h.textContent)
 
 function renderRecipes(api = fakeApi(), route = '/recettes') {
   return renderWithApp(<RecipesPage today={TODAY} />, {
@@ -206,6 +211,45 @@ describe('RecipesPage', () => {
     expect(titles()).toEqual(['Pâtes pesto', 'Curry de légumes', 'Banana bread'])
   })
 
+  it('« De côté » : liens et photos à préremplir, à planifier ou à supprimer ; rien sans élément', async () => {
+    const user = userEvent.setup()
+    const api = fakeApi()
+    api.recipes.listSavedRecipes.mockResolvedValue(RECIPES)
+    const reel = { id: 'a1', title: 'Curry du reel', url: 'https://www.instagram.com/reel/abc/', recipe_id: null, created_at: '2026-10-30T10:00:00Z', list: 'aside', photos: [] }
+    const pages = { id: 'a2', title: 'Photos du 1 nov.', url: null, recipe_id: null, created_at: '2026-10-31T10:00:00Z', list: 'aside', photos: ['pending/p.jpg'] }
+    api.inbox.listItems.mockImplementation(async (list = 'plan') => (list === 'aside' ? [reel, pages] : []))
+    renderWithApp(<RecipesPage today={TODAY} />, {
+      api,
+      route: '/recettes',
+      path: '/recettes',
+      extraRoutes: <Route path="/recettes/nouvelle" element={<FormState />} />,
+    })
+    const aside = await screen.findByRole('region', { name: /De côté/ })
+    expect(within(aside).getAllByTestId('aside-item').map((i) => i.textContent)).toEqual([
+      expect.stringContaining('Curry du reelinstagram.com'),
+      expect.stringContaining('Photos du 1 nov.1 photo'),
+    ])
+    expect(api.inbox.listItems).toHaveBeenCalledWith('aside')
+
+    await user.click(within(aside).getByRole('button', { name: 'Actions pour « Curry du reel »' }))
+    await user.click(await screen.findByRole('menuitem', { name: 'Mettre « À planifier »' }))
+    expect(api.inbox.moveItem).toHaveBeenCalledWith('a1', 'plan')
+    await user.click(within(aside).getByRole('button', { name: 'Actions pour « Photos du 1 nov. »' }))
+    await user.click(await screen.findByRole('menuitem', { name: 'Supprimer' }))
+    expect(api.inbox.deleteItem).toHaveBeenCalledWith('a2', ['pending/p.jpg'])
+
+    await user.click(within(aside).getByRole('button', { name: 'Préremplir et enregistrer « Curry du reel »' }))
+    expect(await screen.findByText(/"fromInbox":\{"id":"a1"/)).toBeInTheDocument()
+  })
+
+  it('« De côté » vide : la section n’apparaît pas', async () => {
+    const api = fakeApi()
+    api.recipes.listSavedRecipes.mockResolvedValue(RECIPES)
+    renderRecipes(api)
+    await screen.findByRole('link', { name: /Banana bread/ })
+    expect(screen.queryByRole('region', { name: /De côté/ })).not.toBeInTheDocument()
+  })
+
   it('lit les options de l’adresse', async () => {
     const api = fakeApi()
     api.recipes.listSavedRecipes.mockResolvedValue(RECIPES)
@@ -286,3 +330,7 @@ describe('RecipesPage', () => {
     expect(await screen.findByText('Aucune recette')).toBeInTheDocument()
   })
 })
+
+function FormState() {
+  return <p>{JSON.stringify(useLocation().state)}</p>
+}

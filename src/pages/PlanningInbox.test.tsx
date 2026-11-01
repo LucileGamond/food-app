@@ -1,5 +1,6 @@
 import { act, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
+import { Route, useLocation } from 'react-router-dom'
 import { AppError } from '@/api'
 import type { InboxItem } from '@/lib/inbox'
 import { ERIC, LUCILE, fakeApi, renderWithApp } from '@/test/fakes'
@@ -60,7 +61,7 @@ describe('PlanningPage — liste « À planifier »', () => {
 
     api.inbox.listItems.mockResolvedValue([item('new-item', 'cuisine.fr', { url: 'https://cuisine.fr/tatin' })])
     await user.type(screen.getByLabelText('Lien ou idée à planifier'), 'https://cuisine.fr/tatin{Enter}')
-    expect(api.inbox.addItem).toHaveBeenCalledWith({ url: 'https://cuisine.fr/tatin', title: 'cuisine.fr' })
+    expect(api.inbox.addItem).toHaveBeenCalledWith({ url: 'https://cuisine.fr/tatin', title: 'cuisine.fr', list: 'plan' })
     expect(await within(panel()).findByText('cuisine.fr', { selector: 'p.font-medium' })).toBeInTheDocument()
     expect(screen.getByLabelText('Lien ou idée à planifier')).toHaveValue('')
 
@@ -75,7 +76,7 @@ describe('PlanningPage — liste « À planifier »', () => {
     await within(panel()).findByText(/Rien en attente/)
     await user.type(screen.getByLabelText('Lien ou idée à planifier'), '  Raclette  ')
     await user.click(screen.getByRole('button', { name: 'Ajouter à la liste' }))
-    expect(api.inbox.addItem).toHaveBeenCalledWith({ title: 'Raclette' })
+    expect(api.inbox.addItem).toHaveBeenCalledWith({ title: 'Raclette', list: 'plan' })
     expect(api.inbox.fetchTitle).not.toHaveBeenCalled()
 
     api.inbox.addItem.mockRejectedValueOnce(new AppError('Déjà dans la liste « À planifier ».'))
@@ -151,7 +152,7 @@ describe('PlanningPage — liste « À planifier »', () => {
     expect(within(menu).queryByRole('menuitem', { name: 'Renommer' })).not.toBeInTheDocument()
     expect(within(menu).queryByRole('menuitem', { name: 'Ouvrir le lien' })).not.toBeInTheDocument()
     await user.click(within(menu).getByRole('menuitem', { name: 'Retirer de la liste' }))
-    expect(api.inbox.deleteItem).toHaveBeenCalledWith('i3')
+    expect(api.inbox.deleteItem).toHaveBeenCalledWith('i3', [])
   })
 
   it('propose d’ouvrir le lien d’un élément', async () => {
@@ -194,3 +195,47 @@ describe('PlanningPage — liste « À planifier »', () => {
     }
   })
 })
+
+describe('PlanningPage — préremplir et mettre de côté', () => {
+  it('un lien ou des photos : « Préremplir et enregistrer » ouvre le formulaire avec l’élément', async () => {
+    const user = userEvent.setup()
+    const PHOTOS = item('i4', 'Photos du 1 nov.', { photos: ['pending/a.jpg', 'pending/b.jpg'] })
+    const api = fakeApi()
+    api.inbox.listItems.mockResolvedValue([CREPES, RACLETTE, PHOTOS])
+    renderWithApp(<PlanningPage today={TODAY} />, {
+      api,
+      route: '/planning',
+      path: '/planning',
+      extraRoutes: <Route path="/recettes/nouvelle" element={<StateOf />} />,
+    })
+    const list = await screen.findByRole('list', { name: 'Éléments à planifier' })
+    expect(within(list).getAllByTestId('inbox-item')[2]).toHaveTextContent('Photos du 1 nov.2 photos')
+
+    // Une idée n'a rien à préremplir.
+    await user.click(screen.getByRole('button', { name: 'Actions pour « Raclette »' }))
+    expect(screen.queryByRole('menuitem', { name: 'Préremplir et enregistrer' })).not.toBeInTheDocument()
+    await user.keyboard('{Escape}')
+
+    await user.click(screen.getByRole('button', { name: 'Actions pour « Photos du 1 nov. »' }))
+    await user.click(await screen.findByRole('menuitem', { name: 'Préremplir et enregistrer' }))
+    expect(await screen.findByText(/"fromInbox":\{"id":"i4"/)).toBeInTheDocument()
+  })
+
+  it('« Mettre de côté » passe l’élément dans « De côté »', async () => {
+    const user = userEvent.setup()
+    const { api } = renderPlanning()
+    await user.click(await screen.findByRole('button', { name: 'Actions pour « Pâte à crêpes »' }))
+    await user.click(await screen.findByRole('menuitem', { name: 'Mettre de côté' }))
+    expect(api.inbox.moveItem).toHaveBeenCalledWith('i1', 'aside')
+    expect(await screen.findByText('Mise de côté : Pâte à crêpes')).toBeInTheDocument()
+
+    api.inbox.moveItem.mockRejectedValueOnce(new AppError('Hors ligne'))
+    await user.click(await screen.findByRole('button', { name: 'Actions pour « Raclette »' }))
+    await user.click(await screen.findByRole('menuitem', { name: 'Mettre de côté' }))
+    expect(await screen.findByText('Hors ligne')).toBeInTheDocument()
+  })
+})
+
+function StateOf() {
+  return <p>{JSON.stringify(useLocation().state)}</p>
+}

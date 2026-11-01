@@ -20,6 +20,7 @@ import { AppError, DuplicateRecipeUrlError, errorMessage } from '@/api'
 import { isValidUrl } from '@/lib/meals'
 import { compressForReading, compressImage, cropImage } from '@/lib/image'
 import { importChecks, pendingChecks, type ImportCheck } from '@/lib/importChecks'
+import type { InboxItem } from '@/lib/inbox'
 import { takeSharedPhotos } from '@/lib/sharedPhotos'
 import {
   formHasContent,
@@ -80,6 +81,9 @@ export function RecipeFormPage() {
   const navigate = useNavigate()
   const location = useLocation()
   const from = (location.state as { from?: string } | null)?.from
+  // Ouvert depuis le partage (lien à préremplir) ou depuis « À planifier » / « De côté » (élément à enregistrer).
+  const importUrl = (location.state as { importUrl?: string } | null)?.importUrl
+  const [fromList] = useState(() => (location.state as { fromInbox?: InboxItem } | null)?.fromInbox ?? null)
   const [searchParams, setSearchParams] = useSearchParams()
   // Photos partagées depuis la galerie du téléphone (voir public/share-sw.js).
   const [sharedPhotos, setSharedPhotos] = useState<File[] | undefined>(undefined)
@@ -90,7 +94,11 @@ export function RecipeFormPage() {
   const [linkTarget, setLinkTarget] = useState(() => (id ? null : parseLinkedImport(searchParams)))
   const [parent, setParent] = useState<{ title: string } | null>(null)
   const [values, setValues] = useState<RecipeFormValues>(() =>
-    linkTarget ? { ...EMPTY, title: linkedTitle(linkTarget.reference.name) } : EMPTY,
+    linkTarget
+      ? { ...EMPTY, title: linkedTitle(linkTarget.reference.name) }
+      : fromList
+        ? { ...EMPTY, title: fromList.title, url: fromList.url ?? '' }
+        : { ...EMPTY, url: importUrl ?? '' },
   )
   const [photos, setPhotos] = useState<PhotoDraft[]>([])
   const [removed, setRemoved] = useState<PhotoDraft[]>([])
@@ -147,6 +155,14 @@ export function RecipeFormPage() {
   // Sous-recette : une recette du même titre, quel que soit son livre, peut être liée au lieu d'en créer une.
   const linkCandidate =
     linkTarget && values.title.trim() ? (savedTitles.find((r) => r.id !== id && recipeKey(r.title, null) === recipeKey(values.title, null)) ?? null) : null
+
+  // Photos d'un élément mis de côté ou à planifier : relues, puis lues comme des photos partagées.
+  const listPhotosTaken = useRef(false)
+  useEffect(() => {
+    if (!fromList?.photos?.length || listPhotosTaken.current) return
+    listPhotosTaken.current = true
+    api.inbox.downloadPhotos(fromList.photos).then(setSharedPhotos, (e: unknown) => toast.error(errorMessage(e)))
+  }, [api, fromList])
 
   const fromShare = !id && searchParams.get('photos') === 'partage'
   const sharedTaken = useRef(false)
@@ -387,6 +403,9 @@ export function RecipeFormPage() {
       const auto = await applyAutoLinks(api, recipeId).catch(() => null)
       if (auto && auto.linked.length > 0) toast.success(autoLinkMessage(auto.linked))
 
+      // Enregistrée depuis une liste : l'élément devient la recette (« À planifier ») ou disparaît (« De côté »).
+      if (fromList) await api.inbox.resolveItem(fromList.id, recipeId).catch((e: unknown) => toast.error(errorMessage(e)))
+
       if (linkTarget) {
         await linkToParent(recipeId, 'Recette enregistrée et liée', 'Recette enregistrée, mais pas liée')
         return
@@ -490,6 +509,8 @@ export function RecipeFormPage() {
             hasContent={formHasContent(values)}
             onImport={importFromUrl}
             onImportText={importFromText}
+            autoImport={Boolean(importUrl || fromList?.url)}
+            choices={!id && !fromList}
             onImportPhotos={importFromPhotos}
           />
         )}

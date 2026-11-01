@@ -6,6 +6,7 @@ import { Toaster } from 'sonner'
 import { AppError, DuplicateRecipeUrlError, type Api } from '@/api'
 import { ApiProvider } from '@/app/ApiContext'
 import { AuthProvider } from '@/auth/AuthProvider'
+import type { InboxItem } from '@/lib/inbox'
 import type { Recipe, RecipeImport } from '@/lib/recipes'
 import { fakeApi, fakeAuth, type FakeApi } from '@/test/fakes'
 import { RecipeFormPage } from './RecipeFormPage'
@@ -13,6 +14,8 @@ import { RecipeFormPage } from './RecipeFormPage'
 vi.mock('@/lib/image', () => ({
   ACCEPTED_IMAGE_TYPES: ['image/jpeg', 'image/png', 'image/webp'],
   compressImage: vi.fn(async (file: File) => new Blob([file.name], { type: 'image/jpeg' })),
+  compressForReading: vi.fn(async (file: File) => new Blob([file.name], { type: 'image/jpeg' })),
+  cropImage: vi.fn(async (file: File) => new File([file.name], 'plat.jpg', { type: 'image/jpeg' })),
 }))
 
 function renderForm(api: FakeApi, entry: string | { pathname: string; state: unknown }) {
@@ -25,6 +28,7 @@ function renderForm(api: FakeApi, entry: string | { pathname: string; state: unk
             <Route path="/recettes/:id/modifier" element={<RecipeFormPage />} />
             <Route path="/recettes/:id" element={<p>Fiche recette</p>} />
             <Route path="/planning" element={<p>Écran planning</p>} />
+            <Route path="/recettes" element={<p>Écran recettes</p>} />
           </Routes>
           <Toaster />
         </AuthProvider>
@@ -591,5 +595,82 @@ describe('RecipeFormPage — lien déjà enregistré', () => {
     await user.type(screen.getByLabelText("Nom de l'ingrédient 1"), 'Riz')
     await user.click(screen.getByRole('button', { name: 'Enregistrer' }))
     expect(await screen.findByRole('alert')).toHaveTextContent('« Curry maison »')
+  })
+})
+
+describe('RecipeFormPage — choix rapides et recettes en attente', () => {
+  const READ = {
+    recipe: { title: 'Curry coco', servings: 2, ingredients: [{ name: 'lait de coco', quantity: 40, unit: 'cl', note: null }], steps: '1. Mijoter.', tags: [] },
+    source: 'structured' as const,
+    image: null,
+  }
+  const inboxItem = (extra: Partial<InboxItem>): InboxItem => ({ id: 'i1', title: 'Curry du reel', url: null, recipe_id: null, created_at: '2026-11-01T10:00:00Z', ...extra })
+
+  it('nouvelle recette : le lien collé peut être mis de côté sans être analysé', async () => {
+    const user = userEvent.setup()
+    const api = fakeApi()
+    renderForm(api, '/recettes/nouvelle')
+    const choices = await screen.findByRole('group', { name: 'Que faire de cette recette ?' })
+    expect(within(choices).getByRole('button', { name: 'Mettre de côté' })).toBeDisabled()
+    await user.type(screen.getByLabelText('Lien de la recette à importer'), 'https://cuisine.fr/curry')
+    await user.click(within(choices).getByRole('button', { name: 'Mettre de côté' }))
+    expect(await screen.findByText('Écran recettes')).toBeInTheDocument()
+    expect(api.inbox.addItem).toHaveBeenCalledWith({ url: 'https://cuisine.fr/curry', title: 'cuisine.fr', list: 'aside' })
+    expect(api.recipes.importFromUrl).not.toHaveBeenCalled()
+  })
+
+  it('nouvelle recette : « Enregistrer directement » incomplet laisse un message dans la carte', async () => {
+    const user = userEvent.setup()
+    const api = fakeApi()
+    api.recipes.importFromUrl.mockResolvedValue({ ...READ, recipe: { ...READ.recipe, title: '' } })
+    renderForm(api, '/recettes/nouvelle')
+    await user.type(await screen.findByLabelText('Lien de la recette à importer'), 'https://cuisine.fr/curry')
+    await user.click(screen.getByRole('button', { name: 'Enregistrer directement' }))
+    expect(await screen.findByText(/Recette incomplète .* préremplis-la pour la vérifier/)).toBeInTheDocument()
+    expect(api.recipes.saveRecipe).not.toHaveBeenCalled()
+  })
+
+  it('ouvert avec un lien partagé : prérempli tout de suite', async () => {
+    const api = fakeApi()
+    api.recipes.importFromUrl.mockResolvedValue(READ)
+    renderForm(api, { pathname: '/recettes/nouvelle', state: { importUrl: 'https://cuisine.fr/curry' } })
+    expect(await screen.findByRole('status')).toHaveTextContent('Recette préremplie depuis cuisine.fr')
+    expect(screen.getByLabelText('Titre')).toHaveValue('Curry coco')
+  })
+
+  it('élément « De côté » avec un lien : prérempli, puis la liste est mise à jour à l’enregistrement', async () => {
+    const user = userEvent.setup()
+    const api = fakeApi()
+    api.recipes.importFromUrl.mockResolvedValue(READ)
+    api.recipes.saveRecipe.mockResolvedValue('r-curry')
+    renderForm(api, { pathname: '/recettes/nouvelle', state: { fromInbox: inboxItem({ url: 'https://cuisine.fr/curry', list: 'aside' }) } })
+    expect(await screen.findByRole('status')).toHaveTextContent('Recette préremplie')
+    // Rien d'autre à choisir : on vient de la liste pour enregistrer.
+    expect(screen.queryByRole('group', { name: 'Que faire de cette recette ?' })).not.toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'Enregistrer' }))
+    expect(await screen.findByText('Fiche recette')).toBeInTheDocument()
+    expect(api.inbox.resolveItem).toHaveBeenCalledWith('i1', 'r-curry')
+  })
+
+  it('élément avec photos : relues depuis le stockage puis lues ; erreur de liste signalée sans bloquer', async () => {
+    const user = userEvent.setup()
+    const api = fakeApi()
+    api.recipes.importFromPhotos.mockResolvedValue({ ...READ, source: 'photo' })
+    api.recipes.saveRecipe.mockResolvedValue('r-curry')
+    api.inbox.resolveItem.mockRejectedValueOnce(new AppError('La recette est enregistrée, mais la liste n’a pas pu être mise à jour.'))
+    renderForm(api, { pathname: '/recettes/nouvelle', state: { fromInbox: inboxItem({ title: 'Photos du 1 nov.', photos: ['pending/a.jpg', 'pending/b.jpg'] }) } })
+    expect(await screen.findByRole('status')).toHaveTextContent('Recette préremplie depuis tes photos')
+    expect(api.inbox.downloadPhotos).toHaveBeenCalledWith(['pending/a.jpg', 'pending/b.jpg'])
+    expect(api.recipes.importFromPhotos.mock.calls[0]![0]).toHaveLength(2)
+    await user.click(screen.getByRole('button', { name: 'Enregistrer' }))
+    expect(await screen.findByText('Fiche recette')).toBeInTheDocument()
+    expect(await screen.findByText('La recette est enregistrée, mais la liste n’a pas pu être mise à jour.')).toBeInTheDocument()
+  })
+
+  it('élément avec photos introuvables : erreur affichée', async () => {
+    const api = fakeApi()
+    api.inbox.downloadPhotos.mockRejectedValueOnce(new AppError('Impossible de récupérer les photos mises de côté.'))
+    renderForm(api, { pathname: '/recettes/nouvelle', state: { fromInbox: inboxItem({ photos: ['pending/a.jpg'] }) } })
+    expect(await screen.findByText('Impossible de récupérer les photos mises de côté.')).toBeInTheDocument()
   })
 })

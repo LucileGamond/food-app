@@ -17,7 +17,7 @@ test('crée un plan et une période, puis note des consommations', async ({ page
   await dialog.getByLabel('Aliment').fill('Yaourt nature')
   await dialog.getByLabel('Quantité').fill('125')
   await dialog.getByLabel('Unité').fill('g')
-  await dialog.getByRole('button', { name: 'Enregistrer' }).click()
+  await dialog.getByRole('button', { name: 'Enregistrer', exact: true }).click()
   await expect(dialog).toBeHidden()
 
   await page.getByRole('button', { name: 'Ajouter un aliment (Déjeuner)' }).click()
@@ -25,7 +25,7 @@ test('crée un plan et une période, puis note des consommations', async ({ page
   await dialog.getByLabel('Catégorie').fill('Autres')
   await dialog.getByLabel('Aliment').fill('Moutarde')
   await dialog.getByLabel('Fois / période').fill('3')
-  await dialog.getByRole('button', { name: 'Enregistrer' }).click()
+  await dialog.getByRole('button', { name: 'Enregistrer', exact: true }).click()
   await expect(dialog).toBeHidden()
   await expect(page.getByRole('button', { name: /^Modifier Moutarde/ })).toContainText('× 3')
 

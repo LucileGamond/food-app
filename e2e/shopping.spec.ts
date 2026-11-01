@@ -55,7 +55,7 @@ test('crée une liste, ajoute des articles par rayon, coche et fait le ménage',
   await page.getByRole('button', { name: /^Modifier Pommes/ }).click()
   const edit = page.getByRole('dialog', { name: "Modifier l'article" })
   await edit.getByLabel('Quantité').fill('8')
-  await edit.getByRole('button', { name: 'Enregistrer' }).click()
+  await edit.getByRole('button', { name: 'Enregistrer', exact: true }).click()
   await expect(edit).toBeHidden()
   await expect(page.getByRole('region', { name: 'Fruits et légumes' })).toContainText('8')
 

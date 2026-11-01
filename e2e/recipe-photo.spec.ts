@@ -54,7 +54,7 @@ test('crée une recette à partir de la photo d’une page de livre', async ({ p
   await expect(page.getByRole('dialog', { name: 'Page 1' })).toBeVisible()
   await page.keyboard.press('Escape')
   await page.screenshot({ path: `test-results/layout/photo-a-verifier-${test.info().project.name}.png`, fullPage: true })
-  await page.getByRole('button', { name: 'Enregistrer' }).click()
+  await page.getByRole('button', { name: 'Enregistrer', exact: true }).click()
   await expect(page.getByRole('heading', { name: 'Tarte à la banane et au café' })).toBeVisible()
   await expect(page.getByText('200 g pâte sucrée')).toBeVisible()
   await expect(page.getByRole('heading', { name: 'Pour le streusel' })).toBeVisible()
@@ -89,7 +89,7 @@ test('reprend la photo du plat imprimée sur la page, recadrée, comme photo de 
   await expect(page.getByRole('status')).toContainText('Recette préremplie depuis ta photo.')
   // Recadrée dans le navigateur, puis ajoutée aux photos de la recette.
   await expect(page.getByTestId('photo-item')).toHaveCount(1)
-  await page.getByRole('button', { name: 'Enregistrer' }).click()
+  await page.getByRole('button', { name: 'Enregistrer', exact: true }).click()
   await expect(page.getByRole('heading', { name: 'Tarte fine aux pommes' })).toBeVisible()
   await expect(page.getByRole('img', { name: 'Tarte fine aux pommes' })).toBeVisible()
 })

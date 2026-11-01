@@ -32,8 +32,8 @@ describe('inbox api (liste « À planifier »)', () => {
       ['Curry maison', null, curryId],
     ])
 
-    await expect(api.inbox.addItem({ url: 'http://exemple.fr/crepes', title: 'x' })).rejects.toThrow('Déjà dans la liste « À planifier ».')
-    await expect(api.inbox.addItem({ recipeId: curryId })).rejects.toThrow('Déjà dans la liste')
+    await expect(api.inbox.addItem({ url: 'http://exemple.fr/crepes', title: 'x' })).rejects.toThrow('Déjà dans « À planifier » ou « De côté ».')
+    await expect(api.inbox.addItem({ recipeId: curryId })).rejects.toThrow('Déjà dans « À planifier » ou « De côté »')
     await expect(api.inbox.addItem({ title: ' ' })).rejects.toBeInstanceOf(AppError)
 
     await api.inbox.renameItem(linkId, '  Pâte à crêpes ')

@@ -38,6 +38,7 @@ async function seed() {
   await api.meals.createMeal({ date: addDays(today, 1), slot: 'DINNER', people: [ERIC.id], source: { kind: 'adhoc', title: 'Raclette', notes: '', url: '' } })
   await api.inbox.addItem({ url: LONG_URL, title: LONG_TITLE })
   await api.inbox.addItem({ title: 'Idée : soupe' })
+  await api.inbox.addItem({ url: `${LONG_URL}-de-cote`, title: `${LONG_TITLE} (de côté)`, list: 'aside' })
 
   await api.food.savePlanItem(LUCILE.id, { meal: 'LUNCH', category: 'Produits laitiers et fromages', name: LONG_TITLE, quantity: 125, unit: 'g', allowed_occurrences: 3 })
   await api.food.savePlanItem(LUCILE.id, { meal: 'BREAKFAST', category: 'Fruits', name: 'Pomme', quantity: null, unit: null, allowed_occurrences: 14 })
@@ -238,8 +239,8 @@ test('aucun écran ni aucune fenêtre ne déborde', async ({ page, isMobile }) =
   await closeDialog(page)
 
   // Partage depuis le téléphone
-  await page.goto(`/partage?text=${encodeURIComponent('Regarde : https://cuisine.exemple.fr/une-autre-recette-au-nom-tres-long-pour-voir')}`)
-  await expect(page).toHaveURL(/\/planning/)
+  await page.goto(`/partage?text=${encodeURIComponent('Regarde : https://cuisine.exemple.fr/une-autre-recette-au-nom-tres-long-pour-voir')}&title=${encodeURIComponent(LONG_TITLE)}`)
+  await expect(page.getByRole('heading', { name: 'Recette partagée' })).toBeVisible()
   await check(page, 'partage')
 
   expect(problems).toEqual([])
