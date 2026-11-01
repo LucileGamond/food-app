@@ -48,7 +48,7 @@ test('partage d’un lien : mis de côté, puis prérempli et enregistré depuis
   await expect(page.getByRole('region', { name: /De côté/ })).toHaveCount(0)
 })
 
-test('partage d’un lien : « À planifier », puis prérempli et enregistré depuis le planning', async ({ page }) => {
+test('partage d’un lien : « À planifier », puis prérempli et enregistré depuis le planning', async ({ page, isMobile }) => {
   await page.route('**/functions/v1/import-recipe', async (route) => {
     const body = route.request().postDataJSON() as { mode?: string }
     if (body.mode === 'title') return route.fulfill({ json: { title: null } })
@@ -59,11 +59,10 @@ test('partage d’un lien : « À planifier », puis prérempli et enregistré d
   await page.getByRole('button', { name: 'À planifier' }).click()
   await expect(page.getByRole('heading', { name: 'Planning' })).toBeVisible()
 
+  // Sur téléphone, le panneau est replié (sur ordinateur, toujours ouvert).
   const panel = page.getByRole('region', { name: /À planifier/ })
-  // Sur téléphone, le panneau est replié.
-  const actions = panel.getByRole('button', { name: 'Actions pour « Curry »' })
-  if (!(await actions.isVisible())) await panel.getByRole('button', { name: /À planifier/ }).click()
-  await actions.click()
+  if (isMobile) await panel.getByRole('button', { name: /À planifier/ }).click()
+  await panel.getByRole('button', { name: 'Actions pour « Curry »' }).click()
   await page.getByRole('menuitem', { name: 'Préremplir et enregistrer' }).click()
   await expect(page.getByRole('status')).toContainText('Recette préremplie')
   await page.getByRole('button', { name: 'Enregistrer', exact: true }).click()
@@ -72,8 +71,6 @@ test('partage d’un lien : « À planifier », puis prérempli et enregistré d
   // L'élément est devenu la recette enregistrée.
   await page.goto('/planning')
   const panelAfter = page.getByRole('region', { name: /À planifier/ })
-  const item = panelAfter.getByTestId('inbox-item')
-  await expect(item).toHaveCount(1)
-  if (!(await item.isVisible())) await panelAfter.getByRole('button', { name: /À planifier/ }).click()
-  await expect(item).toContainText('Curry cocoRecette enregistrée')
+  if (isMobile) await panelAfter.getByRole('button', { name: /À planifier/ }).click()
+  await expect(panelAfter.getByTestId('inbox-item')).toContainText('Curry cocoRecette enregistrée')
 })
