@@ -21,10 +21,14 @@ function recognitionClass(): RecognitionClass | null {
 
 export type VoiceStatus = 'off' | 'listening' | 'speaking' | 'denied' | 'error'
 
+/** Après la lecture, la reconnaissance rend encore la fin de la voix du téléphone pendant un court instant. */
+const ECHO_MS = 800
+
 /**
  * Écoute en continu (reconnaissance vocale du navigateur, en français) et lecture à voix haute.
- * Le navigateur coupe l'écoute après un silence : elle est relancée tant qu'elle est activée. Pendant la lecture,
- * l'écoute est suspendue pour ne pas prendre la voix du téléphone pour une commande.
+ * Le navigateur coupe l'écoute après un silence : elle est relancée tant qu'elle est activée. Pendant la lecture, le
+ * micro reste ouvert mais ce qu'il entend est ignoré (la voix du téléphone n'est pas une commande) : couper puis
+ * relancer l'écoute à chaque phrase échoue souvent sur Chrome Android (« déjà démarrée ») et fait biper le téléphone.
  */
 export function useVoiceControl(onHeard: (text: string) => void) {
   const Ctor = recognitionClass()
@@ -33,6 +37,8 @@ export function useVoiceControl(onHeard: (text: string) => void) {
   const [heard, setHeard] = useState('')
   const enabled = useRef(false)
   const speaking = useRef(false)
+  /** Fin de la dernière lecture : les phrases reconnues juste après sont encore la voix du téléphone. */
+  const spokeUntil = useRef(0)
   const recognition = useRef<Recognition | null>(null)
   const latest = useRef(onHeard)
 
@@ -41,12 +47,11 @@ export function useVoiceControl(onHeard: (text: string) => void) {
   })
 
   const listen = useCallback(() => {
-    if (!enabled.current || speaking.current || !recognition.current) return
+    if (!enabled.current || !recognition.current) return
     try {
       recognition.current.start()
-      setStatus('listening')
     } catch {
-      // Déjà démarrée : rien à faire.
+      // Déjà démarrée : elle écoute, rien à faire.
     }
   }, [])
 
@@ -70,7 +75,7 @@ export function useVoiceControl(onHeard: (text: string) => void) {
         const result = event.results[i]!
         if (!result.isFinal) continue
         const text = result[0]?.transcript.trim() ?? ''
-        if (!text) continue
+        if (!text || speaking.current || Date.now() < spokeUntil.current) continue
         setHeard(text)
         latest.current(text)
       }
@@ -85,15 +90,16 @@ export function useVoiceControl(onHeard: (text: string) => void) {
       }
     }
     r.onend = () => {
-      if (enabled.current && !speaking.current) window.setTimeout(listen, 250)
+      if (enabled.current) window.setTimeout(listen, 250)
     }
     recognition.current = r
     enabled.current = true
     setHeard('')
+    setStatus('listening')
     listen()
   }, [Ctor, listen])
 
-  /** Lit un texte à voix haute (voix française), écoute suspendue le temps de la lecture. */
+  /** Lit un texte à voix haute (voix française) ; ce que le micro entend pendant ce temps est ignoré. */
   const speak = useCallback(
     (text: string) => {
       if (typeof speechSynthesis === 'undefined' || typeof SpeechSynthesisUtterance === 'undefined') return
@@ -109,18 +115,18 @@ export function useVoiceControl(onHeard: (text: string) => void) {
         resumed = true
         window.clearTimeout(fallback)
         speaking.current = false
-        if (enabled.current) listen()
+        spokeUntil.current = Date.now() + ECHO_MS
+        if (enabled.current) setStatus((current) => (current === 'speaking' ? 'listening' : current))
       }
       utterance.onend = resume
       utterance.onerror = resume
       speaking.current = true
-      if (enabled.current) setStatus('speaking')
-      recognition.current?.abort()
+      if (enabled.current) setStatus((current) => (current === 'listening' || current === 'speaking' ? 'speaking' : current))
       speechSynthesis.speak(utterance)
       // Autre défaut de Chrome : la synthèse peut rester en pause après un passage en arrière-plan.
       speechSynthesis.resume?.()
     },
-    [listen],
+    [],
   )
 
   // Écran quitté : micro et voix coupés.

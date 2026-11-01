@@ -127,7 +127,11 @@ test('mode vocal : étapes et minuteur à la voix', async ({ page }) => {
       value: { cancel() {}, speak: (u: { text: string; onend?: () => void }) => (spoken.push(u.text), u.onend?.()) },
     })
   })
-  const say = (text: string) => page.evaluate((t) => (window as unknown as { say: (t: string) => void }).say(t), text)
+  // Une seconde après la voix du téléphone : juste après, ce qui est entendu est ignoré (écho).
+  const say = async (text: string) => {
+    await page.waitForTimeout(1000)
+    await page.evaluate((t) => (window as unknown as { say: (t: string) => void }).say(t), text)
+  }
   const lastSpoken = () => page.evaluate(() => (window as unknown as { spoken: string[] }).spoken.at(-1))
 
   await login(page)

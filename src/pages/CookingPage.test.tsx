@@ -284,16 +284,21 @@ describe('CookingPage', () => {
       constructor() {
         FakeRecognition.last = this
       }
-      say(text: string) {
+      /** Phrase dite une seconde après la précédente (au-delà de l'écho de la voix du téléphone). */
+      say(text: string, { now = false } = {}) {
+        if (!now) clock += 1000
         act(() => this.onresult?.({ resultIndex: 0, results: [Object.assign([{ transcript: text }], { isFinal: true })] }))
       }
     }
     const spoken: string[] = []
+    let clock = 0
     const last = () => spoken.at(-1)
 
     beforeEach(() => {
       spoken.length = 0
       FakeRecognition.last = null
+      clock = Date.now()
+      vi.spyOn(Date, 'now').mockImplementation(() => clock)
       vi.stubGlobal('webkitSpeechRecognition', FakeRecognition)
       vi.stubGlobal(
         'SpeechSynthesisUtterance',
@@ -318,6 +323,7 @@ describe('CookingPage', () => {
     })
     afterEach(() => {
       vi.unstubAllGlobals()
+      vi.restoreAllMocks()
       localStorage.clear()
     })
 
@@ -414,6 +420,35 @@ describe('CookingPage', () => {
       expect(screen.queryByRole('region', { name: 'Minuteurs' })).not.toBeInTheDocument()
     })
 
+    it('le micro reste ouvert pendant la lecture, mais la voix du téléphone n’est pas prise pour une commande', async () => {
+      let finish = () => undefined as void
+      vi.stubGlobal('speechSynthesis', {
+        cancel: vi.fn(),
+        resume: vi.fn(),
+        speak: vi.fn((u: { text: string; onend: (() => void) | null }) => {
+          spoken.push(u.text)
+          finish = () => u.onend?.()
+        }),
+      })
+      const { user, api } = renderCooking()
+      await user.click(await screen.findByRole('button', { name: 'Activer le mode vocal' }))
+      const recognition = FakeRecognition.last!
+      expect(screen.getByText('Lecture…')).toBeInTheDocument()
+      // Pendant la lecture : pas d'arrêt du micro (relance impossible sur Chrome Android), phrase ignorée.
+      expect(recognition.abort).not.toHaveBeenCalled()
+      recognition.say('étape suivante')
+      expect(screen.getByRole('checkbox', { name: 'Étape 1 faite' })).toHaveAttribute('aria-checked', 'false')
+      // Juste après la lecture : encore l'écho, ignoré.
+      act(() => finish())
+      expect(screen.getByText(/^J’écoute/)).toBeInTheDocument()
+      recognition.say('étape suivante', { now: true })
+      expect(screen.getByRole('checkbox', { name: 'Étape 1 faite' })).toHaveAttribute('aria-checked', 'false')
+      // Ensuite : la commande est prise en compte.
+      recognition.say('étape suivante')
+      expect(screen.getByRole('checkbox', { name: 'Étape 1 faite' })).toHaveAttribute('aria-checked', 'true')
+      await waitFor(() => expect(api.recipes.saveProgress).toHaveBeenCalled())
+    })
+
     it('reprend l’écoute même si la fin de la lecture n’est jamais signalée (Chrome Android)', async () => {
       vi.stubGlobal('speechSynthesis', { cancel: vi.fn(), resume: vi.fn(), speak: vi.fn((u: { text: string }) => spoken.push(u.text)) })
       vi.useFakeTimers({ shouldAdvanceTime: true })
@@ -421,10 +456,7 @@ describe('CookingPage', () => {
         const { user } = renderCooking()
         await user.click(await screen.findByRole('button', { name: 'Activer le mode vocal' }))
         expect(screen.getByText('Lecture…')).toBeInTheDocument()
-        const recognition = FakeRecognition.last!
-        recognition.start.mockClear()
         act(() => vi.advanceTimersByTime(10_000))
-        expect(recognition.start).toHaveBeenCalled()
         expect(screen.getByText(/^J’écoute/)).toBeInTheDocument()
       } finally {
         vi.useRealTimers()
