@@ -160,6 +160,33 @@ describe('RecipeFormPage — nouvelle recette', () => {
     expect(api.photos.uploadPhoto).toHaveBeenCalledTimes(3)
     expect(api.photos.reorderPhotos).toHaveBeenCalledWith(['p1', 'p2'])
   })
+
+  it('sur téléphone, prend une photo avec l’appareil (arrière) ; pas de bouton sur ordinateur', async () => {
+    const user = userEvent.setup()
+    const matchMedia = vi.fn((query: string) => ({ matches: query === '(pointer: coarse)' }))
+    vi.stubGlobal('matchMedia', matchMedia)
+    try {
+      renderForm(fakeApi(), '/recettes/nouvelle')
+      await user.click(await screen.findByRole('button', { name: 'Prendre une photo' }))
+      const camera = screen.getByLabelText('Prendre une photo avec l’appareil')
+      expect(camera).toHaveAttribute('capture', 'environment')
+      await user.upload(camera, png('photo.png'))
+      expect(screen.getAllByTestId('photo-item')).toHaveLength(1)
+    } finally {
+      vi.unstubAllGlobals()
+    }
+  })
+
+  it('pas de bouton « Prendre une photo » sur ordinateur', async () => {
+    vi.stubGlobal('matchMedia', vi.fn(() => ({ matches: false })))
+    try {
+      renderForm(fakeApi(), '/recettes/nouvelle')
+      await screen.findByRole('button', { name: 'Ajouter des photos' })
+      expect(screen.queryByRole('button', { name: 'Prendre une photo' })).not.toBeInTheDocument()
+    } finally {
+      vi.unstubAllGlobals()
+    }
+  })
 })
 
 const EXISTING: Recipe = {

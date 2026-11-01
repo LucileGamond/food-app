@@ -1,4 +1,4 @@
-import { ImagePlus, Star, X } from 'lucide-react'
+import { Camera, ImagePlus, Star, X } from 'lucide-react'
 import { useRef } from 'react'
 import { Button } from '@/components/ui/button'
 import { ACCEPTED_IMAGE_TYPES } from '@/lib/image'
@@ -16,8 +16,18 @@ interface Props {
   onMakeMain: (key: string) => void
 }
 
+/** Écran tactile (téléphone, tablette) : un appareil photo à ouvrir directement. Sur ordinateur, le bouton ferait doublon. */
+function hasCamera(): boolean {
+  return window.matchMedia?.('(pointer: coarse)').matches === true
+}
+
 export function PhotoUploader({ photos, onAdd, onRemove, onMakeMain }: Props) {
   const input = useRef<HTMLInputElement>(null)
+  const camera = useRef<HTMLInputElement>(null)
+  const add = (list: FileList | null) => {
+    const files = [...(list ?? [])].filter((f) => ACCEPTED_IMAGE_TYPES.includes(f.type))
+    if (files.length > 0) onAdd(files)
+  }
 
   return (
     <div className="space-y-3">
@@ -58,14 +68,34 @@ export function PhotoUploader({ photos, onAdd, onRemove, onMakeMain }: Props) {
         aria-label="Choisir des photos"
         tabIndex={-1}
         onChange={(e) => {
-          const files = [...(e.target.files ?? [])].filter((f) => ACCEPTED_IMAGE_TYPES.includes(f.type))
-          if (files.length > 0) onAdd(files)
+          add(e.target.files)
           e.target.value = ''
         }}
       />
-      <Button type="button" variant="outline" className={cn('h-10')} onClick={() => input.current?.click()}>
-        <ImagePlus /> Ajouter des photos
-      </Button>
+      {/* capture : ouvre l'appareil photo (arrière) au lieu de la galerie. */}
+      <input
+        ref={camera}
+        type="file"
+        accept="image/*"
+        capture="environment"
+        className="sr-only"
+        aria-label="Prendre une photo avec l’appareil"
+        tabIndex={-1}
+        onChange={(e) => {
+          add(e.target.files)
+          e.target.value = ''
+        }}
+      />
+      <div className="flex flex-wrap gap-2">
+        <Button type="button" variant="outline" className={cn('h-10')} onClick={() => input.current?.click()}>
+          <ImagePlus /> Ajouter des photos
+        </Button>
+        {hasCamera() && (
+          <Button type="button" variant="outline" className="h-10" onClick={() => camera.current?.click()}>
+            <Camera /> Prendre une photo
+          </Button>
+        )}
+      </div>
     </div>
   )
 }
