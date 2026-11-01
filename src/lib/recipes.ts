@@ -581,6 +581,17 @@ export interface ImportedRecipe {
   prep_minutes?: number | null
   rest_minutes?: number | null
   cook_minutes?: number | null
+  /** Photo lue : cadre de la photo du plat sur l'image envoyée (absent sinon, ou avec une ancienne version). */
+  photo?: PhotoArea | null
+}
+
+/** Cadre d'une photo dans une image : numéro de l'image et bords en fractions de sa largeur et hauteur. */
+export interface PhotoArea {
+  image: number
+  left: number
+  top: number
+  right: number
+  bottom: number
 }
 
 export interface RecipeImport {

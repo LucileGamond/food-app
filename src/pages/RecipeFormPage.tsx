@@ -18,7 +18,7 @@ import { TagInput } from '@/components/recipes/TagInput'
 import { useApi } from '@/app/ApiContext'
 import { AppError, DuplicateRecipeUrlError, errorMessage } from '@/api'
 import { isValidUrl } from '@/lib/meals'
-import { compressForReading, compressImage } from '@/lib/image'
+import { compressForReading, compressImage, cropImage } from '@/lib/image'
 import { importChecks, pendingChecks, type ImportCheck } from '@/lib/importChecks'
 import { takeSharedPhotos } from '@/lib/sharedPhotos'
 import {
@@ -99,6 +99,8 @@ export function RecipeFormPage() {
   const [savedTitles, setSavedTitles] = useState<{ id: string; title: string; source?: string | null }[]>([])
   // Photos lues lors d'un import, gardées à l'écran (sans être enregistrées) pour vérifier le formulaire.
   const [readPages, setReadPages] = useState<string[]>([])
+  /** Images de la dernière lecture : la photo du plat y est recadrée. */
+  const readFiles = useRef<File[]>([])
   const [submitted, setSubmitted] = useState(false)
   const [saving, setSaving] = useState(false)
   // Recette sauvegardée qui a déjà le même lien (le lien est unique parmi les recettes sauvegardées).
@@ -291,6 +293,7 @@ export function RecipeFormPage() {
       previous.forEach((url) => URL.revokeObjectURL(url))
       return files.map((file) => URL.createObjectURL(file))
     })
+    readFiles.current = files
     // Plusieurs recettes sur la page : on demande laquelle préremplir.
     if (result.recipes && result.recipes.length > 1) {
       setPageRecipes(result.recipes)
@@ -298,12 +301,26 @@ export function RecipeFormPage() {
     }
     setPageRecipes(null)
     applyImport(result.recipe, url ?? values.url)
+    void addDishPhoto(result.recipe)
     return true
   }
 
   function choosePageRecipe(recipe: ImportedRecipe) {
     setPageRecipes(null)
     applyImport(recipe, values.url)
+    void addDishPhoto(recipe)
+  }
+
+  /** Photo du plat imprimée sur la page lue : recadrée et ajoutée, si la recette n'a pas encore de photo. */
+  async function addDishPhoto(recipe: ImportedRecipe) {
+    const file = recipe.photo ? readFiles.current[recipe.photo.image] : undefined
+    if (!recipe.photo || !file || photos.length > 0) return
+    try {
+      const photo = await cropImage(file, recipe.photo)
+      if (mounted.current) addPhotos([photo])
+    } catch {
+      // Image que le navigateur ne sait pas recadrer : la recette reste sans photo.
+    }
   }
 
   function applyImport(recipe: ImportedRecipe, url: string) {

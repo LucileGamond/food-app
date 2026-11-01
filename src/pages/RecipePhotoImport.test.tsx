@@ -5,7 +5,7 @@ import { Toaster } from 'sonner'
 import { AppError, type Api } from '@/api'
 import { ApiProvider } from '@/app/ApiContext'
 import { AuthProvider } from '@/auth/AuthProvider'
-import { compressForReading } from '@/lib/image'
+import { compressForReading, cropImage } from '@/lib/image'
 import type { RecipeImport } from '@/lib/recipes'
 import { takeSharedPhotos } from '@/lib/sharedPhotos'
 import { fakeApi, fakeAuth, type FakeApi } from '@/test/fakes'
@@ -15,6 +15,7 @@ vi.mock('@/lib/image', () => ({
   ACCEPTED_IMAGE_TYPES: ['image/jpeg', 'image/png', 'image/webp'],
   compressImage: vi.fn(async (file: File) => new Blob([file.name], { type: 'image/jpeg' })),
   compressForReading: vi.fn(async (file: File) => new Blob([`réduite ${file.name}`], { type: 'image/jpeg' })),
+  cropImage: vi.fn(async (file: File) => new File([`plat ${file.name}`], 'photo-du-plat.jpg', { type: 'image/jpeg' })),
 }))
 vi.mock('@/lib/sharedPhotos', () => ({ takeSharedPhotos: vi.fn(async () => [] as File[]) }))
 
@@ -94,6 +95,33 @@ describe('RecipeFormPage — recette depuis une photo', () => {
     expect(screen.getByLabelText("Précision de l'ingrédient 2")).toHaveValue('4 ou 5 selon la taille')
     // La page du livre n'est pas ajoutée aux photos de la recette.
     expect(screen.queryByRole('button', { name: /^Photo \d$/ })).not.toBeInTheDocument()
+  })
+
+  it('ajoute la photo du plat imprimée sur la page, recadrée dans l’image d’origine', async () => {
+    const user = userEvent.setup()
+    const api = fakeApi()
+    const area = { image: 1, left: 0.05, top: 0.1, right: 0.95, bottom: 0.6 }
+    api.recipes.importFromPhotos.mockResolvedValue({ ...READ, recipe: { ...READ.recipe, photo: area } })
+    const { pageInput } = renderForm(api)
+    const pages = [photo('page-146.jpg'), photo('page-147.jpg')]
+    await user.upload(await waitFor(() => pageInput()), pages)
+    await user.click(screen.getByRole('button', { name: 'Lire la recette' }))
+    expect(await screen.findByRole('status')).toHaveTextContent('Recette préremplie')
+    await waitFor(() => expect(screen.getAllByTestId('photo-item')).toHaveLength(1))
+    expect(cropImage).toHaveBeenCalledWith(pages[1], area)
+  })
+
+  it('sans photo du plat sur la page, ou si le recadrage échoue : pas de photo', async () => {
+    const user = userEvent.setup()
+    const api = fakeApi()
+    vi.mocked(cropImage).mockRejectedValueOnce(new Error('HEIC'))
+    api.recipes.importFromPhotos.mockResolvedValue({ ...READ, recipe: { ...READ.recipe, photo: { image: 0, left: 0, top: 0, right: 1, bottom: 0.5 } } })
+    const { pageInput } = renderForm(api)
+    await user.upload(await waitFor(() => pageInput()), photo('page.jpg'))
+    await user.click(screen.getByRole('button', { name: 'Lire la recette' }))
+    expect(await screen.findByRole('status')).toHaveTextContent('Recette préremplie')
+    await waitFor(() => expect(cropImage).toHaveBeenCalled())
+    expect(screen.queryAllByTestId('photo-item')).toHaveLength(0)
   })
 
   it('demande quelle recette préremplir quand la page en contient plusieurs', async () => {

@@ -1,11 +1,14 @@
 import { AppError } from '@/api'
-import { compressForReading } from '@/lib/image'
+import { compressForReading, cropImage } from '@/lib/image'
 import { fakeApi } from '@/test/fakes'
 import { imageFiles, importOne, mergeRetry, needsRetry, runQueue, tally, type BatchContext } from './batchImport'
 import type { RecipeImport } from './recipes'
 import { recipeKey } from './sources'
 
-vi.mock('@/lib/image', () => ({ compressForReading: vi.fn(async (file: File) => new Blob([file.name], { type: 'image/jpeg' })) }))
+vi.mock('@/lib/image', () => ({
+  compressForReading: vi.fn(async (file: File) => new Blob([file.name], { type: 'image/jpeg' })),
+  cropImage: vi.fn(async (file: File) => new File([`plat ${file.name}`], 'photo-du-plat.jpg', { type: 'image/jpeg' })),
+}))
 
 const file = (name: string, type = 'image/jpeg', path = '') => {
   const f = new File(['x'], name, { type })
@@ -122,6 +125,32 @@ describe('import en série', () => {
       ctx.api.recipes.importFromPhotos.mockResolvedValue(read('Sauce', { ingredients: [{ name: 'beurre', quantity: null, unit: 'g', note: null, section: 'x'.repeat(81) }] }))
       expect((await importOne(file('a.jpg'), ctx)).recipes).toEqual([{ status: 'incomplete', title: 'Sauce', message: 'Titre trop long (80 caractères maximum)' }])
       expect(ctx.api.recipes.saveRecipe).not.toHaveBeenCalled()
+    })
+
+    it('ajoute la photo du plat recadrée dans la page à la recette enregistrée', async () => {
+      const ctx = context()
+      const photo = { image: 0, left: 0.1, top: 0.5, right: 0.9, bottom: 0.95 }
+      ctx.api.recipes.importFromPhotos.mockResolvedValue(read('Tarte au citron', { photo }))
+      ctx.api.recipes.saveRecipe.mockResolvedValue('r9')
+      const page = file('p146.jpg')
+      expect((await importOne(page, ctx)).recipes).toEqual([{ status: 'saved', title: 'Tarte au citron', recipeId: 'r9', photo: true }])
+      // Recadrée dans l'image d'origine (pas celle réduite pour la lecture).
+      expect(cropImage).toHaveBeenCalledWith(page, photo)
+      expect(ctx.api.photos.uploadPhoto).toHaveBeenCalledWith('r9', expect.any(File))
+    })
+
+    it('photo du plat : un échec ne bloque pas la recette ; pas de photo pour un doublon', async () => {
+      const ctx = context([[recipeKey('Crêpes', 'Pâtisserie maison'), 'r1']])
+      const photo = { image: 0, left: 0, top: 0, right: 1, bottom: 0.5 }
+      ctx.api.recipes.importFromPhotos.mockResolvedValue(read('Tarte', { photo }))
+      ctx.api.recipes.saveRecipe.mockResolvedValue('r9')
+      ctx.api.photos.uploadPhoto.mockRejectedValueOnce(new AppError("Impossible d'envoyer la photo."))
+      expect((await importOne(file('a.jpg'), ctx)).recipes).toEqual([{ status: 'saved', title: 'Tarte', recipeId: 'r9', photo: false }])
+
+      ctx.api.recipes.importFromPhotos.mockResolvedValue(read('Crêpes', { photo }))
+      ctx.api.photos.uploadPhoto.mockClear()
+      expect((await importOne(file('b.jpg'), ctx)).recipes).toMatchObject([{ status: 'duplicate' }])
+      expect(ctx.api.photos.uploadPhoto).not.toHaveBeenCalled()
     })
 
     it('enregistre chacune des recettes d’une page', async () => {

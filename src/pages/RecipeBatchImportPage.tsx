@@ -293,7 +293,7 @@ export function RecipeBatchImportPage() {
                 {item.status === 'done' ? (
                   <ul className="space-y-1.5">
                     {item.recipes.map((recipe, i) => (
-                      <StatusLine key={i} style={RECIPE_STATUS[recipe.status]} message={recipe.message} error={recipe.status === 'error'}>
+                      <StatusLine key={i} style={RECIPE_STATUS[recipe.status]} message={recipe.photo ? 'avec la photo du plat' : recipe.message} error={recipe.status === 'error'}>
                         {recipe.recipeId ? (
                           <Link to={`/recettes/${recipe.recipeId}`} className="font-medium underline-offset-4 hover:underline">
                             {recipe.title}

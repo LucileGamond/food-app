@@ -63,3 +63,33 @@ test('crée une recette à partir de la photo d’une page de livre', async ({ p
   // La page du livre n'est pas gardée comme photo de la recette.
   await expect(page.getByRole('button', { name: /^Photo \d$/ })).toHaveCount(0)
 })
+
+test('reprend la photo du plat imprimée sur la page, recadrée, comme photo de la recette', async ({ page }) => {
+  await page.route('**/functions/v1/import-recipe', async (route) => {
+    await route.fulfill({
+      json: {
+        recipe: {
+          title: 'Tarte fine aux pommes',
+          servings: 4,
+          ingredients: [{ name: 'pommes', quantity: 4, unit: null, note: null, section: null }],
+          steps: '1. Étaler la pâte.',
+          tags: [],
+          checks: [],
+          photo: { image: 0, left: 0, top: 0, right: 1, bottom: 1 },
+        },
+        source: 'photo',
+        image: null,
+      },
+    })
+  })
+  await login(page)
+  await page.goto('/recettes/nouvelle')
+  await page.locator('input[type="file"][accept="image/*"]').setInputFiles([{ name: 'page-30.png', mimeType: 'image/png', buffer: PNG_1PX }])
+  await page.getByRole('button', { name: 'Lire la recette' }).click()
+  await expect(page.getByRole('status')).toContainText('Recette préremplie depuis ta photo.')
+  // Recadrée dans le navigateur, puis ajoutée aux photos de la recette.
+  await expect(page.getByTestId('photo-item')).toHaveCount(1)
+  await page.getByRole('button', { name: 'Enregistrer' }).click()
+  await expect(page.getByRole('heading', { name: 'Tarte fine aux pommes' })).toBeVisible()
+  await expect(page.getByRole('img', { name: 'Tarte fine aux pommes' })).toBeVisible()
+})

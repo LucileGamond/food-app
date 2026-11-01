@@ -1,6 +1,6 @@
 import type { Api } from '@/api'
 import { AppError } from '@/api/errors'
-import { compressForReading } from './image'
+import { compressForReading, cropImage } from './image'
 import { hasErrors, importedToFormValues, toSaveRecipeInput, validateRecipeForm, type ImportedRecipe, type RecipeFormErrors } from './recipes'
 import { normalizeName } from './shopping'
 import { recipeKey } from './sources'
@@ -20,6 +20,8 @@ export interface BatchRecipe {
   /** Recette créée, ou recette existante pour un doublon. */
   recipeId?: string
   message?: string
+  /** Photo du plat recadrée dans la page et ajoutée à la recette. */
+  photo?: boolean
 }
 
 export interface BatchItem {
@@ -67,7 +69,7 @@ export async function runQueue<T>(
 }
 
 export interface BatchContext {
-  api: Pick<Api, 'recipes'>
+  api: Pick<Api, 'recipes' | 'photos'>
   /** Livre saisi pour toute la série. */
   book: string
   tags: string[]
@@ -123,8 +125,21 @@ export async function importOne(file: File, context: BatchContext): Promise<Batc
   // Une ancienne version de la fonction ne renvoie que `recipe`.
   const found = read.recipes?.length ? read.recipes : [read.recipe]
   const recipes: BatchRecipe[] = []
-  for (const recipe of found) recipes.push(await saveRecipe(recipe, context))
+  for (const recipe of found) {
+    const saved = await saveRecipe(recipe, context)
+    recipes.push(saved.status === 'saved' && recipe.photo ? { ...saved, photo: await addDishPhoto(file, recipe, saved.recipeId!, context) } : saved)
+  }
   return { status: 'done', recipes }
+}
+
+/** Photo du plat imprimée sur la page : recadrée et ajoutée à la recette enregistrée. Un échec ne bloque rien. */
+async function addDishPhoto(file: File, recipe: ImportedRecipe, recipeId: string, { api }: BatchContext): Promise<boolean> {
+  try {
+    await api.photos.uploadPhoto(recipeId, await cropImage(file, recipe.photo!))
+    return true
+  } catch {
+    return false
+  }
 }
 
 /** Une image à relire : erreur de lecture, ou une de ses recettes n'a pas pu être enregistrée. */

@@ -42,7 +42,21 @@ export interface ImportedRecipe {
   prep_minutes: number | null
   rest_minutes: number | null
   cook_minutes: number | null
+  /** Photo seulement : cadre de la photo du plat sur l'image envoyée, à recadrer par l'application. */
+  photo?: PhotoArea | null
 }
+
+/** Cadre d'une photo dans une image : numéro de l'image (à partir de 0) et bords en fractions de sa largeur et hauteur. */
+export interface PhotoArea {
+  image: number
+  left: number
+  top: number
+  right: number
+  bottom: number
+}
+
+/** Plus petit cadre gardé (fraction de la largeur et de la hauteur) : en dessous, une vignette ou un pictogramme. */
+export const MIN_PHOTO_SIDE = 0.15
 
 export const NUTRITION_BASES = ['portion', 'recette', '100 g'] as const
 
@@ -325,7 +339,31 @@ const PHOTO_TOOL = {
       recettes: {
         type: 'array',
         description: `Une entrée par recette distincte, avec son propre titre (${MAX_PHOTO_RECIPES} au plus) ; liste vide si la photo ne contient pas de recette.`,
-        items: TOOL.input_schema,
+        items: {
+          ...TOOL.input_schema,
+          properties: {
+            ...TOOL.input_schema.properties,
+            photo: {
+              anyOf: [
+                {
+                  type: 'object',
+                  properties: {
+                    image: { type: 'integer', description: 'Numéro de l’image où se trouve la photo (à partir de 0).' },
+                    left: { type: 'number', description: 'Bord gauche, en fraction de la largeur de l’image (0 à 1).' },
+                    top: { type: 'number', description: 'Bord haut, en fraction de la hauteur de l’image (0 à 1).' },
+                    right: { type: 'number', description: 'Bord droit, en fraction de la largeur (0 à 1).' },
+                    bottom: { type: 'number', description: 'Bord bas, en fraction de la hauteur (0 à 1).' },
+                  },
+                  required: ['image', 'left', 'top', 'right', 'bottom'],
+                },
+                { type: 'null' },
+              ],
+              description:
+                'Photo du plat de cette recette imprimée sur la page : cadre serré autour de la photo seule (sans texte, marge ni légende) ; null s’il n’y en a pas.',
+            },
+          },
+          required: [...TOOL.input_schema.required, 'photo'],
+        },
       },
     },
     required: ['recettes'],
@@ -343,6 +381,7 @@ const PHOTO_SYSTEM = [
   'Signale dans checks tout ce que tu as deviné ou mal lu.',
   'Note le titre du livre s’il est visible et le numéro de page imprimé, séparément.',
   'Reprends les valeurs nutritionnelles (calories, glucides, protéines, lipides) si la recette les indique, sans les calculer.',
+  'Si une image montre une photo du plat terminé de la recette, donne son cadre (photo) : cadre serré autour de la photo seule, en fractions de la largeur et de la hauteur de l’image. Pas pour un schéma, une illustration décorative, une photo d’étape ou une capture d’écran de vidéo ; null en cas de doute.',
   'Traduis en français si la recette est dans une autre langue.',
   'Pour les tags, réutilise de préférence les tags existants fournis.',
   `Réponds uniquement en appelant l’outil ${PHOTO_TOOL_NAME}.`,
@@ -355,7 +394,7 @@ export async function extractRecipeFromPhotos(
   options: ModelOptions,
 ): Promise<{ recipes: ImportedRecipe[]; usage: ModelUsage | null }> {
   const tags = knownTags.slice(0, MAX_KNOWN_TAGS).join(', ')
-  const text = [photos.length > 1 ? 'Deux photos de la recette.' : 'Photo de la recette.', tags ? `Tags existants : ${tags}` : null].filter(Boolean).join('\n')
+  const text = [photos.length > 1 ? `${photos.length} images, numérotées de 0 à ${photos.length - 1} dans l’ordre.` : 'Une image (numéro 0).', tags ? `Tags existants : ${tags}` : null].filter(Boolean).join('\n')
   const { input, usage } = await callTool(
     {
       system: PHOTO_SYSTEM,
@@ -369,17 +408,31 @@ export async function extractRecipeFromPhotos(
     },
     options,
   )
-  return { recipes: sanitizeRecipes(input), usage }
+  return { recipes: sanitizeRecipes(input, photos.length), usage }
 }
 
 const NOT_FOUND_ON_PHOTO = 'Aucune recette lisible sur cette photo. Essaie une photo plus nette, bien droite.'
 
 /** Recettes lues sur une photo : chacune validée ; celles qui ne sont pas des recettes (ou sans ingrédient) sont écartées. */
-export function sanitizeRecipes(input: unknown): ImportedRecipe[] {
+/** Cadre de photo plausible : image existante, bords dans l'image et dans l'ordre, assez grand ; sinon null. */
+export function sanitizePhotoArea(input: unknown, images: number): PhotoArea | null {
+  if (typeof input !== 'object' || input === null) return null
+  const d = input as Record<string, unknown>
+  const fraction = (v: unknown) => (typeof v === 'number' && Number.isFinite(v) ? Math.min(1, Math.max(0, v)) : null)
+  const [left, top, right, bottom] = [d.left, d.top, d.right, d.bottom].map(fraction)
+  if (!Number.isInteger(d.image) || (d.image as number) < 0 || (d.image as number) >= images) return null
+  if (left === null || top === null || right === null || bottom === null) return null
+  if (right - left < MIN_PHOTO_SIDE || bottom - top < MIN_PHOTO_SIDE) return null
+  const round = (n: number) => Math.round(n * 1000) / 1000
+  return { image: d.image as number, left: round(left), top: round(top), right: round(right), bottom: round(bottom) }
+}
+
+export function sanitizeRecipes(input: unknown, images = 1): ImportedRecipe[] {
   const data = (typeof input === 'object' && input !== null ? input : {}) as Record<string, unknown>
   const recipes = (Array.isArray(data.recettes) ? data.recettes : []).slice(0, MAX_PHOTO_RECIPES).flatMap((raw) => {
     try {
-      return [sanitizeRecipe(raw, null, NOT_FOUND_ON_PHOTO)]
+      const photo = sanitizePhotoArea((raw as Record<string, unknown> | null)?.photo, images)
+      return [{ ...sanitizeRecipe(raw, null, NOT_FOUND_ON_PHOTO), photo }]
     } catch {
       return []
     }

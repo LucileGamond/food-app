@@ -229,7 +229,7 @@ describe('import-recipe — photos', () => {
     expect(body.messages[0].content).toEqual([
       { type: 'image', source: { type: 'base64', media_type: 'image/png', data: PHOTO.data } },
       { type: 'image', source: { type: 'base64', media_type: 'image/jpeg', data: PHOTO.data } },
-      { type: 'text', text: 'Deux photos de la recette.\nTags existants : dessert' },
+      { type: 'text', text: '2 images, numérotées de 0 à 1 dans l’ordre.\nTags existants : dessert' },
     ])
     expect(body.system).toContain('photos')
     expect(deps.log).toHaveBeenCalledWith('import réussi', expect.objectContaining({ source: 'photo', input_tokens: 300 }))
