@@ -33,9 +33,9 @@ async function seed() {
     size: '4 ans',
     pdf: null,
     steps: [
-      { title: 'Dos – côtes de la bordure inférieure, tricotées en rond', instructions: 'Monter 64 m. et tricoter 18 rangs en côtes 1/1.', totalRows: 18, stitches: 64, reminders: [] },
-      { title: 'Emmanchures', instructions: 'Diminuer 1 m. de chaque côté tous les 6 rangs 4 fois.', totalRows: 30, stitches: 56, reminders: [{ every: 6, first: null, times: 4, action: '1 diminution de chaque côté' }] },
-      { title: 'Encolure', instructions: 'Rabattre.', totalRows: null, stitches: null, reminders: [] },
+      { title: 'Dos – côtes de la bordure inférieure, tricotées en rond', instructions: 'Monter 64 m. et tricoter 18 rangs en côtes 1/1.', totalRows: 18, stitches: 64, sections: [] },
+      { title: 'Emmanchures', instructions: 'Diminuer 1 m. de chaque côté tous les 6 rangs 4 fois.', totalRows: 30, stitches: 56, sections: [{ kind: 'rows', rows: 4, every: null, times: null, text: 'jersey endroit sur toute la largeur du dos', pattern: null }, { kind: 'repeat', rows: null, every: 6, times: 4, text: '1 diminution de chaque côté', pattern: null }] },
+      { title: 'Encolure', instructions: 'Rabattre.', totalRows: null, stitches: null, sections: [] },
     ],
   })
   for (let i = 0; i < 4; i++) {

@@ -7,8 +7,8 @@ beforeEach(async () => {
 })
 
 const STEPS: PatternStep[] = [
-  { title: 'Dos – côtes', instructions: 'Monter 64 m.', totalRows: 18, stitches: 64, reminders: [] },
-  { title: 'Emmanchures', instructions: 'Diminuer', totalRows: 30, stitches: 56, reminders: [{ every: 6, first: null, times: 4, action: '1 diminution' }] },
+  { title: 'Dos – côtes', instructions: 'Monter 64 m.', totalRows: 18, stitches: 64, sections: [] },
+  { title: 'Emmanchures', instructions: 'Diminuer', totalRows: 30, stitches: 56, sections: [{ kind: 'rows', rows: 4, every: null, times: null, text: '', pattern: null }, { kind: 'repeat', rows: null, every: 6, times: 4, text: '1 diminution', pattern: 'tous les 6 rangs' }] },
 ]
 const pdf = () => new File(['%PDF-1.4\n%fin'], 'patron.pdf', { type: 'application/pdf' })
 
@@ -19,19 +19,20 @@ describe('knitting api', () => {
 
     expect(await api.knitting.listProjects()).toEqual([expect.objectContaining({ id, title: 'Pull Bergamote', size: 'M', stepsDone: 0, stepsTotal: 2 })])
     let project = (await api.knitting.getProject(id))!
-    expect(project.steps.map((s) => [s.position, s.title, s.totalRows, s.reminders.length, s.rowCount])).toEqual([
+    expect(project.steps.map((s) => [s.position, s.title, s.totalRows, s.sections.length, s.rowCount])).toEqual([
       [0, 'Dos – côtes', 18, 0, 0],
-      [1, 'Emmanchures', 30, 1, 0],
+      [1, 'Emmanchures', 30, 2, 0],
     ])
-    expect(project.steps[1]!.reminders[0]).toEqual({ every: 6, first: null, times: 4, action: '1 diminution' })
+    expect(project.steps[1]!.sections[1]).toEqual({ kind: 'repeat', rows: null, every: 6, times: 4, text: '1 diminution', pattern: 'tous les 6 rangs' })
 
     await api.knitting.saveProgress(project.steps[0]!.id, { rowCount: 18, done: true })
-    await api.knitting.saveProgress(project.steps[1]!.id, { rowCount: 6, notes: 'Aiguilles 4' })
+    await api.knitting.saveProgress(project.steps[1]!.id, { rowCount: 6, notes: 'Aiguilles 4', sections: [{ kind: 'repeat', rows: null, every: 8, times: 3, text: '1 augmentation', pattern: 'tous les 5 cm' }] })
     project = (await api.knitting.getProject(id))!
     expect(project.steps.map((s) => [s.rowCount, s.done, s.notes])).toEqual([
       [18, true, ''],
       [6, false, 'Aiguilles 4'],
     ])
+    expect(project.steps[1]!.sections).toEqual([{ kind: 'repeat', rows: null, every: 8, times: 3, text: '1 augmentation', pattern: 'tous les 5 cm' }])
     expect((await api.knitting.listProjects())[0]!.stepsDone).toBe(1)
 
     // PDF d'origine consultable

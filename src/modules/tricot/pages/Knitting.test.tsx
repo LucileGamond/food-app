@@ -14,7 +14,7 @@ const step = (overrides: Partial<KnitStep>): KnitStep => ({
   instructions: 'Monter 64 m.',
   totalRows: 18,
   stitches: 64,
-  reminders: [],
+  sections: [],
   rowCount: 0,
   notes: '',
   done: false,
@@ -32,11 +32,14 @@ const PROJECT: KnitProject = {
       id: 's2',
       position: 1,
       title: 'Emmanchures',
-      instructions: 'Diminuer 1 m. de chaque côté tous les 6 rangs 4 fois.',
+      instructions: 'Tricoter 4 rangs, puis diminuer 1 m. de chaque côté tous les 6 rangs 4 fois.',
       totalRows: 30,
       stitches: 56,
-      rowCount: 5,
-      reminders: [{ every: 6, first: null, times: 4, action: '1 diminution de chaque côté' }],
+      rowCount: 8,
+      sections: [
+        { kind: 'rows', rows: 4, every: null, times: null, text: 'jersey', pattern: null },
+        { kind: 'repeat', rows: null, every: 6, times: 4, text: '1 diminution de chaque côté', pattern: null },
+      ],
     }),
     step({ id: 's3', position: 2, title: 'Encolure', totalRows: null, stitches: null }),
   ],
@@ -45,7 +48,7 @@ const PROJECT: KnitProject = {
 const PATTERN: ReadPattern = {
   title: 'Pull Bergamote',
   sizes: ['S', 'M', 'L'],
-  steps: PROJECT.steps.map(({ title, instructions, totalRows, stitches, reminders }) => ({ title, instructions, totalRows, stitches, reminders })),
+  steps: PROJECT.steps.map(({ title, instructions, totalRows, stitches, sections }) => ({ title, instructions, totalRows, stitches, sections })),
 }
 
 describe('KnittingPage', () => {
@@ -105,9 +108,10 @@ describe('KnittingImportPage', () => {
     expect(api.knitting.readPattern).toHaveBeenCalledWith(file, 'M')
 
     const steps = await screen.findByRole('list', { name: 'Étapes lues' })
-    expect(within(steps).getAllByRole('listitem')).toHaveLength(3)
+    expect(within(steps).getAllByRole('listitem').filter((li) => li.parentElement === steps)).toHaveLength(3)
     expect(within(steps).getByText('30 rangs · 56 mailles')).toBeInTheDocument()
-    expect(within(steps).getByText('1 diminution de chaque côté — tous les 6 rangs, 4 fois')).toBeInTheDocument()
+    expect(within(steps).getByText('4 rangs : jersey')).toBeInTheDocument()
+    expect(within(steps).getByText('1 diminution de chaque côté — tous les 6 rangs (4 fois)')).toBeInTheDocument()
     expect(screen.getByText('Taille M · 3 étapes')).toBeInTheDocument()
 
     await user.clear(screen.getByLabelText('Nom du projet'))
@@ -165,23 +169,90 @@ describe('KnittingProjectPage', () => {
     })
   }
 
-  it('ouvre l’étape en cours, compte les rangs et signale les diminutions au 6e rang', async () => {
+  it('ouvre l’étape en cours et annonce la diminution du rang à tricoter', async () => {
     const user = userEvent.setup()
     const { api } = renderProject()
     expect(await screen.findByRole('heading', { name: 'Emmanchures' })).toBeInTheDocument()
     expect(screen.getByText('Étape 2 sur 3 · 56 mailles à la fin')).toBeInTheDocument()
-    expect(screen.getByText('Prochaine fois : rang 6.')).toBeInTheDocument()
-    expect(screen.queryByRole('status')).not.toBeInTheDocument()
+    // 8 rangs terminés : le rang 9 est à tricoter, la diminution est au rang 10
+    expect(screen.getByRole('status')).toHaveTextContent(/^Rang 9 à tricoter$/)
+    expect(screen.getByText('Rangs 1 à 4')).toBeInTheDocument()
+    expect(screen.getByText('Rangs 5 à 28 · prochaine fois : rang 10')).toBeInTheDocument()
 
     await user.click(screen.getByRole('button', { name: 'Ajouter 1 rang' }))
-    expect(api.knitting.saveProgress).toHaveBeenCalledWith('s2', { rowCount: 6 })
-    expect(screen.getByRole('status')).toHaveTextContent('Rang 6 : 1 diminution de chaque côté (1/4)')
-    expect(screen.getByText('Prochaine fois : rang 12.')).toBeInTheDocument()
+    expect(api.knitting.saveProgress).toHaveBeenCalledWith('s2', { rowCount: 9 })
+    expect(screen.getByRole('status')).toHaveTextContent('Rang 10 à tricoter1 diminution de chaque côté (1/4)')
 
     await user.click(screen.getByRole('button', { name: 'Ajouter 1 rang' }))
-    expect(screen.queryByRole('status')).not.toBeInTheDocument()
+    expect(screen.getByRole('status')).toHaveTextContent(/^Rang 11 à tricoter$/)
+    expect(screen.getByText('Rangs 5 à 28 · prochaine fois : rang 16')).toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: 'Retirer un rang' }))
-    expect(api.knitting.saveProgress).toHaveBeenLastCalledWith('s2', { rowCount: 6 })
+    expect(api.knitting.saveProgress).toHaveBeenLastCalledWith('s2', { rowCount: 9 })
+  })
+
+  it('annonce le début d’une nouvelle section', async () => {
+    const project = structuredClone(PROJECT)
+    project.steps[1]!.rowCount = 4
+    renderProject(fakeApi(), project)
+    expect(await screen.findByRole('status')).toHaveTextContent('Rang 5 à tricoterNouvelle section : 1 diminution de chaque côté — tous les 6 rangs (4 fois)')
+  })
+
+  it('règle, ajoute, déplace et supprime des sections', async () => {
+    const user = userEvent.setup()
+    const { api } = renderProject()
+    const [jersey, decrease] = PROJECT.steps[1]!.sections
+
+    await user.click(await screen.findByRole('button', { name: 'Actions pour « 1 diminution de chaque côté — tous les 6 rangs (4 fois) »' }))
+    await user.click(await screen.findByRole('menuitem', { name: 'Régler' }))
+    const form = screen.getByRole('form', { name: 'Section' })
+    await user.clear(within(form).getByLabelText('Tous les … rangs'))
+    await user.type(within(form).getByLabelText('Tous les … rangs'), '8')
+    await user.click(within(form).getByRole('button', { name: 'Enregistrer' }))
+    expect(api.knitting.saveProgress).toHaveBeenLastCalledWith('s2', { sections: [jersey, { ...decrease, every: 8 }] })
+    expect(await screen.findByText('Rangs 5 à 36 · prochaine fois : rang 12')).toBeInTheDocument()
+
+    // Nouvelle section sans répétition, à la fin
+    await user.click(screen.getByRole('button', { name: 'Ajouter une section' }))
+    const added = screen.getByRole('form', { name: 'Section' })
+    await user.click(within(added).getByRole('button', { name: 'Enregistrer' }))
+    expect(within(added).getByRole('alert')).toHaveTextContent('Indique le nombre de rangs.')
+    await user.type(within(added).getByLabelText('Nombre de rangs'), '10')
+    await user.type(within(added).getByLabelText('Description (facultatif)'), 'côtes')
+    await user.click(within(added).getByRole('button', { name: 'Enregistrer' }))
+    const rows10 = { kind: 'rows', rows: 10, every: null, times: null, text: 'côtes', pattern: null }
+    expect(api.knitting.saveProgress).toHaveBeenLastCalledWith('s2', { sections: [jersey, { ...decrease, every: 8 }, rows10] })
+    expect(await screen.findByText('Rangs 37 à 46')).toBeInTheDocument()
+
+    // Une répétition se crée aussi
+    await user.click(screen.getByRole('button', { name: 'Ajouter une section' }))
+    const repeatForm = screen.getByRole('form', { name: 'Section' })
+    await user.click(within(repeatForm).getByRole('radio', { name: 'Répétition' }))
+    await user.click(within(repeatForm).getByRole('button', { name: 'Enregistrer' }))
+    expect(within(repeatForm).getByRole('alert')).toHaveTextContent('Indique quoi faire')
+    await user.click(within(repeatForm).getByRole('button', { name: 'Annuler' }))
+
+    // Déplacer, puis supprimer
+    await user.click(screen.getByRole('button', { name: 'Actions pour « 10 rangs : côtes »' }))
+    await user.click(await screen.findByRole('menuitem', { name: 'Monter' }))
+    expect(api.knitting.saveProgress).toHaveBeenLastCalledWith('s2', { sections: [jersey, rows10, { ...decrease, every: 8 }] })
+    await user.click(screen.getByRole('button', { name: 'Actions pour « 4 rangs : jersey »' }))
+    await user.click(await screen.findByRole('menuitem', { name: 'Descendre' }))
+    expect(api.knitting.saveProgress).toHaveBeenLastCalledWith('s2', { sections: [rows10, jersey, { ...decrease, every: 8 }] })
+    await user.click(screen.getByRole('button', { name: 'Actions pour « 4 rangs : jersey »' }))
+    await user.click(await screen.findByRole('menuitem', { name: 'Supprimer' }))
+    expect(api.knitting.saveProgress).toHaveBeenLastCalledWith('s2', { sections: [rows10, { ...decrease, every: 8 }] })
+  })
+
+  it('montre la mesure du patron d’une section à régler', async () => {
+    const user = userEvent.setup()
+    const project = structuredClone(PROJECT)
+    project.steps[1]!.sections = [{ kind: 'repeat', rows: null, every: null, times: 3, text: '1 augmentation', pattern: 'tous les 5 cm' }]
+    renderProject(fakeApi(), project)
+    expect(await screen.findByText('1 augmentation — tous les 5 cm (rangs à régler)')).toBeInTheDocument()
+    expect(screen.getByText('Indique le nombre de rangs pour que la suite se calcule.')).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: /^Actions pour « 1 augmentation/ }))
+    await user.click(await screen.findByRole('menuitem', { name: 'Régler' }))
+    expect(screen.getByText('tous les 5 cm', { selector: 'span' })).toBeInTheDocument()
   })
 
   it('garde les notes et passe à l’étape suivante une fois terminée', async () => {
@@ -226,8 +297,8 @@ describe('KnittingProjectPage', () => {
     const add = await screen.findByRole('button', { name: 'Ajouter 1 rang' })
     // Clics sans attendre l'affichage
     for (let i = 0; i < 5; i++) add.click()
-    expect(await screen.findByText('10')).toBeInTheDocument()
-    await vi.waitFor(() => expect(saved).toEqual([6, 7, 8, 9, 10]))
+    expect(await screen.findByText('13')).toBeInTheDocument()
+    await vi.waitFor(() => expect(saved).toEqual([9, 10, 11, 12, 13]))
   })
 
   it('rétablit le compteur si l’enregistrement échoue', async () => {
@@ -236,8 +307,8 @@ describe('KnittingProjectPage', () => {
     api.knitting.saveProgress.mockRejectedValueOnce(new Error('réseau'))
     renderProject(api)
     await user.click(await screen.findByRole('button', { name: 'Ajouter 1 rang' }))
-    expect(api.knitting.saveProgress).toHaveBeenCalledWith('s2', { rowCount: 6 })
-    expect(await screen.findByText('5')).toBeInTheDocument()
+    expect(api.knitting.saveProgress).toHaveBeenCalledWith('s2', { rowCount: 9 })
+    expect(await screen.findByText('8')).toBeInTheDocument()
   })
 
   it('ouvre le PDF d’origine et supprime le projet', async () => {

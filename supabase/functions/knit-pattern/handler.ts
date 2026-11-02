@@ -1,7 +1,7 @@
 // Logique de la fonction knit-pattern (module Tricot), indépendante de Deno pour pouvoir être testée.
 //
 // POST { pdf: base64, size }
-//   → 200 { title, sizes, steps: [{ title, instructions, totalRows, stitches, reminders }] }
+//   → 200 { title, sizes, steps: [{ title, instructions, totalRows, stitches, sections }] }
 //   → 4xx/5xx { error: message lisible }
 // Comme estimate-nutrition : verify_jwt, plus `isSignedIn` pour refuser la clé publique anonyme.
 

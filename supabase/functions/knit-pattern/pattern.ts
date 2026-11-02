@@ -1,5 +1,5 @@
 // Lecture d'un patron de tricot (PDF) pour une taille : étapes, consignes réduites aux nombres de cette taille,
-// rangs, mailles et actions répétées (« 2 diminutions tous les 6 rangs »).
+// rangs, mailles et déroulé en sections (rangs sans répétition, « 2 diminutions tous les 6 rangs »).
 
 import { callTool, HttpError, type ModelOptions, type ModelUsage, type Tool } from '../_shared/anthropic.ts'
 
@@ -12,11 +12,15 @@ export interface PatternInput {
   size: string
 }
 
-export interface PatternReminder {
-  every: number
-  first: number | null
+/** Section d'une étape, dans l'ordre : rangs sans répétition, ou action répétée. */
+export interface PatternSection {
+  kind: 'rows' | 'repeat'
+  rows: number | null
+  /** null quand le patron donne une hauteur (« tous les 5 cm ») : la tricoteuse la règle en rangs. */
+  every: number | null
   times: number | null
-  action: string
+  text: string
+  pattern: string | null
 }
 
 export interface PatternStep {
@@ -24,7 +28,7 @@ export interface PatternStep {
   instructions: string
   totalRows: number | null
   stitches: number | null
-  reminders: PatternReminder[]
+  sections: PatternSection[]
 }
 
 export interface ReadPattern {
@@ -74,22 +78,24 @@ export const TOOL: Tool = {
             },
             total_rows: { type: ['integer', 'null'], description: 'Nombre de rangs (ou tours) de l’étape si on peut le connaître.' },
             stitches: { type: ['integer', 'null'], description: 'Nombre de mailles sur l’aiguille à la fin de l’étape, s’il est indiqué.' },
-            reminders: {
+            sections: {
               type: 'array',
-              description: 'Actions répétées pendant l’étape, comptées en rangs depuis le début de l’étape.',
+              description: 'Déroulé de l’étape en sections successives, rangs comptés depuis le début de l’étape.',
               items: {
                 type: 'object',
                 properties: {
-                  every: { type: 'integer', description: 'Tous les N rangs.' },
-                  first: { type: ['integer', 'null'], description: 'Premier rang concerné, si ce n’est pas le N-ième.' },
-                  times: { type: ['integer', 'null'], description: 'Nombre de fois, s’il est indiqué.' },
-                  action: { type: 'string', description: 'Ex. « 1 diminution de chaque côté ».' },
+                  kind: { type: 'string', enum: ['rows', 'repeat'], description: 'rows : rangs sans action particulière ; repeat : action répétée.' },
+                  rows: { type: ['integer', 'null'], description: 'rows : nombre de rangs ; null si le patron donne une hauteur (cm).' },
+                  every: { type: ['integer', 'null'], description: 'repeat : tous les N rangs ; null si le patron donne une hauteur (cm).' },
+                  times: { type: ['integer', 'null'], description: 'repeat : nombre de fois, s’il est indiqué.' },
+                  text: { type: 'string', description: 'repeat : l’action (« 1 diminution de chaque côté ») ; rows : le point (« jersey »), ou vide.' },
+                  pattern: { type: ['string', 'null'], description: 'Mesure telle qu’écrite dans le patron : « 5 cm », « tous les 5 cm », « tous les 6 rangs ».' },
                 },
-                required: ['every', 'first', 'times', 'action'],
+                required: ['kind', 'rows', 'every', 'times', 'text', 'pattern'],
               },
             },
           },
-          required: ['title', 'instructions', 'total_rows', 'stitches', 'reminders'],
+          required: ['title', 'instructions', 'total_rows', 'stitches', 'sections'],
         },
       },
     },
@@ -105,18 +111,27 @@ export function systemPrompt(size: string): string {
     'garde uniquement le nombre de la taille choisie, et réécris la consigne sans les autres (« monter 64 m. »).',
     'Découpe le patron en étapes de tricot dans l’ordre (dos, devant, manches, finitions…), en gardant les consignes utiles, en français.',
     'Pour chaque étape : le nombre total de rangs si tu peux le déduire (hauteur donnée seulement en cm : null), et les mailles à la fin.',
-    'Repère les actions répétées (« diminuer 1 m. de chaque côté tous les 6 rangs 4 fois ») dans reminders, rangs comptés depuis le début de l’étape.',
+    'Décris le déroulé de chaque étape en sections successives (sections) : rangs sans action particulière (« tricoter 4 rangs »)',
+    'et actions répétées (« diminuer 1 m. de chaque côté tous les 6 rangs 4 fois »), dans l’ordre du patron, avec la mesure telle qu’écrite dans pattern.',
+    'Mesure en centimètres (« 5 cm », « tous les 5 cm ») : rows ou every à null, la tricoteuse la convertira en rangs selon sa laine.',
     'Ignore la liste du matériel, les abréviations et les échantillons, sauf s’ils servent à une étape.',
     'Si la taille choisie ne fait pas partie du patron, mets size_found à false et steps vide.',
   ].join('\n')
 }
 
-function reminder(value: unknown): PatternReminder | null {
+function section(value: unknown): PatternSection | null {
   const r = (typeof value === 'object' && value !== null ? value : {}) as Record<string, unknown>
+  const text = str(r.text, 200)
+  const pattern = str(r.pattern, 100) || null
+  if (r.kind === 'rows') {
+    const rows = int(r.rows, 1, 2000)
+    if (!rows && !pattern) return null
+    return { kind: 'rows', rows, every: null, times: null, text, pattern }
+  }
+  if (r.kind !== 'repeat') return null
   const every = int(r.every, 1, 500)
-  const action = str(r.action, 200)
-  if (!every || !action) return null
-  return { every, first: int(r.first, 1, 2000), times: int(r.times, 1, 500), action }
+  if (!text || (!every && !pattern)) return null
+  return { kind: 'repeat', rows: null, every, times: int(r.times, 1, 500), text, pattern }
 }
 
 /** Valide et borne ce que le modèle a renvoyé. */
@@ -138,7 +153,7 @@ export function sanitizePattern(input: unknown, size: string): ReadPattern {
         instructions: str(s.instructions, 5000),
         totalRows: int(s.total_rows, 1, 2000),
         stitches: int(s.stitches, 1, 5000),
-        reminders: (Array.isArray(s.reminders) ? s.reminders : []).map(reminder).filter((r): r is PatternReminder => r !== null).slice(0, 10),
+        sections: (Array.isArray(s.sections) ? s.sections : []).map(section).filter((r): r is PatternSection => r !== null).slice(0, 30),
       }
     })
     .filter((s) => s.title)

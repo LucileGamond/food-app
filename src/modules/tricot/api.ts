@@ -3,14 +3,14 @@
 import { AppError, functionError, toAppError } from '@/api/errors'
 import type { Json } from '@/lib/database.types'
 import type { AppSupabaseClient } from '@/lib/supabase'
-import { MAX_PDF_BYTES, type KnitProject, type KnitProjectSummary, type KnitStep, type PatternStep, type ReadPattern, type StepReminder } from './lib/pattern'
+import { MAX_PDF_BYTES, type KnitProject, type KnitProjectSummary, type KnitStep, type PatternStep, type ReadPattern, type StepSection } from './lib/pattern'
 
 export const PATTERN_BUCKET = 'knit-patterns'
 /** Lecture d'un long patron : jusqu'à 2 minutes côté modèle. */
 const READ_TIMEOUT_MS = 150_000
 const SIGNED_URL_TTL_SECONDS = 60 * 60
 
-export type StepProgress = Partial<Pick<KnitStep, 'rowCount' | 'notes' | 'done'>>
+export type StepProgress = Partial<Pick<KnitStep, 'rowCount' | 'notes' | 'done' | 'sections'>>
 
 /** Contenu du fichier en base64. */
 export async function fileToBase64(file: Blob): Promise<string> {
@@ -33,7 +33,7 @@ interface StepRow {
   instructions: string
   total_rows: number | null
   stitches: number | null
-  reminders: unknown
+  sections: unknown
   row_count: number
   notes: string
   done: boolean
@@ -48,7 +48,7 @@ function toStep(row: StepRow): KnitStep {
     totalRows: row.total_rows,
     stitches: row.stitches,
     // Tableau garanti par la base (contrainte sur la colonne).
-    reminders: row.reminders as StepReminder[],
+    sections: row.sections as StepSection[],
     rowCount: row.row_count,
     notes: row.notes,
     done: row.done,
@@ -73,7 +73,7 @@ export function createKnittingApi(db: AppSupabaseClient) {
     async getProject(id: string): Promise<KnitProject | null> {
       const { data, error } = await db
         .from('knit_projects')
-        .select('id, title, size, pdf_path, knit_steps(id, position, title, instructions, total_rows, stitches, reminders, row_count, notes, done)')
+        .select('id, title, size, pdf_path, knit_steps(id, position, title, instructions, total_rows, stitches, sections, row_count, notes, done)')
         .eq('id', id)
         .order('position', { referencedTable: 'knit_steps' })
         .maybeSingle()
@@ -113,7 +113,7 @@ export function createKnittingApi(db: AppSupabaseClient) {
           instructions: s.instructions,
           total_rows: s.totalRows,
           stitches: s.stitches,
-          reminders: s.reminders as unknown as Json,
+          sections: s.sections as unknown as Json,
         })),
       })
       if (error) {
@@ -126,7 +126,7 @@ export function createKnittingApi(db: AppSupabaseClient) {
     async saveProgress(stepId: string, progress: StepProgress): Promise<void> {
       const { error } = await db
         .from('knit_steps')
-        .update({ row_count: progress.rowCount, notes: progress.notes, done: progress.done })
+        .update({ row_count: progress.rowCount, notes: progress.notes, done: progress.done, sections: progress.sections as unknown as NonNullable<Json> | undefined })
         .eq('id', stepId)
       if (error) throw toAppError(error, 'Impossible d’enregistrer l’avancée.')
     },

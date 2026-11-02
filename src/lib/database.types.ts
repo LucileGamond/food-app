@@ -151,14 +151,14 @@ isOneToOne: false
                   ]
                 },"knit_steps": {
                   Row: {
-                    "done": boolean,"id": string,"instructions": string,"notes": string,"position": number,"project_id": string,"reminders": NonNullable<Json>,"row_count": number,"stitches": number | null,"title": string,"total_rows": number | null
+                    "done": boolean,"id": string,"instructions": string,"notes": string,"position": number,"project_id": string,"row_count": number,"sections": NonNullable<Json>,"stitches": number | null,"title": string,"total_rows": number | null
                   }
                   ComputedFields: never
                   Insert: {
-                    "done"?: boolean,"id"?: string,"instructions"?: string,"notes"?: string,"position": number,"project_id": string,"reminders"?: NonNullable<Json>,"row_count"?: number,"stitches"?: number | null,"title": string,"total_rows"?: number | null
+                    "done"?: boolean,"id"?: string,"instructions"?: string,"notes"?: string,"position": number,"project_id": string,"row_count"?: number,"sections"?: NonNullable<Json>,"stitches"?: number | null,"title": string,"total_rows"?: number | null
                   }
                   Update: {
-                    "done"?: boolean,"id"?: string,"instructions"?: string,"notes"?: string,"position"?: number,"project_id"?: string,"reminders"?: NonNullable<Json>,"row_count"?: number,"stitches"?: number | null,"title"?: string,"total_rows"?: number | null
+                    "done"?: boolean,"id"?: string,"instructions"?: string,"notes"?: string,"position"?: number,"project_id"?: string,"row_count"?: number,"sections"?: NonNullable<Json>,"stitches"?: number | null,"title"?: string,"total_rows"?: number | null
                   }
                   Relationships: [
                     {

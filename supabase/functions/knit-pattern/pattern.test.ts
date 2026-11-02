@@ -6,18 +6,20 @@ const PDF = 'JVBERi0xLjQK' // « %PDF-1.4 »
 const reply = (input: unknown) =>
   new Response(JSON.stringify({ content: [{ type: 'tool_use', name: 'enregistrer_patron', input }], usage: { input_tokens: 5000, output_tokens: 800 } }), { status: 200 })
 
+const DECREASE = { kind: 'repeat', rows: null, every: 6, times: 4, text: '1 diminution de chaque côté', pattern: 'tous les 6 rangs' }
+
 const PATTERN = {
   title: 'Pull Bergamote',
   sizes: ['S', 'M', 'L'],
   size_found: true,
   steps: [
-    { title: 'Dos – côtes', instructions: 'Monter 64 m. et tricoter 6 cm en côtes 1/1.', total_rows: 18, stitches: 64, reminders: [] },
+    { title: 'Dos – côtes', instructions: 'Monter 64 m. et tricoter 6 cm en côtes 1/1.', total_rows: 18, stitches: 64, sections: [] },
     {
       title: 'Dos – emmanchures',
-      instructions: 'Diminuer 1 m. de chaque côté tous les 6 rangs 4 fois.',
+      instructions: 'Tricoter 4 rangs, puis diminuer 1 m. de chaque côté tous les 6 rangs 4 fois.',
       total_rows: 30,
       stitches: 56,
-      reminders: [{ every: 6, first: null, times: 4, action: '1 diminution de chaque côté' }],
+      sections: [{ kind: 'rows', rows: 4, every: null, times: null, text: '', pattern: '4 rangs' }, DECREASE],
     },
   ],
 }
@@ -34,14 +36,20 @@ describe('entrée', () => {
 })
 
 describe('résultat du modèle', () => {
-  it('garde les étapes, rangs, mailles et rappels valides', () => {
+  it('garde les étapes, rangs, mailles et sections valides, dans l’ordre', () => {
     const pattern = sanitizePattern(
       {
         ...PATTERN,
         steps: [
           ...PATTERN.steps,
           { title: '  ', instructions: 'sans titre' },
-          { title: 'Finitions', instructions: 'Coudre.', total_rows: -3, stitches: 'beaucoup', reminders: [{ every: 0, action: 'x' }, { every: 2, action: '' }, 'n’importe quoi'] },
+          {
+            title: 'Finitions',
+            instructions: 'Coudre.',
+            total_rows: -3,
+            stitches: 'beaucoup',
+            sections: [{ kind: 'repeat', every: 0, text: 'x' }, { kind: 'repeat', every: 2, text: '' }, { kind: 'rows', rows: null }, { kind: 'autre' }, 'n’importe quoi'],
+          },
         ],
       },
       'M',
@@ -49,15 +57,39 @@ describe('résultat du modèle', () => {
     expect(pattern.title).toBe('Pull Bergamote')
     expect(pattern.sizes).toEqual(['S', 'M', 'L'])
     expect(pattern.steps).toEqual([
-      { title: 'Dos – côtes', instructions: 'Monter 64 m. et tricoter 6 cm en côtes 1/1.', totalRows: 18, stitches: 64, reminders: [] },
+      { title: 'Dos – côtes', instructions: 'Monter 64 m. et tricoter 6 cm en côtes 1/1.', totalRows: 18, stitches: 64, sections: [] },
       {
         title: 'Dos – emmanchures',
-        instructions: 'Diminuer 1 m. de chaque côté tous les 6 rangs 4 fois.',
+        instructions: 'Tricoter 4 rangs, puis diminuer 1 m. de chaque côté tous les 6 rangs 4 fois.',
         totalRows: 30,
         stitches: 56,
-        reminders: [{ every: 6, first: null, times: 4, action: '1 diminution de chaque côté' }],
+        sections: [{ kind: 'rows', rows: 4, every: null, times: null, text: '', pattern: '4 rangs' }, DECREASE],
       },
-      { title: 'Finitions', instructions: 'Coudre.', totalRows: null, stitches: null, reminders: [] },
+      { title: 'Finitions', instructions: 'Coudre.', totalRows: null, stitches: null, sections: [] },
+    ])
+  })
+
+  it('garde une mesure en centimètres, à régler en rangs', () => {
+    const pattern = sanitizePattern(
+      {
+        ...PATTERN,
+        steps: [
+          {
+            title: 'Manches',
+            instructions: 'Tricoter 5 cm, puis augmenter tous les 5 cm.',
+            sections: [
+              { kind: 'rows', rows: null, text: 'jersey', pattern: '5 cm' },
+              { kind: 'repeat', every: null, text: '1 augmentation', pattern: 'tous les 5 cm' },
+              { kind: 'repeat', every: null, text: 'sans intervalle' },
+            ],
+          },
+        ],
+      },
+      'M',
+    )
+    expect(pattern.steps[0]!.sections).toEqual([
+      { kind: 'rows', rows: null, every: null, times: null, text: 'jersey', pattern: '5 cm' },
+      { kind: 'repeat', rows: null, every: null, times: null, text: '1 augmentation', pattern: 'tous les 5 cm' },
     ])
   })
 

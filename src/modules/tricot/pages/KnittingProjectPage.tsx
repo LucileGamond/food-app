@@ -1,4 +1,4 @@
-import { BellRing, Check, ChevronLeft, ChevronRight, FileText, Minus, MoreHorizontal, Plus, RefreshCw, Trash2, Undo2 } from 'lucide-react'
+import { ArrowRight, BellRing, Check, ChevronLeft, ChevronRight, FileText, Minus, MoreHorizontal, Plus, RefreshCw, Trash2, Undo2 } from 'lucide-react'
 import { useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { toast } from 'sonner'
@@ -12,18 +12,22 @@ import { Label } from '@/components/ui/label'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Textarea } from '@/components/ui/textarea'
 import { cn } from '@/lib/utils'
+import { StepSections } from '../components/StepSections'
 import { useKnitProject } from '../hooks/useKnitProject'
-import { currentStepIndex, describeReminder, dueReminders, nextReminder, type KnitStep } from '../lib/pattern'
+import { alertsAt, currentStepIndex, describeSection, type KnitStep } from '../lib/pattern'
 
 const selectClass =
   'h-10 min-w-0 flex-1 rounded-lg border border-input bg-background px-3 text-sm shadow-xs focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none'
 
 function RowCounter({ step, onCount }: { step: KnitStep; onCount: (delta: number) => void }) {
-  const due = dueReminders(step, step.rowCount)
+  // Le compteur compte les rangs terminés : on annonce ce qu'il y a à faire sur le rang à tricoter.
+  const row = step.rowCount + 1
+  const finished = step.totalRows !== null && step.rowCount >= step.totalRows
+  const alerts = finished ? [] : alertsAt(step, row)
   return (
     <div className="rounded-2xl border bg-muted/30 p-4">
       <p className="text-sm text-muted-foreground" id={`rows-${step.id}`}>
-        Rangs tricotés
+        Rangs terminés
       </p>
       <div className="mt-1 flex items-center gap-3">
         <Button variant="outline" size="icon-lg" aria-label="Retirer un rang" disabled={step.rowCount === 0} onClick={() => onCount(-1)}>
@@ -40,42 +44,33 @@ function RowCounter({ step, onCount }: { step: KnitStep; onCount: (delta: number
       </div>
       {/* Annoncé au lecteur d'écran à chaque rang compté. */}
       <div aria-live="polite">
-        {due.map((r, i) => (
-          <p key={i} role="status" className="mt-3 flex items-start gap-2 rounded-xl bg-brand/10 p-3 text-sm font-medium">
-            <BellRing className="mt-0.5 size-4 shrink-0 text-brand" aria-hidden />
-            Rang {step.rowCount} : {r.action}
-            {r.times !== null && ` (${nextReminder(r, step.totalRows, step.rowCount).doneTimes}/${r.times})`}
-          </p>
-        ))}
-        {step.totalRows !== null && step.rowCount >= step.totalRows && !step.done && (
-          <p role="status" className="mt-3 text-sm font-medium">
-            Tous les rangs de l’étape sont faits.
-          </p>
+        {finished ? (
+          !step.done && (
+            <p role="status" className="mt-3 text-sm font-medium">
+              Tous les rangs de l’étape sont faits.
+            </p>
+          )
+        ) : (
+          <div role="status" className={cn('mt-3 rounded-xl p-3 text-sm', alerts.length ? 'bg-brand/10' : 'bg-background')}>
+            <p className="font-medium">Rang {row} à tricoter</p>
+            {alerts.map((a, i) =>
+              a.type === 'action' ? (
+                <p key={i} className="mt-1 flex items-start gap-2 font-medium">
+                  <BellRing className="mt-0.5 size-4 shrink-0 text-brand" aria-hidden />
+                  {a.section.text}
+                  {a.times !== null && ` (${a.count}/${a.times})`}
+                </p>
+              ) : (
+                <p key={i} className="mt-1 flex items-start gap-2">
+                  <ArrowRight className="mt-0.5 size-4 shrink-0" aria-hidden />
+                  Nouvelle section : {describeSection(a.section)}
+                </p>
+              ),
+            )}
+          </div>
         )}
       </div>
     </div>
-  )
-}
-
-function Reminders({ step }: { step: KnitStep }) {
-  if (step.reminders.length === 0) return null
-  return (
-    <section aria-label="À faire pendant l’étape" className="space-y-1">
-      <h3 className="text-sm font-medium">À faire pendant l’étape</h3>
-      <ul className="space-y-1 text-sm">
-        {step.reminders.map((r, i) => {
-          const next = nextReminder(r, step.totalRows, step.rowCount)
-          return (
-            <li key={i} className="rounded-xl border bg-background px-3 py-2">
-              <span className="font-medium">{r.action}</span> <span className="text-muted-foreground">— {describeReminder(r)}</span>
-              <span className="block text-xs text-muted-foreground">
-                {next.row === null ? 'Plus rien à faire dans cette étape.' : `Prochaine fois : rang ${next.row}.`}
-              </span>
-            </li>
-          )
-        })}
-      </ul>
-    </section>
   )
 }
 
@@ -252,7 +247,7 @@ export function KnittingProjectPage() {
           </header>
           {step.instructions && <p className="text-sm whitespace-pre-line">{step.instructions}</p>}
           <RowCounter step={step} onCount={(delta) => void countRows(step.id, delta)} />
-          <Reminders step={step} />
+          <StepSections step={step} onChange={(sections) => saveStep(step.id, { sections })} />
           <Notes step={step} onSave={(notes) => void saveStep(step.id, { notes })} />
           <div className="flex flex-wrap gap-2">
             {step.done ? (

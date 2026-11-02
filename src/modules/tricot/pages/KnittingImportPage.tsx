@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { PageHeader } from '@/components/Layout'
-import { describeReminder, MAX_PDF_BYTES, type ReadPattern } from '../lib/pattern'
+import { describeSection, MAX_PDF_BYTES, type ReadPattern } from '../lib/pattern'
 
 /** Nouveau projet : PDF du patron + taille → étapes lues par le modèle, vérifiées puis enregistrées. */
 export function KnittingImportPage() {
@@ -74,11 +74,13 @@ export function KnittingImportPage() {
                     {[step.totalRows && `${step.totalRows} rangs`, step.stitches && `${step.stitches} mailles`].filter(Boolean).join(' · ')}
                   </p>
                 )}
-                {step.reminders.map((r, i) => (
-                  <p key={i} className="mt-1 text-xs font-medium">
-                    {r.action} — {describeReminder(r)}
-                  </p>
-                ))}
+                {step.sections.length > 0 && (
+                  <ol className="mt-2 list-inside list-decimal space-y-0.5 text-xs">
+                    {step.sections.map((section, i) => (
+                      <li key={i}>{describeSection(section)}</li>
+                    ))}
+                  </ol>
+                )}
               </li>
             ))}
           </ol>

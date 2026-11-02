@@ -1,6 +1,6 @@
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(16);
+select plan(18);
 
 delete from public.knit_projects;
 
@@ -19,14 +19,14 @@ select lives_ok(
     'Pull Bergamote', 'M', '11111111-1111-1111-1111-111111111111/aaaaaaaa-0000-0000-0000-000000000001.pdf',
     '[{"title": "Dos – côtes", "instructions": "Monter 64 m.", "total_rows": 18, "stitches": 64},
       {"title": "Emmanchures", "instructions": "Diminuer", "total_rows": 30,
-       "reminders": [{"every": 6, "first": null, "times": 4, "action": "1 diminution"}]}]'
+       "sections": [{"kind": "repeat", "rows": null, "every": 6, "times": 4, "text": "1 diminution", "pattern": null}]}]'
   )$$,
   'projet créé avec ses étapes'
 );
 select results_eq(
-  $$select position, title, total_rows, stitches, jsonb_array_length(reminders) from public.knit_steps order by position$$,
+  $$select position, title, total_rows, stitches, jsonb_array_length(sections) from public.knit_steps order by position$$,
   $$values (0, 'Dos – côtes', 18, 64, 0), (1, 'Emmanchures', 30, null, 1)$$,
-  'étapes dans l''ordre, avec rangs, mailles et rappels'
+  'étapes dans l''ordre, avec rangs, mailles et sections'
 );
 select throws_ok(
   $$select public.create_knit_project('Pull', 'M', null, '[]')$$, '22023', null, 'au moins une étape'
@@ -49,6 +49,11 @@ select throws_ok(
 );
 select throws_ok(
   $$update public.knit_steps set instructions = 'autre' where position = 1$$, '42501', null, 'consignes non modifiables'
+);
+update public.knit_steps set sections = '[{"kind": "rows", "rows": 4}, {"kind": "repeat", "every": 8, "times": 3, "text": "1 augmentation"}]' where position = 1;
+select is((select jsonb_array_length(sections) from public.knit_steps where position = 1), 2, 'sections réglables');
+select throws_ok(
+  $$update public.knit_steps set sections = (select jsonb_agg(x) from generate_series(1, 31) x) where position = 1$$, '23514', null, '30 sections au plus'
 );
 
 -- Eric ne voit pas les projets de Lucile
