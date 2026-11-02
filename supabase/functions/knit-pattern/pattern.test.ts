@@ -6,7 +6,7 @@ const PDF = 'JVBERi0xLjQK' // « %PDF-1.4 »
 const reply = (input: unknown) =>
   new Response(JSON.stringify({ content: [{ type: 'tool_use', name: 'enregistrer_patron', input }], usage: { input_tokens: 5000, output_tokens: 800 } }), { status: 200 })
 
-const DECREASE = { kind: 'repeat', rows: null, every: 6, times: 4, text: '1 diminution de chaque côté', pattern: 'tous les 6 rangs' }
+const DECREASE = { kind: 'repeat', rows: null, every: 6, times: 4, actions: [{ text: '1 diminution de chaque côté', rank: null }], text: '', pattern: 'tous les 6 rangs' }
 
 const PATTERN = {
   title: 'Pull Bergamote',
@@ -19,7 +19,7 @@ const PATTERN = {
       instructions: 'Tricoter 4 rangs, puis diminuer 1 m. de chaque côté tous les 6 rangs 4 fois.',
       total_rows: 30,
       stitches: 56,
-      sections: [{ kind: 'rows', rows: 4, every: null, times: null, text: '', pattern: '4 rangs' }, DECREASE],
+      sections: [{ kind: 'rows', rows: 4, every: null, times: null, actions: [], text: '', pattern: '4 rangs' }, DECREASE],
     },
   ],
 }
@@ -48,7 +48,7 @@ describe('résultat du modèle', () => {
             instructions: 'Coudre.',
             total_rows: -3,
             stitches: 'beaucoup',
-            sections: [{ kind: 'repeat', every: 0, text: 'x' }, { kind: 'repeat', every: 2, text: '' }, { kind: 'rows', rows: null }, { kind: 'autre' }, 'n’importe quoi'],
+            sections: [{ kind: 'repeat', every: 0, text: 'x' }, { kind: 'repeat', every: 2, actions: [{ text: ' ' }] }, { kind: 'rows', rows: null }, { kind: 'autre' }, 'n’importe quoi'],
           },
         ],
       },
@@ -63,7 +63,7 @@ describe('résultat du modèle', () => {
         instructions: 'Tricoter 4 rangs, puis diminuer 1 m. de chaque côté tous les 6 rangs 4 fois.',
         totalRows: 30,
         stitches: 56,
-        sections: [{ kind: 'rows', rows: 4, every: null, times: null, text: '', pattern: '4 rangs' }, DECREASE],
+        sections: [{ kind: 'rows', rows: 4, every: null, times: null, actions: [], text: '', pattern: '4 rangs' }, DECREASE],
       },
       { title: 'Finitions', instructions: 'Coudre.', totalRows: null, stitches: null, sections: [] },
     ])
@@ -88,8 +88,35 @@ describe('résultat du modèle', () => {
       'M',
     )
     expect(pattern.steps[0]!.sections).toEqual([
-      { kind: 'rows', rows: null, every: null, times: null, text: 'jersey', pattern: '5 cm' },
-      { kind: 'repeat', rows: null, every: null, times: null, text: '1 augmentation', pattern: 'tous les 5 cm' },
+      { kind: 'rows', rows: null, every: null, times: null, actions: [], text: 'jersey', pattern: '5 cm' },
+      { kind: 'repeat', rows: null, every: null, times: null, actions: [{ text: '1 augmentation', rank: null }], text: '', pattern: 'tous les 5 cm' },
+    ])
+  })
+
+  it('garde plusieurs actions dans une répétition, chacune sur son rang', () => {
+    const pattern = sanitizePattern(
+      {
+        ...PATTERN,
+        steps: [
+          {
+            title: 'Raglan',
+            sections: [
+              {
+                kind: 'repeat',
+                every: 4,
+                times: 5,
+                actions: [{ text: '1 diminution', rank: 1 }, { text: '1 augmentation', rank: null }, { text: 'marqueur', rank: 9 }, { text: '' }],
+              },
+            ],
+          },
+        ],
+      },
+      'M',
+    )
+    expect(pattern.steps[0]!.sections[0]!.actions).toEqual([
+      { text: '1 diminution', rank: 1 },
+      { text: '1 augmentation', rank: null },
+      { text: 'marqueur', rank: null },
     ])
   })
 

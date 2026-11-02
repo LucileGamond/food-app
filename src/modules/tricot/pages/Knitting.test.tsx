@@ -200,7 +200,9 @@ describe('KnittingProjectPage', () => {
   it('règle, ajoute, déplace et supprime des sections', async () => {
     const user = userEvent.setup()
     const { api } = renderProject()
-    const [jersey, decrease] = PROJECT.steps[1]!.sections
+    const [jersey, legacy] = PROJECT.steps[1]!.sections
+    // Réglée : l'action passe dans la liste des actions de la répétition
+    const decrease = { ...legacy!, text: '', actions: [{ text: '1 diminution de chaque côté', rank: null }] }
 
     await user.click(await screen.findByRole('button', { name: 'Actions pour « 1 diminution de chaque côté — tous les 6 rangs (4 fois) »' }))
     await user.click(await screen.findByRole('menuitem', { name: 'Régler' }))
@@ -241,6 +243,77 @@ describe('KnittingProjectPage', () => {
     await user.click(screen.getByRole('button', { name: 'Actions pour « 4 rangs : jersey »' }))
     await user.click(await screen.findByRole('menuitem', { name: 'Supprimer' }))
     expect(api.knitting.saveProgress).toHaveBeenLastCalledWith('s2', { sections: [rows10, { ...decrease, every: 8 }] })
+  })
+
+  it('place plusieurs actions dans une répétition, avec leur couleur', async () => {
+    const user = userEvent.setup()
+    const { api } = renderProject()
+    await user.click(await screen.findByRole('button', { name: 'Actions pour « 1 diminution de chaque côté — tous les 6 rangs (4 fois) »' }))
+    await user.click(await screen.findByRole('menuitem', { name: 'Régler' }))
+    const form = screen.getByRole('form', { name: 'Section' })
+    expect(within(form).getByRole('combobox', { name: 'Rang de l’action 1' })).toHaveValue('last')
+    await user.selectOptions(within(form).getByRole('combobox', { name: 'Rang de l’action 1' }), '1')
+    await user.click(within(form).getByRole('button', { name: 'Ajouter une action' }))
+    await user.type(within(form).getByRole('textbox', { name: 'Action 2' }), '1 augmentation')
+    await user.selectOptions(within(form).getByRole('combobox', { name: 'Rang de l’action 2' }), 'last')
+    await user.click(within(form).getByRole('button', { name: 'Ajouter une action' }))
+    await user.click(within(form).getByRole('button', { name: 'Retirer l’action 3' }))
+    await user.click(within(form).getByRole('button', { name: 'Enregistrer' }))
+    expect(api.knitting.saveProgress).toHaveBeenLastCalledWith('s2', {
+      sections: [
+        PROJECT.steps[1]!.sections[0],
+        {
+          ...PROJECT.steps[1]!.sections[1],
+          text: '',
+          actions: [
+            { text: '1 diminution de chaque côté', rank: 1 },
+            { text: '1 augmentation', rank: null },
+          ],
+        },
+      ],
+    })
+
+    // Pastilles : diminution au 1er rang de chaque répétition (bord rouge), augmentation au dernier (bord bleu)
+    const first = await screen.findByRole('button', { name: 'Rang 5 : 1 diminution de chaque côté' })
+    expect(first.className).toContain('border-red-500')
+    expect(screen.getByRole('button', { name: 'Rang 10 : 1 augmentation' }).className).toContain('border-blue-500')
+    expect(screen.getByRole('button', { name: 'Rang 6' }).className).not.toMatch(/border-(red|blue)-500/)
+    expect(screen.getAllByRole('button', { name: /^Rang \d+$|^Rang \d+ :/ }).filter((b) => b.dataset.row && Number(b.dataset.row) >= 5 && Number(b.dataset.row) <= 28)).toHaveLength(24)
+  })
+
+  it('compte les rangs en touchant les pastilles, appui long pour décocher', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true })
+    try {
+      const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime })
+      const { api } = renderProject()
+      // 8 rangs faits : les pastilles 1 à 8 sont cochées, la 9e est celle à tricoter
+      expect(await screen.findByRole('button', { name: 'Rang 8' })).toHaveAttribute('aria-pressed', 'true')
+      const ninth = screen.getByRole('button', { name: 'Rang 9' })
+      expect(ninth).toHaveAttribute('aria-pressed', 'false')
+      expect(ninth.className).toContain('ring-2')
+
+      // Toucher une pastille non cochée : un rang de plus
+      await user.click(screen.getByRole('button', { name: 'Rang 12' }))
+      expect(api.knitting.saveProgress).toHaveBeenLastCalledWith('s2', { rowCount: 9 })
+      // Toucher une pastille cochée : rien
+      await user.click(screen.getByRole('button', { name: 'Rang 3' }))
+      expect(api.knitting.saveProgress).toHaveBeenCalledTimes(1)
+
+      // Appui long : un rang de moins
+      await user.pointer({ keys: '[MouseLeft>]', target: screen.getByRole('button', { name: 'Rang 3' }) })
+      await vi.advanceTimersByTimeAsync(600)
+      await user.pointer({ keys: '[/MouseLeft]', target: screen.getByRole('button', { name: 'Rang 3' }) })
+      expect(api.knitting.saveProgress).toHaveBeenLastCalledWith('s2', { rowCount: 8 })
+      expect(api.knitting.saveProgress).toHaveBeenCalledTimes(2)
+      // Appui court relâché : rien
+      await user.pointer({ keys: '[MouseLeft>]', target: screen.getByRole('button', { name: 'Rang 3' }) })
+      await vi.advanceTimersByTimeAsync(100)
+      await user.pointer({ keys: '[/MouseLeft]', target: screen.getByRole('button', { name: 'Rang 3' }) })
+      await vi.advanceTimersByTimeAsync(600)
+      expect(api.knitting.saveProgress).toHaveBeenCalledTimes(2)
+    } finally {
+      vi.useRealTimers()
+    }
   })
 
   it('montre la mesure du patron d’une section à régler', async () => {

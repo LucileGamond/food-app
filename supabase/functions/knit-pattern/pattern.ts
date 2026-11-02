@@ -19,6 +19,9 @@ export interface PatternSection {
   /** null quand le patron donne une hauteur (« tous les 5 cm ») : la tricoteuse la règle en rangs. */
   every: number | null
   times: number | null
+  /** Répétition : actions de chaque répétition, chacune sur un rang (1 = premier, null = dernier). */
+  actions: { text: string; rank: number | null }[]
+  /** Rangs sans répétition : le point (« jersey »). */
   text: string
   pattern: string | null
 }
@@ -88,10 +91,25 @@ export const TOOL: Tool = {
                   rows: { type: ['integer', 'null'], description: 'rows : nombre de rangs ; null si le patron donne une hauteur (cm).' },
                   every: { type: ['integer', 'null'], description: 'repeat : tous les N rangs ; null si le patron donne une hauteur (cm).' },
                   times: { type: ['integer', 'null'], description: 'repeat : nombre de fois, s’il est indiqué.' },
-                  text: { type: 'string', description: 'repeat : l’action (« 1 diminution de chaque côté ») ; rows : le point (« jersey »), ou vide.' },
+                  actions: {
+                    type: 'array',
+                    description: 'repeat : actions de chaque répétition (« 1 diminution de chaque côté »), une ou plusieurs.',
+                    items: {
+                      type: 'object',
+                      properties: {
+                        text: { type: 'string' },
+                        rank: {
+                          type: ['integer', 'null'],
+                          description: 'Rang de l’action dans la répétition : 1 = premier (« au prochain rang, puis tous les 6 rangs »), null = dernier (« tous les 6 rangs »).',
+                        },
+                      },
+                      required: ['text', 'rank'],
+                    },
+                  },
+                  text: { type: 'string', description: 'rows : le point (« jersey »), ou vide ; repeat : vide.' },
                   pattern: { type: ['string', 'null'], description: 'Mesure telle qu’écrite dans le patron : « 5 cm », « tous les 5 cm », « tous les 6 rangs ».' },
                 },
-                required: ['kind', 'rows', 'every', 'times', 'text', 'pattern'],
+                required: ['kind', 'rows', 'every', 'times', 'actions', 'text', 'pattern'],
               },
             },
           },
@@ -126,12 +144,22 @@ function section(value: unknown): PatternSection | null {
   if (r.kind === 'rows') {
     const rows = int(r.rows, 1, 2000)
     if (!rows && !pattern) return null
-    return { kind: 'rows', rows, every: null, times: null, text, pattern }
+    return { kind: 'rows', rows, every: null, times: null, actions: [], text, pattern }
   }
   if (r.kind !== 'repeat') return null
   const every = int(r.every, 1, 500)
-  if (!text || (!every && !pattern)) return null
-  return { kind: 'repeat', rows: null, every, times: int(r.times, 1, 500), text, pattern }
+  const raw = Array.isArray(r.actions) ? r.actions : text ? [{ text, rank: null }] : []
+  const actions = raw
+    .map((value) => {
+      const a = (typeof value === 'object' && value !== null ? value : {}) as Record<string, unknown>
+      const rank = int(a.rank, 1, 500)
+      // Rang au-delà de la répétition, ou égal au dernier : « dernier rang ».
+      return { text: str(a.text, 200), rank: rank !== null && every !== null && rank >= every ? null : rank }
+    })
+    .filter((a) => a.text)
+    .slice(0, 10)
+  if (actions.length === 0 || (!every && !pattern)) return null
+  return { kind: 'repeat', rows: null, every, times: int(r.times, 1, 500), actions, text: '', pattern }
 }
 
 /** Valide et borne ce que le modèle a renvoyé. */

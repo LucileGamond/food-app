@@ -57,7 +57,7 @@ function RowCounter({ step, onCount }: { step: KnitStep; onCount: (delta: number
               a.type === 'action' ? (
                 <p key={i} className="mt-1 flex items-start gap-2 font-medium">
                   <BellRing className="mt-0.5 size-4 shrink-0 text-brand" aria-hidden />
-                  {a.section.text}
+                  {a.action.text}
                   {a.times !== null && ` (${a.count}/${a.times})`}
                 </p>
               ) : (
@@ -247,7 +247,7 @@ export function KnittingProjectPage() {
           </header>
           {step.instructions && <p className="text-sm whitespace-pre-line">{step.instructions}</p>}
           <RowCounter step={step} onCount={(delta) => void countRows(step.id, delta)} />
-          <StepSections step={step} onChange={(sections) => saveStep(step.id, { sections })} />
+          <StepSections step={step} onChange={(sections) => saveStep(step.id, { sections })} onCount={(delta) => void countRows(step.id, delta)} />
           <Notes step={step} onSave={(notes) => void saveStep(step.id, { notes })} />
           <div className="flex flex-wrap gap-2">
             {step.done ? (
