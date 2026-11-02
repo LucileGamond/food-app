@@ -19,6 +19,7 @@ import type { ShoppingItem, ShoppingItemInput, ShoppingList } from '@/lib/shoppi
 import type { TidyLine } from '@/lib/shoppingFromPlan'
 import type { WeightEntry } from '@/lib/weights'
 import type { WaterIntake } from '@/lib/hydration'
+import type { KnitProject, KnitProjectSummary, ReadPattern } from '@/modules/tricot/lib/pattern'
 import { DEFAULT_SETTINGS, type UserSettings } from '@/lib/settings'
 
 export const LUCILE: Profile = { id: 'u-lucile', display_name: 'Lucile' }
@@ -152,6 +153,15 @@ export function fakeApi(): FakeApi {
       listIntakes: vi.fn(async () => [] as WaterIntake[]),
       addIntake: vi.fn(async (volumeMl: number): Promise<WaterIntake> => ({ id: `w-${Math.random()}`, volume_ml: volumeMl, drunk_at: new Date().toISOString() })),
       deleteIntake: vi.fn(async () => undefined),
+    },
+    knitting: {
+      listProjects: vi.fn(async () => [] as KnitProjectSummary[]),
+      getProject: vi.fn(async () => null as KnitProject | null),
+      readPattern: vi.fn(async (): Promise<ReadPattern> => ({ title: 'Patron lu', sizes: [], steps: [] })),
+      createProject: vi.fn(async () => 'new-project'),
+      saveProgress: vi.fn(async () => undefined),
+      deleteProject: vi.fn(async () => undefined),
+      pdfUrl: vi.fn(async (path: string) => `https://cdn.test/${path}`),
     },
     food: {
       listPlan: vi.fn(async () => [] as PlanItem[]),

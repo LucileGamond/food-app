@@ -18,7 +18,7 @@ set local request.jwt.claims = '{"sub":"11111111-1111-1111-1111-111111111111","r
 -- Réglages
 insert into public.user_settings default values;
 select is(
-  (select disabled_pages from public.user_settings), '{hydratation}'::text[], 'suivi d''hydratation désactivé par défaut'
+  (select disabled_pages from public.user_settings), '{hydratation,tricot}'::text[], 'hydratation et tricot désactivés par défaut'
 );
 select is((select hydration_goal_ml from public.user_settings), 1500, 'objectif de 1,5 L par défaut');
 select throws_ok(

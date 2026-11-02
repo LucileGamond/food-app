@@ -28,6 +28,16 @@ async function seed() {
   // Suivi d'hydratation activé, avec quelques verres
   await api.settings.saveSettings({ disabledPages: [], mutedNotifications: [], hydrationGoalMl: 1500 })
   for (const volume of [200, 330, 200]) await api.hydration.addIntake(volume)
+  const knitting = await api.knitting.createProject({
+    title: `${LONG_TITLE} au tricot`,
+    size: '4 ans',
+    pdf: null,
+    steps: [
+      { title: 'Dos – côtes de la bordure inférieure, tricotées en rond', instructions: 'Monter 64 m. et tricoter 18 rangs en côtes 1/1.', totalRows: 18, stitches: 64, reminders: [] },
+      { title: 'Emmanchures', instructions: 'Diminuer 1 m. de chaque côté tous les 6 rangs 4 fois.', totalRows: 30, stitches: 56, reminders: [{ every: 6, first: null, times: 4, action: '1 diminution de chaque côté' }] },
+      { title: 'Encolure', instructions: 'Rabattre.', totalRows: null, stitches: null, reminders: [] },
+    ],
+  })
   for (let i = 0; i < 4; i++) {
     await api.recipes.saveRecipe({ id: null, title: `${LONG_TITLE} n° ${i + 2}`, notes: null, url: null, servings: 2, tags: ['rapide', 'été'], ingredients: [{ name: 'riz', quantity: 1, unit: 'kg', note: null }] })
   }
@@ -66,7 +76,7 @@ async function seed() {
     ],
     0,
   )
-  return { recipe, list }
+  return { recipe, list, knitting }
 }
 
 /** Éléments qui dépassent de l'écran, ou de la fenêtre ouverte (en tenant compte des zones qui défilent ou rognent). */
@@ -129,7 +139,7 @@ test('aucun écran ni aucune fenêtre ne déborde', async ({ page, isMobile }) =
   problems.length = 0
   viewName = isMobile ? 'telephone' : 'ordinateur'
   if (isMobile) await page.setViewportSize({ width: 360, height: 780 })
-  const { recipe, list } = await seed()
+  const { recipe, list, knitting } = await seed()
   await page.route('**/functions/v1/import-recipe', (route) => route.fulfill({ json: { title: LONG_TITLE } }))
   await login(page)
 
@@ -234,6 +244,17 @@ test('aucun écran ni aucune fenêtre ne déborde', async ({ page, isMobile }) =
   await page.goto('/reglages')
   await expect(page.getByRole('textbox', { name: 'Objectif par jour (litres)' })).toBeVisible()
   await check(page, 'reglages')
+
+  // Tricot
+  await page.goto('/tricot')
+  await expect(page.getByRole('list', { name: 'Projets de tricot' })).toBeVisible()
+  await check(page, 'tricot')
+  await page.goto(`/tricot/${knitting}`)
+  await expect(page.getByRole('button', { name: 'Ajouter 1 rang' })).toBeVisible()
+  await check(page, 'tricot-projet')
+  await page.goto('/tricot/nouveau')
+  await expect(page.getByLabel('Taille choisie')).toBeVisible()
+  await check(page, 'tricot-nouveau')
 
   // Courses
   await page.goto('/courses')

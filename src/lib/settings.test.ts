@@ -18,12 +18,12 @@ describe('réglages', () => {
   it('choisit la première page affichée comme accueil', () => {
     expect(homePath(DEFAULT_SETTINGS)).toBe('/planning')
     expect(homePath({ ...DEFAULT_SETTINGS, disabledPages: ['planning', 'recettes'] })).toBe('/plan')
-    expect(homePath({ ...DEFAULT_SETTINGS, disabledPages: ['planning', 'recettes', 'plan', 'courses', 'poids', 'hydratation'] })).toBe('/reglages')
+    expect(homePath({ ...DEFAULT_SETTINGS, disabledPages: ['planning', 'recettes', 'plan', 'courses', 'poids', 'hydratation', 'tricot'] })).toBe('/reglages')
   })
 
   it('active et désactive pages et notifications', () => {
-    expect(togglePage(DEFAULT_SETTINGS, 'hydratation', true)).toEqual({ disabledPages: [] })
-    expect(togglePage(DEFAULT_SETTINGS, 'poids', false)).toEqual({ disabledPages: ['hydratation', 'poids'] })
+    expect(togglePage(DEFAULT_SETTINGS, 'hydratation', true)).toEqual({ disabledPages: ['tricot'] })
+    expect(togglePage(DEFAULT_SETTINGS, 'poids', false)).toEqual({ disabledPages: ['hydratation', 'tricot', 'poids'] })
     expect(toggleNotification(DEFAULT_SETTINGS, 'courses', false)).toEqual({ mutedNotifications: ['courses'] })
     expect(toggleNotification({ ...DEFAULT_SETTINGS, mutedNotifications: ['courses'] }, 'courses', true)).toEqual({ mutedNotifications: [] })
   })

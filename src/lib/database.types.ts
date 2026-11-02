@@ -129,6 +129,46 @@ isOneToOne: false
       referencedColumns: ["id"]
     }
                   ]
+                },"knit_projects": {
+                  Row: {
+                    "created_at": string,"id": string,"pdf_path": string | null,"profile_id": string,"size": string,"title": string,"updated_at": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "created_at"?: string,"id"?: string,"pdf_path"?: string | null,"profile_id"?: string,"size": string,"title": string,"updated_at"?: string
+                  }
+                  Update: {
+                    "created_at"?: string,"id"?: string,"pdf_path"?: string | null,"profile_id"?: string,"size"?: string,"title"?: string,"updated_at"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "knit_projects_profile_id_fkey"
+      columns: ["profile_id"]
+isOneToOne: false
+      referencedRelation: "profiles"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"knit_steps": {
+                  Row: {
+                    "done": boolean,"id": string,"instructions": string,"notes": string,"position": number,"project_id": string,"reminders": NonNullable<Json>,"row_count": number,"stitches": number | null,"title": string,"total_rows": number | null
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "done"?: boolean,"id"?: string,"instructions"?: string,"notes"?: string,"position": number,"project_id": string,"reminders"?: NonNullable<Json>,"row_count"?: number,"stitches"?: number | null,"title": string,"total_rows"?: number | null
+                  }
+                  Update: {
+                    "done"?: boolean,"id"?: string,"instructions"?: string,"notes"?: string,"position"?: number,"project_id"?: string,"reminders"?: NonNullable<Json>,"row_count"?: number,"stitches"?: number | null,"title"?: string,"total_rows"?: number | null
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "knit_steps_project_id_fkey"
+      columns: ["project_id"]
+isOneToOne: false
+      referencedRelation: "knit_projects"
+      referencedColumns: ["id"]
+    }
+                  ]
                 },"meals": {
                   Row: {
                     "created_at": string,"created_by": string | null,"id": string,"meal_date": string,"people": (string)[],"recipe_id": string,"slot": Database["public"]['Enums']["meal_slot"],"updated_at": string
@@ -455,6 +495,9 @@ isOneToOne: false
                            },
 "create_food_period":
 { Args: { "p_end": string,"p_profile_id": string,"p_start": string }; Returns: string
+                           },
+"create_knit_project":
+{ Args: { "p_pdf_path": string,"p_size": string,"p_steps": Json,"p_title": string }; Returns: string
                            },
 "create_meal":
 { Args: { "p_adhoc_notes"?: string,"p_adhoc_title"?: string,"p_adhoc_url"?: string,"p_meal_date": string,"p_people": (string)[],"p_recipe_id"?: string,"p_slot": Database["public"]['Enums']["meal_slot"] }; Returns: string

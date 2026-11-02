@@ -1,6 +1,6 @@
 // Réglages de chacun : pages affichées, notifications reçues, objectif d'hydratation.
 
-export type PageKey = 'planning' | 'recettes' | 'plan' | 'courses' | 'poids' | 'hydratation'
+export type PageKey = 'planning' | 'recettes' | 'plan' | 'courses' | 'poids' | 'hydratation' | 'tricot'
 export type NotificationTopic = 'courses' | 'hydratation'
 
 export interface PageInfo {
@@ -19,6 +19,7 @@ export const PAGES: PageInfo[] = [
   { key: 'courses', to: '/courses', label: 'Courses', description: 'Listes de courses partagées' },
   { key: 'poids', to: '/poids', label: 'Poids', description: 'Suivi du poids' },
   { key: 'hydratation', to: '/hydratation', label: 'Eau', description: 'Suivi d’hydratation' },
+  { key: 'tricot', to: '/tricot', label: 'Tricot', description: 'Patrons découpés en étapes, compteur de rangs' },
 ]
 
 export const NOTIFICATION_TOPICS: { key: NotificationTopic; label: string; description: string }[] = [
@@ -33,7 +34,7 @@ export interface UserSettings {
 }
 
 /** Valeurs tant que la personne n'a rien enregistré (identiques à celles de la base). */
-export const DEFAULT_SETTINGS: UserSettings = { disabledPages: ['hydratation'], mutedNotifications: [], hydrationGoalMl: 1500 }
+export const DEFAULT_SETTINGS: UserSettings = { disabledPages: ['hydratation', 'tricot'], mutedNotifications: [], hydrationGoalMl: 1500 }
 
 export const MIN_GOAL_ML = 500
 export const MAX_GOAL_ML = 5000

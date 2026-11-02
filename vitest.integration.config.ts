@@ -15,7 +15,7 @@ export default defineConfig({
     hookTimeout: 30000,
     coverage: {
       provider: 'v8',
-      include: ['src/api/**'],
+      include: ['src/api/**', 'src/modules/**/api.ts'],
       // errors.ts : logique pure, couverte (et mesurée) par les tests unitaires.
       exclude: ['src/api/index.ts', 'src/api/errors.ts', 'src/**/*.test.*'],
       reportsDirectory: 'coverage/integration',

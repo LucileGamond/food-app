@@ -33,10 +33,14 @@ export interface ModelOptions {
   fetch?: typeof fetch
 }
 
-/** Contenu d'un message : texte seul, ou blocs (images puis texte). */
+/** Contenu d'un message : texte seul, ou blocs (images ou PDF, puis texte). */
 export type MessageContent =
   | string
-  | ({ type: 'text'; text: string } | { type: 'image'; source: { type: 'base64'; media_type: string; data: string } })[]
+  | (
+      | { type: 'text'; text: string }
+      | { type: 'image'; source: { type: 'base64'; media_type: string; data: string } }
+      | { type: 'document'; source: { type: 'base64'; media_type: 'application/pdf'; data: string } }
+    )[]
 
 export interface ToolCall {
   system: string

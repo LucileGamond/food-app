@@ -1,4 +1,4 @@
-import { BookOpen, CalendarDays, GlassWater, ListChecks, LogOut, Scale, Settings, ShoppingCart, UtensilsCrossed, type LucideIcon } from 'lucide-react'
+import { BookOpen, CalendarDays, GlassWater, ListChecks, LogOut, Scale, Settings, ShoppingCart, Spool, UtensilsCrossed, type LucideIcon } from 'lucide-react'
 import { Link, Navigate, NavLink, Outlet, useLocation } from 'react-router-dom'
 import { BuildInfo } from '@/components/BuildInfo'
 import { Button, buttonVariants } from '@/components/ui/button'
@@ -15,6 +15,7 @@ const ICONS: Record<PageKey, LucideIcon> = {
   courses: ShoppingCart,
   poids: Scale,
   hydratation: GlassWater,
+  tricot: Spool,
 }
 
 function Brand() {

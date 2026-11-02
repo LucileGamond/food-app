@@ -10,6 +10,7 @@ import { createRecipesApi } from './recipes'
 import { createSettingsApi } from './settings'
 import { createShoppingApi } from './shopping'
 import { createWeightsApi } from './weights'
+import { createKnittingApi } from '@/modules/tricot/api'
 
 export function createApi(db: AppSupabaseClient) {
   return {
@@ -24,6 +25,7 @@ export function createApi(db: AppSupabaseClient) {
     ideas: createIdeasApi(db),
     settings: createSettingsApi(db),
     hydration: createHydrationApi(db),
+    knitting: createKnittingApi(db),
   }
 }
 

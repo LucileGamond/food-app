@@ -25,6 +25,10 @@ const ShoppingListsPage = lazy(() => import('@/pages/ShoppingListsPage').then((m
 const ShoppingListPage = lazy(() => import('@/pages/ShoppingListPage').then((m) => ({ default: m.ShoppingListPage })))
 const HydrationPage = lazy(() => import('@/pages/HydrationPage').then((m) => ({ default: m.HydrationPage })))
 const SettingsPage = lazy(() => import('@/pages/SettingsPage').then((m) => ({ default: m.SettingsPage })))
+// Module Tricot (indépendant de la cuisine).
+const KnittingPage = lazy(() => import('@/modules/tricot/pages/KnittingPage').then((m) => ({ default: m.KnittingPage })))
+const KnittingImportPage = lazy(() => import('@/modules/tricot/pages/KnittingImportPage').then((m) => ({ default: m.KnittingImportPage })))
+const KnittingProjectPage = lazy(() => import('@/modules/tricot/pages/KnittingProjectPage').then((m) => ({ default: m.KnittingProjectPage })))
 const RecipeFormPage = lazy(() => import('@/pages/RecipeFormPage').then((m) => ({ default: m.RecipeFormPage })))
 
 export function App({ api, auth }: { api: Api; auth: AuthClient }) {
@@ -55,6 +59,9 @@ export function App({ api, auth }: { api: Api; auth: AuthClient }) {
               <Route path="/courses/:id" element={<ShoppingListPage />} />
               <Route path="/hydratation" element={<HydrationPage />} />
               <Route path="/reglages" element={<SettingsPage />} />
+              <Route path="/tricot" element={<KnittingPage />} />
+              <Route path="/tricot/nouveau" element={<KnittingImportPage />} />
+              <Route path="/tricot/:id" element={<KnittingProjectPage />} />
             </Route>
           </Route>
           <Route path="*" element={<Navigate to="/planning" replace />} />

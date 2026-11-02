@@ -35,17 +35,19 @@ export async function signedInApi(email = LUCILE.email) {
 export async function resetData(): Promise<void> {
   const admin = createAppClient(LOCAL_URL, LOCAL_SERVICE_KEY, { persistSession: false })
   const nil = '00000000-0000-0000-0000-000000000000'
-  for (const table of ['planning_inbox', 'meals', 'recipe_photos', 'recipe_ingredients', 'recipes', 'weight_entries', 'food_periods', 'food_plan_items', 'shopping_lists', 'push_subscriptions', 'water_intakes'] as const) {
+  for (const table of ['planning_inbox', 'meals', 'recipe_photos', 'recipe_ingredients', 'recipes', 'weight_entries', 'food_periods', 'food_plan_items', 'shopping_lists', 'push_subscriptions', 'water_intakes', 'knit_projects'] as const) {
     const { error } = await admin.from(table).delete().neq('id', nil)
     if (error) throw error
   }
   const settings = await admin.from('user_settings').delete().neq('profile_id', nil)
   if (settings.error) throw settings.error
-  const { data: files } = await admin.storage.from('recipe-photos').list('', { limit: 1000 })
-  for (const folder of files ?? []) {
-    const { data: inner } = await admin.storage.from('recipe-photos').list(folder.name, { limit: 1000 })
-    const paths = (inner ?? []).map((f) => `${folder.name}/${f.name}`)
-    if (paths.length > 0) await admin.storage.from('recipe-photos').remove(paths)
+  for (const bucket of ['recipe-photos', 'knit-patterns']) {
+    const { data: files } = await admin.storage.from(bucket).list('', { limit: 1000 })
+    for (const folder of files ?? []) {
+      const { data: inner } = await admin.storage.from(bucket).list(folder.name, { limit: 1000 })
+      const paths = (inner ?? []).map((f) => `${folder.name}/${f.name}`)
+      if (paths.length > 0) await admin.storage.from(bucket).remove(paths)
+    }
   }
 }
 
