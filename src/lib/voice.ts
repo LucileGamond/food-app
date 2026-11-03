@@ -52,20 +52,19 @@ export function spokenDuration(ms: number): string {
   return unit(s, 'seconde')
 }
 
-/** Liste des ingrédients à lire : « 4 pommes. 50 g sucre. » (abréviations lues en entier). */
+const SPOKEN_UNITS: Record<string, string> = { g: 'gramme', kg: 'kilo', l: 'litre', dl: 'décilitre', cl: 'centilitre', ml: 'millilitre' }
+
+/** Pluriel à partir de 2, comme à l'écran : « 1,5 cuillère », « 2 cuillères ». */
+const plural = (n: string | undefined) => (n !== undefined && Number(n.replace(',', '.')) >= 2 ? 's' : '')
+
+/** Liste des ingrédients à lire : « 4 pommes. 50 grammes sucre. » (abréviations lues en entier). */
 export function spokenIngredients(ingredients: readonly Ingredient[]): string {
   if (ingredients.length === 0) return 'Aucun ingrédient.'
   return ingredients
     .map((i) =>
       formatIngredient(i)
-        .replace(/(\d+(?:,\d+)?)? ?c\. à ([sc])\./g, (_, n: string | undefined, kind: string) => {
-          const plural = n !== undefined && Number(n.replace(',', '.')) > 1 ? 's' : ''
-          return `${n ? `${n} ` : ''}cuillère${plural} à ${kind === 's' ? 'soupe' : 'café'}`
-        })
-        .replace(/(\d)\s?g\b/g, '$1 grammes')
-        .replace(/(\d)\s?kg\b/g, '$1 kilos')
-        .replace(/(\d)\s?cl\b/g, '$1 centilitres')
-        .replace(/(\d)\s?ml\b/g, '$1 millilitres'),
+        .replace(/(\d+(?:,\d+)?)? ?c\. à ([sc])\./g, (_, n: string | undefined, kind: string) => `${n ? `${n} ` : ''}cuillère${plural(n)} à ${kind === 's' ? 'soupe' : 'café'}`)
+        .replace(/(\d+(?:,\d+)?)\s?(kg|g|dl|cl|ml|l)\b/g, (_, n: string, unit: string) => `${n} ${SPOKEN_UNITS[unit]}${plural(n)}`),
     )
     .join('. ')
     .concat('.')

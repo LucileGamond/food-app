@@ -6,9 +6,11 @@ import { Button } from '@/components/ui/button'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { Input } from '@/components/ui/input'
 import { Skeleton } from '@/components/ui/skeleton'
+import { RemoveInboxItemDialog } from '@/components/planning/InboxDialogs'
 import type { InboxState } from '@/hooks/useInbox'
 import { canPrefill, inboxKind, inboxSubtitle, type InboxItem } from '@/lib/inbox'
 import { cn } from '@/lib/utils'
+import { useSettings } from '@/app/SettingsContext'
 
 /** Données transportées pendant le glisser-déposer d'un élément vers un créneau. */
 export interface InboxDragData {
@@ -27,6 +29,7 @@ const KIND_ICON = { recipe: BookmarkCheck, link: Link2, photos: Images, idea: Li
 
 function InboxCard({ item, onPlan, onRename, onRemove, onSetAside }: CardProps) {
   const navigate = useNavigate()
+  const recipes = useSettings().isEnabled('recettes')
   const drag = useDraggable({ id: `inbox:${item.id}`, data: { inbox: item } satisfies InboxDragData })
   const kind = inboxKind(item)
   const Icon = KIND_ICON[kind]
@@ -45,7 +48,7 @@ function InboxCard({ item, onPlan, onRename, onRemove, onSetAside }: CardProps) 
     >
       <Icon className={cn('mt-0.5 size-4 shrink-0', kind === 'recipe' ? 'text-brand' : 'text-muted-foreground')} aria-hidden />
       <div className="min-w-0 flex-1">
-        {kind === 'recipe' ? (
+        {kind === 'recipe' && recipes ? (
           <Link to={`/recettes/${item.recipe_id}`} onPointerDown={stop} className="line-clamp-2 text-sm font-medium leading-snug hover:underline">
             {item.title}
           </Link>
@@ -67,13 +70,13 @@ function InboxCard({ item, onPlan, onRename, onRemove, onSetAside }: CardProps) 
               <ExternalLink /> Ouvrir le lien
             </DropdownMenuItem>
           )}
-          {canPrefill(item) && (
+          {canPrefill(item) && recipes && (
             // Analyse la recette dans le formulaire ; une fois enregistrée, l'élément devient la recette.
             <DropdownMenuItem onClick={() => void navigate('/recettes/nouvelle', { state: { fromInbox: item } })}>
               <ScanText /> Préremplir et enregistrer
             </DropdownMenuItem>
           )}
-          {kind !== 'recipe' && (
+          {kind !== 'recipe' && recipes && (
             <DropdownMenuItem onClick={() => onSetAside(item)}>
               <Archive /> Mettre de côté
             </DropdownMenuItem>
@@ -84,7 +87,7 @@ function InboxCard({ item, onPlan, onRename, onRemove, onSetAside }: CardProps) 
             </DropdownMenuItem>
           )}
           <DropdownMenuItem variant="destructive" onClick={() => onRemove(item)}>
-            <Trash2 /> Retirer de la liste
+            <Trash2 /> Supprimer
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
@@ -106,6 +109,7 @@ export function InboxPanel({ inbox, onPlan, onRename, onSetAside }: Props) {
   const [adding, setAdding] = useState(false)
   // Sur téléphone, le panneau est replié par défaut pour laisser la place au planning.
   const [open, setOpen] = useState(false)
+  const [removing, setRemoving] = useState<InboxItem | null>(null)
   const count = inbox.items.length
 
   async function handleSubmit(event: FormEvent) {
@@ -162,18 +166,19 @@ export function InboxPanel({ inbox, onPlan, onRename, onSetAside }: Props) {
           </div>
         ) : count === 0 ? (
           <p className="px-1 text-sm text-muted-foreground">
-            Rien en attente. Ajoute des liens ici, ou partage-les depuis ton téléphone vers l'app.
+            Rien en attente. Ajoute des liens ici, ou partage-les depuis ton téléphone vers l’app.
           </p>
         ) : (
           <>
             <ul className="space-y-2" aria-label="Éléments à planifier">
               {inbox.items.map((item) => (
-                <InboxCard key={item.id} item={item} onPlan={onPlan} onRename={onRename} onRemove={(i) => void inbox.remove(i)} onSetAside={onSetAside} />
+                <InboxCard key={item.id} item={item} onPlan={onPlan} onRename={onRename} onRemove={setRemoving} onSetAside={onSetAside} />
               ))}
             </ul>
             <p className="px-1 text-xs text-muted-foreground">Glisse un élément sur un créneau, ou utilise le bouton calendrier.</p>
           </>
         )}
+        <RemoveInboxItemDialog item={removing} onClose={() => setRemoving(null)} onConfirm={inbox.remove} />
       </div>
     </section>
   )

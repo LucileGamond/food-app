@@ -53,8 +53,8 @@ test('crée une recette complète, l’utilise au planning et bloque sa suppress
   await page.getByRole('link', { name: 'Planning' }).filter({ visible: true }).click()
   await page.getByRole('button', { name: `Ajouter un repas — ${dayLabel(1)}, Soir` }).click()
   const dialog = page.getByRole('dialog', { name: 'Ajouter un repas' })
-  await dialog.getByRole('tab', { name: 'Recette sauvegardée' }).click()
-  await dialog.getByRole('radiogroup', { name: 'Recettes sauvegardées' }).getByText('Curry de légumes').click()
+  await dialog.getByRole('tab', { name: 'Recette enregistrée' }).click()
+  await dialog.getByRole('radiogroup', { name: 'Recettes enregistrées' }).getByText('Curry de légumes').click()
   await expect(dialog.getByRole('radio', { name: /Curry de légumes/ })).toBeChecked()
   await dialog.getByRole('button', { name: 'Enregistrer', exact: true }).click()
   await expect(slot(page, 1, 'Soir').getByRole('link', { name: 'Curry de légumes' })).toBeVisible()
@@ -95,15 +95,15 @@ test('une recette ponctuelle peut être sauvegardée depuis le planning', async 
   await expect(page.getByText('Aucune recette', { exact: true })).toBeVisible()
 
   await page.getByRole('link', { name: 'Planning' }).filter({ visible: true }).click()
-  await mealAction(page, 'Quiche de mamie', 'Sauvegarder la recette')
-  await expect(page.getByRole('heading', { name: 'Sauvegarder la recette' })).toBeVisible()
+  await mealAction(page, 'Quiche de mamie', 'Enregistrer la recette')
+  await expect(page.getByRole('heading', { name: 'Enregistrer la recette' })).toBeVisible()
   await expect(page.getByLabel('Titre')).toHaveValue('Quiche de mamie')
   await expect(page.getByLabel('Lien', { exact: true })).toHaveValue('https://exemple.fr/quiche')
 
-  await page.getByRole('button', { name: 'Sauvegarder la recette' }).click()
+  await page.getByRole('button', { name: 'Enregistrer la recette' }).click()
   await expect(page.getByText('Ajoute au moins un ingrédient')).toBeVisible()
   await page.getByLabel("Nom de l'ingrédient 1").fill('Lardons')
-  await page.getByRole('button', { name: 'Sauvegarder la recette' }).click()
+  await page.getByRole('button', { name: 'Enregistrer la recette' }).click()
 
   // Retour au planning : le repas pointe maintenant vers la recette sauvegardée
   await expect(page.getByRole('heading', { name: 'Planning' })).toBeVisible()

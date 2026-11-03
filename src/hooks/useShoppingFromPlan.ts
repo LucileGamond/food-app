@@ -233,7 +233,7 @@ export function useShoppingFromPlan(api: Api): ShoppingFromPlanState {
         toast.error(errorMessage(error))
         // Liste existante complétée en partie : on l'ouvre pour vérifier, plutôt que de tout réadditionner.
         if (written && destination.kind === 'existing') {
-          toast.error('La liste a été complétée en partie : vérifie-la avant de réessayer.')
+          toast.error('La liste a été complétée en partie : vérifie-la avant de réessayer')
           return { listId: destination.listId, count: 0, skipped: [] }
         }
         return null

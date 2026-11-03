@@ -172,7 +172,7 @@ export function RecipeFormPage() {
     sharedTaken.current = true
     void takeSharedPhotos().then((files) => {
       setSharedPhotos(files)
-      if (files.length === 0) toast.error('Aucune photo reçue : choisis-la depuis « Photo d’un livre ou scan ».')
+      if (files.length === 0) toast.error('Aucune photo reçue : choisis-la depuis « Photo d’un livre ou scan »')
       setSearchParams({}, { replace: true })
     })
   }, [fromShare, setSearchParams])
@@ -368,7 +368,7 @@ export function RecipeFormPage() {
     event.preventDefault()
     setSubmitted(true)
     if (hasErrors(errors)) {
-      toast.error('Vérifie les champs en rouge.')
+      toast.error('Vérifie les champs en rouge')
       return
     }
     if (duplicate) {
@@ -410,7 +410,7 @@ export function RecipeFormPage() {
         await linkToParent(recipeId, 'Recette enregistrée et liée', 'Recette enregistrée, mais pas liée')
         return
       }
-      toast.success(wasSaved ? 'Recette enregistrée' : 'Recette sauvegardée')
+      toast.success('Recette enregistrée')
       // Sur la fiche : proposer d'importer ou de lier les recettes auxquelles elle renvoie (« voir p. 208 »).
       if (from) navigate(from, { replace: true })
       else navigate(`/recettes/${recipeId}`, { replace: true, state: { offerLinks: true } })
@@ -479,7 +479,7 @@ export function RecipeFormPage() {
     )
   }
 
-  const title = !id ? 'Nouvelle recette' : wasSaved ? 'Modifier la recette' : 'Sauvegarder la recette'
+  const title = !id ? 'Nouvelle recette' : wasSaved ? 'Modifier la recette' : 'Enregistrer la recette'
   const backTo = from ?? (linkTarget ? `/recettes/${linkTarget.parentId}` : id && wasSaved ? `/recettes/${id}` : '/recettes')
 
   return (
@@ -489,7 +489,7 @@ export function RecipeFormPage() {
       </Link>
       <h1 className="mb-1 text-2xl font-semibold tracking-tight">{title}</h1>
       {!wasSaved && (
-        <p className="mb-6 text-sm text-muted-foreground">Complétez la recette pour la retrouver dans l'écran Recettes.</p>
+        <p className="mb-6 text-sm text-muted-foreground">Complète la recette pour la retrouver dans l'écran Recettes.</p>
       )}
       {linkTarget && (
         <p role="note" className="mt-3 flex items-start gap-2 rounded-xl border bg-background p-3 text-sm">
@@ -731,7 +731,7 @@ export function RecipeFormPage() {
         </Link>
         <Button type="submit" className="h-10 px-4" disabled={saving}>
           {saving && <Loader2 className="animate-spin" aria-hidden />}
-          {wasSaved ? 'Enregistrer' : 'Sauvegarder la recette'}
+          {wasSaved ? 'Enregistrer' : 'Enregistrer la recette'}
         </Button>
       </div>
     </form>

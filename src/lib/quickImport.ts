@@ -4,6 +4,7 @@
 import type { Api } from '@/api'
 import { compressForReading, compressImage, cropImage } from './image'
 import { MAX_INBOX_PHOTOS, photosTitle, type InboxList } from './inbox'
+import { recipeKey } from './sources'
 import {
   hasErrors,
   importedImageToFile,
@@ -21,7 +22,7 @@ export type ImportSource = { kind: 'link'; url: string; title?: string | null } 
 export type DirectResult =
   /** Recettes enregistrées (une page de livre peut en contenir plusieurs). */
   | { kind: 'saved'; recipes: { id: string; title: string }[] }
-  /** Lien déjà enregistré : rien n'est refait. */
+  /** Lien, ou titre et livre, déjà enregistrés : rien n'est refait. */
   | { kind: 'duplicate'; recipe: { id: string; title: string } }
   /** Recette lue mais incomplète : à finir dans le formulaire. */
   | { kind: 'incomplete'; message: string }
@@ -58,9 +59,18 @@ export async function saveDirectly(api: QuickApi, source: ImportSource, tags: st
   const files = source.files.slice(0, MAX_INBOX_PHOTOS)
   const result = await api.recipes.importFromPhotos(await Promise.all(files.map(compressForReading)), tags)
   const recipes = result.recipes?.length ? result.recipes : [result.recipe]
+  // Déjà enregistrée : même titre et même livre (comme l'import en série).
+  const known = new Map((await api.recipes.listSavedSummaries()).map((r) => [recipeKey(r.title, r.source), r]))
   const saved: { id: string; title: string }[] = []
+  const duplicates: { id: string; title: string }[] = []
   const incomplete: string[] = []
   for (const recipe of recipes) {
+    const values = importedToFormValues(recipe, '')
+    const existing = known.get(recipeKey(values.title.trim(), values.source))
+    if (existing) {
+      duplicates.push({ id: existing.id, title: existing.title })
+      continue
+    }
     const outcome = await save(api, recipe, '')
     if ('message' in outcome) {
       incomplete.push(outcome.message)
@@ -70,7 +80,9 @@ export async function saveDirectly(api: QuickApi, source: ImportSource, tags: st
     const page = recipe.photo ? files[recipe.photo.image] : undefined
     if (page) await addPhoto(api, outcome.id, () => cropImage(page, recipe.photo!))
   }
-  return saved.length > 0 ? { kind: 'saved', recipes: saved } : { kind: 'incomplete', message: incomplete[0] ?? 'Recette incomplète' }
+  if (saved.length > 0) return { kind: 'saved', recipes: saved }
+  if (duplicates.length > 0) return { kind: 'duplicate', recipe: duplicates[0]! }
+  return { kind: 'incomplete', message: incomplete[0] ?? 'Recette incomplète' }
 }
 
 async function save(api: QuickApi, recipe: ImportedRecipe, url: string): Promise<{ id: string; title: string } | { message: string }> {

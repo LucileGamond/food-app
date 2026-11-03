@@ -20,17 +20,17 @@ describe('SettingsPage', () => {
   it('active le suivi d’hydratation pour la personne connectée', async () => {
     const user = userEvent.setup()
     const { api } = renderPage()
-    const [page, notification] = await screen.findAllByRole('checkbox', { name: 'Hydratation' })
+    const [page, notification] = await screen.findAllByRole('checkbox', { name: 'Eau' })
     expect(page).not.toBeChecked()
     expect(checkboxes('Planning')[0]).toBeChecked()
-    expect(screen.queryByRole('region', { name: 'Hydratation' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('region', { name: 'Eau' })).not.toBeInTheDocument()
     // Notifications d'une page désactivée : sans objet
     expect(notification).toHaveAttribute('aria-disabled', 'true')
 
     await user.click(page!)
     expect(api.settings.saveSettings).toHaveBeenCalledWith({ ...DEFAULT_SETTINGS, disabledPages: ['tricot'] })
-    expect(screen.getByRole('region', { name: 'Hydratation' })).toBeInTheDocument()
-    expect(checkboxes('Hydratation')[1]).toBeChecked()
+    expect(screen.getByRole('region', { name: 'Eau' })).toBeInTheDocument()
+    expect(checkboxes('Eau')[1]).toBeChecked()
   })
 
   it('masque une page, et coupe les notifications des courses', async () => {
@@ -80,11 +80,18 @@ describe('SettingsPage', () => {
     expect(checkboxes('Planning')[0]).toBeChecked()
   })
 
-  it('signale des réglages illisibles et explique les notifications hors application installée', async () => {
+  it('réglages illisibles : rien à modifier (les vrais réglages ne sont pas écrasés), puis Réessayer', async () => {
+    const user = userEvent.setup()
     const api = fakeApi()
-    api.settings.getSettings.mockRejectedValueOnce(new Error('réseau'))
+    // Les deux lecteurs (écran et application) échouent
+    api.settings.getSettings.mockRejectedValueOnce(new Error('réseau')).mockRejectedValueOnce(new Error('réseau'))
     renderPage(api)
-    expect(await screen.findByText('Une erreur est survenue.')).toBeInTheDocument()
+    expect(await screen.findByRole('alert')).toHaveTextContent('Une erreur est survenue.')
+    expect(screen.queryByRole('checkbox')).not.toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: 'Réessayer' }))
+    expect(await screen.findAllByRole('checkbox', { name: 'Planning' })).not.toHaveLength(0)
     expect(screen.getByText('Disponibles seulement dans l’application installée sur le téléphone.')).toBeInTheDocument()
+    expect(api.settings.saveSettings).not.toHaveBeenCalled()
   })
 })

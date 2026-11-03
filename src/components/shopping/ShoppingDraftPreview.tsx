@@ -112,7 +112,7 @@ export function ShoppingDraftPreview({ flow, today, backLabel, onBack, onDone }:
           {flow.tidyFailed && (
             <p className="flex gap-2 rounded-xl border bg-muted/50 p-3 text-sm">
               <TriangleAlert className="mt-0.5 size-4 shrink-0 text-muted-foreground" aria-hidden />
-              Regroupement automatique indisponible : les articles sont regroupés sans l'assistant.
+              Regroupement automatique indisponible : les articles sont regroupés sans l’assistant.
             </p>
           )}
           {flow.unscaled.length > 0 && (

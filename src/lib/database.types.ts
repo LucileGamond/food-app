@@ -535,6 +535,9 @@ isOneToOne: false
 "recipe_url_key":
 { Args: { "p_url": string }; Returns: string
                            },
+"referenced_files":
+{ Args: { "p_bucket": string }; Returns: string[]
+                           },
 "resolve_inbox_item":
 { Args: { "p_item_id": string,"p_recipe_id": string }; Returns: (string)[]
                            },
@@ -564,6 +567,9 @@ isOneToOne: false
                            },
 "use_saved_recipe":
 { Args: { "p_adhoc_id": string,"p_saved_id": string }; Returns: number
+                           },
+"valid_pending_photos":
+{ Args: { "p_photos": (string)[] }; Returns: boolean
                            }
           }
           Enums: {

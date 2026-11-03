@@ -23,7 +23,8 @@ export function useHydration(api: Api, today: IsoDate): HydrationState {
   const reload = useCallback(async () => {
     const id = ++requestId.current
     try {
-      const list = await api.hydration.listIntakes(startOfDay(new Date(`${today}T12:00:00`)))
+      // Minuit à Paris ce jour-là (comme les rappels) ; midi UTC tombe le même jour à Paris.
+      const list = await api.hydration.listIntakes(startOfDay(new Date(`${today}T12:00:00Z`)))
       if (id !== requestId.current) return
       setIntakes(list)
       setLoadError(null)
@@ -36,7 +37,17 @@ export function useHydration(api: Api, today: IsoDate): HydrationState {
 
   useEffect(() => {
     void reload()
-  }, [reload])
+    // Verres notés sur un autre appareil : la page suit en direct.
+    let timer: ReturnType<typeof setTimeout> | undefined
+    const unsubscribe = api.hydration.subscribe(() => {
+      clearTimeout(timer)
+      timer = setTimeout(() => void reload(), 250)
+    })
+    return () => {
+      clearTimeout(timer)
+      unsubscribe()
+    }
+  }, [api, reload])
 
   const add = useCallback(
     async (volumeMl: number) => {

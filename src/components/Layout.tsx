@@ -1,12 +1,16 @@
-import { BookOpen, CalendarDays, GlassWater, ListChecks, LogOut, Scale, Settings, ShoppingCart, Spool, UtensilsCrossed, type LucideIcon } from 'lucide-react'
-import { Link, Navigate, NavLink, Outlet, useLocation } from 'react-router-dom'
+import { BookOpen, CalendarDays, GlassWater, ListChecks, LogOut, MoreHorizontal, Scale, Settings, ShoppingCart, Spool, UtensilsCrossed, type LucideIcon } from 'lucide-react'
+import { Link, NavLink, Outlet, useLocation } from 'react-router-dom'
 import { BuildInfo } from '@/components/BuildInfo'
 import { Button, buttonVariants } from '@/components/ui/button'
-import { SettingsProvider, useSettings } from '@/app/SettingsContext'
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
+import { useSettings } from '@/app/SettingsContext'
+import { HiddenPageRedirect } from '@/components/PageGuard'
 import { useAuth } from '@/auth/AuthProvider'
 import { NotificationsButton, NotificationsPrompt } from '@/components/Notifications'
-import { homePath, isPageEnabled, pageOf, PAGES, type PageKey } from '@/lib/settings'
+import { pageOf, PAGES, type PageKey } from '@/lib/settings'
 import { cn } from '@/lib/utils'
+
+const MAX_TABS = 5
 
 const ICONS: Record<PageKey, LucideIcon> = {
   planning: CalendarDays,
@@ -30,21 +34,17 @@ function Brand() {
 }
 
 export function Layout() {
-  return (
-    <SettingsProvider>
-      <Shell />
-    </SettingsProvider>
-  )
-}
-
-function Shell() {
   const { currentProfile, signOut } = useAuth()
-  const { settings, loading, notifications } = useSettings()
+  const { loading, isEnabled, notifications } = useSettings()
   const { pathname } = useLocation()
-  // Pages choisies dans les réglages (chacun les siennes).
-  const nav = PAGES.filter((p) => isPageEnabled(settings, p.key)).map((p) => ({ ...p, icon: ICONS[p.key] }))
+  // Pages choisies dans les réglages (chacun les siennes) ; rien pendant le chargement (pas d'onglets qui clignotent),
+  // toutes si les réglages n'ont pas pu être lus.
+  const nav = loading ? [] : PAGES.filter((p) => isEnabled(p.key)).map((p) => ({ ...p, icon: ICONS[p.key] }))
   const page = pageOf(pathname)
-  if (!loading && page && !isPageEnabled(settings, page)) return <Navigate to={homePath(settings)} replace />
+  // Téléphone : au-delà de 5 pages, les dernières passent dans « Plus ».
+  const tabs = nav.length > MAX_TABS ? nav.slice(0, MAX_TABS - 1) : nav
+  const more = nav.slice(tabs.length)
+  if (page && !isEnabled(page)) return <HiddenPageRedirect page={page} />
 
   async function logout() {
     // Avant la déconnexion (droits nécessaires) : l'appareil ne reçoit plus les notifications de ce compte.
@@ -106,13 +106,13 @@ function Shell() {
         <Outlet />
       </main>
 
-      {/* Onglets (mobile) */}
+      {/* Onglets (mobile) : 5 au plus, les suivants dans « Plus ». */}
       <nav
         aria-label="Navigation principale"
-        style={{ gridTemplateColumns: `repeat(${Math.max(nav.length, 1)}, minmax(0, 1fr))` }}
+        style={{ gridTemplateColumns: `repeat(${Math.max(tabs.length + (more.length ? 1 : 0), 1)}, minmax(0, 1fr))` }}
         className="fixed inset-x-0 bottom-0 z-30 grid border-t bg-background/95 pb-[env(safe-area-inset-bottom)] backdrop-blur md:hidden"
       >
-        {nav.map(({ to, label, icon: Icon }) => (
+        {tabs.map(({ to, label, icon: Icon }) => (
           <NavLink
             key={to}
             to={to}
@@ -127,6 +127,31 @@ function Shell() {
             {label}
           </NavLink>
         ))}
+        {more.length > 0 && (
+          <DropdownMenu>
+            <DropdownMenuTrigger
+              render={
+                <button
+                  type="button"
+                  className={cn(
+                    'flex h-16 flex-col items-center justify-center gap-1 text-xs font-medium text-muted-foreground',
+                    more.some((p) => p.key === page) && 'text-foreground',
+                  )}
+                />
+              }
+            >
+              <MoreHorizontal className="size-5" aria-hidden />
+              Plus
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" side="top" className="w-44">
+              {more.map(({ to, label, icon: Icon }) => (
+                <DropdownMenuItem key={to} render={<NavLink to={to} />}>
+                  <Icon /> {label}
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        )}
       </nav>
     </div>
   )

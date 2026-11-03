@@ -63,11 +63,58 @@ describe('App', () => {
   it('ouvre le suivi d’hydratation une fois activé', async () => {
     const user = userEvent.setup()
     const { api } = renderApp('/reglages')
-    await user.click((await screen.findAllByRole('checkbox', { name: 'Hydratation' }))[0]!)
+    await user.click((await screen.findAllByRole('checkbox', { name: 'Eau' }))[0]!)
     expect(api.settings.saveSettings).toHaveBeenCalled()
     const nav = screen.getAllByRole('navigation', { name: 'Navigation principale' })[0]!
     await user.click(within(nav).getByRole('link', { name: 'Eau' }))
-    expect(await screen.findByRole('heading', { name: 'Hydratation' })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: 'Eau' })).toBeInTheDocument()
+  })
+
+  it('réglages illisibles : toutes les pages restent affichées, rien n’est masqué', async () => {
+    const api = fakeApi()
+    api.settings.getSettings.mockRejectedValue(new Error('réseau'))
+    render(
+      <MemoryRouter initialEntries={['/tricot']}>
+        <App api={api as unknown as Api} auth={fakeAuth()} />
+      </MemoryRouter>,
+    )
+    expect(await screen.findByRole('heading', { name: 'Tricot' })).toBeInTheDocument()
+    const nav = screen.getAllByRole('navigation', { name: 'Navigation principale' })[0]!
+    expect(await within(nav).findByRole('link', { name: 'Eau' })).toBeInTheDocument()
+    expect(within(nav).getByRole('link', { name: 'Tricot' })).toBeInTheDocument()
+  })
+
+  it('une page masquée renvoie à l’accueil en le disant, mode cuisine compris', async () => {
+    const api = fakeApi()
+    api.settings.getSettings.mockResolvedValue({ ...DEFAULT_SETTINGS, disabledPages: ['recettes'] })
+    render(
+      <MemoryRouter initialEntries={['/recettes/r1/cuisiner']}>
+        <App api={api as unknown as Api} auth={fakeAuth()} />
+      </MemoryRouter>,
+    )
+    expect(await screen.findByRole('heading', { name: 'Planning' })).toBeInTheDocument()
+    expect(await screen.findByText('« Recettes » est masquée dans tes réglages')).toBeInTheDocument()
+    expect(api.recipes.getRecipe).not.toHaveBeenCalled()
+  })
+
+  it('téléphone : 5 onglets au plus, les autres pages dans « Plus »', async () => {
+    const user = userEvent.setup()
+    const api = fakeApi()
+    api.settings.getSettings.mockResolvedValue({ ...DEFAULT_SETTINGS, disabledPages: [] })
+    render(
+      <MemoryRouter initialEntries={['/planning']}>
+        <App api={api as unknown as Api} auth={fakeAuth()} />
+      </MemoryRouter>,
+    )
+    await screen.findByRole('heading', { name: 'Planning' })
+    // Barre latérale (ordinateur) puis onglets (téléphone)
+    const [sidebar, tabs] = screen.getAllByRole('navigation', { name: 'Navigation principale' })
+    expect(await within(sidebar!).findAllByRole('link')).toHaveLength(7)
+    expect(within(tabs!).getAllByRole('link').map((l) => l.textContent)).toEqual(['Planning', 'Recettes', 'Plan', 'Courses'])
+    await user.click(within(tabs!).getByRole('button', { name: 'Plus' }))
+    expect((await screen.findAllByRole('menuitem')).map((i) => i.textContent?.trim())).toEqual(['Poids', 'Eau', 'Tricot'])
+    await user.click(screen.getByRole('menuitem', { name: 'Eau' }))
+    expect(await screen.findByRole('heading', { name: 'Eau' })).toBeInTheDocument()
   })
 
   it('protège les écrans quand personne n’est connecté', async () => {

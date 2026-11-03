@@ -1,6 +1,6 @@
 import AxeBuilder from '@axe-core/playwright'
 import type { Page } from '@playwright/test'
-import { expect, login, test } from './fixtures'
+import { expect, login, openNavPage, test } from './fixtures'
 
 async function expectNoA11yViolations(page: Page) {
   const results = await new AxeBuilder({ page }).exclude('[data-sonner-toaster]').withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa']).analyze()
@@ -34,8 +34,7 @@ test('charge un patron PDF pour une taille, compte les rangs et retrouve son ava
   // Module activé dans les réglages
   await page.getByRole('link', { name: 'Réglages' }).filter({ visible: true }).click()
   await page.getByRole('checkbox', { name: 'Tricot' }).click()
-  const nav = page.getByRole('navigation', { name: 'Navigation principale' }).filter({ visible: true })
-  await nav.getByRole('link', { name: 'Tricot' }).click()
+  await openNavPage(page, 'Tricot')
   await expect(page.getByText('Aucun projet')).toBeVisible()
 
   await page.getByRole('link', { name: 'Nouveau patron' }).first().click()

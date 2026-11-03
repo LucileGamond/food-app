@@ -5,6 +5,7 @@ import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { Toaster } from 'sonner'
 import type { Api } from '@/api'
 import { ApiProvider } from '@/app/ApiContext'
+import { SettingsProvider } from '@/app/SettingsContext'
 import { AuthProvider } from '@/auth/AuthProvider'
 import { fakeApi, fakeAuth, type FakeApi } from '@/test/fakes'
 import { RecipeFormPage } from './RecipeFormPage'
@@ -20,11 +21,13 @@ function renderForm(api: FakeApi) {
     <MemoryRouter initialEntries={['/recettes/nouvelle']}>
       <ApiProvider api={api as unknown as Api}>
         <AuthProvider auth={fakeAuth()}>
+          <SettingsProvider>
           <Routes>
             <Route path="/recettes/nouvelle" element={<RecipeFormPage />} />
             <Route path="/recettes/:id" element={<p>Fiche recette</p>} />
           </Routes>
           <Toaster />
+        </SettingsProvider>
         </AuthProvider>
       </ApiProvider>
     </MemoryRouter>,

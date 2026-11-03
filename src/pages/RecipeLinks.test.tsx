@@ -4,6 +4,7 @@ import { MemoryRouter, Route, Routes, type InitialEntry } from 'react-router-dom
 import { Toaster } from 'sonner'
 import { AppError, type Api } from '@/api'
 import { ApiProvider } from '@/app/ApiContext'
+import { SettingsProvider } from '@/app/SettingsContext'
 import { AuthProvider } from '@/auth/AuthProvider'
 import type { RecipeSummary } from '@/lib/meals'
 import type { Recipe } from '@/lib/recipes'
@@ -45,12 +46,14 @@ function renderApp(api: FakeApi, entry: InitialEntry) {
     <MemoryRouter initialEntries={[entry]}>
       <ApiProvider api={api as unknown as Api}>
         <AuthProvider auth={fakeAuth()}>
+          <SettingsProvider>
           <Routes>
             <Route path="/recettes/nouvelle" element={<RecipeFormPage />} />
             <Route path="/recettes/:id/modifier" element={<RecipeFormPage />} />
             <Route path="/recettes/:id" element={<RecipeDetailPage />} />
           </Routes>
           <Toaster />
+        </SettingsProvider>
         </AuthProvider>
       </ApiProvider>
     </MemoryRouter>,

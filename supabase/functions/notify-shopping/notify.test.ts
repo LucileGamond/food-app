@@ -1,4 +1,5 @@
-import { createHandler, notifyHydration, notifyPending, sameSecret, type Deps, type DeviceSubscription } from './handler.ts'
+import { createHandler, notifyHydration, notifyPending, parisHour, sameSecret, type Deps, type DeviceSubscription } from './handler.ts'
+import { CLEANUP_MIN_AGE_MS, orphanFiles, type CleanedBucket, type StoredFile } from './cleanup.ts'
 import { buildHydrationMessage, liters, type HydrationReminder } from './hydration.ts'
 import { buildShoppingMessage, joinFr, QUIET_MS, readyGroups, shorten, type ShoppingEvent, type ShoppingEventKind } from './message.ts'
 
@@ -85,6 +86,9 @@ function setup(
     purgeOldEvents: vi.fn(async () => undefined),
     loadProfileSubscriptions: vi.fn(async (profile: string) => subscriptions[profile] ?? []),
     claimHydrationReminders: vi.fn(async () => reminders),
+    listFiles: vi.fn(async (_bucket: CleanedBucket): Promise<StoredFile[]> => []),
+    referencedFiles: vi.fn(async (_bucket: CleanedBucket) => [] as string[]),
+    removeFiles: vi.fn(async (_bucket: CleanedBucket, _paths: string[]) => undefined),
     log: vi.fn(),
   }
   return deps
@@ -159,7 +163,8 @@ describe('rappels d’hydratation', () => {
       url: '/hydratation',
       tag: 'hydration',
     })
-    expect(buildHydrationMessage({ profile_id: 'lucile', drunk_ml: 530, goal_ml: 2000 }).body).toBe('4 h sans boire. 0,5 L sur 2 L aujourd’hui.')
+    expect(buildHydrationMessage({ profile_id: 'lucile', drunk_ml: 530, goal_ml: 2000 }).body).toBe('4 h sans boire. 0,53 L sur 2 L aujourd’hui.')
+    expect(liters(1650)).toBe('1,65 L')
   })
 
   it('envoie aux appareils de la personne concernée seulement, et retire les expirés', async () => {
@@ -177,6 +182,53 @@ describe('rappels d’hydratation', () => {
     deps.send.mockResolvedValueOnce('failed')
     expect(await notifyHydration(deps)).toEqual({ groups: 1, sent: 0, failed: 1, removed: 0 })
     expect(await notifyHydration(setup([]))).toEqual({ groups: 0, sent: 0, failed: 0, removed: 0 })
+  })
+})
+
+describe('nuit', () => {
+  it('pas de notification de courses entre 22 h et 8 h (heure de Paris) : les modifications attendent', async () => {
+    expect(parisHour(Date.parse('2026-11-10T21:30:00Z'))).toBe(22)
+    expect(parisHour(Date.parse('2026-07-10T05:59:00Z'))).toBe(7)
+    const night = { ...setup([event('ADDED', 'Farine')], { lucile: [device('a')] }), now: () => Date.parse('2026-11-10T22:00:00Z') }
+    expect(await notifyPending(night)).toEqual({ groups: 0, sent: 0, failed: 0, removed: 0 })
+    expect(night.loadPendingEvents).not.toHaveBeenCalled()
+    expect(night.reserveEvents).not.toHaveBeenCalled()
+  })
+})
+
+describe('ménage des fichiers inutilisés', () => {
+  const post = (secret: string, body: unknown) =>
+    new Request('https://fn.local/notify-shopping', { method: 'POST', headers: { 'x-cron-secret': secret }, body: JSON.stringify(body) })
+  const file = (path: string, hoursAgo: number | null): StoredFile => ({ path, createdAt: hoursAgo === null ? null : new Date(NOW - hoursAgo * 3600_000).toISOString() })
+
+  it('ne supprime que les fichiers inutilisés depuis plus d’un jour', () => {
+    const files = [file('pending/a.jpg', 30), file('pending/b.jpg', 30), file('pending/c.jpg', 2), file('pending/d.jpg', null)]
+    expect(orphanFiles(files, ['pending/b.jpg'], NOW)).toEqual(['pending/a.jpg'])
+    expect(orphanFiles([file('pending/e.jpg', 24)], [], NOW, CLEANUP_MIN_AGE_MS)).toEqual(['pending/e.jpg'])
+  })
+
+  it('supprime par paquets, photos et PDF, et rend compte, sur demande de la tâche de nuit', async () => {
+    const deps = setup([])
+    deps.listFiles.mockImplementation(async (bucket) =>
+      bucket === 'recipe-photos'
+        ? Array.from({ length: 150 }, (_, i) => file(i < 100 ? `pending/${i}.jpg` : `r1/${i}.jpg`, 48))
+        : [file('u1/a.pdf', 48), file('u1/b.pdf', 48)],
+    )
+    deps.referencedFiles.mockImplementation(async (bucket) => (bucket === 'recipe-photos' ? ['pending/0.jpg', 'r1/100.jpg'] : ['u1/a.pdf']))
+    const response = await createHandler(deps)(post('secret-cron', { job: 'cleanup' }))
+    expect(await response.json()).toEqual({ removed: 149 })
+    expect(deps.removeFiles.mock.calls.map(([bucket, paths]) => [bucket, paths.length])).toEqual([
+      ['recipe-photos', 100],
+      ['recipe-photos', 48],
+      ['knit-patterns', 1],
+    ])
+    expect(deps.removeFiles).toHaveBeenLastCalledWith('knit-patterns', ['u1/b.pdf'])
+    expect(deps.log).toHaveBeenCalledWith('fichiers inutilisés supprimés', { removed: 149 })
+    expect(deps.loadPendingEvents).not.toHaveBeenCalled()
+
+    const nothing = setup([])
+    expect(await (await createHandler(nothing)(post('secret-cron', { job: 'cleanup' }))).json()).toEqual({ removed: 0 })
+    expect(nothing.removeFiles).not.toHaveBeenCalled()
   })
 })
 

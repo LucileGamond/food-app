@@ -184,7 +184,7 @@ export function RecipeImportCard({ initialUrl, initialPhotos, hasContent, onImpo
         Préremplir la recette
       </h2>
       <p className="mt-1 text-sm text-muted-foreground">
-        Depuis un lien ou la photo d'un livre : titre, ingrédients et étapes sont remplis pour toi.
+        Depuis un lien ou la photo d’un livre : titre, ingrédients et étapes sont remplis pour toi.
       </p>
 
       {/* Pas de <form> imbriqué : Entrée lance l’import sans enregistrer la recette. */}

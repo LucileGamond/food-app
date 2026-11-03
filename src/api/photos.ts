@@ -41,7 +41,8 @@ export function createPhotosApi(db: AppSupabaseClient) {
     async deletePhoto(photo: Pick<RecipePhoto, 'id' | 'storage_path'>): Promise<void> {
       const { error } = await db.from('recipe_photos').delete().eq('id', photo.id)
       if (error) throw toAppError(error, 'Impossible de supprimer la photo.')
-      await db.storage.from(PHOTO_BUCKET).remove([photo.storage_path])
+      // Photo temporaire (pending/, parfois partagée) : supprimée par le ménage de nuit quand plus rien ne l'utilise.
+      if (!photo.storage_path.startsWith('pending/')) await db.storage.from(PHOTO_BUCKET).remove([photo.storage_path])
     },
 
     /** Réordonne les photos : la première devient la photo principale. */

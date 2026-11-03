@@ -100,8 +100,8 @@ export function RecipesPage({ today = todayIso() }: { today?: IsoDate }) {
     try {
       const { linked, failed } = await applyAutoLinks(api)
       if (linked.length > 0) toast.success(autoLinkMessage(linked))
-      else if (failed === 0) toast.info('Aucun nouveau lien : les renvois « voir p. … » sont déjà liés, ou leur page n’est pas encore importée.')
-      if (failed > 0) toast.error(`${failed} lien${failed > 1 ? 's' : ''} n’${failed > 1 ? 'ont' : 'a'} pas pu être créé${failed > 1 ? 's' : ''} : réessaie.`)
+      else if (failed === 0) toast.info('Aucun nouveau lien : les renvois « voir p. … » sont déjà liés, ou leur page n’est pas encore importée')
+      if (failed > 0) toast.error(`${failed} lien${failed > 1 ? 's' : ''} n’${failed > 1 ? 'ont' : 'a'} pas pu être créé${failed > 1 ? 's' : ''} : réessaie`)
     } catch (e) {
       toast.error(errorMessage(e))
     } finally {
@@ -124,16 +124,16 @@ export function RecipesPage({ today = todayIso() }: { today?: IsoDate }) {
     <>
       <PageHeader
         title="Recettes"
-        description="Vos recettes sauvegardées"
+        description="Tes recettes enregistrées"
         actions={
           <div className="flex items-center gap-2">
             <Button variant="outline" className="h-10 px-3" onClick={() => void linkBooks()} disabled={linking} aria-label="Relier les recettes">
               {linking ? <Loader2 className="animate-spin" aria-hidden /> : <Link2 />}
               <span className="max-sm:hidden">Relier les recettes</span>
             </Button>
-            <Link to="/recettes/saison" className={cn(buttonVariants({ variant: 'outline' }), 'h-10 px-3')} aria-label="Ce mois-ci">
+            <Link to="/recettes/saison" className={cn(buttonVariants({ variant: 'outline' }), 'h-10 px-3')} aria-label="De saison">
               <Sprout />
-              <span className="max-sm:hidden">Ce mois-ci</span>
+              <span className="max-sm:hidden">De saison</span>
             </Link>
             <Link to="/recettes/import-serie" className={cn(buttonVariants({ variant: 'outline' }), 'h-10 px-3')} aria-label="Importer en série">
               <Images />
@@ -163,7 +163,7 @@ export function RecipesPage({ today = todayIso() }: { today?: IsoDate }) {
         <EmptyState
           icon={BookOpen}
           title="Aucune recette"
-          description="Créez une recette, ou sauvegardez une recette ponctuelle depuis le planning."
+          description="Crée une recette, ou enregistre une recette ponctuelle depuis le planning."
           action={newButton}
         />
       ) : (
@@ -255,7 +255,7 @@ export function RecipesPage({ today = todayIso() }: { today?: IsoDate }) {
           </div>
 
           {visible.length === 0 ? (
-            <EmptyState icon={Search} title="Aucune recette ne correspond" description="Essayez un autre mot-clé ou retirez un filtre." />
+            <EmptyState icon={Search} title="Aucune recette ne correspond" description="Essaie un autre mot-clé ou retire un filtre." />
           ) : (
             <ul className="grid grid-cols-[minmax(0,1fr)] gap-4 sm:grid-cols-2 lg:grid-cols-3">
               {visible.map((recipe) => (

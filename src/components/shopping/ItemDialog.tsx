@@ -41,7 +41,7 @@ export function ItemDialog({ item, onOpenChange, onSubmit, onDelete }: Props) {
       <DialogContent className="sm:max-w-sm">
         <form onSubmit={handleSubmit} noValidate className="grid grid-cols-[minmax(0,1fr)] gap-4">
           <DialogHeader>
-            <DialogTitle>Modifier l'article</DialogTitle>
+            <DialogTitle>Modifier l’article</DialogTitle>
           </DialogHeader>
           <div className="space-y-2">
             <Label htmlFor="item-name">Nom</Label>

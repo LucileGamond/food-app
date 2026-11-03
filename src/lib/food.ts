@@ -72,7 +72,7 @@ export function formatPeriod(period: Pick<FoodPeriod, 'start_date' | 'end_date'>
 
 /** Recherche sans tenir compte des accents ni de la casse. */
 export function normalizeText(text: string): string {
-  return text.normalize('NFD').replace(/\p{Diacritic}/gu, '').toLowerCase().trim()
+  return text.toLowerCase().replace(/œ/g, 'oe').replace(/æ/g, 'ae').normalize('NFD').replace(/\p{Diacritic}/gu, '').trim()
 }
 
 // ---------------------------------------------------------------------------

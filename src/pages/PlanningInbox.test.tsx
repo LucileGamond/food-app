@@ -151,7 +151,12 @@ describe('PlanningPage — liste « À planifier »', () => {
     const menu = await screen.findByRole('menu')
     expect(within(menu).queryByRole('menuitem', { name: 'Renommer' })).not.toBeInTheDocument()
     expect(within(menu).queryByRole('menuitem', { name: 'Ouvrir le lien' })).not.toBeInTheDocument()
-    await user.click(within(menu).getByRole('menuitem', { name: 'Retirer de la liste' }))
+    await user.click(within(menu).getByRole('menuitem', { name: 'Supprimer' }))
+    // Suppression confirmée
+    const confirm = await screen.findByRole('alertdialog', { name: 'Supprimer cet élément ?' })
+    expect(confirm).toHaveTextContent('« Curry de légumes » sera supprimé.')
+    expect(api.inbox.deleteItem).not.toHaveBeenCalled()
+    await user.click(within(confirm).getByRole('button', { name: 'Supprimer' }))
     expect(api.inbox.deleteItem).toHaveBeenCalledWith('i3', [])
   })
 

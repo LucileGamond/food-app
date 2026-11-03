@@ -64,6 +64,17 @@ export function normalizeName(text: string): string {
     .trim()
 }
 
+/**
+ * Clé d'un produit pour regrouper deux lignes : nom normalisé, mots au singulier (« Tomates » = « tomate »,
+ * « Œufs » = « oeuf »). Même règle que la saisonnalité et les calories.
+ */
+export function productKey(text: string): string {
+  return normalizeName(text)
+    .split(' ')
+    .map((w) => (w.length > 3 ? w.replace(/[sx]$/, '') : w))
+    .join(' ')
+}
+
 const KEYWORDS: Record<Aisle, string[]> = {
   FRUITS_LEGUMES: [
     'pomme de terre', 'patate', 'pomme', 'poire', 'banane', 'orange', 'clementine', 'mandarine', 'citron', 'pamplemousse', 'fraise',
@@ -72,11 +83,13 @@ const KEYWORDS: Record<Aisle, string[]> = {
     'oignon', 'echalote', 'ail', 'poireau', 'champignon', 'brocoli', 'chou', 'chou-fleur', 'epinard', 'haricot vert', 'radis', 'betterave',
     'celeri', 'fenouil', 'persil', 'basilic', 'coriandre', 'menthe', 'ciboulette', 'thym', 'romarin', 'aneth', 'estragon', 'gingembre',
     'citrouille', 'potiron', 'courge', 'butternut', 'navet', 'endive', 'artichaut', 'asperge', 'patate douce', 'fruit', 'legume',
+    // « Côte » seule n'est pas une viande (côtes de blettes) : la viande est reconnue par « porc », « veau »…
+    'blette', 'bette',
   ],
   BOULANGERIE: ['pain', 'baguette', 'brioche', 'croissant', 'pain au chocolat', 'viennoiserie', 'ficelle', 'fougasse'],
   BOUCHERIE_POISSON: [
     'viande', 'boeuf', 'steak', 'veau', 'porc', 'agneau', 'poulet', 'dinde', 'canard', 'jambon', 'lardon', 'saucisse', 'chorizo', 'bacon',
-    'merguez', 'escalope', 'roti', 'cote', 'charcuterie', 'poisson', 'saumon', 'cabillaud', 'crevette', 'moule', 'truite', 'colin', 'lieu',
+    'merguez', 'escalope', 'roti', 'cotelette', 'charcuterie', 'poisson', 'saumon', 'cabillaud', 'crevette', 'moule', 'truite', 'colin', 'lieu',
     'dorade', 'bar', 'gambas', 'saint-jacques', 'calamar',
   ],
   CREMERIE: [
@@ -201,10 +214,10 @@ type Amount = Pick<ShoppingItem, 'name' | 'quantity' | 'unit'>
 
 /**
  * Quantité de `a` augmentée de celle de `b` (dans l'unité de `a`) s'il s'agit du même produit
- * (même nom normalisé) dans une unité identique ou convertible ; null sinon.
+ * (même produit, au singulier près) dans une unité identique ou convertible ; null sinon.
  */
 export function addAmounts(a: Amount, b: Amount): { quantity: number | null } | null {
-  if (normalizeName(a.name) !== normalizeName(b.name)) return null
+  if (productKey(a.name) !== productKey(b.name)) return null
   if (a.quantity === null && b.quantity === null && (a.unit ?? '') === (b.unit ?? '')) return { quantity: null }
   if (a.quantity === null || b.quantity === null) return null
   const added = convertQuantity(b.quantity, b.unit, a.unit)

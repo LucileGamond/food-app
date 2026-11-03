@@ -51,6 +51,26 @@ describe('notifications de l’application', () => {
     await waitFor(() => expect(screen.queryByRole('region', { name: 'Activer les notifications' })).not.toBeInTheDocument())
   })
 
+  it('décrit les notifications choisies dans les réglages, et ne propose rien sans aucune', async () => {
+    const user = userEvent.setup()
+    const api = fakeApi()
+    api.settings.getSettings.mockResolvedValue({ disabledPages: [], mutedNotifications: [], hydrationGoalMl: 1500 })
+    const { unmount } = renderLayout(api)
+    expect(await screen.findByRole('region', { name: 'Activer les notifications' })).toHaveTextContent(
+      'Tu seras prévenu(e) : listes de courses modifiées par l’autre et rappels pour boire.',
+    )
+    await user.click(await bell())
+    expect(screen.getByRole('dialog')).toHaveTextContent('listes de courses modifiées par l’autre et rappels pour boire (au choix dans les réglages)')
+    unmount()
+
+    const none = fakeApi()
+    none.settings.getSettings.mockResolvedValue({ disabledPages: ['hydratation', 'tricot'], mutedNotifications: ['courses'], hydrationGoalMl: 1500 })
+    renderLayout(none)
+    await user.click(await bell())
+    expect(screen.getByRole('dialog')).toHaveTextContent('Aucune notification n’est choisie dans les réglages.')
+    expect(screen.queryByRole('region', { name: 'Activer les notifications' })).not.toBeInTheDocument()
+  })
+
   it('« Plus tard » masque la proposition, mémorisée pour les prochains lancements', async () => {
     const user = userEvent.setup()
     const { unmount } = renderLayout()

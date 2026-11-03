@@ -7,10 +7,12 @@ import { FullPageSpinner } from '@/components/FullPageSpinner'
 import { PageHeader } from '@/components/Layout'
 import { ImportChoices } from '@/components/recipes/ImportChoices'
 import { useApi } from '@/app/ApiContext'
+import { useSettings } from '@/app/SettingsContext'
 import { errorMessage } from '@/api'
 import { MAX_INBOX_PHOTOS, parseInboxInput } from '@/lib/inbox'
 import type { ImportSource } from '@/lib/quickImport'
 import { siteName } from '@/lib/recipes'
+import { homePath } from '@/lib/settings'
 import { handOffPhotos, takeSharedPhotos } from '@/lib/sharedPhotos'
 
 /**
@@ -22,19 +24,20 @@ export function SharePage() {
   const api = useApi()
   const navigate = useNavigate()
   const [params] = useSearchParams()
+  const { loading, isEnabled, settings } = useSettings()
   const [source, setSource] = useState<ImportSource | null>(null)
   const [previews, setPreviews] = useState<string[]>([])
   const done = useRef(false)
 
   useEffect(() => {
-    // Une seule fois, même si l'effet est rejoué (mode strict).
-    if (done.current) return
+    // Une seule fois (même si l'effet est rejoué en mode strict), une fois les réglages connus.
+    if (done.current || loading) return
     done.current = true
 
     if (params.get('photos') === 'partage') {
       void takeSharedPhotos().then((files) => {
         if (files.length === 0) {
-          toast.error('Aucune photo reçue : choisis-la depuis « Nouvelle recette ».')
+          toast.error('Aucune photo reçue : choisis-la depuis « Nouvelle recette »')
           return navigate('/recettes/nouvelle', { replace: true })
         }
         const kept = files.slice(0, MAX_INBOX_PHOTOS)
@@ -52,15 +55,21 @@ export function SharePage() {
     }
 
     // Pas de lien : une idée de repas, ajoutée à « À planifier ».
-    const finish = () => void navigate('/planning', { replace: true })
+    const planning = isEnabled('planning')
+    const finish = () => void navigate(planning ? '/planning' : homePath(settings), { replace: true })
     if (!input) {
-      toast.error('Rien à ajouter : le partage ne contenait ni lien ni texte.')
+      toast.error('Rien à ajouter : le partage ne contenait ni lien ni texte')
+      finish()
+      return
+    }
+    if (!planning) {
+      toast.error('Le Planning est masqué dans tes réglages : l’idée n’a pas été ajoutée')
       finish()
       return
     }
     api.inbox.addItem({ title: input.title }).then(
       () => {
-        toast.success(`Ajouté à « À planifier » : ${input.title}`)
+        toast.success(`Ajoutée à « À planifier » : ${input.title}`)
         finish()
       },
       (error: unknown) => {
@@ -68,7 +77,7 @@ export function SharePage() {
         finish()
       },
     )
-  }, [api, navigate, params])
+  }, [api, navigate, params, loading, isEnabled, settings])
 
   // Libère les aperçus des photos.
   useEffect(() => () => previews.forEach((url) => URL.revokeObjectURL(url)), [previews])
@@ -110,17 +119,21 @@ export function SharePage() {
         <ImportChoices
           source={source}
           onIncomplete={(message) => {
-            toast.error(`Recette incomplète (${message}) : vérifie-la dans le formulaire.`)
+            toast.error(`Recette incomplète (${message}) : vérifie-la dans le formulaire`)
             prefill()
           }}
         />
 
-        <div className="space-y-1 border-t pt-4">
-          <Button type="button" variant="outline" className="h-10 px-3" onClick={prefill}>
-            <ScanText aria-hidden /> Préremplir le formulaire
-          </Button>
-          <p className="text-xs text-muted-foreground">Pour vérifier la recette avant de l’enregistrer.</p>
-        </div>
+        {isEnabled('recettes') ? (
+          <div className="space-y-1 border-t pt-4">
+            <Button type="button" variant="outline" className="h-10 px-3" onClick={prefill}>
+              <ScanText aria-hidden /> Préremplir le formulaire
+            </Button>
+            <p className="text-xs text-muted-foreground">Pour vérifier la recette avant de l’enregistrer.</p>
+          </div>
+        ) : (
+          !isEnabled('planning') && <p className="text-sm text-muted-foreground">Affiche Recettes ou Planning dans les réglages pour garder cette recette.</p>
+        )}
       </section>
     </>
   )

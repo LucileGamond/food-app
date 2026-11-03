@@ -7,6 +7,7 @@ import {
   nextActionRow,
   planSections,
   sectionIndexAt,
+  sanitizeSections,
   sectionLines,
   sectionToForm,
   actionEffect,
@@ -151,7 +152,7 @@ describe('formulaire d’une section', () => {
     const form = (patch: Partial<SectionForm>): SectionForm => ({ kind: 'repeat', text: '', rows: '', every: '', times: '', actions: [{ text: '1 diminution', rank: 'last' }], ...patch })
     expect(formToSection(form({ kind: 'rows', text: ' jersey ', rows: '10' }), '5 cm')).toEqual(rows(10, 'jersey', '5 cm'))
     expect(formToSection(form({ every: '6', times: '4' }))).toEqual({ ...repeat(6, 4), text: '', actions: [{ text: '1 diminution', rank: null }] })
-    expect(formToSection(form({}))).toEqual({ ...repeat(null, null), text: '', actions: [{ text: '1 diminution', rank: null }] })
+    expect(formToSection(form({}), 'tous les 5 cm')).toEqual({ ...repeat(null, null, '1 diminution', 'tous les 5 cm'), text: '', actions: [{ text: '1 diminution', rank: null }] })
     // Plusieurs actions ; une action au dernier rang est enregistrée comme « dernier »
     expect(
       formToSection(form({ every: '4', actions: [{ text: ' 1 diminution ', rank: '1' }, { text: '1 augmentation', rank: '4' }, { text: ' ', rank: '2' }] })),
@@ -169,8 +170,30 @@ describe('formulaire d’une section', () => {
     expect(formToSection(form({ kind: 'rows' }), '5 cm')).toEqual(rows(null, '', '5 cm'))
     expect(formToSection(form({ every: '6', actions: [{ text: ' ', rank: 'last' }] }))).toContain('Indique quoi faire')
     expect(formToSection(form({ every: '2,5' }))).toBe('Répétition : un nombre de rangs entre 1 et 500.')
-    expect(formToSection(form({ every: '2', times: '0' }))).toBe('Nombre de fois : un nombre entier à partir de 1.')
+    expect(formToSection(form({ every: '2', times: '0' }))).toBe('Nombre de fois : un nombre entier entre 1 et 500.')
+    // Sans nombre de rangs : seulement pour une mesure du patron à régler
+    expect(formToSection(form({}))).toBe('Indique tous les combien de rangs.')
+    expect(formToSection(form({}), 'tous les 5 cm')).toMatchObject({ every: null, pattern: 'tous les 5 cm' })
     expect(formToSection(form({ every: '3', actions: [{ text: 'x', rank: '5' }] }))).toBe('Une action est placée après le dernier rang de la répétition (3).')
+  })
+})
+
+describe('sections lues en base', () => {
+  it('garde seulement les sections bien formées', () => {
+    expect(sanitizeSections(null)).toEqual([])
+    expect(
+      sanitizeSections([
+        { kind: 'rows', rows: 4, text: 'jersey' },
+        { kind: 'repeat', every: 6, times: 4.5, actions: [{ text: '1 dim', rank: 1 }, { text: ' ' }, 'x'], pattern: 'tous les 6 rangs' },
+        { kind: 'autre' },
+        'n’importe quoi',
+        { kind: 'repeat', every: -2, text: 'ancien format' },
+      ]),
+    ).toEqual([
+      { kind: 'rows', rows: 4, every: null, times: null, text: 'jersey', pattern: null },
+      { kind: 'repeat', rows: null, every: 6, times: null, text: '', pattern: 'tous les 6 rangs', actions: [{ text: '1 dim', rank: 1 }] },
+      { kind: 'repeat', rows: null, every: null, times: null, text: 'ancien format', pattern: null },
+    ])
   })
 })
 

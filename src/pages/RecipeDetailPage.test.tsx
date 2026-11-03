@@ -463,7 +463,7 @@ describe('RecipeDetailPage', () => {
     renderDetail(api)
     await user.click(await screen.findByRole('button', { name: 'À planifier' }))
     expect(api.inbox.addItem).toHaveBeenCalledWith({ recipeId: 'r1' })
-    expect(await screen.findByText('Ajoutée à la liste « À planifier »')).toBeInTheDocument()
+    expect(await screen.findByText('Ajoutée à « À planifier »')).toBeInTheDocument()
     api.inbox.addItem.mockRejectedValueOnce(new AppError('Déjà dans la liste « À planifier ».'))
     await user.click(screen.getByRole('button', { name: 'À planifier' }))
     expect(await screen.findByText('Déjà dans la liste « À planifier ».')).toBeInTheDocument()

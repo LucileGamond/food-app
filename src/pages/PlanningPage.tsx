@@ -26,6 +26,7 @@ import { MealTargetDialog } from '@/components/planning/MealTargetDialog'
 import { MealIdeasDialog } from '@/components/planning/MealIdeasDialog'
 import { ShoppingFromPlanDialog } from '@/components/planning/ShoppingFromPlanDialog'
 import { useApi } from '@/app/ApiContext'
+import { useSettings } from '@/app/SettingsContext'
 import { useAuth } from '@/auth/AuthProvider'
 import { useInbox } from '@/hooks/useInbox'
 import { PLANNING_DAYS, usePlanning } from '@/hooks/usePlanning'
@@ -63,6 +64,7 @@ export function PlanningPage({ today: fixedToday }: { today?: IsoDate }) {
   const today = useToday(fixedToday)
   const api = useApi()
   const navigate = useNavigate()
+  const { isEnabled } = useSettings()
   const { profiles, userId } = useAuth()
   const [start, setStart] = useState<IsoDate>(today)
   const planning = usePlanning(api, start)
@@ -154,23 +156,25 @@ export function PlanningPage({ today: fixedToday }: { today?: IsoDate }) {
               <Sparkles />
               <span className="max-sm:hidden">Idées</span>
             </Button>
-            <Button
-              variant="outline"
-              className="h-11 px-3 shadow-xs"
-              aria-label="Liste de courses"
-              onClick={() => setDialog({ kind: 'shopping' })}
-              disabled={planning.loading || Boolean(planning.loadError)}
-            >
-              <ShoppingCart />
-              <span className="sm:hidden">Courses</span>
-              <span className="max-sm:hidden">Liste de courses</span>
-            </Button>
+            {isEnabled('courses') && (
+              <Button
+                variant="outline"
+                className="h-11 px-3 shadow-xs"
+                aria-label="Liste de courses"
+                onClick={() => setDialog({ kind: 'shopping' })}
+                disabled={planning.loading || Boolean(planning.loadError)}
+              >
+                <ShoppingCart />
+                <span className="sm:hidden">Courses</span>
+                <span className="max-sm:hidden">Liste de courses</span>
+              </Button>
+            )}
             <div className="flex items-center gap-1 rounded-lg border bg-background p-1 shadow-xs">
               <Button variant="ghost" size="icon-lg" aria-label="Semaine précédente" onClick={() => setStart((s) => addDays(s, -PLANNING_DAYS))}>
                 <ChevronLeft />
               </Button>
               <Button variant="ghost" className="h-9 px-3" onClick={() => setStart(today)} disabled={start === today}>
-                Aujourd'hui
+                Aujourd’hui
               </Button>
               <Button variant="ghost" size="icon-lg" aria-label="Semaine suivante" onClick={() => setStart((s) => addDays(s, PLANNING_DAYS))}>
                 <ChevronRight />

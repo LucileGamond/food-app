@@ -101,6 +101,9 @@ describe('sanitizeRecipe', () => {
     expect(recipe.steps).toBe('')
     expect(recipe.tags).toEqual(['a', 'b', 'c', 'd', 'e'])
     expect(sanitizeRecipe({ ingredients: [{ name: 'x' }] }, null).title).toBe('Recette importée')
+    // Portions : comme l'application, 99 au plus
+    expect(sanitizeRecipe({ title: 'Buffet', servings: 99, ingredients: [{ name: 'x' }] }, null).servings).toBe(99)
+    expect(sanitizeRecipe({ title: 'Buffet', servings: 100, ingredients: [{ name: 'x' }] }, null).servings).toBeNull()
   })
 
   it('refuse une page qui n’est pas une recette', () => {

@@ -1,3 +1,4 @@
+import { ConfirmDialog } from '@/components/ConfirmDialog'
 import { Loader2 } from 'lucide-react'
 import { useState, type FormEvent } from 'react'
 import { Button } from '@/components/ui/button'
@@ -151,5 +152,22 @@ export function InboxRenameDialog({ item, onOpenChange, onSubmit }: RenameProps)
         </form>
       </DialogContent>
     </Dialog>
+  )
+}
+
+/** Suppression d'un élément « À planifier » ou « De côté », avec ses photos : demandée à confirmer. */
+export function RemoveInboxItemDialog({ item, onClose, onConfirm }: { item: InboxItem | null; onClose: () => void; onConfirm: (item: InboxItem) => Promise<unknown> }) {
+  const photos = item?.photos?.length ?? 0
+  return (
+    <ConfirmDialog
+      open={item !== null}
+      onOpenChange={(open) => !open && onClose()}
+      title="Supprimer cet élément ?"
+      description={item && `« ${item.title} »${photos ? (photos > 1 ? ` et ses ${photos} photos seront supprimés.` : ' et sa photo seront supprimés.') : ' sera supprimé.'}`}
+      confirmLabel="Supprimer"
+      onConfirm={async () => {
+        if (item) await onConfirm(item)
+      }}
+    />
   )
 }

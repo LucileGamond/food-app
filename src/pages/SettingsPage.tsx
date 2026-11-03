@@ -1,4 +1,4 @@
-import { Loader2 } from 'lucide-react'
+import { Loader2, RefreshCw } from 'lucide-react'
 import { useState, type FormEvent, type ReactNode } from 'react'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
@@ -83,7 +83,7 @@ function GoalForm({ goalMl, onSave }: { goalMl: number; onSave: (ml: number) => 
 }
 
 export function SettingsPage() {
-  const { settings, loading, update, notifications } = useSettings()
+  const { settings, loading, ready, loadError, reload, update, notifications } = useSettings()
   const { status, busy, enable, disable } = notifications
 
   if (loading) {
@@ -93,6 +93,20 @@ export function SettingsPage() {
         <div className="space-y-3" aria-busy="true" aria-label="Chargement des réglages">
           <Skeleton className="h-64 rounded-2xl" />
           <Skeleton className="h-40 rounded-2xl" />
+        </div>
+      </>
+    )
+  }
+
+  if (!ready) {
+    return (
+      <>
+        <PageHeader title="Réglages" />
+        <div role="alert" className="flex flex-col items-start gap-3 rounded-xl border border-destructive/30 bg-destructive/5 p-4 text-sm">
+          <p>{loadError ?? 'Réglages indisponibles.'}</p>
+          <Button variant="outline" onClick={reload}>
+            <RefreshCw /> Réessayer
+          </Button>
         </div>
       </>
     )
@@ -108,7 +122,7 @@ export function SettingsPage() {
               <Toggle
                 key={page.key}
                 id={`page-${page.key}`}
-                label={page.key === 'hydratation' ? 'Hydratation' : page.label}
+                label={page.label}
                 description={page.description}
                 checked={isPageEnabled(settings, page.key)}
                 onChange={(checked) => void update(togglePage(settings, page.key, checked))}
@@ -162,7 +176,7 @@ export function SettingsPage() {
         </Section>
 
         {isPageEnabled(settings, 'hydratation') && (
-          <Section title="Hydratation" description="Petit verre : 20 cl, grand verre : 33 cl.">
+          <Section title="Eau" description="Petit verre : 20 cl, grand verre : 33 cl.">
             <GoalForm key={settings.hydrationGoalMl} goalMl={settings.hydrationGoalMl} onSave={(ml) => update({ hydrationGoalMl: ml })} />
           </Section>
         )}

@@ -1,6 +1,8 @@
 import shoppingSql from '../../supabase/migrations/20261029000000_shopping_lists.sql?raw'
 import { AISLES as FUNCTION_AISLES } from '../../supabase/functions/tidy-shopping/tidy.ts'
 import {
+  addAmounts,
+  productKey,
   AISLES,
   aisleLabel,
   convertQuantity,
@@ -58,6 +60,10 @@ describe('rayons', () => {
     ['Liquide vaisselle', 'HYGIENE_MAISON'],
     ['Essuie-tout', 'HYGIENE_MAISON'],
     ['Piles AA', 'AUTRE'],
+    ['Côtes de blettes', 'FRUITS_LEGUMES'],
+    ['Côte de bœuf', 'BOUCHERIE_POISSON'],
+    ['Côtelettes d’agneau', 'BOUCHERIE_POISSON'],
+    ['Côtes de porc', 'BOUCHERIE_POISSON'],
   ])('« %s » → %s', (name, aisle) => {
     expect(guessAisle(name)).toBe(aisle)
   })
@@ -114,6 +120,15 @@ describe('fusion des doublons', () => {
     expect(findMergeTarget([oeufs], { name: 'oeufs', quantity: 4, unit: null, aisle: 'CREMERIE' })).toEqual({ item: oeufs, quantity: 10 })
     const sel = item({ id: 's', name: 'Sel' })
     expect(findMergeTarget([sel], { name: 'sel', quantity: null, unit: null, aisle: 'AUTRE' })).toEqual({ item: sel, quantity: null })
+  })
+
+  it('regroupe singulier et pluriel, œ et oe', () => {
+    expect(productKey('Tomates cerises')).toBe(productKey('tomate cerise'))
+    expect(productKey('Œufs')).toBe(productKey('oeuf'))
+    expect(productKey('riz')).toBe('riz')
+    expect(addAmounts({ name: '2 Tomates', quantity: 2, unit: null }, { name: '2 tomate', quantity: 3, unit: null })).toEqual({ quantity: 5 })
+    const tomates = item({ id: 't', name: 'Tomates', quantity: 2, unit: null })
+    expect(findMergeTarget([tomates], { name: 'tomate', quantity: 1, unit: null, aisle: 'FRUITS_LEGUMES' })).toEqual({ item: tomates, quantity: 3 })
   })
 
   it('crée un nouvel article si rien ne correspond', () => {

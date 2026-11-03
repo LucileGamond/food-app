@@ -56,7 +56,7 @@ test('reçoit un lien partagé depuis le téléphone', async ({ page, isMobile }
   // Écran de choix : enregistrer directement, mettre de côté ou à planifier.
   await page.getByRole('button', { name: 'À planifier' }).click()
   await expect(page.getByRole('heading', { name: 'Planning' })).toBeVisible()
-  await expect(page.getByText('Ajoutée à « À planifier ».')).toBeVisible()
+  await expect(page.getByText('Ajoutée à « À planifier »')).toBeVisible()
 
   const panel = await openInbox(page, isMobile)
   await expect(panel.getByTestId('inbox-item')).toContainText('Tarte tatin facile')
@@ -69,7 +69,7 @@ test('ajoute une recette enregistrée à la liste depuis sa fiche', async ({ pag
   await page.getByLabel("Nom de l'ingrédient 1").fill('Riz')
   await page.getByRole('button', { name: 'Enregistrer', exact: true }).click()
   await page.getByRole('button', { name: 'À planifier' }).click()
-  await expect(page.getByText('Ajoutée à la liste « À planifier »')).toBeVisible()
+  await expect(page.getByText('Ajoutée à « À planifier »')).toBeVisible()
 
   await page.getByRole('link', { name: 'Planning' }).filter({ visible: true }).click()
   const panel = await openInbox(page, isMobile)

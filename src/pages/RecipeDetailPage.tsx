@@ -40,6 +40,7 @@ import {
   type RecipeHistory,
 } from '@/lib/recipes'
 import { cn } from '@/lib/utils'
+import { useSettings } from '@/app/SettingsContext'
 
 export function RecipeDetailPage() {
   const { id = '' } = useParams()
@@ -50,6 +51,7 @@ export function RecipeDetailPage() {
 function RecipeDetail({ id }: { id: string }) {
   const api = useApi()
   const navigate = useNavigate()
+  const { isEnabled } = useSettings()
   const location = useLocation()
   const [recipe, setRecipe] = useState<Recipe | null | undefined>(undefined)
   const [error, setError] = useState<string | null>(null)
@@ -87,7 +89,7 @@ function RecipeDetail({ id }: { id: string }) {
     if (!recipe) return
     try {
       await api.inbox.addItem({ recipeId: recipe.id })
-      toast.success('Ajoutée à la liste « À planifier »')
+      toast.success('Ajoutée à « À planifier »')
     } catch (e) {
       toast.error(errorMessage(e))
     }
@@ -242,12 +244,16 @@ function RecipeDetail({ id }: { id: string }) {
           >
             <ChefHat /> {resume === null ? 'Cuisiner' : stepCount === 0 ? 'Reprendre' : `Reprendre · étape ${resume}/${stepCount}`}
           </Link>
-          <Button variant="outline" className="h-10 px-3" onClick={() => setShopping(true)} disabled={recipe.ingredients.length === 0}>
-            <ShoppingCart /> Courses
-          </Button>
-          <Button variant="outline" className="h-10 px-3" onClick={() => void addToInbox()}>
-            <Inbox /> À planifier
-          </Button>
+          {isEnabled('courses') && (
+            <Button variant="outline" className="h-10 px-3" onClick={() => setShopping(true)} disabled={recipe.ingredients.length === 0}>
+              <ShoppingCart /> Courses
+            </Button>
+          )}
+          {isEnabled('planning') && (
+            <Button variant="outline" className="h-10 px-3" onClick={() => void addToInbox()}>
+              <Inbox /> À planifier
+            </Button>
+          )}
           <Link
             to={`/recettes/${recipe.id}/imprimer${servings !== null ? `?personnes=${servings}` : ''}`}
             className={cn(buttonVariants({ variant: 'outline' }), 'h-10 px-3')}

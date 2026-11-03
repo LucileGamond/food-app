@@ -1,4 +1,5 @@
 import type { IsoDate } from './dates'
+import { findDurations } from './timers'
 import { isValidUrl } from './meals'
 import { isUnit, metricText, splitUnit, toMetric, unitLabel } from './units'
 
@@ -176,13 +177,19 @@ export function formatIngredient(ingredient: Ingredient): string {
   return ingredient.note ? `${text} (${ingredient.note})` : text
 }
 
-/** « 45 », « 45 min », « 1 h », « 1h30 », « 1 h 30 min » → minutes ; vide → null ; illisible → NaN. */
+/**
+ * « 45 », « 45 min », « 1 h », « 1h30 », « 1 h 30 min » → minutes ; et, comme les minuteurs, « 1,5 h »,
+ * « 2 heures et 15 min », « 1 hour » ; vide → null ; illisible → NaN.
+ */
 export function parseDuration(raw: string): number | null {
   const text = raw.trim().toLowerCase()
   if (text === '') return null
   const match = /^(?:(\d+)\s*h(?:eures?)?)?\s*(?:(\d+)\s*(?:min(?:utes?)?|mn)?)?$/.exec(text)
-  if (!match || (match[1] === undefined && match[2] === undefined)) return Number.NaN
-  return Number(match[1] ?? 0) * 60 + Number(match[2] ?? 0)
+  if (match && (match[1] !== undefined || match[2] !== undefined)) return Number(match[1] ?? 0) * 60 + Number(match[2] ?? 0)
+  // Sinon, la lecture des minuteurs, si le texte n'est qu'une durée.
+  const [found, ...others] = findDurations(text)
+  if (!found || others.length > 0 || found.start !== 0 || found.end !== text.length) return Number.NaN
+  return Math.round(found.seconds / 60)
 }
 
 /** 45 → « 45 min », 90 → « 1 h 30 », 120 → « 2 h » */

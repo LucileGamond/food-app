@@ -11,6 +11,30 @@ export async function login(page: Page, email = LUCILE.email) {
   await expect(page.getByRole('heading', { name: 'Planning' })).toBeVisible()
 }
 
+/** Ouvre une page depuis la navigation (sur téléphone, les pages au-delà de 5 sont dans « Plus »). */
+export async function openNavPage(page: Page, name: string) {
+  const nav = page.getByRole('navigation', { name: 'Navigation principale' }).filter({ visible: true })
+  const link = nav.getByRole('link', { name, exact: true })
+  if ((await link.count()) === 0) {
+    await nav.getByRole('button', { name: 'Plus' }).click()
+    await page.getByRole('menuitem', { name }).click()
+  } else {
+    await link.click()
+  }
+}
+
+/** Page présente dans la navigation (onglet, ou entrée du menu « Plus »). */
+export async function navHasPage(page: Page, name: string): Promise<boolean> {
+  const nav = page.getByRole('navigation', { name: 'Navigation principale' }).filter({ visible: true })
+  if ((await nav.getByRole('link', { name, exact: true }).count()) > 0) return true
+  const more = nav.getByRole('button', { name: 'Plus' })
+  if ((await more.count()) === 0) return false
+  await more.click()
+  const found = (await page.getByRole('menuitem', { name }).count()) > 0
+  await page.keyboard.press('Escape')
+  return found
+}
+
 /** Date du jour au format « Mardi 20 octobre », comme dans l'application. */
 export function dayLabel(offset = 0): string {
   const date = new Date()

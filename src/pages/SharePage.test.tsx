@@ -57,7 +57,7 @@ describe('SharePage (partage depuis le téléphone)', () => {
     await user.click(await screen.findByRole('button', { name: 'À planifier' }))
     expect(await screen.findByText(/^Écran planning/)).toBeInTheDocument()
     expect(api.inbox.addItem).toHaveBeenCalledWith({ url: 'https://www.marmiton.org/recettes/crepes.aspx', title: 'Pâte à crêpes', list: 'plan' })
-    expect(await screen.findByText('Ajoutée à « À planifier ».')).toBeInTheDocument()
+    expect(await screen.findByText('Ajoutée à « À planifier »')).toBeInTheDocument()
   })
 
   it('« Mettre de côté » : ajouté à « De côté », ouvre les recettes ; titre de la page récupéré si besoin', async () => {
@@ -130,7 +130,7 @@ describe('SharePage (partage depuis le téléphone)', () => {
 
   it('signale un partage vide, ou une idée refusée', async () => {
     renderShare('')
-    expect(await screen.findByText('Rien à ajouter : le partage ne contenait ni lien ni texte.')).toBeInTheDocument()
+    expect(await screen.findByText('Rien à ajouter : le partage ne contenait ni lien ni texte')).toBeInTheDocument()
     const api = fakeApi()
     api.inbox.addItem.mockRejectedValueOnce(new AppError('Hors ligne'))
     renderShare('?text=Raclette', api)

@@ -47,5 +47,14 @@ describe('commandes vocales', () => {
       ]),
     ).toBe('4 pommes. 50 grammes sucre. 2 cuillères à soupe huile. 20 centilitres crème (liquide). 1 cuillère à café sel.')
     expect(spokenIngredients([])).toBe('Aucun ingrédient.')
+    // Pluriel à partir de 2, comme à l'écran ; litres et décilitres lus en entier
+    expect(
+      spokenIngredients([
+        { name: 'huile', quantity: 1.5, unit: 'c. à s.', note: null },
+        { name: 'lait', quantity: 1, unit: 'l', note: null },
+        { name: 'eau', quantity: 2.5, unit: 'dl', note: null },
+        { name: 'farine', quantity: 1, unit: 'kg', note: null },
+      ]),
+    ).toBe('1,5 cuillère à soupe huile. 1 litre lait. 2,5 décilitres eau. 1 kilo farine.')
   })
 })

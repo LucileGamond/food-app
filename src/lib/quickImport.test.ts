@@ -69,6 +69,28 @@ describe('enregistrer directement', () => {
     expect(api.photos.uploadPhoto).toHaveBeenCalledWith('id-Quiche', expect.any(File))
   })
 
+  it('des photos : une recette du même titre et du même livre n’est pas enregistrée deux fois', async () => {
+    const api = fakeApi()
+    api.recipes.listSavedSummaries.mockResolvedValue([
+      { id: 'r1', is_saved: true, title: 'Pâte brisée', notes: null, url: null, tags: [], source: 'Pâtisserie maison' },
+      { id: 'r2', is_saved: true, title: 'Quiche', notes: null, url: null, tags: [], source: null },
+    ])
+    // Même titre et même livre (casse et accents ignorés) : déjà enregistrée ; même titre dans un autre livre : nouvelle
+    api.recipes.importFromPhotos.mockResolvedValueOnce({
+      recipe: recipe('pate brisee'),
+      recipes: [recipe('pate brisee', { source: 'Patisserie Maison' }), recipe('Quiche', { source: 'Tartes du dimanche' })],
+      source: 'photo',
+      image: null,
+    })
+    api.recipes.saveRecipe.mockImplementation(async (input) => `id-${input.title}`)
+    expect(await saveDirectly(api, { kind: 'photos', files: [file('p.jpg')] }, [])).toEqual({ kind: 'saved', recipes: [{ id: 'id-Quiche', title: 'Quiche' }] })
+    expect(api.recipes.saveRecipe).toHaveBeenCalledTimes(1)
+
+    // Tout est déjà enregistré : on le dit, avec la recette existante
+    api.recipes.importFromPhotos.mockResolvedValueOnce({ recipe: recipe('Pâte brisée', { source: 'Pâtisserie maison' }), source: 'photo', image: null })
+    expect(await saveDirectly(api, { kind: 'photos', files: [file('p.jpg')] }, [])).toEqual({ kind: 'duplicate', recipe: { id: 'r1', title: 'Pâte brisée' } })
+  })
+
   it('des photos sans recette complète', async () => {
     const api = fakeApi()
     api.recipes.importFromPhotos.mockResolvedValue({ recipe: recipe('', { ingredients: [] }), source: 'photo', image: null })

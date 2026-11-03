@@ -71,6 +71,34 @@ Deno.serve(
       if (error) throw error
       return data
     },
+    async listFiles(bucket) {
+      // Fichiers rangés par dossier : « pending/ », « <recette>/ », « <personne>/ ».
+      const list = async (folder: string) => {
+        const entries: { name: string; id: string | null; created_at?: string }[] = []
+        for (let offset = 0; ; offset += 1000) {
+          const { data, error } = await db.storage.from(bucket).list(folder, { limit: 1000, offset })
+          if (error) throw error
+          entries.push(...data)
+          if (data.length < 1000) return entries
+        }
+      }
+      const files: { path: string; createdAt: string | null }[] = []
+      for (const folder of await list('')) {
+        // Dossier (sans id) : ses fichiers ; fichier à la racine : lui-même.
+        if (folder.id) files.push({ path: folder.name, createdAt: folder.created_at ?? null })
+        else for (const f of await list(folder.name)) if (f.id) files.push({ path: `${folder.name}/${f.name}`, createdAt: f.created_at ?? null })
+      }
+      return files
+    },
+    async referencedFiles(bucket) {
+      const { data, error } = await db.rpc('referenced_files', { p_bucket: bucket })
+      if (error) throw error
+      return data as string[]
+    },
+    async removeFiles(bucket, paths) {
+      const { error } = await db.storage.from(bucket).remove(paths)
+      if (error) throw error
+    },
     async claimHydrationReminders() {
       const { data, error } = await db.rpc('claim_hydration_reminders')
       if (error) throw error

@@ -1,10 +1,11 @@
-import { ArrowRight, BellRing, Check, ChevronLeft, ChevronRight, FileText, Minus, MoreHorizontal, Plus, RefreshCw, Trash2, Undo2 } from 'lucide-react'
+import { ArrowRight, BellRing, Check, SearchX, ChevronLeft, ChevronRight, FileText, Minus, MoreHorizontal, Plus, RefreshCw, Trash2, Undo2 } from 'lucide-react'
 import { useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { toast } from 'sonner'
 import { errorMessage } from '@/api'
 import { useApi } from '@/app/ApiContext'
 import { ConfirmDialog } from '@/components/ConfirmDialog'
+import { EmptyState } from '@/components/EmptyState'
 import { PageHeader } from '@/components/Layout'
 import { Button, buttonVariants } from '@/components/ui/button'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
@@ -14,7 +15,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { cn } from '@/lib/utils'
 import { StepSections } from '../components/StepSections'
 import { useKnitProject } from '../hooks/useKnitProject'
-import { alertsAt, currentStepIndex, describeSection, type KnitStep } from '../lib/pattern'
+import { alertsAt, currentStepIndex, describeSection, MAX_ROW_COUNT, type KnitStep } from '../lib/pattern'
 
 const selectClass =
   'h-10 min-w-0 flex-1 rounded-lg border border-input bg-background px-3 text-sm shadow-xs focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none'
@@ -37,7 +38,7 @@ function RowCounter({ step, onCount }: { step: KnitStep; onCount: (delta: number
           <span className="text-4xl font-semibold tabular-nums">{step.rowCount}</span>
           {step.totalRows && <span className="text-muted-foreground"> / {step.totalRows}</span>}
         </p>
-        <Button className="h-12 px-5" onClick={() => onCount(1)}>
+        <Button className="h-12 px-5" disabled={step.rowCount >= MAX_ROW_COUNT} onClick={() => onCount(1)}>
           <Plus />
           <span className="sr-only">Ajouter</span> 1 rang
         </Button>
@@ -100,14 +101,23 @@ export function KnittingProjectPage() {
   const [selected, setSelected] = useState<string | null>(null)
   const [confirmDelete, setConfirmDelete] = useState(false)
 
+  const back = (
+    <Link to="/tricot" className="mb-2 inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
+      <ChevronLeft className="size-4" aria-hidden /> Projets
+    </Link>
+  )
+
   if (loadError) {
     return (
-      <div role="alert" className="flex flex-col items-start gap-3 rounded-xl border border-destructive/30 bg-destructive/5 p-4 text-sm">
-        <p>{loadError}</p>
-        <Button variant="outline" onClick={() => void reload()}>
-          <RefreshCw /> Réessayer
-        </Button>
-      </div>
+      <>
+        {back}
+        <div role="alert" className="flex flex-col items-start gap-3 rounded-xl border border-destructive/30 bg-destructive/5 p-4 text-sm">
+          <p>{loadError}</p>
+          <Button variant="outline" onClick={() => void reload()}>
+            <RefreshCw /> Réessayer
+          </Button>
+        </div>
+      </>
     )
   }
   if (loading) {
@@ -120,12 +130,16 @@ export function KnittingProjectPage() {
   }
   if (!project) {
     return (
-      <div className="space-y-3">
-        <p>Ce projet n’existe plus.</p>
-        <Link to="/tricot" className={cn(buttonVariants({ variant: 'outline' }), 'h-10')}>
-          Retour aux projets
-        </Link>
-      </div>
+      <EmptyState
+        icon={SearchX}
+        title="Projet introuvable"
+        description="Il a peut-être été supprimé."
+        action={
+          <Link to="/tricot" className={cn(buttonVariants({ variant: 'outline' }), 'h-10')}>
+            Retour aux projets
+          </Link>
+        }
+      />
     )
   }
 
@@ -162,9 +176,7 @@ export function KnittingProjectPage() {
 
   return (
     <>
-      <Link to="/tricot" className="mb-2 inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
-        <ChevronLeft className="size-4" aria-hidden /> Projets
-      </Link>
+      {back}
       <PageHeader
         title={project.title}
         description={`Taille ${project.size} · ${steps.filter((s) => s.done).length} / ${steps.length} étapes`}

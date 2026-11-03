@@ -5,18 +5,22 @@ import { Button } from '@/components/ui/button'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { useApi } from '@/app/ApiContext'
 import { useInbox } from '@/hooks/useInbox'
-import { inboxKind, inboxSubtitle } from '@/lib/inbox'
+import { RemoveInboxItemDialog } from '@/components/planning/InboxDialogs'
+import { inboxKind, inboxSubtitle, type InboxItem } from '@/lib/inbox'
 import { cn } from '@/lib/utils'
+import { useSettings } from '@/app/SettingsContext'
 
 /**
  * Recettes mises de côté (liens, photos), pas encore analysées : à préremplir puis enregistrer, à passer dans
  * « À planifier », ou à supprimer. Rien ne s'affiche tant que la liste est vide.
  */
 export function SetAsideList() {
+  const planning = useSettings().isEnabled('planning')
   const api = useApi()
   const navigate = useNavigate()
   const aside = useInbox(api, 'aside')
   const [open, setOpen] = useState(true)
+  const [removing, setRemoving] = useState<InboxItem | null>(null)
   const count = aside.items.length
 
   if (aside.loading || (count === 0 && !aside.loadError)) return null
@@ -71,10 +75,12 @@ export function SetAsideList() {
                             <ExternalLink /> Ouvrir le lien
                           </DropdownMenuItem>
                         )}
-                        <DropdownMenuItem onClick={() => void aside.move(item, 'plan')}>
-                          <CalendarPlus /> Mettre « À planifier »
-                        </DropdownMenuItem>
-                        <DropdownMenuItem variant="destructive" onClick={() => void aside.remove(item)}>
+                        {planning && (
+                          <DropdownMenuItem onClick={() => void aside.move(item, 'plan')}>
+                            <CalendarPlus /> Mettre « À planifier »
+                          </DropdownMenuItem>
+                        )}
+                        <DropdownMenuItem variant="destructive" onClick={() => setRemoving(item)}>
                           <Trash2 /> Supprimer
                         </DropdownMenuItem>
                       </DropdownMenuContent>
@@ -86,6 +92,7 @@ export function SetAsideList() {
           )}
         </div>
       )}
+      <RemoveInboxItemDialog item={removing} onClose={() => setRemoving(null)} onConfirm={aside.remove} />
     </section>
   )
 }

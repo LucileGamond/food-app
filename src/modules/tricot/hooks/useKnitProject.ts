@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { toast } from 'sonner'
 import { errorMessage, type Api } from '@/api'
 import type { StepProgress } from '../api'
-import type { KnitProject } from '../lib/pattern'
+import { MAX_ROW_COUNT, type KnitProject } from '../lib/pattern'
 
 export interface KnitProjectState {
   project: KnitProject | null
@@ -73,7 +73,9 @@ export function useKnitProject(api: Api, id: string): KnitProjectState {
     (stepId: string, delta: number) => {
       const step = latest.current?.steps.find((s) => s.id === stepId)
       if (!step) return Promise.resolve(false)
-      return saveStep(stepId, { rowCount: Math.max(0, step.rowCount + delta) })
+      const rowCount = Math.min(MAX_ROW_COUNT, Math.max(0, step.rowCount + delta))
+      if (rowCount === step.rowCount) return Promise.resolve(false)
+      return saveStep(stepId, { rowCount })
     },
     [saveStep],
   )

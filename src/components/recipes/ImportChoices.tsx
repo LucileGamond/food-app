@@ -8,6 +8,7 @@ import { errorMessage } from '@/api'
 import type { InboxList } from '@/lib/inbox'
 import { keepForLater, saveDirectly, type ImportSource } from '@/lib/quickImport'
 import { cn } from '@/lib/utils'
+import { useSettings } from '@/app/SettingsContext'
 
 type Action = 'save' | InboxList
 
@@ -26,6 +27,7 @@ interface Props {
 export function ImportChoices({ source, onIncomplete, className }: Props) {
   const api = useApi()
   const navigate = useNavigate()
+  const { isEnabled } = useSettings()
   const [running, setRunning] = useState<Action | null>(null)
   const [error, setError] = useState<string | null>(null)
 
@@ -51,7 +53,7 @@ export function ImportChoices({ source, onIncomplete, className }: Props) {
         return navigate('/recettes')
       }
       await keepForLater(api, source, action)
-      toast.success(action === 'aside' ? 'Mise de côté : retrouve-la dans Recettes, « De côté ».' : 'Ajoutée à « À planifier ».')
+      toast.success(action === 'aside' ? 'Mise de côté : retrouve-la dans Recettes, « De côté »' : 'Ajoutée à « À planifier »')
       navigate(action === 'aside' ? '/recettes' : '/planning')
     } catch (e) {
       setError(errorMessage(e))
@@ -66,15 +68,22 @@ export function ImportChoices({ source, onIncomplete, className }: Props) {
   return (
     <div className={cn('space-y-2', className)}>
       <div className="flex flex-wrap gap-2" role="group" aria-label="Que faire de cette recette ?">
-        <Button type="button" className="h-10 px-3" disabled={!source || busy} onClick={() => void run('save')}>
-          {icon('save', Save)} Enregistrer directement
-        </Button>
-        <Button type="button" variant="outline" className="h-10 bg-background px-3" disabled={!source || busy} onClick={() => void run('aside')}>
-          {icon('aside', Archive)} Mettre de côté
-        </Button>
-        <Button type="button" variant="outline" className="h-10 bg-background px-3" disabled={!source || busy} onClick={() => void run('plan')}>
-          {icon('plan', CalendarPlus)} À planifier
-        </Button>
+        {/* Recette enregistrée et « De côté » : dans Recettes ; « À planifier » : dans le Planning. */}
+        {isEnabled('recettes') && (
+          <>
+            <Button type="button" className="h-10 px-3" disabled={!source || busy} onClick={() => void run('save')}>
+              {icon('save', Save)} Enregistrer directement
+            </Button>
+            <Button type="button" variant="outline" className="h-10 bg-background px-3" disabled={!source || busy} onClick={() => void run('aside')}>
+              {icon('aside', Archive)} Mettre de côté
+            </Button>
+          </>
+        )}
+        {isEnabled('planning') && (
+          <Button type="button" variant="outline" className="h-10 bg-background px-3" disabled={!source || busy} onClick={() => void run('plan')}>
+            {icon('plan', CalendarPlus)} À planifier
+          </Button>
+        )}
       </div>
       {running === 'save' && <p className="text-sm text-muted-foreground" aria-live="polite">Analyse et enregistrement de la recette, quelques secondes…</p>}
       {error && (

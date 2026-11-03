@@ -9,6 +9,7 @@ import type { LinkableRecipe } from '@/lib/autoLinks'
 import type { SavedProgress } from '@/lib/cooking'
 import type { MealIdea } from '@/lib/mealIdeas'
 import { ApiProvider } from '@/app/ApiContext'
+import { SettingsProvider } from '@/app/SettingsContext'
 import { AuthProvider, type AuthClient } from '@/auth/AuthProvider'
 import type { Meal, Profile, RecipeSummary } from '@/lib/meals'
 import type { Ingredient, Recipe, RecipeHistory, RecipeImport, RecipeListItem } from '@/lib/recipes'
@@ -153,6 +154,7 @@ export function fakeApi(): FakeApi {
       listIntakes: vi.fn(async () => [] as WaterIntake[]),
       addIntake: vi.fn(async (volumeMl: number): Promise<WaterIntake> => ({ id: `w-${Math.random()}`, volume_ml: volumeMl, drunk_at: new Date().toISOString() })),
       deleteIntake: vi.fn(async () => undefined),
+      subscribe: vi.fn(() => () => undefined),
     },
     knitting: {
       listProjects: vi.fn(async () => [] as KnitProjectSummary[]),
@@ -230,10 +232,12 @@ export function renderWithApp(ui: ReactElement, { api = fakeApi(), auth = fakeAu
     <MemoryRouter initialEntries={[route]}>
       <ApiProvider api={api as unknown as Api}>
         <AuthProvider auth={auth}>
-          <Routes>
-            <Route path={path} element={ui} />
-            {extraRoutes}
-          </Routes>
+          <SettingsProvider>
+            <Routes>
+              <Route path={path} element={ui} />
+              {extraRoutes}
+            </Routes>
+          </SettingsProvider>
           <Toaster />
         </AuthProvider>
       </ApiProvider>

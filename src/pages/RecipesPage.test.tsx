@@ -197,7 +197,7 @@ describe('RecipesPage', () => {
 
     await user.click(within(screen.getByRole('group', { name: 'Filtres rapides' })).getByRole('button', { name: 'De saison' }))
     expect(titles()).toEqual(['Soupe de potiron'])
-    expect(screen.getByRole('link', { name: 'Ce mois-ci' })).toHaveAttribute('href', '/recettes/saison')
+    expect(screen.getByRole('link', { name: 'De saison' })).toHaveAttribute('href', '/recettes/saison')
   })
 
   it('un tri choisi juste après « Effacer les filtres » ne remet pas les filtres effacés', async () => {
@@ -241,6 +241,9 @@ describe('RecipesPage', () => {
     expect(api.inbox.moveItem).toHaveBeenCalledWith('a1', 'plan')
     await user.click(within(aside).getByRole('button', { name: 'Actions pour « Photos du 1 nov. »' }))
     await user.click(await screen.findByRole('menuitem', { name: 'Supprimer' }))
+    const confirm = await screen.findByRole('alertdialog', { name: 'Supprimer cet élément ?' })
+    expect(confirm).toHaveTextContent('« Photos du 1 nov. » et sa photo seront supprimés.')
+    await user.click(within(confirm).getByRole('button', { name: 'Supprimer' }))
     expect(api.inbox.deleteItem).toHaveBeenCalledWith('a2', ['pending/p.jpg'])
 
     await user.click(within(aside).getByRole('button', { name: 'Préremplir et enregistrer « Curry du reel »' }))

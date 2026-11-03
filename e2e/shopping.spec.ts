@@ -8,7 +8,7 @@ async function expectNoA11yViolations(page: Page) {
 }
 
 async function addItem(page: Page, name: string, quantity?: string, unit?: string) {
-  await page.getByLabel("Nom de l'article").fill(name)
+  await page.getByLabel("Nom de l’article").fill(name)
   if (quantity) await page.getByLabel('Quantité').fill(quantity)
   if (unit) await page.getByLabel('Unité').selectOption(unit)
   await page.getByRole('button', { name: "Ajouter l'article" }).click()
@@ -53,7 +53,7 @@ test('crée une liste, ajoute des articles par rayon, coche et fait le ménage',
 
   // Modifier un article
   await page.getByRole('button', { name: /^Modifier Pommes/ }).click()
-  const edit = page.getByRole('dialog', { name: "Modifier l'article" })
+  const edit = page.getByRole('dialog', { name: "Modifier l’article" })
   await edit.getByLabel('Quantité').fill('8')
   await edit.getByRole('button', { name: 'Enregistrer', exact: true }).click()
   await expect(edit).toBeHidden()
@@ -76,7 +76,7 @@ test('les écrans de courses respectent les règles d’accessibilité', async (
   await page.goto('/courses')
   await page.getByRole('button', { name: 'Nouvelle liste' }).first().click()
   await page.getByRole('dialog').getByRole('button', { name: 'Créer' }).click()
-  await expect(page.getByLabel("Nom de l'article")).toBeVisible()
+  await expect(page.getByLabel("Nom de l’article")).toBeVisible()
   await addItem(page, 'Pommes', '6')
   await addItem(page, 'Pain')
   await page.getByRole('checkbox', { name: 'Cocher « Pain »' }).click()

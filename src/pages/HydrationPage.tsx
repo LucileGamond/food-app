@@ -45,7 +45,7 @@ export function HydrationPage({ today: fixedToday, now: fixedNow }: { today?: Is
 
   return (
     <>
-      <PageHeader title="Hydratation" description={`Objectif : ${formatLiters(goal)} par jour`} />
+      <PageHeader title="Eau" description={`Objectif : ${formatLiters(goal)} par jour · rien que pour toi`} />
 
       {hydration.loadError ? (
         <div role="alert" className="flex flex-col items-start gap-3 rounded-xl border border-destructive/30 bg-destructive/5 p-4 text-sm">

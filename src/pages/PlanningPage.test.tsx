@@ -30,7 +30,7 @@ describe('PlanningPage', () => {
     const { api } = renderPlanning()
     expect(await screen.findAllByTestId('day-card')).toHaveLength(7)
     expect(screen.getByText('Du 20 octobre au 26 octobre')).toBeInTheDocument()
-    expect(screen.getByRole('article', { name: 'Mardi 20 octobre' })).toHaveTextContent("Aujourd'hui")
+    expect(screen.getByRole('article', { name: 'Mardi 20 octobre' })).toHaveTextContent("Aujourd’hui")
     expect(within(slot('Mardi 20 octobre', 'Midi')).getByText('Aucun repas prévu')).toBeInTheDocument()
     expect(screen.getAllByText('Aucun repas')).toHaveLength(7)
     expect(api.meals.listMeals).toHaveBeenCalledWith('2026-10-20', '2026-10-26')
@@ -40,7 +40,7 @@ describe('PlanningPage', () => {
     const user = userEvent.setup()
     const { api } = renderPlanning()
     await screen.findAllByTestId('day-card')
-    const today = screen.getByRole('button', { name: "Aujourd'hui" })
+    const today = screen.getByRole('button', { name: "Aujourd’hui" })
     expect(today).toBeDisabled()
 
     await user.click(screen.getByRole('button', { name: 'Semaine suivante' }))
@@ -51,7 +51,7 @@ describe('PlanningPage', () => {
     await user.click(screen.getByRole('button', { name: 'Semaine précédente' }))
     expect(await screen.findByText('Du 13 octobre au 19 octobre')).toBeInTheDocument()
 
-    await user.click(screen.getByRole('button', { name: "Aujourd'hui" }))
+    await user.click(screen.getByRole('button', { name: "Aujourd’hui" }))
     expect(await screen.findByText('Du 20 octobre au 26 octobre')).toBeInTheDocument()
   })
 
@@ -72,7 +72,7 @@ describe('PlanningPage', () => {
 
     const dinner = slot('Mercredi 21 octobre', 'Soir')
     expect(within(dinner).getByRole('link', { name: 'Curry' })).toHaveAttribute('href', '/recettes/saved')
-    expect(within(dinner).getByLabelText('Recette sauvegardée')).toBeInTheDocument()
+    expect(within(dinner).getByLabelText('Recette enregistrée')).toBeInTheDocument()
   })
 
   it('ajoute un repas ponctuel, avec l’utilisateur connecté coché par défaut', async () => {
@@ -135,7 +135,7 @@ describe('PlanningPage', () => {
     await user.click(screen.getByRole('button', { name: 'Ajouter un repas — Mardi 20 octobre, Midi' }))
     const dialog = await screen.findByRole('dialog')
 
-    await user.click(within(dialog).getByRole('tab', { name: 'Recette sauvegardée' }))
+    await user.click(within(dialog).getByRole('tab', { name: 'Recette enregistrée' }))
     expect(within(dialog).getByRole('button', { name: 'Enregistrer' })).toBeDisabled()
     await user.type(within(dialog).getByRole('searchbox', { name: 'Rechercher une recette' }), 'tar')
     expect(within(dialog).queryByRole('radio', { name: /Curry/ })).not.toBeInTheDocument()
@@ -155,8 +155,8 @@ describe('PlanningPage', () => {
     await screen.findAllByTestId('day-card')
     await user.click(screen.getByRole('button', { name: 'Ajouter un repas — Mardi 20 octobre, Midi' }))
     const dialog = await screen.findByRole('dialog')
-    await user.click(within(dialog).getByRole('tab', { name: 'Recette sauvegardée' }))
-    expect(await within(dialog).findByText('Aucune recette sauvegardée pour le moment.')).toBeInTheDocument()
+    await user.click(within(dialog).getByRole('tab', { name: 'Recette enregistrée' }))
+    expect(await within(dialog).findByText('Aucune recette enregistrée pour le moment.')).toBeInTheDocument()
   })
 
   it('modifie un repas ponctuel avec le formulaire prérempli', async () => {
@@ -192,7 +192,7 @@ describe('PlanningPage', () => {
     renderPlanning(api)
     await screen.findByRole('link', { name: 'Curry' })
     const menu = await openMenu(user, 'Curry')
-    expect(within(menu).queryByRole('menuitem', { name: 'Sauvegarder la recette' })).not.toBeInTheDocument()
+    expect(within(menu).queryByRole('menuitem', { name: 'Enregistrer la recette' })).not.toBeInTheDocument()
     await user.click(within(menu).getByRole('menuitem', { name: 'Modifier' }))
     const dialog = await screen.findByRole('dialog')
     expect(await within(dialog).findByRole('radio', { name: /Curry/ })).toBeChecked()
@@ -294,7 +294,7 @@ describe('PlanningPage', () => {
     renderPlanning(api)
     await screen.findByText('Pâtes tomate')
     const menu = await openMenu(user, 'Pâtes tomate')
-    await user.click(within(menu).getByRole('menuitem', { name: 'Sauvegarder la recette' }))
+    await user.click(within(menu).getByRole('menuitem', { name: 'Enregistrer la recette' }))
     expect(await screen.findByText('Formulaire recette')).toBeInTheDocument()
   })
 

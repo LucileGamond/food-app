@@ -79,7 +79,7 @@ export function DayCard({ date, isToday, mealsBySlot, profiles, disabled, onAdd,
       <header className="mb-1 flex items-center justify-between gap-2 px-1 pt-1">
         <h2 className="flex items-center gap-2 font-semibold tracking-tight">
           {formatDay(date)}
-          {isToday && <span className="rounded-full bg-brand/10 px-2 py-0.5 text-xs font-medium text-brand">Aujourd'hui</span>}
+          {isToday && <span className="rounded-full bg-brand/10 px-2 py-0.5 text-xs font-medium text-brand">Aujourd’hui</span>}
         </h2>
         <span className="rounded-full bg-muted px-2.5 py-0.5 text-xs font-medium text-muted-foreground">{mealCountLabel(count)}</span>
       </header>

@@ -12,6 +12,7 @@ import {
 import { LinkifiedText } from '@/components/LinkifiedText'
 import { peopleLabel, type Meal, type Profile } from '@/lib/meals'
 import { cn } from '@/lib/utils'
+import { useSettings } from '@/app/SettingsContext'
 
 export type MealAction = 'edit' | 'move' | 'duplicate' | 'save' | 'delete'
 
@@ -26,6 +27,7 @@ export function MealItem({ meal, profiles, disabled, onAction }: Props) {
   const move = useDraggable({ id: `move:${meal.id}`, data: { meal, mode: 'move' }, disabled })
   const copy = useDraggable({ id: `copy:${meal.id}`, data: { meal, mode: 'copy' }, disabled })
   const { recipe } = meal
+  const recipes = useSettings().isEnabled('recettes')
   const details = [recipe.notes, recipe.url].filter(Boolean).join('\n')
 
   return (
@@ -41,9 +43,9 @@ export function MealItem({ meal, profiles, disabled, onAction }: Props) {
     >
       <div className="min-w-0 flex-1">
         <div className="flex items-start gap-1.5">
-          {recipe.is_saved ? (
+          {recipe.is_saved && recipes ? (
             <>
-              <BookmarkCheck className="mt-0.5 size-4 shrink-0 text-brand" aria-label="Recette sauvegardée" />
+              <BookmarkCheck className="mt-0.5 size-4 shrink-0 text-brand" aria-label="Recette enregistrée" />
               <Link
                 to={`/recettes/${recipe.id}`}
                 className="font-medium leading-snug hover:underline"
@@ -103,9 +105,9 @@ export function MealItem({ meal, profiles, disabled, onAction }: Props) {
             <DropdownMenuItem onClick={() => onAction('duplicate', meal)}>
               <Copy /> Dupliquer…
             </DropdownMenuItem>
-            {!recipe.is_saved && (
+            {!recipe.is_saved && recipes && (
               <DropdownMenuItem onClick={() => onAction('save', meal)}>
-                <BookmarkPlus /> Sauvegarder la recette
+                <BookmarkPlus /> Enregistrer la recette
               </DropdownMenuItem>
             )}
             <DropdownMenuSeparator />

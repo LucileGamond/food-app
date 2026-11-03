@@ -242,6 +242,9 @@ describe('KnittingProjectPage', () => {
     expect(api.knitting.saveProgress).toHaveBeenLastCalledWith('s2', { sections: [rows10, jersey, { ...decrease, every: 8 }] })
     await user.click(screen.getByRole('button', { name: 'Actions pour « 4 rangs : jersey »' }))
     await user.click(await screen.findByRole('menuitem', { name: 'Supprimer' }))
+    const confirm = await screen.findByRole('alertdialog', { name: 'Supprimer cette section ?' })
+    expect(confirm).toHaveTextContent('« 4 rangs : jersey »')
+    await user.click(within(confirm).getByRole('button', { name: 'Supprimer' }))
     expect(api.knitting.saveProgress).toHaveBeenLastCalledWith('s2', { sections: [rows10, { ...decrease, every: 8 }] })
   })
 
@@ -405,7 +408,7 @@ describe('KnittingProjectPage', () => {
   it('signale un projet introuvable ou illisible', async () => {
     const user = userEvent.setup()
     renderProject(fakeApi(), null)
-    expect(await screen.findByText('Ce projet n’existe plus.')).toBeInTheDocument()
+    expect(await screen.findByText('Projet introuvable')).toBeInTheDocument()
     await user.click(screen.getByRole('link', { name: 'Retour aux projets' }))
     expect(await screen.findByText('Liste des projets')).toBeInTheDocument()
   })

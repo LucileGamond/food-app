@@ -1,4 +1,4 @@
-import { DEFAULT_SETTINGS, homePath, isPageEnabled, pageOf, parseGoalLiters, toggleNotification, togglePage } from './settings'
+import { activeTopics, DEFAULT_SETTINGS, describeTopics, homePath, isPageEnabled, pageOf, parseGoalLiters, toggleNotification, togglePage } from './settings'
 
 describe('réglages', () => {
   it('désactive le suivi d’hydratation par défaut, le reste est affiché', () => {
@@ -26,6 +26,14 @@ describe('réglages', () => {
     expect(togglePage(DEFAULT_SETTINGS, 'poids', false)).toEqual({ disabledPages: ['hydratation', 'tricot', 'poids'] })
     expect(toggleNotification(DEFAULT_SETTINGS, 'courses', false)).toEqual({ mutedNotifications: ['courses'] })
     expect(toggleNotification({ ...DEFAULT_SETTINGS, mutedNotifications: ['courses'] }, 'courses', true)).toEqual({ mutedNotifications: [] })
+  })
+
+  it('liste les notifications qu’on recevra', () => {
+    expect(activeTopics(DEFAULT_SETTINGS).map((t) => t.key)).toEqual(['courses'])
+    const all = activeTopics({ ...DEFAULT_SETTINGS, disabledPages: [] })
+    expect(describeTopics(all)).toBe('listes de courses modifiées par l’autre et rappels pour boire')
+    expect(activeTopics({ ...DEFAULT_SETTINGS, disabledPages: [], mutedNotifications: ['courses'] }).map((t) => t.key)).toEqual(['hydratation'])
+    expect(describeTopics([])).toBe('')
   })
 
   it('lit l’objectif en litres', () => {

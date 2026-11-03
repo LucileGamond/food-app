@@ -7,6 +7,7 @@ import { AuthProvider, type AuthClient } from '@/auth/AuthProvider'
 import { RequireAuth } from '@/auth/RequireAuth'
 import { FullPageSpinner } from '@/components/FullPageSpinner'
 import { Layout } from '@/components/Layout'
+import { PageGuard, SettingsRoute } from '@/components/PageGuard'
 import { LoginPage } from '@/pages/LoginPage'
 import { PlanningPage } from '@/pages/PlanningPage'
 
@@ -39,29 +40,45 @@ export function App({ api, auth }: { api: Api; auth: AuthClient }) {
         <Routes>
           <Route path="/login" element={<LoginPage />} />
           <Route element={<RequireAuth />}>
-            {/* Mode cuisine : plein écran, sans la navigation. */}
-            <Route path="/recettes/:id/cuisiner" element={<CookingPage />} />
-            {/* Fiche à imprimer ou à enregistrer en PDF. */}
-            <Route path="/recettes/:id/imprimer" element={<RecipePrintPage />} />
-            <Route element={<Layout />}>
-              <Route path="/planning" element={<PlanningPage />} />
-              <Route path="/recettes" element={<RecipesPage />} />
-              <Route path="/recettes/nouvelle" element={<RecipeFormPage />} />
-              <Route path="/recettes/import-serie" element={<RecipeBatchImportPage />} />
-              <Route path="/recettes/saison" element={<SeasonPage />} />
-              <Route path="/recettes/:id" element={<RecipeDetailPage />} />
-              <Route path="/recettes/:id/modifier" element={<RecipeFormPage />} />
-              <Route path="/partage" element={<SharePage />} />
-              <Route path="/plan" element={<FoodTrackingPage />} />
-              <Route path="/plan/modifier" element={<FoodPlanPage />} />
-              <Route path="/poids" element={<WeightPage />} />
-              <Route path="/courses" element={<ShoppingListsPage />} />
-              <Route path="/courses/:id" element={<ShoppingListPage />} />
-              <Route path="/hydratation" element={<HydrationPage />} />
-              <Route path="/reglages" element={<SettingsPage />} />
-              <Route path="/tricot" element={<KnittingPage />} />
-              <Route path="/tricot/nouveau" element={<KnittingImportPage />} />
-              <Route path="/tricot/:id" element={<KnittingProjectPage />} />
+            <Route element={<SettingsRoute />}>
+              {/* Mode cuisine : plein écran, sans la navigation. */}
+              <Route
+                path="/recettes/:id/cuisiner"
+                element={
+                  <PageGuard page="recettes">
+                    <CookingPage />
+                  </PageGuard>
+                }
+              />
+              {/* Fiche à imprimer ou à enregistrer en PDF. */}
+              <Route
+                path="/recettes/:id/imprimer"
+                element={
+                  <PageGuard page="recettes">
+                    <RecipePrintPage />
+                  </PageGuard>
+                }
+              />
+              <Route element={<Layout />}>
+                <Route path="/planning" element={<PlanningPage />} />
+                <Route path="/recettes" element={<RecipesPage />} />
+                <Route path="/recettes/nouvelle" element={<RecipeFormPage />} />
+                <Route path="/recettes/import-serie" element={<RecipeBatchImportPage />} />
+                <Route path="/recettes/saison" element={<SeasonPage />} />
+                <Route path="/recettes/:id" element={<RecipeDetailPage />} />
+                <Route path="/recettes/:id/modifier" element={<RecipeFormPage />} />
+                <Route path="/partage" element={<SharePage />} />
+                <Route path="/plan" element={<FoodTrackingPage />} />
+                <Route path="/plan/modifier" element={<FoodPlanPage />} />
+                <Route path="/poids" element={<WeightPage />} />
+                <Route path="/courses" element={<ShoppingListsPage />} />
+                <Route path="/courses/:id" element={<ShoppingListPage />} />
+                <Route path="/hydratation" element={<HydrationPage />} />
+                <Route path="/reglages" element={<SettingsPage />} />
+                <Route path="/tricot" element={<KnittingPage />} />
+                <Route path="/tricot/nouveau" element={<KnittingImportPage />} />
+                <Route path="/tricot/:id" element={<KnittingProjectPage />} />
+              </Route>
             </Route>
           </Route>
           <Route path="*" element={<Navigate to="/planning" replace />} />

@@ -330,6 +330,10 @@ describe('temps, source et sous-parties', () => {
     expect(['45', '45 min', '1 h', '1h30', '1 h 30 min', '2 heures', ' 10 MIN ', ''].map(parseDuration)).toEqual([45, 45, 60, 90, 90, 120, 10, null])
     expect(parseDuration('une heure')).toBeNaN()
     expect(parseDuration('h')).toBeNaN()
+    // Comme les minuteurs
+    expect(['1,5 h', '2 heures et 15 min', '1 hour', '30 minutes'].map(parseDuration)).toEqual([90, 135, 60, 30])
+    expect(parseDuration('20 min puis 10 min')).toBeNaN()
+    expect(parseDuration('environ 20 min')).toBeNaN()
     expect([45, 60, 90, 125, null, undefined].map(formatDuration)).toEqual(['45 min', '1 h', '1 h 30', '2 h 05', '', ''])
   })
 

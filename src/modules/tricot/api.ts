@@ -3,7 +3,7 @@
 import { AppError, functionError, toAppError } from '@/api/errors'
 import type { Json } from '@/lib/database.types'
 import type { AppSupabaseClient } from '@/lib/supabase'
-import { MAX_PDF_BYTES, type KnitProject, type KnitProjectSummary, type KnitStep, type PatternStep, type ReadPattern, type StepSection } from './lib/pattern'
+import { MAX_PDF_BYTES, type KnitProject, type KnitProjectSummary, type KnitStep, type PatternStep, type ReadPattern, sanitizeSections } from './lib/pattern'
 
 export const PATTERN_BUCKET = 'knit-patterns'
 /** Lecture d'un long patron : jusqu'à 2 minutes côté modèle. */
@@ -47,8 +47,7 @@ function toStep(row: StepRow): KnitStep {
     instructions: row.instructions,
     totalRows: row.total_rows,
     stitches: row.stitches,
-    // Tableau garanti par la base (contrainte sur la colonne).
-    sections: row.sections as StepSection[],
+    sections: sanitizeSections(row.sections),
     rowCount: row.row_count,
     notes: row.notes,
     done: row.done,

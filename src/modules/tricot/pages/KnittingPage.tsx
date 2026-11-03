@@ -43,7 +43,7 @@ export function KnittingPage() {
 
   return (
     <>
-      <PageHeader title="Tricot" description="Patrons découpés en étapes pour ta taille, avec compteur de rangs." actions={newLink} />
+      <PageHeader title="Tricot" description="Patrons découpés en étapes pour ta taille, avec compteur de rangs. Rien que pour toi." actions={newLink} />
       {loadError ? (
         <div role="alert" className="flex flex-col items-start gap-3 rounded-xl border border-destructive/30 bg-destructive/5 p-4 text-sm">
           <p>{loadError}</p>

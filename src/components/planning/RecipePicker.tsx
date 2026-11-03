@@ -37,7 +37,7 @@ export function RecipePicker({ recipes, value, onChange, invalid }: Props) {
       </div>
       <div
         role="radiogroup"
-        aria-label="Recettes sauvegardées"
+        aria-label="Recettes enregistrées"
         aria-invalid={invalid || undefined}
         className={cn('max-h-56 overflow-y-auto rounded-lg border p-1', invalid && 'border-destructive')}
       >
@@ -48,7 +48,7 @@ export function RecipePicker({ recipes, value, onChange, invalid }: Props) {
           </div>
         ) : filtered.length === 0 ? (
           <p className="px-3 py-6 text-center text-sm text-muted-foreground">
-            {recipes.length === 0 ? 'Aucune recette sauvegardée pour le moment.' : 'Aucune recette ne correspond.'}
+            {recipes.length === 0 ? 'Aucune recette enregistrée pour le moment.' : 'Aucune recette ne correspond.'}
           </p>
         ) : (
           filtered.map((recipe) => (

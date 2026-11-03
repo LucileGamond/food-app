@@ -9,9 +9,9 @@ export interface HydrationReminder {
   goal_ml: number
 }
 
-/** 1500 → « 1,5 L », 200 → « 0,2 L ». */
+/** 1500 → « 1,5 L », 530 → « 0,53 L » : même arrondi que l'application (src/lib/hydration.ts). */
 export function liters(ml: number): string {
-  return `${(Math.round(ml / 100) / 10).toLocaleString('fr-FR')} L`
+  return `${(Math.round(ml / 10) / 100).toLocaleString('fr-FR')} L`
 }
 
 export function buildHydrationMessage(reminder: HydrationReminder): PushPayload {

@@ -102,7 +102,8 @@ grant execute on function public.create_knit_project to authenticated;
 
 -- PDF d'origine : dossier par personne (<uid>/<uuid>.pdf), 20 Mo au plus.
 insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
-values ('knit-patterns', 'knit-patterns', false, 20971520, array['application/pdf']);
+values ('knit-patterns', 'knit-patterns', false, 20971520, array['application/pdf'])
+on conflict (id) do nothing;
 
 create policy "mes patrons : lecture" on storage.objects
   for select to authenticated using (bucket_id = 'knit-patterns' and (storage.foldername(name))[1] = auth.uid()::text);

@@ -22,10 +22,21 @@ export const PAGES: PageInfo[] = [
   { key: 'tricot', to: '/tricot', label: 'Tricot', description: 'Patrons découpés en étapes, compteur de rangs' },
 ]
 
-export const NOTIFICATION_TOPICS: { key: NotificationTopic; label: string; description: string }[] = [
-  { key: 'courses', label: 'Courses', description: 'Quand l’autre modifie une liste de courses' },
-  { key: 'hydratation', label: 'Hydratation', description: 'Rappel après 4 h sans boire (9 h – 23 h), jusqu’à l’objectif' },
+export const NOTIFICATION_TOPICS: { key: NotificationTopic; label: string; description: string; summary: string }[] = [
+  { key: 'courses', label: 'Courses', description: 'Quand l’autre modifie une liste de courses', summary: 'listes de courses modifiées par l’autre' },
+  { key: 'hydratation', label: 'Eau', description: 'Rappel après 4 h sans boire (9 h – 23 h), jusqu’à l’objectif', summary: 'rappels pour boire' },
 ]
+
+/** Notifications qu'on recevra : page affichée et sujet non coupé. */
+export function activeTopics(settings: UserSettings) {
+  return NOTIFICATION_TOPICS.filter((t) => isPageEnabled(settings, t.key) && !settings.mutedNotifications.includes(t.key))
+}
+
+/** « listes de courses modifiées par l’autre et rappels pour boire ». */
+export function describeTopics(topics: { summary: string }[]): string {
+  const parts = topics.map((t) => t.summary)
+  return parts.length > 1 ? `${parts.slice(0, -1).join(', ')} et ${parts.at(-1)}` : (parts[0] ?? '')
+}
 
 export interface UserSettings {
   disabledPages: PageKey[]

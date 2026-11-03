@@ -1,5 +1,6 @@
 import { ArrowDown, ArrowUp, Check, ListOrdered, MoreHorizontal, Pencil, Plus, Trash2, X } from 'lucide-react'
 import { useId, useState, type FormEvent } from 'react'
+import { ConfirmDialog } from '@/components/ConfirmDialog'
 import { Button } from '@/components/ui/button'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { Input } from '@/components/ui/input'
@@ -165,6 +166,7 @@ function SectionForm({ section, onSave, onCancel }: { section: StepSection; onSa
 export function StepSections({ step, onChange, onCount }: { step: KnitStep; onChange: (sections: StepSection[]) => Promise<boolean>; onCount: (delta: number) => void }) {
   // Index en cours de modification ; `step.sections.length` = nouvelle section.
   const [editing, setEditing] = useState<number | null>(null)
+  const [removing, setRemoving] = useState<number | null>(null)
   const plan = planSections(step.sections, step.totalRows)
   const row = step.rowCount + 1
   const current = sectionIndexAt(plan, row)
@@ -242,7 +244,7 @@ export function StepSections({ step, onChange, onCount }: { step: KnitStep; onCh
                         <ArrowDown /> Descendre
                       </DropdownMenuItem>
                     )}
-                    <DropdownMenuItem variant="destructive" onClick={() => void onChange(step.sections.filter((_, j) => j !== index))}>
+                    <DropdownMenuItem variant="destructive" onClick={() => setRemoving(index)}>
                       <Trash2 /> Supprimer
                     </DropdownMenuItem>
                   </DropdownMenuContent>
@@ -258,6 +260,16 @@ export function StepSections({ step, onChange, onCount }: { step: KnitStep; onCh
           </li>
         )}
       </ol>
+      <ConfirmDialog
+        open={removing !== null}
+        onOpenChange={(open) => !open && setRemoving(null)}
+        title="Supprimer cette section ?"
+        description={removing !== null && step.sections[removing] ? `« ${describeSection(step.sections[removing])} »` : undefined}
+        confirmLabel="Supprimer"
+        onConfirm={async () => {
+          if (removing !== null) await onChange(step.sections.filter((_, j) => j !== removing))
+        }}
+      />
       {editing === null && step.sections.length < MAX_SECTIONS && (
         <Button variant="outline" className="h-9" onClick={() => setEditing(step.sections.length)}>
           <Plus /> Ajouter une section

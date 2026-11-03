@@ -67,7 +67,7 @@ export function WeighInDialog({ open, onOpenChange, editing, rows, profiles, tod
         <form onSubmit={handleSubmit} noValidate className="grid grid-cols-[minmax(0,1fr)] gap-5">
           <DialogHeader>
             <DialogTitle>{editing ? 'Modifier la pesée' : 'Nouvelle pesée'}</DialogTitle>
-            <DialogDescription>Laisse vide le poids d'une personne qui ne s'est pas pesée.</DialogDescription>
+            <DialogDescription>Laisse vide le poids d’une personne qui ne s’est pas pesée.</DialogDescription>
           </DialogHeader>
 
           <div className="space-y-2">

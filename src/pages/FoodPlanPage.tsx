@@ -48,7 +48,7 @@ export function FoodPlanPage() {
       </Link>
       <PageHeader
         title="Plan alimentaire"
-        description="Quotas par période. Les changements s'appliquent aux prochaines périodes."
+        description="Quotas par période. Les changements s’appliquent aux prochaines périodes."
         actions={addButton}
       />
 

@@ -32,6 +32,8 @@ export interface StepSection {
 }
 
 export const MAX_SECTIONS = 30
+/** Rangs comptés dans une étape, au plus (comme en base). */
+export const MAX_ROW_COUNT = 5000
 
 export interface KnitStep {
   id: string
@@ -70,6 +72,33 @@ export interface ReadPattern {
   title: string
   sizes: string[]
   steps: PatternStep[]
+}
+
+/** Sections lues en base : seules celles bien formées sont gardées (une donnée abîmée ne fait pas planter l'écran). */
+export function sanitizeSections(raw: unknown): StepSection[] {
+  if (!Array.isArray(raw)) return []
+  const count = (v: unknown, max: number) => (typeof v === 'number' && Number.isInteger(v) && v >= 1 && v <= max ? v : null)
+  const text = (v: unknown) => (typeof v === 'string' ? v.slice(0, 200) : '')
+  return raw.flatMap((value): StepSection[] => {
+    if (typeof value !== 'object' || value === null) return []
+    const s = value as Record<string, unknown>
+    if (s.kind !== 'rows' && s.kind !== 'repeat') return []
+    const section: StepSection = {
+      kind: s.kind,
+      rows: count(s.rows, 2000),
+      every: count(s.every, 500),
+      times: count(s.times, 500),
+      text: text(s.text),
+      pattern: typeof s.pattern === 'string' ? s.pattern.slice(0, 100) : null,
+    }
+    if (Array.isArray(s.actions)) {
+      section.actions = s.actions
+        .filter((a): a is Record<string, unknown> => typeof a === 'object' && a !== null && typeof a.text === 'string' && a.text.trim() !== '')
+        .slice(0, MAX_ACTIONS)
+        .map((a) => ({ text: text(a.text), rank: count(a.rank, 500) }))
+    }
+    return [section]
+  })
 }
 
 export const MAX_PDF_BYTES = 20 * 1024 * 1024
@@ -255,12 +284,13 @@ export function formToSection(form: SectionForm, pattern: string | null = null):
   const every = parse(form.every, 1, 500)
   const times = parse(form.times, 1, 500)
   if (every === undefined) return 'Répétition : un nombre de rangs entre 1 et 500.'
-  if (times === undefined) return 'Nombre de fois : un nombre entier à partir de 1.'
+  if (times === undefined) return 'Nombre de fois : un nombre entier entre 1 et 500.'
   const actions = form.actions
     .map((a) => ({ text: a.text.trim().slice(0, 200), rank: a.rank === 'last' ? null : Number(a.rank) }))
     .filter((a) => a.text)
     .slice(0, MAX_ACTIONS)
   if (actions.length === 0) return 'Indique quoi faire (ex. « 1 diminution de chaque côté »).'
+  if (every === null && !pattern) return 'Indique tous les combien de rangs.'
   if (every !== null && actions.some((a) => a.rank !== null && a.rank > every)) return `Une action est placée après le dernier rang de la répétition (${every}).`
   // Rang = dernier : enregistré comme « dernier », pour suivre un changement du nombre de rangs.
   const normalized = actions.map((a) => (every !== null && a.rank === every ? { ...a, rank: null } : a))

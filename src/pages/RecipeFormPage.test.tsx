@@ -5,6 +5,7 @@ import { render } from '@testing-library/react'
 import { Toaster } from 'sonner'
 import { AppError, DuplicateRecipeUrlError, type Api } from '@/api'
 import { ApiProvider } from '@/app/ApiContext'
+import { SettingsProvider } from '@/app/SettingsContext'
 import { AuthProvider } from '@/auth/AuthProvider'
 import type { InboxItem } from '@/lib/inbox'
 import type { Recipe, RecipeImport } from '@/lib/recipes'
@@ -23,6 +24,7 @@ function renderForm(api: FakeApi, entry: string | { pathname: string; state: unk
     <MemoryRouter initialEntries={[entry]}>
       <ApiProvider api={api as unknown as Api}>
         <AuthProvider auth={fakeAuth()}>
+          <SettingsProvider>
           <Routes>
             <Route path="/recettes/nouvelle" element={<RecipeFormPage />} />
             <Route path="/recettes/:id/modifier" element={<RecipeFormPage />} />
@@ -31,6 +33,7 @@ function renderForm(api: FakeApi, entry: string | { pathname: string; state: unk
             <Route path="/recettes" element={<p>Écran recettes</p>} />
           </Routes>
           <Toaster />
+        </SettingsProvider>
         </AuthProvider>
       </ApiProvider>
     </MemoryRouter>,
@@ -50,7 +53,7 @@ describe('RecipeFormPage — nouvelle recette', () => {
     await user.click(screen.getByRole('button', { name: 'Enregistrer' }))
     expect(screen.getByText('Le titre est obligatoire')).toBeInTheDocument()
     expect(screen.getByText('Ajoute au moins un ingrédient')).toBeInTheDocument()
-    expect(await screen.findByText('Vérifie les champs en rouge.')).toBeInTheDocument()
+    expect(await screen.findByText('Vérifie les champs en rouge')).toBeInTheDocument()
     expect(api.recipes.saveRecipe).not.toHaveBeenCalled()
 
     await user.type(screen.getByLabelText('Titre'), 'Tarte')
@@ -240,7 +243,7 @@ describe('RecipeFormPage — modification', () => {
     })
     renderForm(api, { pathname: '/recettes/r1/modifier', state: { from: '/planning' } })
 
-    expect(await screen.findByRole('heading', { name: 'Sauvegarder la recette' })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: 'Enregistrer la recette' })).toBeInTheDocument()
     expect(screen.getByLabelText('Titre')).toHaveValue('Quiche')
     expect(screen.getByLabelText('Étapes')).toHaveValue('De mamie')
     expect(screen.getByLabelText('Lien')).toHaveValue('https://quiche.fr')
@@ -248,7 +251,7 @@ describe('RecipeFormPage — modification', () => {
     expect(screen.getByRole('link', { name: 'Retour' })).toHaveAttribute('href', '/planning')
 
     await user.type(screen.getByLabelText("Nom de l'ingrédient 1"), 'Lardons')
-    await user.click(screen.getByRole('button', { name: 'Sauvegarder la recette' }))
+    await user.click(screen.getByRole('button', { name: 'Enregistrer la recette' }))
     expect(await screen.findByText('Écran planning')).toBeInTheDocument()
     expect(api.recipes.saveRecipe).toHaveBeenCalledWith(expect.objectContaining({ id: 'r1', title: 'Quiche' }))
   })

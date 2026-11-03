@@ -11,15 +11,36 @@ export const GLASSES = [
   { label: 'Grand verre', volumeMl: 330 },
 ] as const
 
-/** Plage des rappels (heure locale) et délai sans boire avant un rappel. */
+/** Plage des rappels (heure de Paris, comme le serveur) et délai sans boire avant un rappel. */
 export const REMINDER_START_HOUR = 9
 export const REMINDER_END_HOUR = 23
 export const REMINDER_DELAY_MS = 4 * 3600 * 1000
 
+const TIME_ZONE = 'Europe/Paris'
+
+/** Date et heure à Paris d'un instant. */
+function parisParts(at: Date): { year: number; month: number; day: number; hour: number; minute: number } {
+  const parts = Object.fromEntries(
+    new Intl.DateTimeFormat('en-GB', { timeZone: TIME_ZONE, year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' })
+      .formatToParts(at)
+      .map((p) => [p.type, Number(p.value)]),
+  )
+  return { year: parts.year!, month: parts.month!, day: parts.day!, hour: parts.hour!, minute: parts.minute! }
+}
+
+/** Instant où il est `hour` h, heure de Paris, le même jour (à Paris) que `at`. */
+export function parisTime(at: Date, hour: number): Date {
+  const { year, month, day } = parisParts(at)
+  const guess = Date.UTC(year, month - 1, day, hour)
+  // Décalage de Paris à cet instant (1 h l'hiver, 2 h l'été).
+  const seen = parisParts(new Date(guess))
+  const offset = Date.UTC(seen.year, seen.month - 1, seen.day, seen.hour, seen.minute) - guess
+  return new Date(guess - offset)
+}
+
+/** Minuit à Paris : la journée de l'eau suit l'heure de Paris, comme les rappels, même en voyage. */
 export function startOfDay(now: Date): Date {
-  const day = new Date(now)
-  day.setHours(0, 0, 0, 0)
-  return day
+  return parisTime(now, 0)
 }
 
 export function totalMl(intakes: WaterIntake[]): number {
@@ -54,17 +75,17 @@ export function lastDrink(intakes: WaterIntake[]): Date | null {
 }
 
 /**
- * Heure du prochain rappel si rien n'est bu d'ici là (4 h après le dernier verre, ou après 9 h),
- * null si l'objectif est atteint ou si elle tombe après 23 h.
+ * Heure du prochain rappel si rien n'est bu d'ici là (4 h après le dernier verre, ou après 9 h ; puis toutes les 4 h
+ * après le rappel précédent, comme le serveur), null si l'objectif est atteint ou si elle tombe après 23 h.
  */
 export function nextReminder(intakes: WaterIntake[], goalMl: number, now: Date): Date | null {
   if (totalMl(intakes) >= goalMl) return null
-  const dayStart = startOfDay(now)
-  dayStart.setHours(REMINDER_START_HOUR)
-  const dayEnd = startOfDay(now)
-  dayEnd.setHours(REMINDER_END_HOUR)
+  const dayStart = parisTime(now, REMINDER_START_HOUR)
+  const dayEnd = parisTime(now, REMINDER_END_HOUR)
   const last = lastDrink(intakes)
   const reference = last && last > dayStart ? last : dayStart
-  const at = new Date(reference.getTime() + REMINDER_DELAY_MS)
-  return at < dayEnd ? at : null
+  let at = reference.getTime() + REMINDER_DELAY_MS
+  // Heure passée : ce rappel est parti, le suivant vient 4 h après.
+  while (at <= now.getTime()) at += REMINDER_DELAY_MS
+  return at < dayEnd.getTime() ? new Date(at) : null
 }

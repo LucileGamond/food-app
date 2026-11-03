@@ -4,6 +4,7 @@ import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { Toaster } from 'sonner'
 import { AppError, type Api } from '@/api'
 import { ApiProvider } from '@/app/ApiContext'
+import { SettingsProvider } from '@/app/SettingsContext'
 import { AuthProvider } from '@/auth/AuthProvider'
 import { compressForReading, cropImage } from '@/lib/image'
 import type { RecipeImport } from '@/lib/recipes'
@@ -42,10 +43,12 @@ function renderForm(api: FakeApi, entry = '/recettes/nouvelle') {
     <MemoryRouter initialEntries={[entry]}>
       <ApiProvider api={api as unknown as Api}>
         <AuthProvider auth={fakeAuth()}>
+          <SettingsProvider>
           <Routes>
             <Route path="/recettes/nouvelle" element={<RecipeFormPage />} />
           </Routes>
           <Toaster />
+        </SettingsProvider>
         </AuthProvider>
       </ApiProvider>
     </MemoryRouter>,
@@ -278,7 +281,7 @@ describe('RecipeFormPage — recette depuis une photo', () => {
   it('prévient si le partage ne contenait aucune photo', async () => {
     const api = fakeApi()
     renderForm(api, '/recettes/nouvelle?photos=partage')
-    expect(await screen.findByText('Aucune photo reçue : choisis-la depuis « Photo d’un livre ou scan ».')).toBeInTheDocument()
+    expect(await screen.findByText('Aucune photo reçue : choisis-la depuis « Photo d’un livre ou scan »')).toBeInTheDocument()
     await waitFor(() => expect(takeSharedPhotos).toHaveBeenCalledTimes(1))
     expect(api.recipes.importFromPhotos).not.toHaveBeenCalled()
   })

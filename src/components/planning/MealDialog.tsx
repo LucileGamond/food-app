@@ -113,7 +113,7 @@ export function MealDialog({ open, onOpenChange, target, meal, profiles, current
           <Tabs value={values.mode} onValueChange={(mode) => set('mode', mode as MealFormValues['mode'])}>
             <TabsList className="w-full">
               <TabsTrigger value="adhoc">Recette ponctuelle</TabsTrigger>
-              <TabsTrigger value="saved">Recette sauvegardée</TabsTrigger>
+              <TabsTrigger value="saved">Recette enregistrée</TabsTrigger>
             </TabsList>
 
             <TabsContent value="adhoc" className="mt-3 space-y-4">

@@ -231,7 +231,7 @@ export function sanitizeRecipe(input: unknown, fallbackTitle: string | null, not
 
   if (ingredients.length === 0) throw new ImportError(notFound, 422)
 
-  const servings = typeof data.servings === 'number' && Number.isInteger(data.servings) && data.servings >= 1 && data.servings <= 100 ? data.servings : null
+  const servings = typeof data.servings === 'number' && Number.isInteger(data.servings) && data.servings >= 1 && data.servings <= 99 ? data.servings : null
   const steps =
     typeof data.steps === 'string'
       ? data.steps

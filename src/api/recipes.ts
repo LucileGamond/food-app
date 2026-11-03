@@ -289,9 +289,11 @@ export function createRecipesApi(db: AppSupabaseClient) {
         throw toAppError(error, 'Impossible de supprimer la recette.')
       }
 
-      if (photos.length > 0) {
+      // Les photos pending/ (temporaires, parfois partagées) sont supprimées par le ménage de nuit.
+      const owned = photos.map((p) => p.storage_path).filter((path) => !path.startsWith('pending/'))
+      if (owned.length > 0) {
         // Les fichiers orphelins ne gênent pas l'application : un échec ici n'est pas bloquant.
-        await db.storage.from(PHOTO_BUCKET).remove(photos.map((p) => p.storage_path))
+        await db.storage.from(PHOTO_BUCKET).remove(owned)
       }
     },
 

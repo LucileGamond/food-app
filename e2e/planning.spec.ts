@@ -6,8 +6,8 @@ test.beforeEach(async ({ page }) => {
 
 test('affiche 7 jours et navigue de semaine en semaine', async ({ page }) => {
   await expect(page.getByTestId('day-card')).toHaveCount(7)
-  await expect(page.getByRole('article', { name: dayLabel(0) })).toContainText("Aujourd'hui")
-  await expect(page.getByRole('button', { name: "Aujourd'hui" })).toBeDisabled()
+  await expect(page.getByRole('article', { name: dayLabel(0) })).toContainText("Aujourd’hui")
+  await expect(page.getByRole('button', { name: "Aujourd’hui" })).toBeDisabled()
 
   await page.getByRole('button', { name: 'Semaine suivante' }).click()
   await expect(page.getByRole('article', { name: dayLabel(7) })).toBeVisible()
@@ -17,7 +17,7 @@ test('affiche 7 jours et navigue de semaine en semaine', async ({ page }) => {
   await page.getByRole('button', { name: 'Semaine précédente' }).click()
   await expect(page.getByRole('article', { name: dayLabel(-7) })).toBeVisible()
 
-  await page.getByRole('button', { name: "Aujourd'hui" }).click()
+  await page.getByRole('button', { name: "Aujourd’hui" }).click()
   await expect(page.getByRole('article', { name: dayLabel(0) })).toBeVisible()
 })
 

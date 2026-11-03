@@ -67,7 +67,16 @@ describe('HydrationPage', () => {
     api.hydration.listIntakes.mockResolvedValue([{ id: 'w1', volume_ml: 1000, drunk_at: local('10:00') }])
     renderPage(api)
     expect(await screen.findByText('Objectif atteint, bravo !')).toBeInTheDocument()
-    expect(screen.getByText('Objectif : 1 L par jour')).toBeInTheDocument()
+    expect(screen.getByText('Objectif : 1 L par jour · rien que pour toi')).toBeInTheDocument()
+  })
+
+  it('suit en direct les verres notés sur un autre appareil', async () => {
+    const api = setup()
+    renderPage(api)
+    await screen.findByText('Rien bu aujourd’hui pour l’instant.')
+    api.hydration.listIntakes.mockResolvedValue([{ id: 'w1', volume_ml: 330, drunk_at: local('14:00') }])
+    api.hydration.subscribe.mock.calls[0]![0]()
+    expect(await screen.findByText('0,33 L')).toBeInTheDocument()
   })
 
   it('propose de réessayer si le chargement échoue', async () => {

@@ -28,7 +28,7 @@ test('recettes de saison : badge, filtre, fiche et page « Ce mois-ci »', async
   await expect(page.getByText(`Hors saison en ${MONTH_NAMES[month - 1]} : ${stale.name.toLowerCase()}`)).toBeVisible()
 
   await page.goto('/recettes')
-  await page.getByRole('link', { name: 'Ce mois-ci' }).click()
+  await page.getByRole('link', { name: 'De saison', exact: true }).click()
   await expect(page.getByRole('heading', { name: new RegExp(`^${MONTH_NAMES[month - 1]}$`, 'i') })).toBeVisible()
   await page.getByRole('button', { name: new RegExp(`^${fresh.name} ?·`) }).click()
   await expect(page.getByRole('link', { name: /poêlée du mois/ })).toBeVisible()

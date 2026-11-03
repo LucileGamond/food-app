@@ -151,7 +151,7 @@ test('aucun écran ni aucune fenêtre ne déborde', async ({ page, isMobile }) =
   await page.getByRole('button', { name: `Ajouter un repas — ${dayLabel(1)}, Midi` }).click()
   let dialog = page.getByRole('dialog', { name: 'Ajouter un repas' })
   await check(page, 'repas-ponctuel', dialog)
-  await dialog.getByRole('tab', { name: 'Recette sauvegardée' }).click()
+  await dialog.getByRole('tab', { name: 'Recette enregistrée' }).click()
   await expect(dialog.getByRole('radio').first()).toBeAttached()
   await check(page, 'repas-recette-sauvegardee', dialog)
   await closeDialog(page)
@@ -267,7 +267,7 @@ test('aucun écran ni aucune fenêtre ne déborde', async ({ page, isMobile }) =
   await expect(page.getByTestId('shopping-item')).toHaveCount(3)
   await check(page, 'liste')
   await page.getByRole('button', { name: /^Modifier Pommes de terre/ }).click()
-  await check(page, 'liste-article', page.getByRole('dialog', { name: "Modifier l'article" }))
+  await check(page, 'liste-article', page.getByRole('dialog', { name: "Modifier l’article" }))
   await closeDialog(page)
 
   // Partage depuis le téléphone

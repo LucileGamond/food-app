@@ -1,26 +1,24 @@
 import AxeBuilder from '@axe-core/playwright'
 import type { Page } from '@playwright/test'
-import { ERIC, expect, login, test } from './fixtures'
+import { ERIC, expect, login, navHasPage, openNavPage, test } from './fixtures'
 
 async function expectNoA11yViolations(page: Page) {
   const results = await new AxeBuilder({ page }).exclude('[data-sonner-toaster]').withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa']).analyze()
   expect(results.violations.map((v) => `${v.id}: ${v.nodes.map((n) => n.target.join(' ')).join(', ')}`)).toEqual([])
 }
 
-const nav = (page: Page) => page.getByRole('navigation', { name: 'Navigation principale' }).filter({ visible: true })
-
 test('active le suivi d’hydratation dans les réglages, note des verres, puis le désactive', async ({ page, browser }) => {
   await login(page)
-  await expect(nav(page).getByRole('link', { name: 'Eau' })).toHaveCount(0)
+  expect(await navHasPage(page, 'Eau')).toBe(false)
 
   await page.getByRole('link', { name: 'Réglages' }).filter({ visible: true }).click()
   await expect(page.getByRole('heading', { name: 'Réglages' })).toBeVisible()
   await expectNoA11yViolations(page)
-  await page.getByRole('checkbox', { name: 'Hydratation' }).first().click()
-  await expect(page.getByRole('region', { name: 'Hydratation' })).toBeVisible()
+  await page.getByRole('checkbox', { name: 'Eau' }).first().click()
+  await expect(page.getByRole('region', { name: 'Eau' })).toBeVisible()
 
-  await nav(page).getByRole('link', { name: 'Eau' }).click()
-  await expect(page.getByRole('heading', { name: 'Hydratation' })).toBeVisible()
+  await openNavPage(page, 'Eau')
+  await expect(page.getByRole('heading', { name: 'Eau' })).toBeVisible()
   await expect(page.getByText('Rien bu aujourd’hui pour l’instant.')).toBeVisible()
   await page.getByRole('button', { name: /Petit verre/ }).click()
   await page.getByRole('button', { name: /Grand verre/ }).click()
@@ -40,7 +38,7 @@ test('active le suivi d’hydratation dans les réglages, note des verres, puis 
   const eric = await ericContext.newPage()
   try {
     await login(eric, ERIC.email)
-    await expect(nav(eric).getByRole('link', { name: 'Eau' })).toHaveCount(0)
+    expect(await navHasPage(eric, 'Eau')).toBe(false)
     await eric.goto('/hydratation')
     await expect(eric.getByRole('heading', { name: 'Planning' })).toBeVisible()
   } finally {
@@ -49,7 +47,7 @@ test('active le suivi d’hydratation dans les réglages, note des verres, puis 
 
   // Désactivé : la page disparaît de la navigation
   await page.goto('/reglages')
-  await page.getByRole('checkbox', { name: 'Hydratation' }).first().click()
-  await expect(nav(page).getByRole('link', { name: 'Eau' })).toHaveCount(0)
-  await expect(page.getByRole('region', { name: 'Hydratation' })).toHaveCount(0)
+  await page.getByRole('checkbox', { name: 'Eau' }).first().click()
+  await expect(page.getByRole('region', { name: 'Eau' })).toHaveCount(0)
+  expect(await navHasPage(page, 'Eau')).toBe(false)
 })

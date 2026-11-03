@@ -1,7 +1,7 @@
 import { createHydrationApi } from '@/api/hydration'
 import { createSettingsApi } from '@/api/settings'
 import { DEFAULT_SETTINGS } from '@/lib/settings'
-import { ERIC, anonClient, resetData, signedInApi } from './helpers'
+import { ERIC, anonClient, resetData, signedInApi, waitFor } from './helpers'
 
 beforeEach(async () => {
   await resetData()
@@ -47,6 +47,33 @@ describe('hydration api', () => {
     await lucile.api.hydration.deleteIntake(small.id)
     expect((await lucile.api.hydration.listIntakes(since)).map((i) => i.volume_ml)).toEqual([330])
   })
+
+  it('prévient les autres appareils de la personne d’un verre ajouté', async () => {
+    const phone = await signedInApi()
+    const computer = await signedInApi()
+    let events = 0
+    let status = ''
+    const unsubscribe = computer.api.hydration.subscribe(
+      () => {
+        events += 1
+      },
+      (s) => {
+        status = s
+      },
+    )
+    try {
+      await waitFor(() => status === 'SUBSCRIBED', 20000)
+      // Le serveur temps réel peut être lent juste après un démarrage : on ajoute jusqu'à être notifié.
+      const deadline = Date.now() + 30000
+      while (events === 0 && Date.now() < deadline) {
+        await phone.api.hydration.addIntake(200)
+        await waitFor(() => events > 0, 3000).catch(() => undefined)
+      }
+      expect(events).toBeGreaterThan(0)
+    } finally {
+      unsubscribe()
+    }
+  }, 60000)
 
   it('refuse un volume invalide et l’accès sans connexion', async () => {
     const { api } = await signedInApi()

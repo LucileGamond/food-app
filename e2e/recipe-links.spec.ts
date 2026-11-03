@@ -83,7 +83,7 @@ test('importe la recette à laquelle renvoie un ingrédient, puis la lie', async
   // Le second renvoi se lie à une recette existante
   await page.getByRole('button', { name: 'Lier streusel à une recette existante' }).click()
   const picker = page.getByRole('dialog', { name: 'Lier à une recette' })
-  await picker.getByRole('radiogroup', { name: 'Recettes sauvegardées' }).getByText('Pâte sucrée').click()
+  await picker.getByRole('radiogroup', { name: 'Recettes enregistrées' }).getByText('Pâte sucrée').click()
   await picker.getByRole('button', { name: 'Lier' }).click()
   await expect(page.getByRole('link', { name: 'Recette : Pâte sucrée' })).toHaveCount(2)
   await expect(page.getByRole('button', { name: /^Importer/ })).toHaveCount(0)

@@ -2,7 +2,9 @@ import { Bell, BellOff, BellRing, Loader2 } from 'lucide-react'
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { useSettings } from '@/app/SettingsContext'
 import type { NotificationsState } from '@/hooks/useNotifications'
+import { activeTopics, describeTopics, NOTIFICATION_TOPICS } from '@/lib/settings'
 
 const PROMPT_KEY = 'food:notifications-prompt'
 
@@ -14,8 +16,16 @@ function readDismissed(): boolean {
   }
 }
 
+/** Sujets reçus d'après les réglages (ceux des réglages par défaut tant qu'ils ne sont pas chargés). */
+function useTopics() {
+  const { ready, settings } = useSettings()
+  return ready ? activeTopics(settings) : NOTIFICATION_TOPICS.filter((t) => t.key === 'courses')
+}
+
 /** Bouton cloche (en-tête / barre latérale) : état et réglage des notifications de l'application. */
 export function NotificationsButton({ notifications, size = 'icon' }: { notifications: NotificationsState; size?: 'icon' | 'icon-lg' }) {
+  const topics = useTopics()
+  const described = describeTopics(topics)
   const [open, setOpen] = useState(false)
   const { status, busy, enable, disable } = notifications
   // Navigateur sans notifications (ou application non installée) : rien à régler.
@@ -33,10 +43,14 @@ export function NotificationsButton({ notifications, size = 'icon' }: { notifica
             <DialogTitle>Notifications</DialogTitle>
             <DialogDescription>
               {status === 'on'
-                ? 'Activées sur cet appareil. Choisis lesquelles recevoir dans les réglages.'
+                ? topics.length
+                  ? `Activées sur cet appareil : ${described}. Choisis lesquelles recevoir dans les réglages.`
+                  : 'Activées sur cet appareil, mais aucune n’est choisie dans les réglages.'
                 : status === 'denied'
-                  ? 'Bloquées par le téléphone. Autorise-les pour Food dans les réglages (Applications → Food → Notifications), puis rouvre l’application.'
-                  : 'Être prévenu(e) sur cet appareil : modifications des listes de courses, rappels pour boire… (au choix dans les réglages).'}
+                  ? 'Bloquées par le téléphone. Autorise-les pour Food dans les réglages du téléphone (Applications → Food → Notifications), puis rouvre l’application.'
+                  : topics.length
+                    ? `Être prévenu(e) sur cet appareil : ${described} (au choix dans les réglages).`
+                    : 'Aucune notification n’est choisie dans les réglages.'}
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
@@ -50,7 +64,7 @@ export function NotificationsButton({ notifications, size = 'icon' }: { notifica
               </Button>
             )}
             {status === 'on' && (
-              <Button variant="destructive" className="h-10" onClick={() => void disable()} disabled={busy}>
+              <Button variant="outline" className="h-10" onClick={() => void disable()} disabled={busy}>
                 {busy && <Loader2 className="animate-spin" aria-hidden />}
                 Désactiver
               </Button>
@@ -66,7 +80,9 @@ export function NotificationsButton({ notifications, size = 'icon' }: { notifica
 export function NotificationsPrompt({ notifications }: { notifications: NotificationsState }) {
   const [dismissed, setDismissed] = useState(readDismissed)
   const { status, busy, enable } = notifications
-  if (status !== 'off' || dismissed) return null
+  const topics = useTopics()
+  // Rien à proposer : aucune notification choisie dans les réglages.
+  if (status !== 'off' || dismissed || topics.length === 0) return null
 
   function dismiss() {
     setDismissed(true)
@@ -82,7 +98,7 @@ export function NotificationsPrompt({ notifications }: { notifications: Notifica
       <BellRing className="size-5 shrink-0 text-brand" aria-hidden />
       <p className="min-w-0 flex-1 text-sm">
         <span className="font-medium">Activer les notifications ?</span>{' '}
-        <span className="text-muted-foreground">Listes de courses modifiées, rappels pour boire… au choix dans les réglages.</span>
+        <span className="text-muted-foreground">Tu seras prévenu(e) : {describeTopics(topics)}.</span>
       </p>
       <div className="flex gap-2">
         <Button variant="ghost" className="h-9" onClick={dismiss}>

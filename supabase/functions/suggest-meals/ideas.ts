@@ -195,6 +195,9 @@ const NOT_FOOD = new Set([
 /** Mots significatifs d'un aliment : sans accents ni majuscules, au singulier. */
 export function foodWords(name: string): Set<string> {
   const words = name
+    .toLowerCase()
+    .replace(/œ/g, 'oe')
+    .replace(/æ/g, 'ae')
     .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, '')
     .toLowerCase()

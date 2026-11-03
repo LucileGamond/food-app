@@ -1,7 +1,7 @@
 import { formatDay, type IsoDate } from './dates'
 import { slotLabel, type Meal } from './meals'
 import { formatIngredient, scaleIngredients, type Ingredient } from './recipes'
-import { addAmounts, findMergeTarget, formatAmount, guessAisle, normalizeName, type Aisle, type ShoppingItem, type ShoppingItemInput } from './shopping'
+import { addAmounts, findMergeTarget, formatAmount, guessAisle, normalizeName, productKey, type Aisle, type ShoppingItem, type ShoppingItemInput } from './shopping'
 import { isUnit } from './units'
 
 // ---------------------------------------------------------------------------
@@ -146,7 +146,7 @@ export function purchaseQuantity(quantity: number | null, unit: string | null): 
  */
 function finalize(lines: DraftLine[]): DraftLine[] {
   return lines.map((line) => {
-    const others = lines.filter((l) => l !== line && normalizeName(l.name) === normalizeName(line.name))
+    const others = lines.filter((l) => l !== line && productKey(l.name) === productKey(line.name))
     const issues = line.issues.filter((i) => i.kind !== 'mixed-units' && !(i.kind === 'no-quantity' && line.pantry))
     if (others.length > 0) {
       const amounts = others.map((o) => formatAmount({ quantity: purchaseQuantity(o.quantity, o.unit), unit: o.unit }) || 'sans quantité')

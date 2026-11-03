@@ -40,7 +40,7 @@ export function QuickAddBar({ onAdd }: { onAdd: (input: ShoppingItemInput) => Pr
           value={values.name}
           onChange={(e) => changeName(e.target.value)}
           placeholder="Ajouter un article"
-          aria-label="Nom de l'article"
+          aria-label="Nom de l’article"
           maxLength={120}
           className="h-10"
         />

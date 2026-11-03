@@ -1,8 +1,10 @@
 // Logique de notify-shopping, indépendante de Deno pour pouvoir être testée.
 // Appelée par pg_cron (en-tête x-cron-secret) :
 //   - toutes les 3 minutes : notifications groupées des modifications de listes de courses aux appareils des autres ;
-//   - toutes les 10 minutes, corps {"job": "hydration"} : rappels « pense à boire ».
+//   - toutes les 10 minutes, corps {"job": "hydration"} : rappels « pense à boire » ;
+//   - chaque nuit, corps {"job": "cleanup"} : suppression des fichiers (photos, PDF) que plus rien n'utilise.
 
+import { CLEANED_BUCKETS, orphanFiles, type CleanedBucket, type StoredFile } from './cleanup.ts'
 import { buildHydrationMessage, type HydrationReminder } from './hydration.ts'
 import { buildShoppingMessage, QUIET_MS, readyGroups, type PushPayload, type ShoppingEvent } from './message.ts'
 
@@ -25,6 +27,10 @@ export interface Deps {
   loadProfileSubscriptions: (profileId: string) => Promise<DeviceSubscription[]>
   /** Rappels d'hydratation dus, réservés (une seule exécution les envoie). */
   claimHydrationReminders: () => Promise<HydrationReminder[]>
+  /** Fichiers d'un bucket du stockage, et ceux encore utilisés. */
+  listFiles: (bucket: CleanedBucket) => Promise<StoredFile[]>
+  referencedFiles: (bucket: CleanedBucket) => Promise<string[]>
+  removeFiles: (bucket: CleanedBucket, paths: string[]) => Promise<void>
   send: (subscription: DeviceSubscription, payload: PushPayload) => Promise<SendResult>
   deleteSubscriptions: (ids: string[]) => Promise<void>
   /**
@@ -43,9 +49,19 @@ export interface RunReport {
   removed: number
 }
 
+/** Heures sans notification de courses (heure de Paris) : les modifications attendent le matin. */
+export const NIGHT_START_HOUR = 22
+export const NIGHT_END_HOUR = 8
+
+export function parisHour(ms: number): number {
+  return Number(new Intl.DateTimeFormat('en-GB', { timeZone: 'Europe/Paris', hour: '2-digit', hourCycle: 'h23' }).format(ms))
+}
+
 export async function notifyPending(deps: Deps): Promise<RunReport> {
-  const groups = readyGroups(await deps.loadPendingEvents(), deps.now(), QUIET_MS)
   const report: RunReport = { groups: 0, sent: 0, failed: 0, removed: 0 }
+  const hour = parisHour(deps.now())
+  if (hour >= NIGHT_START_HOUR || hour < NIGHT_END_HOUR) return report
+  const groups = readyGroups(await deps.loadPendingEvents(), deps.now(), QUIET_MS)
   const gone = new Set<string>()
 
   try {
@@ -98,6 +114,17 @@ export async function notifyHydration(deps: Deps): Promise<RunReport> {
   return report
 }
 
+export async function cleanupFiles(deps: Deps): Promise<{ removed: number }> {
+  let removed = 0
+  for (const bucket of CLEANED_BUCKETS) {
+    const orphans = orphanFiles(await deps.listFiles(bucket), await deps.referencedFiles(bucket), deps.now())
+    // Par paquets : l'API de stockage borne la taille d'une suppression.
+    for (let i = 0; i < orphans.length; i += 100) await deps.removeFiles(bucket, orphans.slice(i, i + 100))
+    removed += orphans.length
+  }
+  return { removed }
+}
+
 /** Comparaison en temps constant (le secret ne se devine pas caractère par caractère). */
 export function sameSecret(given: string | null, expected: string): boolean {
   const a = new TextEncoder().encode(given ?? '')
@@ -117,6 +144,11 @@ export function createHandler(deps: Deps) {
     if (!deps.secret || !sameSecret(request.headers.get('x-cron-secret'), deps.secret)) return json({ error: 'Non autorisé.' }, 401)
     try {
       const body = (await request.json().catch(() => null)) as { job?: unknown } | null
+      if (body?.job === 'cleanup') {
+        const result = await cleanupFiles(deps)
+        if (result.removed > 0) deps.log?.('fichiers inutilisés supprimés', result)
+        return json(result)
+      }
       const report = body?.job === 'hydration' ? await notifyHydration(deps) : await notifyPending(deps)
       if (report.groups > 0) deps.log?.('notifications envoyées', { ...report })
       return json(report)
