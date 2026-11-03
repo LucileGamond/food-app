@@ -1,6 +1,6 @@
 import type { Api } from '@/api'
 import { pageReference } from './recipes'
-import { normalizeName } from './shopping'
+import { foldText } from './text'
 
 // Liens automatiques entre recettes d'un même livre : un ingrédient qui renvoie à une page (« pâte sucrée, voir
 // p. 208 ») est lié à la recette de ce livre imprimée à cette page.
@@ -33,12 +33,12 @@ function pageRange(page: string | null): [number, number] | null {
 
 /** Nom de l'ingrédient sans le renvoi ni les parenthèses : « pâte sucrée (voir p. 208) » → « pate sucree ». */
 function bareName(name: string): string {
-  return normalizeName(name.replace(/\([^)]*\)/g, ' ').replace(/\b(?:voir\s+)?(?:p\.|page)\s*\d+.*/i, ' '))
+  return foldText(name.replace(/\([^)]*\)/g, ' ').replace(/\b(?:voir\s+)?(?:p\.|page)\s*\d+.*/i, ' '))
 }
 
 /** Le titre et le nom de l'ingrédient se recouvrent (« Pâte sucrée » / « 1 pâte sucrée maison »). */
 function sameDish(title: string, ingredient: string): boolean {
-  const a = normalizeName(title)
+  const a = foldText(title)
   const b = bareName(ingredient)
   return a !== '' && b !== '' && (a.includes(b) || b.includes(a))
 }
@@ -53,14 +53,14 @@ export function findAutoLinks(recipes: readonly LinkableRecipe[], onlyFor?: stri
   const byBook = new Map<string, LinkableRecipe[]>()
   for (const recipe of recipes) {
     if (!recipe.source) continue
-    const book = normalizeName(recipe.source)
+    const book = foldText(recipe.source)
     byBook.set(book, [...(byBook.get(book) ?? []), recipe])
   }
 
   const links: AutoLink[] = []
   for (const recipe of recipes) {
     if (!recipe.source) continue
-    const sameBook = byBook.get(normalizeName(recipe.source)) ?? []
+    const sameBook = byBook.get(foldText(recipe.source)) ?? []
     for (const ingredient of recipe.ingredients) {
       if (ingredient.linkedRecipeId) continue
       const reference = pageReference(ingredient)
@@ -80,7 +80,7 @@ export function findAutoLinks(recipes: readonly LinkableRecipe[], onlyFor?: stri
   return links
 }
 
-export interface AutoLinkResult {
+interface AutoLinkResult {
   linked: AutoLink[]
   /** Liens qui n'ont pas pu être enregistrés (recette modifiée ou supprimée entre-temps…). */
   failed: number

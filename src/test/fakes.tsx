@@ -80,7 +80,7 @@ export function fakeApi(): FakeApi {
       listTags: vi.fn(async () => [] as string[]),
       listSources: vi.fn(async () => [] as string[]),
       findSavedByUrl: vi.fn(async () => null as { id: string; title: string } | null),
-      useSavedRecipe: vi.fn(async () => 1),
+      replaceAdhocWithSaved: vi.fn(async () => 1),
       linkIngredient: vi.fn(async () => undefined),
       getIngredients: vi.fn(async () => [] as { id: string; servings: number | null; ingredients: Ingredient[] }[]),
       importFromPhotos: vi.fn(async (): Promise<RecipeImport> => ({ recipe: { title: 'Recette lue', servings: null, ingredients: [], steps: '', tags: [] }, source: 'photo', image: null })),

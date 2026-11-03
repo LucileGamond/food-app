@@ -1,4 +1,4 @@
-import { normalizeName } from './shopping'
+import { foldText } from './text'
 
 /**
  * Sources existantes, sans doublon : les libellés qui ne diffèrent que par la casse, les accents ou les espaces
@@ -9,7 +9,7 @@ export function groupSources(labels: readonly string[]): string[] {
   for (const raw of labels) {
     const label = raw.trim().replace(/\s+/g, ' ')
     if (!label) continue
-    const key = normalizeName(label)
+    const key = foldText(label)
     const spellings = groups.get(key) ?? new Map<string, number>()
     spellings.set(label, (spellings.get(label) ?? 0) + 1)
     groups.set(key, spellings)
@@ -21,14 +21,14 @@ export function groupSources(labels: readonly string[]): string[] {
 
 /** Source existante qui correspond au texte saisi (même nom à la casse et aux accents près), sinon null. */
 export function findSource(text: string, sources: readonly string[]): string | null {
-  const key = normalizeName(text)
-  return key ? (sources.find((s) => normalizeName(s) === key) ?? null) : null
+  const key = foldText(text)
+  return key ? (sources.find((s) => foldText(s) === key) ?? null) : null
 }
 
 /** Sources qui contiennent le texte saisi (casse et accents ignorés) ; toutes si rien n'est saisi. */
 export function filterSources(text: string, sources: readonly string[]): string[] {
-  const key = normalizeName(text)
-  return key ? sources.filter((s) => normalizeName(s).includes(key)) : [...sources]
+  const key = foldText(text)
+  return key ? sources.filter((s) => foldText(s).includes(key)) : [...sources]
 }
 
 /**
@@ -36,5 +36,5 @@ export function filterSources(text: string, sources: readonly string[]): string[
  * espaces près. Le même titre dans un autre livre (ou sans livre) est une autre recette.
  */
 export function recipeKey(title: string, source: string | null | undefined): string {
-  return `${normalizeName(title)}|${normalizeName(source ?? '')}`
+  return `${foldText(title)}|${foldText(source ?? '')}`
 }

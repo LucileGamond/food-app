@@ -171,6 +171,25 @@ describe('import d’une vidéo YouTube', () => {
     expect((await call({ url })).status).toBe(404)
   })
 
+  it('appels lents : arrêt avec un message clair avant la coupure de la fonction', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] })
+    try {
+      const replies = sequence(recipe(NONE), search(BLOG), recipe(FULL))
+      // Chaque réponse du modèle prend 70 s : après la recherche, plus le temps de lire la page trouvée.
+      const slow = () => {
+        vi.setSystemTime(Date.now() + 70_000)
+        return replies()
+      }
+      const { call, deps } = setup({ [YOUTUBE]: video(''), [BLOG]: new Response(BLOG_HTML, { headers: { 'content-type': 'text/html' } }) }, slow)
+      const { status, body } = await call({ url })
+      expect(status).toBe(504)
+      expect(body.error).toMatch(/prend trop de temps/)
+      expect(deps.fetchPage).not.toHaveBeenCalledWith(BLOG, expect.anything())
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
   it('erreur du modèle sur la description : remontée telle quelle', async () => {
     const { call } = setup({ [YOUTUBE]: video('x') }, sequence(new Response('', { status: 529 })))
     expect((await call({ url })).status).toBe(503)

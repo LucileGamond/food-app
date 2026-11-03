@@ -1,4 +1,4 @@
-import { MoreHorizontal, Pencil, Plus, RefreshCw, ShoppingCart, Trash2 } from 'lucide-react'
+import { MoreHorizontal, Pencil, Plus, ShoppingCart, Trash2 } from 'lucide-react'
 import { useState } from 'react'
 import { useToday } from '@/hooks/useToday'
 import { Link, useNavigate } from 'react-router-dom'
@@ -7,8 +7,9 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { Skeleton } from '@/components/ui/skeleton'
 import { ConfirmDialog } from '@/components/ConfirmDialog'
 import { EmptyState } from '@/components/EmptyState'
-import { PageHeader } from '@/components/Layout'
+import { PageHeader } from '@/components/PageHeader'
 import { ListNameDialog } from '@/components/shopping/ListNameDialog'
+import { LoadError } from '@/components/LoadError'
 import { useApi } from '@/app/ApiContext'
 import { useShoppingLists } from '@/hooks/useShoppingLists'
 import { type IsoDate } from '@/lib/dates'
@@ -39,12 +40,7 @@ export function ShoppingListsPage({ today: fixedToday }: { today?: IsoDate }) {
 
       <div className="space-y-4">
         {shopping.loadError ? (
-          <div role="alert" className="flex flex-col items-start gap-3 rounded-xl border border-destructive/30 bg-destructive/5 p-4 text-sm">
-            <p>{shopping.loadError}</p>
-            <Button variant="outline" onClick={() => void shopping.reload()}>
-              <RefreshCw /> Réessayer
-            </Button>
-          </div>
+          <LoadError message={shopping.loadError} onRetry={() => void shopping.reload()} />
         ) : shopping.loading ? (
           <div className="grid grid-cols-[minmax(0,1fr)] gap-3 sm:grid-cols-2" aria-busy="true" aria-label="Chargement des listes">
             <Skeleton className="h-20 rounded-2xl" />

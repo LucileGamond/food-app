@@ -328,7 +328,7 @@ describe('recipes api', () => {
       date: '2026-10-20', slot: 'DINNER', people: [LUCILE.id], source: { kind: 'adhoc', title: 'Curry ce soir', notes: '', url: 'https://exemple.fr/curry' },
     })
     const [meal] = await api.meals.listMeals('2026-10-20', '2026-10-20')
-    expect(await api.recipes.useSavedRecipe(meal!.recipe.id, curryId)).toBe(1)
+    expect(await api.recipes.replaceAdhocWithSaved(meal!.recipe.id, curryId)).toBe(1)
     const [after] = await api.meals.listMeals('2026-10-20', '2026-10-20')
     expect(after!.recipe).toMatchObject({ id: curryId, is_saved: true, title: 'Curry du chef' })
     expect(await api.recipes.getRecipe(meal!.recipe.id)).toBeNull()
@@ -337,8 +337,8 @@ describe('recipes api', () => {
   it('refuse la recherche par lien et la bascule sans connexion ou avec des recettes invalides', async () => {
     const anon = createRecipesApi(anonClient())
     await expect(anon.findSavedByUrl('https://exemple.fr/curry')).rejects.toThrow(/accès/)
-    await expect(anon.useSavedRecipe(LUCILE.id, LUCILE.id)).rejects.toThrow(/accès/)
+    await expect(anon.replaceAdhocWithSaved(LUCILE.id, LUCILE.id)).rejects.toThrow(/accès/)
     const { api } = await signedInApi()
-    await expect(api.recipes.useSavedRecipe(LUCILE.id, LUCILE.id)).rejects.toThrow('Élément introuvable')
+    await expect(api.recipes.replaceAdhocWithSaved(LUCILE.id, LUCILE.id)).rejects.toThrow('Élément introuvable')
   })
 })

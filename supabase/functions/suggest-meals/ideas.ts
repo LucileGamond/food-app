@@ -4,8 +4,6 @@
 import { HttpError, runConversation, type ContentBlock, type ModelOptions, type ModelUsage } from '../_shared/anthropic.ts'
 import { searchResultUrls, urlKey } from '../_shared/search.ts'
 
-export { searchResultUrls }
-
 export const MAX_CANDIDATES = 80
 export const MAX_RECENT = 40
 const MAX_PRODUCE = 80

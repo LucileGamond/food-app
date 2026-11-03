@@ -1,26 +1,8 @@
 import { ERIC, LUCILE, mealFixture } from '@/test/fakes'
 import type { Ingredient } from './recipes'
 import type { ShoppingItem } from './shopping'
-import {
-  applyTidy,
-  buildDraft,
-  capitalize,
-  defaultSelection,
-  isPantry,
-  fromMeal,
-  mealIngredients,
-  mealSource,
-  mealWhen,
-  mergeIntoList,
-  purchaseQuantity,
-  skippedInput,
-  skippedMeal,
-  toItemInput,
-  issueText,
-  lineEntries,
-  type DraftLine,
-  type MealIngredients,
-} from './shoppingFromPlan'
+import { applyTidy, buildDraft, defaultSelection, isPantry, fromMeal, mealIngredients, mealSource, mealWhen, mergeIntoList, purchaseQuantity, skippedInput, skippedMeal, draftLineToItemInput, issueText, lineEntries, type DraftLine, type MealIngredients } from './shoppingFromPlan'
+import { capitalize } from './text'
 
 const ing = (name: string, quantity: number | null = null, unit: string | null = null): Ingredient => ({ name, quantity, unit, note: null })
 
@@ -207,7 +189,7 @@ describe('enregistrement', () => {
   it('met une majuscule et liste les articles décochés', () => {
     expect(capitalize('œufs')).toBe('Œufs')
     const lines = buildDraft([source(GRATIN, null, [ing('sel'), ing('lait', 1, 'l')])])
-    expect(toItemInput(lines[1]!)).toEqual({ name: 'Lait', quantity: 1, unit: 'l', aisle: 'CREMERIE' })
+    expect(draftLineToItemInput(lines[1]!)).toEqual({ name: 'Lait', quantity: 1, unit: 'l', aisle: 'CREMERIE' })
     expect(lineEntries(lines)).toEqual([
       { key: 'line-d1', reason: 'unchecked', label: 'Sel', detail: 'Gratin', url: null, input: { name: 'Sel', quantity: null, unit: null, aisle: 'EPICERIE_SALEE' } },
     ])

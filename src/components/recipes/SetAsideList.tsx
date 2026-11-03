@@ -8,6 +8,7 @@ import { useInbox } from '@/hooks/useInbox'
 import { RemoveInboxItemDialog } from '@/components/planning/InboxDialogs'
 import { inboxKind, inboxSubtitle, type InboxItem } from '@/lib/inbox'
 import { cn } from '@/lib/utils'
+import type { NavState } from '@/lib/navState'
 import { useSettings } from '@/app/SettingsContext'
 
 /**
@@ -61,7 +62,7 @@ export function SetAsideList() {
                       variant="outline"
                       className="h-9 shrink-0 px-2.5"
                       aria-label={`Préremplir et enregistrer « ${item.title} »`}
-                      onClick={() => void navigate('/recettes/nouvelle', { state: { fromInbox: item } })}
+                      onClick={() => void navigate('/recettes/nouvelle', { state: { fromInbox: item } satisfies NavState })}
                     >
                       <ScanText /> <span className="max-sm:hidden">Préremplir</span>
                     </Button>

@@ -1,9 +1,10 @@
-import { Flame, Loader2, RefreshCw } from 'lucide-react'
+import { Flame, Loader2 } from 'lucide-react'
 import { useRef, useState } from 'react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Skeleton } from '@/components/ui/skeleton'
+import { LoadError } from '@/components/LoadError'
 import { useApi } from '@/app/ApiContext'
 import { errorMessage } from '@/api'
 import { useOnOpen } from '@/hooks/useOnOpen'
@@ -84,12 +85,7 @@ export function NutritionEstimateDialog({ recipe, onOpenChange, onSaved }: Props
         )}
 
         {state.kind === 'error' && (
-          <div role="alert" className="flex flex-col items-start gap-3 rounded-xl border border-destructive/30 bg-destructive/5 p-4 text-sm">
-            <p>{state.message}</p>
-            <Button variant="outline" onClick={() => void run()}>
-              <RefreshCw /> Réessayer
-            </Button>
-          </div>
+          <LoadError message={state.message} onRetry={() => void run()} />
         )}
 
         {state.kind === 'ready' && (

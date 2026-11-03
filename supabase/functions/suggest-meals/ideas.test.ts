@@ -7,11 +7,11 @@ import {
   parseInput,
   pickVaried,
   sanitizeIdeas,
-  searchResultUrls,
   suggestMeals,
   type Idea,
   type SuggestInput,
 } from './ideas.ts'
+import { searchResultUrls } from '../_shared/search.ts'
 
 const INPUT: SuggestInput = {
   today: '2026-10-27',

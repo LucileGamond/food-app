@@ -1,8 +1,9 @@
 import { formatDay, type IsoDate } from './dates'
 import { slotLabel, type Meal } from './meals'
 import { formatIngredient, scaleIngredients, type Ingredient } from './recipes'
-import { addAmounts, findMergeTarget, formatAmount, guessAisle, normalizeName, productKey, type Aisle, type ShoppingItem, type ShoppingItemInput } from './shopping'
+import { addAmounts, findMergeTarget, formatAmount, guessAisle, ITEM_NAME_MAX, productKey, type Aisle, type ShoppingItem, type ShoppingItemInput } from './shopping'
 import { isUnit } from './units'
+import { capitalize, foldText } from './text'
 
 // ---------------------------------------------------------------------------
 // Repas à prendre en compte
@@ -55,7 +56,7 @@ export function skippedMeal(meal: Meal, reason: 'no-ingredients' | 'unreadable-p
 
 /** Article à ajouter pour une entrée non reprise : l'article décoché tel quel, ou un rappel pour le repas. */
 export function skippedInput(entry: SkippedEntry): ShoppingItemInput {
-  return entry.input ?? { name: `Ingrédients : ${entry.label}`.slice(0, 120), quantity: null, unit: null, aisle: 'AUTRE' }
+  return entry.input ?? { name: `Ingrédients : ${entry.label}`.slice(0, ITEM_NAME_MAX), quantity: null, unit: null, aisle: 'AUTRE' }
 }
 
 // ---------------------------------------------------------------------------
@@ -123,7 +124,7 @@ const PANTRY_WORDS = [
 const PANTRY_PATTERN = new RegExp(`^(${PANTRY_WORDS.join('|')})( |$)`)
 
 export function isPantry(name: string): boolean {
-  return PANTRY_PATTERN.test(normalizeName(name).replace(/[’']/g, ' '))
+  return PANTRY_PATTERN.test(foldText(name).replace(/[’']/g, ' '))
 }
 
 /** Quantités adaptées au nombre de personnes (si la recette indique pour combien elle est prévue). */
@@ -227,19 +228,14 @@ export function applyTidy(lines: readonly DraftLine[], tidy: readonly TidyLine[]
   return finalize(result)
 }
 
-/** « oignon » → « Oignon » */
-export function capitalize(text: string): string {
-  return text.charAt(0).toLocaleUpperCase('fr-FR') + text.slice(1)
-}
-
-export function toItemInput(line: DraftLine): ShoppingItemInput {
-  return { name: capitalize(line.name).slice(0, 120), quantity: line.quantity, unit: line.unit, aisle: line.aisle }
+export function draftLineToItemInput(line: DraftLine): ShoppingItemInput {
+  return { name: capitalize(line.name).slice(0, ITEM_NAME_MAX), quantity: line.quantity, unit: line.unit, aisle: line.aisle }
 }
 
 /** Pour l'encadré de la liste créée : articles décochés (à rajouter si besoin) et articles ajoutés mais à vérifier. */
 export function lineEntries(lines: readonly DraftLine[]): SkippedEntry[] {
   return lines.flatMap((l): SkippedEntry[] => {
-    const input = toItemInput(l)
+    const input = draftLineToItemInput(l)
     if (!l.include) return [{ key: `line-${l.id}`, reason: 'unchecked', label: input.name, detail: l.meals.join(', '), url: null, input }]
     if (l.issues.length === 0) return []
     return [{ key: `check-${l.id}`, reason: 'to-check', label: input.name, detail: l.issues.map(issueText).join(' · '), url: null }]

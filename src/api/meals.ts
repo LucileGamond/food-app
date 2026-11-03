@@ -2,6 +2,7 @@ import type { IsoDate } from '@/lib/dates'
 import type { Meal, MealRecipeSource, MealSlot, Profile } from '@/lib/meals'
 import type { AppSupabaseClient } from '@/lib/supabase'
 import { toAppError } from './errors'
+import { subscribeTables } from './realtime'
 
 const MEAL_COLUMNS = 'id, meal_date, slot, people, created_at, recipe:recipes!inner(id, is_saved, title, notes, url, tags)'
 
@@ -72,16 +73,7 @@ export function createMealsApi(db: AppSupabaseClient) {
     },
 
     /** Prévient à chaque changement des repas ou des recettes (fait par n'importe quel utilisateur). */
-    subscribe(onChange: () => void, onStatus?: (status: string) => void): () => void {
-      const channel = db
-        .channel(`planning-${Math.random().toString(36).slice(2)}`)
-        .on('postgres_changes', { event: '*', schema: 'public', table: 'meals' }, onChange)
-        .on('postgres_changes', { event: '*', schema: 'public', table: 'recipes' }, onChange)
-        .subscribe((status) => onStatus?.(status))
-      return () => {
-        void db.removeChannel(channel)
-      }
-    },
+    subscribe: (onChange: () => void, onStatus?: (status: string) => void) => subscribeTables(db, 'planning', ['meals', 'recipes'], onChange, onStatus),
   }
 }
 

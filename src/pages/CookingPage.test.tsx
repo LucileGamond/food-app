@@ -110,6 +110,9 @@ describe('CookingPage', () => {
     expect(screen.getByRole('checkbox', { name: '2 pommes' })).toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: 'Une personne de plus' }))
     await waitFor(() => expect(api.recipes.saveProgress).toHaveBeenLastCalledWith('r1', { ingredients: [], steps: [0], people: 3 }))
+    // Changer le nombre de personnes ne relit ni la recette ni la progression (ce qui écraserait des cases cochées).
+    expect(api.recipes.getRecipe).toHaveBeenCalledTimes(1)
+    expect(api.recipes.getProgress).toHaveBeenCalledTimes(1)
   })
 
   it('« Terminer la recette » efface la progression et revient à la fiche', async () => {

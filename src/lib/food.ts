@@ -1,5 +1,6 @@
 import { addDays, formatCompactDate, formatShortDate, parseIsoDate, type IsoDate } from './dates'
 import type { Database } from './database.types'
+import { foldText } from './text'
 
 export type FoodMeal = Database['public']['Enums']['food_meal']
 
@@ -70,11 +71,6 @@ export function formatPeriod(period: Pick<FoodPeriod, 'start_date' | 'end_date'>
   return `${start} → ${formatCompactDate(period.end_date)}`
 }
 
-/** Recherche sans tenir compte des accents ni de la casse. */
-export function normalizeText(text: string): string {
-  return text.toLowerCase().replace(/œ/g, 'oe').replace(/æ/g, 'ae').normalize('NFD').replace(/\p{Diacritic}/gu, '').trim()
-}
-
 // ---------------------------------------------------------------------------
 // Quotas
 
@@ -83,7 +79,7 @@ export function sortConsumptions(list: readonly Consumption[]): Consumption[] {
   return [...list].sort((a, b) => a.consumed_on.localeCompare(b.consumed_on) || a.created_at.localeCompare(b.created_at) || a.id.localeCompare(b.id))
 }
 
-export type DotKind = 'used' | 'free' | 'over'
+type DotKind = 'used' | 'free' | 'over'
 
 export interface Dot {
   kind: DotKind
@@ -91,7 +87,7 @@ export interface Dot {
   date?: IsoDate
 }
 
-export interface ItemUsage {
+interface ItemUsage {
   used: number
   allowed: number
   remaining: number
@@ -130,7 +126,7 @@ export function lastConsumptionOn(item: Pick<PeriodItem, 'consumptions'>, date: 
   return consumptionsOn(item, date).at(-1)
 }
 
-export interface CategoryGroup<T extends PlanItem> {
+interface CategoryGroup<T extends PlanItem> {
   name: string
   items: T[]
 }
@@ -155,7 +151,7 @@ export function groupItems<T extends PlanItem>(items: readonly T[]): MealGroup<T
   })
 }
 
-export interface MealStats {
+interface MealStats {
   /** Consommations notées le jour choisi. */
   onDate: number
   /** Éléments au-delà de leur quota sur la période. */
@@ -209,7 +205,7 @@ export function periodProgress(period: Pick<FoodPeriod, 'start_date' | 'end_date
   }
 }
 
-export type PeriodNotice =
+type PeriodNotice =
   | { kind: 'ending'; daysLeft: number; message: string }
   | { kind: 'ended'; message: string }
   | { kind: 'none'; message: string }
@@ -308,7 +304,7 @@ export function validatePlanItem(values: PlanItemFormValues, others: readonly Pl
   const name = values.name.trim()
   if (!name) errors.name = 'Nom requis'
   else if (name.length > 120) errors.name = '120 caractères maximum'
-  else if (others.some((o) => o.meal === values.meal && normalizeText(o.name) === normalizeText(name))) {
+  else if (others.some((o) => o.meal === values.meal && foldText(o.name) === foldText(name))) {
     errors.name = `Déjà dans le plan (${mealLabel(values.meal).toLowerCase()})`
   }
   const category = values.category.trim()
@@ -345,7 +341,7 @@ export function planCategories(items: readonly Pick<PlanItem, 'category'>[]): st
 }
 
 /** Position d'un nouvel élément : après les éléments du même moment et de la même catégorie. */
-export function nextPosition(items: readonly PlanItem[], meal: FoodMeal, category: string): number {
+export function nextPlanItemPosition(items: readonly PlanItem[], meal: FoodMeal, category: string): number {
   const same = items.filter((i) => i.meal === meal && i.category === category)
   const pool = same.length > 0 ? same : items.filter((i) => i.meal === meal)
   if (pool.length === 0) return Math.max(0, ...items.map((i) => i.position)) + 1

@@ -1,19 +1,8 @@
 // Edge Function Supabase : calories et macros d'une recette d'après la table Ciqual (ANSES), sur demande.
 // Secrets : ANTHROPIC_API_KEY (obligatoire), ANTHROPIC_MODEL (facultatif, Haiku par défaut).
 
+import { createSignedInCheck } from '../_shared/auth.ts'
 import { createHandler } from './handler.ts'
-
-const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!
-const SUPABASE_ANON_KEY = Deno.env.get('SUPABASE_ANON_KEY')!
-
-/** Demande au service d'authentification si le jeton appartient à un utilisateur connecté. */
-async function isSignedIn(authorization: string | null): Promise<boolean> {
-  if (!authorization?.startsWith('Bearer ')) return false
-  const response = await fetch(`${SUPABASE_URL}/auth/v1/user`, { headers: { authorization, apikey: SUPABASE_ANON_KEY } }).catch(() => null)
-  if (!response?.ok) return false
-  const user = (await response.json().catch(() => null)) as { id?: string } | null
-  return Boolean(user?.id)
-}
 
 Deno.serve(
   createHandler({
@@ -21,6 +10,6 @@ Deno.serve(
     model: Deno.env.get('ANTHROPIC_MODEL') || undefined,
     fetchModel: fetch,
     log: (message, data) => console.log(JSON.stringify({ message, ...data })),
-    isSignedIn,
+    isSignedIn: createSignedInCheck(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_ANON_KEY')!),
   }),
 )

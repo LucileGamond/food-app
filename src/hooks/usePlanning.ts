@@ -4,6 +4,7 @@ import { errorMessage, type Api } from '@/api'
 import type { CreateMealInput } from '@/api/meals'
 import { addDays, type IsoDate } from '@/lib/dates'
 import { isMoveNeeded, type Meal, type MealRecipeSource, type SlotRef } from '@/lib/meals'
+import { useRealtimeReload } from './useRealtimeReload'
 
 export const PLANNING_DAYS = 7
 
@@ -52,17 +53,7 @@ export function usePlanning(api: Api, start: IsoDate): PlanningState {
     void reload()
   }, [reload])
 
-  useEffect(() => {
-    let timer: ReturnType<typeof setTimeout> | undefined
-    const unsubscribe = api.meals.subscribe(() => {
-      clearTimeout(timer)
-      timer = setTimeout(() => void reload(), 250)
-    })
-    return () => {
-      clearTimeout(timer)
-      unsubscribe()
-    }
-  }, [api, reload])
+  useRealtimeReload(api.meals.subscribe, reload)
 
   const run = useCallback(
     async (action: () => Promise<unknown>, rollback?: () => void): Promise<boolean> => {

@@ -3,6 +3,7 @@ import { useOnOpen } from '@/hooks/useOnOpen'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Label } from '@/components/ui/label'
+import { NativeSelect } from '@/components/ui/native-select'
 import { formatDay, type IsoDate } from '@/lib/dates'
 import { SLOTS, isMoveNeeded, slotLabel, type Meal, type MealSlot, type SlotRef } from '@/lib/meals'
 
@@ -13,9 +14,6 @@ interface Props {
   onOpenChange: (open: boolean) => void
   onSubmit: (meal: Meal, target: SlotRef) => Promise<void>
 }
-
-const selectClass =
-  'h-10 w-full rounded-lg border border-input bg-transparent px-3 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 dark:bg-input/30'
 
 /** Choix d'un jour et d'un créneau pour déplacer ou dupliquer un repas. */
 export function MealTargetDialog({ mode, meal, days, onOpenChange, onSubmit }: Props) {
@@ -52,23 +50,23 @@ export function MealTargetDialog({ mode, meal, days, onOpenChange, onSubmit }: P
           </DialogHeader>
           <div className="space-y-2">
             <Label htmlFor="target-day">Jour</Label>
-            <select id="target-day" className={selectClass} value={date} onChange={(e) => setDate(e.target.value)}>
+            <NativeSelect id="target-day" className="w-full" value={date} onChange={(e) => setDate(e.target.value)}>
               {options.map((d) => (
                 <option key={d} value={d}>
                   {formatDay(d)}
                 </option>
               ))}
-            </select>
+            </NativeSelect>
           </div>
           <div className="space-y-2">
             <Label htmlFor="target-slot">Créneau</Label>
-            <select id="target-slot" className={selectClass} value={slot} onChange={(e) => setSlot(e.target.value as MealSlot)}>
+            <NativeSelect id="target-slot" className="w-full" value={slot} onChange={(e) => setSlot(e.target.value as MealSlot)}>
               {SLOTS.map((s) => (
                 <option key={s} value={s}>
                   {slotLabel(s)}
                 </option>
               ))}
-            </select>
+            </NativeSelect>
           </div>
           <DialogFooter>
             <Button type="button" variant="outline" className="h-10" onClick={() => onOpenChange(false)}>

@@ -10,7 +10,7 @@ import { isValidUrl } from '@/lib/meals'
 import { isInstagramUrl, isYoutubeUrl, siteName } from '@/lib/recipes'
 
 /** Images lues au plus (une recette sur une double page, une longue légende sur plusieurs captures). */
-export const MAX_RECIPE_PHOTOS = 3
+const MAX_RECIPE_PHOTOS = 3
 
 interface Props {
   /** Lien déjà connu (ex. recette ponctuelle du planning). */
@@ -46,10 +46,10 @@ interface Page {
   preview: string
 }
 
-/** Préremplissage du formulaire à partir de l'adresse d'une recette en ligne, ou de photos d'un livre. */
 /** Texte collé : en dessous, ce n'est pas une recette. */
 const MIN_CAPTION = 20
 
+/** Préremplissage du formulaire à partir de l'adresse d'une recette en ligne, ou de photos d'un livre. */
 export function RecipeImportCard({ initialUrl, initialPhotos, hasContent, onImport, onImportText, onImportPhotos, autoImport, choices }: Props) {
   const [url, setUrl] = useState(initialUrl)
   const [caption, setCaption] = useState('')
@@ -74,7 +74,7 @@ export function RecipeImportCard({ initialUrl, initialPhotos, hasContent, onImpo
     return files.map((file) => ({ key: ++pageSeq.current, file, preview: URL.createObjectURL(file) }))
   }
 
-  /** Ajoute des pages (2 au plus) et renvoie la liste obtenue. */
+  /** Ajoute des pages (`MAX_RECIPE_PHOTOS` au plus) et renvoie la liste obtenue. */
   function addPages(files: File[], current: Page[]): Page[] {
     const images = files.filter((f) => f.type.startsWith('image/'))
     const room = MAX_RECIPE_PHOTOS - current.length

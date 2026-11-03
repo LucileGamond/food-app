@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { toast } from 'sonner'
 import { errorMessage, type Api } from '@/api'
 import type { ShoppingList } from '@/lib/shopping'
+import { useRealtimeReload } from './useRealtimeReload'
 
 export interface ShoppingListsState {
   lists: ShoppingList[]
@@ -37,16 +38,8 @@ export function useShoppingLists(api: Api): ShoppingListsState {
 
   useEffect(() => {
     void reload()
-    let timer: ReturnType<typeof setTimeout> | undefined
-    const unsubscribe = api.shopping.subscribe(() => {
-      clearTimeout(timer)
-      timer = setTimeout(() => void reload(), 250)
-    })
-    return () => {
-      clearTimeout(timer)
-      unsubscribe()
-    }
-  }, [api, reload])
+  }, [reload])
+  useRealtimeReload(api.shopping.subscribe, reload)
 
   const run = useCallback(
     async <T,>(action: () => Promise<T>, success?: string): Promise<T | null> => {

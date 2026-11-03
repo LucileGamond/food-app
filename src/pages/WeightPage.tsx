@@ -1,13 +1,14 @@
-import { BellRing, Plus, RefreshCw, Scale } from 'lucide-react'
+import { BellRing, Plus, Scale } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { useToday } from '@/hooks/useToday'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { ConfirmDialog } from '@/components/ConfirmDialog'
 import { EmptyState } from '@/components/EmptyState'
-import { PageHeader } from '@/components/Layout'
+import { PageHeader } from '@/components/PageHeader'
 import { WeighInDialog } from '@/components/weights/WeighInDialog'
 import { WeightChart } from '@/components/weights/WeightChart'
+import { LoadError } from '@/components/LoadError'
 import { useApi } from '@/app/ApiContext'
 import { useAuth } from '@/auth/AuthProvider'
 import { useWeights } from '@/hooks/useWeights'
@@ -116,12 +117,7 @@ export function WeightPage({ today: fixedToday }: { today?: IsoDate }) {
       <PageHeader title="Poids" description="Suivi des pesées du foyer" actions={addButton} />
 
       {weights.loadError ? (
-        <div role="alert" className="flex flex-col items-start gap-3 rounded-xl border border-destructive/30 bg-destructive/5 p-4 text-sm">
-          <p>{weights.loadError}</p>
-          <Button variant="outline" onClick={() => void weights.reload()}>
-            <RefreshCw /> Réessayer
-          </Button>
-        </div>
+        <LoadError message={weights.loadError} onRetry={() => void weights.reload()} />
       ) : weights.loading || profiles.length === 0 ? (
         <div className="space-y-4" aria-busy="true" aria-label="Chargement des pesées">
           <div className="grid grid-cols-2 gap-3 sm:gap-4">

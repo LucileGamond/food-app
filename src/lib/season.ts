@@ -1,7 +1,7 @@
 // Saisonnalité des recettes : fruits et légumes reconnus dans les ingrédients, comparés au calendrier de l'ADEME.
 
 import { SEASON_CALENDAR, type Produce } from './seasonCalendar'
-import { normalizeName } from './shopping'
+import { foldText } from './text'
 
 export type { Produce }
 
@@ -12,7 +12,7 @@ export const monthOf = (date: string): number => Number(date.slice(5, 7))
 
 /** Mot ramené au singulier, sans accents : « Tomates » → « tomate », « choux » → « chou », « pois » → « poi ». */
 function tokens(text: string): string[] {
-  return normalizeName(text)
+  return foldText(text)
     .replace(/[-'’]/g, ' ')
     .split(/[^a-z0-9]+/)
     .filter(Boolean)

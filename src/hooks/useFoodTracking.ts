@@ -3,6 +3,7 @@ import { toast } from 'sonner'
 import { errorMessage, type Api } from '@/api'
 import type { IsoDate } from '@/lib/dates'
 import { defaultPeriod, isPendingConsumption, lastConsumptionOn, PENDING_CONSUMPTION_PREFIX, type FoodPeriod, type PeriodItem } from '@/lib/food'
+import { useRealtimeReload } from './useRealtimeReload'
 
 export interface FoodTrackingState {
   periods: FoodPeriod[]
@@ -74,16 +75,8 @@ export function useFoodTracking(api: Api, profileId: string | null, today: IsoDa
     setItems([])
     setPeriodId(null)
     void reload()
-    let timer: ReturnType<typeof setTimeout> | undefined
-    const unsubscribe = api.food.subscribe(() => {
-      clearTimeout(timer)
-      timer = setTimeout(() => void reload(), 250)
-    })
-    return () => {
-      clearTimeout(timer)
-      unsubscribe()
-    }
-  }, [api, reload])
+  }, [reload])
+  useRealtimeReload(api.food.subscribe, reload)
 
   const latestReload = useRef(reload)
   useEffect(() => {

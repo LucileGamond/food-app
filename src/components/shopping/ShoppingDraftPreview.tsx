@@ -7,14 +7,16 @@ import { Checkbox } from '@/components/ui/checkbox'
 import { DialogFooter } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { NativeSelect } from '@/components/ui/native-select'
 import { ItemDialog } from '@/components/shopping/ItemDialog'
-import { aisleSelectClass } from '@/components/shopping/QuickAddBar'
 import { useApi } from '@/app/ApiContext'
 import type { ShoppingFromPlanState } from '@/hooks/useShoppingFromPlan'
 import { AISLES, defaultListName, formatAmount, type ShoppingItem, type ShoppingList } from '@/lib/shopping'
-import { capitalize, issueText, SKIP_LABELS, type DraftLine } from '@/lib/shoppingFromPlan'
+import { issueText, SKIP_LABELS, type DraftLine } from '@/lib/shoppingFromPlan'
 import { cn } from '@/lib/utils'
 import type { IsoDate } from '@/lib/dates'
+import { capitalize } from '@/lib/text'
+import type { NavState } from '@/lib/navState'
 
 const plural = (n: number, word: string) => `${n} ${word}${n > 1 ? 's' : ''}`
 
@@ -69,7 +71,7 @@ export function ShoppingDraftPreview({ flow, today, backLabel, onBack, onDone }:
     if (!result) return
     onDone()
     if (result.count > 0) toast.success(`${plural(result.count, 'article')} ajouté${result.count > 1 ? 's' : ''}`)
-    navigate(`/courses/${result.listId}`, { state: { skipped: result.skipped } })
+    navigate(`/courses/${result.listId}`, { state: { skipped: result.skipped } satisfies NavState })
   }
 
   const editedItem: ShoppingItem | null = editing
@@ -203,13 +205,13 @@ export function ShoppingDraftPreview({ flow, today, backLabel, onBack, onDone }:
             ) : (
               <div className="space-y-2">
                 <Label htmlFor="plan-list">Liste à compléter</Label>
-                <select id="plan-list" value={listId} onChange={(e) => setListId(e.target.value)} className={aisleSelectClass}>
+                <NativeSelect id="plan-list" value={listId} onChange={(e) => setListId(e.target.value)} className="w-full px-2">
                   {(lists ?? []).map((list) => (
                     <option key={list.id} value={list.id}>
                       {list.name}
                     </option>
                   ))}
-                </select>
+                </NativeSelect>
                 <p className="text-xs text-muted-foreground">Les quantités s'ajoutent aux articles déjà sur la liste.</p>
               </div>
             )}

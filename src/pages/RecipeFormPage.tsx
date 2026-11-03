@@ -1,4 +1,4 @@
-import { ArrowLeft, ArrowRightLeft, BookOpen, CopyCheck, Link2, Loader2, SearchX } from 'lucide-react'
+import { ArrowLeft, ArrowRightLeft, BookOpen, CopyCheck, Link2, Loader2 } from 'lucide-react'
 import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { Link, useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { toast } from 'sonner'
@@ -7,7 +7,8 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Textarea } from '@/components/ui/textarea'
-import { EmptyState } from '@/components/EmptyState'
+import { NativeSelect } from '@/components/ui/native-select'
+import { RecipeNotFound } from '@/components/recipes/RecipeNotFound'
 import { IngredientsEditor } from '@/components/recipes/IngredientsEditor'
 import { PhotoUploader, type PhotoDraft } from '@/components/recipes/PhotoUploader'
 import { CheckNote } from '@/components/recipes/CheckNote'
@@ -20,7 +21,6 @@ import { AppError, DuplicateRecipeUrlError, errorMessage } from '@/api'
 import { isValidUrl } from '@/lib/meals'
 import { compressForReading, compressImage, cropImage } from '@/lib/image'
 import { importChecks, pendingChecks, type ImportCheck } from '@/lib/importChecks'
-import type { InboxItem } from '@/lib/inbox'
 import { takeSharedPhotos } from '@/lib/sharedPhotos'
 import {
   formHasContent,
@@ -43,6 +43,7 @@ import {
 import { findSource, recipeKey } from '@/lib/sources'
 import { applyAutoLinks, autoLinkMessage } from '@/lib/autoLinks'
 import { cn } from '@/lib/utils'
+import { navState, type NavState } from '@/lib/navState'
 
 const EMPTY: RecipeFormValues = recipeToFormValues({ title: '', servings: null, notes: null, url: null, tags: [] })
 
@@ -80,10 +81,9 @@ export function RecipeFormPage() {
   const api = useApi()
   const navigate = useNavigate()
   const location = useLocation()
-  const from = (location.state as { from?: string } | null)?.from
+  const { from, importUrl, fromInbox } = navState(location)
   // Ouvert depuis le partage (lien à préremplir) ou depuis « À planifier » / « De côté » (élément à enregistrer).
-  const importUrl = (location.state as { importUrl?: string } | null)?.importUrl
-  const [fromList] = useState(() => (location.state as { fromInbox?: InboxItem } | null)?.fromInbox ?? null)
+  const [fromList] = useState(() => fromInbox ?? null)
   const [searchParams, setSearchParams] = useSearchParams()
   // Photos partagées depuis la galerie du téléphone (voir public/share-sw.js).
   const [sharedPhotos, setSharedPhotos] = useState<File[] | undefined>(undefined)
@@ -251,34 +251,38 @@ export function RecipeFormPage() {
   const set = <K extends keyof RecipeFormValues>(key: K, value: RecipeFormValues[K]) => setValues((v) => ({ ...v, [key]: value }))
 
   function addPhotos(files: File[]) {
-    setPhotos((list) => [
-      ...list,
-      ...files.map((file) => ({ kind: 'new' as const, key: `new-${++keyCounter.current}`, file, url: URL.createObjectURL(file) })),
-    ])
+    // Aperçus créés hors de la mise à jour d'état : rejouée deux fois en mode strict, elle en perdrait.
+    const added = files.map((file) => ({ kind: 'new' as const, key: `new-${++keyCounter.current}`, file, url: URL.createObjectURL(file) }))
+    setPhotos((list) => [...list, ...added])
+  }
+
+  /** Après un import : photos à jour (`photos` date d'avant les `await`, une photo a pu être ajoutée entre-temps). */
+  const hasPhotos = () => photosRef.current.length > 0
+
+  /** Tags existants, pour que l'import réutilise les mêmes : à l'ouverture depuis un partage, ils ne sont pas encore chargés. */
+  const knownTags = async () => (tagSuggestions.length > 0 ? tagSuggestions : api.recipes.listTags().catch(() => [] as string[]))
+
+  /** Recette déjà enregistrée avec ce lien : inutile de l'analyser (et de consommer des tokens). */
+  async function assertUrlNotSaved(url: string) {
+    const existing = await api.recipes.findSavedByUrl(url, savedId.current)
+    if (!existing) return
+    setDuplicate(existing)
+    throw new DuplicateRecipeUrlError(existing)
   }
 
   /** Préremplit le formulaire depuis une page de recette (et ajoute sa photo s'il n'y en a pas encore). */
   async function importFromUrl(url: string) {
-    // Recette déjà enregistrée : inutile de l'analyser (et de consommer des tokens).
-    const existing = await api.recipes.findSavedByUrl(url, savedId.current)
-    if (existing) {
-      setDuplicate(existing)
-      throw new DuplicateRecipeUrlError(existing)
-    }
-    const result = await api.recipes.importFromUrl(url, tagSuggestions)
+    await assertUrlNotSaved(url)
+    const result = await api.recipes.importFromUrl(url, await knownTags())
     applyImport(result.recipe, url)
-    if (result.image && photos.length === 0) addPhotos([importedImageToFile(result.image)])
+    if (result.image && !hasPhotos()) addPhotos([importedImageToFile(result.image)])
     return result.foundUrl
   }
 
   /** Préremplit le formulaire avec un texte collé (légende Instagram) ; le lien de la publication est gardé. */
   async function importFromText(text: string, url: string) {
-    const existing = await api.recipes.findSavedByUrl(url, savedId.current)
-    if (existing) {
-      setDuplicate(existing)
-      throw new DuplicateRecipeUrlError(existing)
-    }
-    const result = await api.recipes.importFromText(text, url, tagSuggestions)
+    await assertUrlNotSaved(url)
+    const result = await api.recipes.importFromText(text, url, await knownTags())
     applyImport(result.recipe, url)
   }
 
@@ -287,13 +291,7 @@ export function RecipeFormPage() {
    * photos ne sont pas gardées ; `url` : la publication dont ce sont les captures, gardée comme lien de la recette.
    */
   async function importFromPhotos(files: File[], url?: string): Promise<boolean> {
-    if (url) {
-      const existing = await api.recipes.findSavedByUrl(url, savedId.current)
-      if (existing) {
-        setDuplicate(existing)
-        throw new DuplicateRecipeUrlError(existing)
-      }
-    }
+    if (url) await assertUrlNotSaved(url)
     let photos: Blob[]
     try {
       photos = await Promise.all(files.map(compressForReading))
@@ -301,14 +299,10 @@ export function RecipeFormPage() {
       // Format que le navigateur ne sait pas lire (HEIC d'iPhone…) ou fichier abîmé.
       throw new AppError('Cette photo ne peut pas être lue. Essaie une photo JPEG ou PNG (ou une capture d’écran).')
     }
-    // À l'ouverture depuis un partage, les tags existants ne sont peut-être pas encore chargés.
-    const tags = tagSuggestions.length > 0 ? tagSuggestions : await api.recipes.listTags().catch(() => [] as string[])
-    const result = await api.recipes.importFromPhotos(photos, tags)
+    const result = await api.recipes.importFromPhotos(photos, await knownTags())
     if (!mounted.current) return false
-    setReadPages((previous) => {
-      previous.forEach((url) => URL.revokeObjectURL(url))
-      return files.map((file) => URL.createObjectURL(file))
-    })
+    readPagesRef.current.forEach((url) => URL.revokeObjectURL(url))
+    setReadPages(files.map((file) => URL.createObjectURL(file)))
     readFiles.current = files
     // Plusieurs recettes sur la page : on demande laquelle préremplir.
     if (result.recipes && result.recipes.length > 1) {
@@ -330,10 +324,10 @@ export function RecipeFormPage() {
   /** Photo du plat imprimée sur la page lue : recadrée et ajoutée, si la recette n'a pas encore de photo. */
   async function addDishPhoto(recipe: ImportedRecipe) {
     const file = recipe.photo ? readFiles.current[recipe.photo.image] : undefined
-    if (!recipe.photo || !file || photos.length > 0) return
+    if (!recipe.photo || !file || hasPhotos()) return
     try {
       const photo = await cropImage(file, recipe.photo)
-      if (mounted.current) addPhotos([photo])
+      if (mounted.current && !hasPhotos()) addPhotos([photo])
     } catch {
       // Image que le navigateur ne sait pas recadrer : la recette reste sans photo.
     }
@@ -413,7 +407,7 @@ export function RecipeFormPage() {
       toast.success('Recette enregistrée')
       // Sur la fiche : proposer d'importer ou de lier les recettes auxquelles elle renvoie (« voir p. 208 »).
       if (from) navigate(from, { replace: true })
-      else navigate(`/recettes/${recipeId}`, { replace: true, state: { offerLinks: true } })
+      else navigate(`/recettes/${recipeId}`, { replace: true, state: { offerLinks: true } satisfies NavState })
     } catch (e) {
       if (e instanceof DuplicateRecipeUrlError) setDuplicate(e.existing)
       toast.error(errorMessage(e))
@@ -433,7 +427,7 @@ export function RecipeFormPage() {
       // La recette est enregistrée : le renvoi reste proposé sur la recette principale.
       toast.error(`${failed} : ${errorMessage(e)}`)
     }
-    navigate(`/recettes/${parentId}`, { replace: true, state: { offerLinks: true } })
+    navigate(`/recettes/${parentId}`, { replace: true, state: { offerLinks: true } satisfies NavState })
   }
 
   async function linkExisting(recipe: { id: string; title: string }) {
@@ -447,7 +441,7 @@ export function RecipeFormPage() {
     if (!id || !duplicate) return
     setSwitching(true)
     try {
-      await api.recipes.useSavedRecipe(id, duplicate.id)
+      await api.recipes.replaceAdhocWithSaved(id, duplicate.id)
       toast.success(`Le planning utilise maintenant « ${duplicate.title} »`)
       navigate(from ?? '/planning', { replace: true })
     } catch (e) {
@@ -467,15 +461,7 @@ export function RecipeFormPage() {
 
   if (status === 'notFound') {
     return (
-      <EmptyState
-        icon={SearchX}
-        title="Recette introuvable"
-        action={
-          <Link to="/recettes" className={cn(buttonVariants({ variant: 'outline' }), 'h-10')}>
-            Retour aux recettes
-          </Link>
-        }
-      />
+      <RecipeNotFound />
     )
   }
 
@@ -687,18 +673,18 @@ export function RecipeFormPage() {
               <Label htmlFor="recipe-nutrition-per" className="text-xs font-normal text-muted-foreground">
                 Valeurs
               </Label>
-              <select
+              <NativeSelect
                 id="recipe-nutrition-per"
                 value={values.nutritionPer}
                 onChange={(e) => set('nutritionPer', e.target.value as NutritionBasis)}
-                className="h-9 rounded-lg border border-input bg-transparent px-2 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 dark:bg-input/30"
+                className="h-9 px-2"
               >
                 {NUTRITION_BASES.map((b) => (
                   <option key={b.value} value={b.value}>
                     {b.label}
                   </option>
                 ))}
-              </select>
+              </NativeSelect>
             </div>
             {shown.nutrition && <p className="col-span-2 text-sm text-destructive sm:col-span-4">{shown.nutrition}</p>}
           </fieldset>

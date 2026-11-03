@@ -3,6 +3,7 @@ import { toast } from 'sonner'
 import { errorMessage, type Api } from '@/api'
 import type { IsoDate } from '@/lib/dates'
 import type { WeighInValue, WeightEntry } from '@/lib/weights'
+import { useRealtimeReload } from './useRealtimeReload'
 
 export interface WeightsState {
   entries: WeightEntry[]
@@ -36,16 +37,8 @@ export function useWeights(api: Api): WeightsState {
 
   useEffect(() => {
     void reload()
-    let timer: ReturnType<typeof setTimeout> | undefined
-    const unsubscribe = api.weights.subscribe(() => {
-      clearTimeout(timer)
-      timer = setTimeout(() => void reload(), 250)
-    })
-    return () => {
-      clearTimeout(timer)
-      unsubscribe()
-    }
-  }, [api, reload])
+  }, [reload])
+  useRealtimeReload(api.weights.subscribe, reload)
 
   const run = useCallback(
     async (action: () => Promise<unknown>, success: string): Promise<boolean> => {

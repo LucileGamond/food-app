@@ -6,13 +6,11 @@ import { Checkbox } from '@/components/ui/checkbox'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { NativeSelect } from '@/components/ui/native-select'
 import { useOnOpen } from '@/hooks/useOnOpen'
 import { formatDay, type IsoDate } from '@/lib/dates'
 import type { InboxItem } from '@/lib/inbox'
 import { SLOTS, slotLabel, type MealSlot, type Profile, type SlotRef } from '@/lib/meals'
-
-const selectClass =
-  'h-10 w-full rounded-lg border border-input bg-transparent px-3 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 dark:bg-input/30'
 
 interface PlanProps {
   item: InboxItem | null
@@ -56,23 +54,23 @@ export function InboxPlanDialog({ item, days, profiles, currentUserId, onOpenCha
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-2">
               <Label htmlFor="inbox-day">Jour</Label>
-              <select id="inbox-day" className={selectClass} value={date} onChange={(e) => setDate(e.target.value)}>
+              <NativeSelect id="inbox-day" className="w-full" value={date} onChange={(e) => setDate(e.target.value)}>
                 {days.map((d) => (
                   <option key={d} value={d}>
                     {formatDay(d)}
                   </option>
                 ))}
-              </select>
+              </NativeSelect>
             </div>
             <div className="space-y-2">
               <Label htmlFor="inbox-slot">Créneau</Label>
-              <select id="inbox-slot" className={selectClass} value={slot} onChange={(e) => setSlot(e.target.value as MealSlot)}>
+              <NativeSelect id="inbox-slot" className="w-full" value={slot} onChange={(e) => setSlot(e.target.value as MealSlot)}>
                 {SLOTS.map((s) => (
                   <option key={s} value={s}>
                     {slotLabel(s)}
                   </option>
                 ))}
-              </select>
+              </NativeSelect>
             </div>
           </div>
           <fieldset className="space-y-2">

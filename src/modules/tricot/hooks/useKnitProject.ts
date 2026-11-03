@@ -4,7 +4,7 @@ import { errorMessage, type Api } from '@/api'
 import type { StepProgress } from '../api'
 import { MAX_ROW_COUNT, type KnitProject } from '../lib/pattern'
 
-export interface KnitProjectState {
+interface KnitProjectState {
   project: KnitProject | null
   loading: boolean
   loadError: string | null

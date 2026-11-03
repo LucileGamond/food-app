@@ -4,10 +4,10 @@ import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { NativeSelect } from '@/components/ui/native-select'
 import { UnitSelect } from '@/components/UnitSelect'
 import { useOnOpen } from '@/hooks/useOnOpen'
-import { AISLES, emptyItemForm, itemToForm, toItemInput, validateItemForm, type Aisle, type ItemFormValues, type ShoppingItem, type ShoppingItemInput } from '@/lib/shopping'
-import { aisleSelectClass } from './QuickAddBar'
+import { AISLES, emptyItemForm, itemToForm, formToItemInput, validateItemForm, type Aisle, type ItemFormValues, type ShoppingItem, type ShoppingItemInput } from '@/lib/shopping'
 
 interface Props {
   item: ShoppingItem | null
@@ -31,7 +31,7 @@ export function ItemDialog({ item, onOpenChange, onSubmit, onDelete }: Props) {
     event.preventDefault()
     if (!item || invalid) return
     setSaving(true)
-    const ok = await onSubmit(item, toItemInput(values))
+    const ok = await onSubmit(item, formToItemInput(values))
     setSaving(false)
     if (ok) onOpenChange(false)
   }
@@ -68,13 +68,13 @@ export function ItemDialog({ item, onOpenChange, onSubmit, onDelete }: Props) {
           {(errors.quantity || errors.unit) && <p className="-mt-2 text-sm text-destructive">{errors.quantity ?? errors.unit}</p>}
           <div className="space-y-2">
             <Label htmlFor="item-aisle">Rayon</Label>
-            <select id="item-aisle" value={values.aisle} onChange={(e) => set('aisle', e.target.value as Aisle)} className={aisleSelectClass}>
+            <NativeSelect id="item-aisle" value={values.aisle} onChange={(e) => set('aisle', e.target.value as Aisle)} className="w-full px-2">
               {AISLES.map((a) => (
                 <option key={a.value} value={a.value}>
                   {a.label}
                 </option>
               ))}
-            </select>
+            </NativeSelect>
           </div>
           <DialogFooter>
             {item && (

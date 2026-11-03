@@ -2,12 +2,9 @@ import { Plus } from 'lucide-react'
 import { useRef, useState, type FormEvent } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { NativeSelect } from '@/components/ui/native-select'
 import { UnitSelect } from '@/components/UnitSelect'
-import { AISLES, emptyItemForm, guessAisle, toItemInput, validateItemForm, type Aisle, type ItemFormValues, type ShoppingItemInput } from '@/lib/shopping'
-import { cn } from '@/lib/utils'
-
-export const aisleSelectClass =
-  'h-10 w-full min-w-0 rounded-lg border border-input bg-transparent px-2 text-base md:text-sm focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none dark:bg-input/30'
+import { AISLES, emptyItemForm, guessAisle, formToItemInput, validateItemForm, type Aisle, type ItemFormValues, type ShoppingItemInput } from '@/lib/shopping'
 
 /** Ajout rapide d'un article : nom (Entrée pour ajouter), quantité, unité et rayon deviné. */
 export function QuickAddBar({ onAdd }: { onAdd: (input: ShoppingItemInput) => Promise<boolean> }) {
@@ -25,7 +22,7 @@ export function QuickAddBar({ onAdd }: { onAdd: (input: ShoppingItemInput) => Pr
   async function handleSubmit(event: FormEvent) {
     event.preventDefault()
     if (!canAdd) return
-    const input = toItemInput(values)
+    const input = formToItemInput(values)
     setValues(emptyItemForm())
     setAisleTouched(false)
     nameInput.current?.focus()
@@ -59,21 +56,21 @@ export function QuickAddBar({ onAdd }: { onAdd: (input: ShoppingItemInput) => Pr
           className="h-10 placeholder:text-muted-foreground/40"
         />
         <UnitSelect aria-label="Unité" value={values.unit} onChange={(unit) => setValues((v) => ({ ...v, unit }))} />
-        <select
+        <NativeSelect
           aria-label="Rayon"
           value={values.aisle}
           onChange={(e) => {
             setAisleTouched(true)
             setValues((v) => ({ ...v, aisle: e.target.value as Aisle }))
           }}
-          className={cn(aisleSelectClass)}
+          className="w-full px-2"
         >
           {AISLES.map((a) => (
             <option key={a.value} value={a.value}>
               {a.label}
             </option>
           ))}
-        </select>
+        </NativeSelect>
       </div>
       {errors.quantity && <p className="text-sm text-destructive">{errors.quantity}</p>}
     </form>

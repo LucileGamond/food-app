@@ -2,6 +2,7 @@ import { formatCompactDate, type IsoDate } from './dates'
 import type { Database } from './database.types'
 import { formatQuantity, parseQuantity, roundQuantity } from './recipes'
 import { isUnit, unitLabel } from './units'
+import { foldText } from './text'
 
 export type Aisle = Database['public']['Enums']['shopping_aisle']
 
@@ -52,24 +53,12 @@ export interface ShoppingItemInput {
 // ---------------------------------------------------------------------------
 // Rayon deviné à partir du nom
 
-/** « Œufs Frais » → « oeufs frais » */
-export function normalizeName(text: string): string {
-  return text
-    .toLowerCase()
-    .replace(/œ/g, 'oe')
-    .replace(/æ/g, 'ae')
-    .normalize('NFD')
-    .replace(/\p{Diacritic}/gu, '')
-    .replace(/\s+/g, ' ')
-    .trim()
-}
-
 /**
  * Clé d'un produit pour regrouper deux lignes : nom normalisé, mots au singulier (« Tomates » = « tomate »,
  * « Œufs » = « oeuf »). Même règle que la saisonnalité et les calories.
  */
 export function productKey(text: string): string {
-  return normalizeName(text)
+  return foldText(text)
     .split(' ')
     .map((w) => (w.length > 3 ? w.replace(/[sx]$/, '') : w))
     .join(' ')
@@ -127,7 +116,7 @@ const KEYWORD_RULES: readonly { pattern: RegExp; aisle: Aisle }[] = (Object.entr
 
 /** Rayon probable d'un article, d'après son nom (« Autre » si rien ne correspond). */
 export function guessAisle(name: string): Aisle {
-  const text = normalizeName(name)
+  const text = foldText(name)
   return KEYWORD_RULES.find((rule) => rule.pattern.test(text))?.aisle ?? 'AUTRE'
 }
 
@@ -165,7 +154,7 @@ export function defaultListName(today: IsoDate): string {
   return `Courses du ${formatCompactDate(today).replace(/\s\d{4}$/, '')}`
 }
 
-export function nextPosition(items: readonly Pick<ShoppingItem, 'position'>[]): number {
+export function nextItemPosition(items: readonly Pick<ShoppingItem, 'position'>[]): number {
   return items.reduce((max, i) => Math.max(max, i.position), -1) + 1
 }
 
@@ -244,17 +233,20 @@ export function itemToForm(item: ShoppingItem): ItemFormValues {
   return { name: item.name, quantity: formatQuantity(item.quantity), unit: item.unit ?? '', aisle: item.aisle }
 }
 
+/** Longueur maximale du nom d'un article (contrainte de la base). */
+export const ITEM_NAME_MAX = 120
+
 export function validateItemForm(values: ItemFormValues): ItemFormErrors {
   const errors: ItemFormErrors = {}
   const name = values.name.trim()
   if (!name) errors.name = 'Nom requis'
-  else if (name.length > 120) errors.name = '120 caractères maximum'
+  else if (name.length > ITEM_NAME_MAX) errors.name = `${ITEM_NAME_MAX} caractères maximum`
   const quantity = parseQuantity(values.quantity)
   if (quantity !== null && !(quantity > 0 && quantity < 100_000)) errors.quantity = 'Quantité invalide'
   if (values.unit !== '' && !isUnit(values.unit)) errors.unit = 'Unité inconnue'
   return errors
 }
 
-export function toItemInput(values: ItemFormValues): ShoppingItemInput {
+export function formToItemInput(values: ItemFormValues): ShoppingItemInput {
   return { name: values.name.trim(), quantity: parseQuantity(values.quantity), unit: values.unit || null, aisle: values.aisle }
 }

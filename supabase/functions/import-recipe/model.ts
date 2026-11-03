@@ -3,7 +3,6 @@
 import { callTool, HttpError, type ModelOptions, type ModelUsage } from '../_shared/anthropic.ts'
 import type { PageContent } from './extract.ts'
 
-export { DEFAULT_MODEL } from '../_shared/anthropic.ts'
 export type { ModelOptions, ModelUsage }
 const MAX_KNOWN_TAGS = 40
 
@@ -302,6 +301,7 @@ export async function extractRecipe(
   url: string,
   knownTags: readonly string[],
   options: ModelOptions,
+  timeoutMs = 60_000,
 ): Promise<{ recipe: ImportedRecipe; usage: ModelUsage | null }> {
   const { input, usage } = await callTool(
     {
@@ -309,7 +309,7 @@ export async function extractRecipe(
       tool: TOOL,
       message: buildUserMessage(content, url, knownTags),
       maxTokens: 8192,
-      timeoutMs: 60_000,
+      timeoutMs,
       failure: 'L’analyse de la page a échoué',
       missing: 'réponse sans recette',
     },
@@ -413,7 +413,6 @@ export async function extractRecipeFromPhotos(
 
 const NOT_FOUND_ON_PHOTO = 'Aucune recette lisible sur cette photo. Essaie une photo plus nette, bien droite.'
 
-/** Recettes lues sur une photo : chacune validée ; celles qui ne sont pas des recettes (ou sans ingrédient) sont écartées. */
 /** Cadre de photo plausible : image existante, bords dans l'image et dans l'ordre, assez grand ; sinon null. */
 export function sanitizePhotoArea(input: unknown, images: number): PhotoArea | null {
   if (typeof input !== 'object' || input === null) return null
@@ -427,6 +426,7 @@ export function sanitizePhotoArea(input: unknown, images: number): PhotoArea | n
   return { image: d.image as number, left: round(left), top: round(top), right: round(right), bottom: round(bottom) }
 }
 
+/** Recettes lues sur une photo : chacune validée ; celles qui ne sont pas des recettes (ou sans ingrédient) sont écartées. */
 export function sanitizeRecipes(input: unknown, images = 1): ImportedRecipe[] {
   const data = (typeof input === 'object' && input !== null ? input : {}) as Record<string, unknown>
   const recipes = (Array.isArray(data.recettes) ? data.recettes : []).slice(0, MAX_PHOTO_RECIPES).flatMap((raw) => {

@@ -1,16 +1,18 @@
-import { BellRing, CalendarDays, CalendarPlus, ChevronDown, ChevronLeft, ChevronRight, ClipboardList, MoreHorizontal, RefreshCw, Trash2 } from 'lucide-react'
+import { BellRing, CalendarDays, CalendarPlus, ChevronDown, ChevronLeft, ChevronRight, ClipboardList, MoreHorizontal, Trash2 } from 'lucide-react'
 import { useCallback, useMemo, useState } from 'react'
 import { useToday } from '@/hooks/useToday'
 import { Link } from 'react-router-dom'
 import { Button, buttonVariants } from '@/components/ui/button'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { Skeleton } from '@/components/ui/skeleton'
+import { NativeSelect } from '@/components/ui/native-select'
 import { ConfirmDialog } from '@/components/ConfirmDialog'
 import { EmptyState } from '@/components/EmptyState'
-import { PageHeader } from '@/components/Layout'
+import { PageHeader } from '@/components/PageHeader'
 import { FoodItemRow } from '@/components/food/FoodItemRow'
 import { PeriodDialog } from '@/components/food/PeriodDialog'
 import { ProfileSwitch, useProfileParam } from '@/components/food/ProfileSwitch'
+import { LoadError } from '@/components/LoadError'
 import { useApi } from '@/app/ApiContext'
 import { useAuth } from '@/auth/AuthProvider'
 import { useFoodTracking } from '@/hooks/useFoodTracking'
@@ -29,9 +31,6 @@ import { cn } from '@/lib/utils'
 
 /** Heure à partir de laquelle on rappelle qu'aucune consommation n'est notée aujourd'hui. */
 const DAILY_REMINDER_HOUR = 20
-
-const selectClass =
-  'h-10 rounded-lg border border-input bg-background px-3 text-sm shadow-xs focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none'
 
 export function FoodTrackingPage({ today: fixedToday, hour = currentHour() }: { today?: IsoDate; hour?: number }) {
   const today = useToday(fixedToday)
@@ -94,9 +93,8 @@ export function FoodTrackingPage({ today: fixedToday, hour = currentHour() }: { 
             <label htmlFor="period-select" className="sr-only">
               Période
             </label>
-            <select
+            <NativeSelect
               id="period-select"
-              className={selectClass}
               value={period.id}
               onChange={(e) => tracking.selectPeriod(e.target.value)}
             >
@@ -106,7 +104,7 @@ export function FoodTrackingPage({ today: fixedToday, hour = currentHour() }: { 
                   {containsDate(p, today) ? ' (en cours)' : ''}
                 </option>
               ))}
-            </select>
+            </NativeSelect>
             <DropdownMenu>
               <DropdownMenuTrigger render={<Button variant="ghost" size="icon-lg" aria-label="Actions sur la période" />}>
                 <MoreHorizontal />
@@ -122,12 +120,7 @@ export function FoodTrackingPage({ today: fixedToday, hour = currentHour() }: { 
       </div>
 
       {tracking.loadError ? (
-        <div role="alert" className="flex flex-col items-start gap-3 rounded-xl border border-destructive/30 bg-destructive/5 p-4 text-sm">
-          <p>{tracking.loadError}</p>
-          <Button variant="outline" onClick={() => void tracking.reload()}>
-            <RefreshCw /> Réessayer
-          </Button>
-        </div>
+        <LoadError message={tracking.loadError} onRetry={() => void tracking.reload()} />
       ) : tracking.loading || !profile ? (
         <div className="space-y-3" aria-busy="true" aria-label="Chargement du plan">
           <Skeleton className="h-14 rounded-2xl" />

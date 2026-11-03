@@ -4,6 +4,7 @@ import { errorMessage, type Api } from '@/api'
 import { parseInboxInput, type InboxItem, type InboxList } from '@/lib/inbox'
 import type { SlotRef } from '@/lib/meals'
 import { siteName } from '@/lib/recipes'
+import { useRealtimeReload } from './useRealtimeReload'
 
 export interface InboxState {
   items: InboxItem[]
@@ -43,16 +44,8 @@ export function useInbox(api: Api, list: InboxList = 'plan'): InboxState {
 
   useEffect(() => {
     void reload()
-    let timer: ReturnType<typeof setTimeout> | undefined
-    const unsubscribe = api.inbox.subscribe(() => {
-      clearTimeout(timer)
-      timer = setTimeout(() => void reload(), 250)
-    })
-    return () => {
-      clearTimeout(timer)
-      unsubscribe()
-    }
-  }, [api, reload])
+  }, [reload])
+  useRealtimeReload(api.inbox.subscribe, reload)
 
   const add = useCallback(
     async (text: string, sharedTitle?: string | null) => {

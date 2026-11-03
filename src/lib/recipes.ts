@@ -2,6 +2,7 @@ import type { IsoDate } from './dates'
 import { findDurations } from './timers'
 import { isValidUrl } from './meals'
 import { isUnit, metricText, splitUnit, toMetric, unitLabel } from './units'
+import { foldText } from './text'
 
 export interface Ingredient {
   name: string
@@ -119,7 +120,7 @@ export const NUTRITION_BASES: readonly { value: NutritionBasis; label: string }[
   { value: '100 g', label: 'pour 100 g' },
 ]
 
-export interface Nutrition {
+interface Nutrition {
   per: NutritionBasis
   kcal: number | null
   carbs: number | null
@@ -127,7 +128,7 @@ export interface Nutrition {
   fat: number | null
 }
 
-export type MacroField = 'carbs' | 'protein' | 'fat'
+type MacroField = 'carbs' | 'protein' | 'fat'
 
 export const MACRO_FIELDS: readonly { field: MacroField; label: string; column: 'carbs_g' | 'protein_g' | 'fat_g' }[] = [
   { field: 'carbs', label: 'Glucides', column: 'carbs_g' },
@@ -135,7 +136,7 @@ export const MACRO_FIELDS: readonly { field: MacroField; label: string; column: 
   { field: 'fat', label: 'Lipides', column: 'fat_g' },
 ]
 
-const isNutritionBasis = (v: unknown): v is NutritionBasis => NUTRITION_BASES.some((b) => b.value === v)
+export const isNutritionBasis = (v: unknown): v is NutritionBasis => NUTRITION_BASES.some((b) => b.value === v)
 
 export const DURATION_FIELDS: readonly {
   field: DurationField
@@ -213,6 +214,19 @@ export function roundQuantity(quantity: number): number {
 export function scaleIngredients(ingredients: readonly Ingredient[], from: number, to: number): Ingredient[] {
   if (from <= 0 || to === from) return ingredients.map((i) => ({ ...i }))
   return ingredients.map((i) => ({ ...i, quantity: i.quantity === null ? null : roundQuantity((i.quantity * to) / from) }))
+}
+
+/** Personnes demandées dans l'adresse (`?personnes=`) si le nombre est valide, sinon celles de la recette (null : sans portions). */
+export function servingsFromParam(recipeServings: number | null, param: string | null): number | null {
+  if (recipeServings === null) return null
+  const asked = Number(param)
+  return Number.isInteger(asked) && asked >= 1 && asked <= SERVINGS_MAX ? asked : recipeServings
+}
+
+/** Ingrédients pour `servings` personnes (quantités adaptées), avec leur position dans la recette. */
+export function ingredientsFor(recipe: { servings: number | null; ingredients: readonly Ingredient[] }, servings: number | null): (Ingredient & { position: number })[] {
+  const scaled = recipe.servings !== null && servings !== null ? scaleIngredients(recipe.ingredients, recipe.servings, servings) : recipe.ingredients
+  return scaled.map((ingredient, position) => ({ ...ingredient, position }))
 }
 
 /** Tags nettoyés : espaces retirés, vides ignorés, doublons supprimés sans tenir compte de la casse. */
@@ -517,10 +531,6 @@ export function moveItem<T>(items: readonly T[], from: number, to: number): T[] 
   return copy
 }
 
-function fold(text: string): string {
-  return text.normalize('NFD').replace(/\p{Diacritic}/gu, '').toLocaleLowerCase('fr-FR').trim()
-}
-
 export interface RecipeListItem {
   id: string
   title: string
@@ -550,12 +560,12 @@ export function filterRecipes<T extends Pick<RecipeListItem, 'title' | 'tags' | 
   query: string,
   tag: string | null,
 ): T[] {
-  const q = fold(query)
-  const t = tag ? fold(tag) : null
+  const q = foldText(query)
+  const t = tag ? foldText(tag) : null
   return recipes.filter((r) => {
-    if (t && !r.tags.some((x) => fold(x) === t)) return false
+    if (t && !r.tags.some((x) => foldText(x) === t)) return false
     if (!q) return true
-    return fold(r.title).includes(q) || r.ingredientNames.some((n) => fold(n).includes(q))
+    return foldText(r.title).includes(q) || r.ingredientNames.some((n) => foldText(n).includes(q))
   })
 }
 
@@ -593,7 +603,7 @@ export interface ImportedRecipe {
 }
 
 /** Cadre d'une photo dans une image : numéro de l'image et bords en fractions de sa largeur et hauteur. */
-export interface PhotoArea {
+interface PhotoArea {
   image: number
   left: number
   top: number

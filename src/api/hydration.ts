@@ -1,6 +1,7 @@
 import type { WaterIntake } from '@/lib/hydration'
 import type { AppSupabaseClient } from '@/lib/supabase'
 import { toAppError } from './errors'
+import { subscribeTables } from './realtime'
 
 /** Verres bus par la personne connectée (chacun ne voit que les siens). */
 export function createHydrationApi(db: AppSupabaseClient) {
@@ -22,15 +23,7 @@ export function createHydrationApi(db: AppSupabaseClient) {
       return data
     },
 
-    subscribe(onChange: () => void, onStatus?: (status: string) => void): () => void {
-      const channel = db
-        .channel(`hydration-${Math.random().toString(36).slice(2)}`)
-        .on('postgres_changes', { event: '*', schema: 'public', table: 'water_intakes' }, onChange)
-        .subscribe((status) => onStatus?.(status))
-      return () => {
-        void db.removeChannel(channel)
-      }
-    },
+    subscribe: (onChange: () => void, onStatus?: (status: string) => void) => subscribeTables(db, 'hydration', ['water_intakes'], onChange, onStatus),
 
     async deleteIntake(id: string): Promise<void> {
       const { error } = await db.from('water_intakes').delete().eq('id', id)

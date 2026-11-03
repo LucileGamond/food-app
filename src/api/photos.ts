@@ -3,6 +3,8 @@ import type { AppSupabaseClient } from '@/lib/supabase'
 import { toAppError } from './errors'
 
 export const PHOTO_BUCKET = 'recipe-photos'
+/** Photos temporaires (en attente d'être lues), supprimées par le ménage de nuit quand plus rien ne les utilise. */
+export const PENDING_PHOTO_PREFIX = 'pending/'
 const SIGNED_URL_TTL_SECONDS = 60 * 60
 
 const EXTENSIONS: Record<string, string> = { 'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp' }
@@ -42,7 +44,7 @@ export function createPhotosApi(db: AppSupabaseClient) {
       const { error } = await db.from('recipe_photos').delete().eq('id', photo.id)
       if (error) throw toAppError(error, 'Impossible de supprimer la photo.')
       // Photo temporaire (pending/, parfois partagée) : supprimée par le ménage de nuit quand plus rien ne l'utilise.
-      if (!photo.storage_path.startsWith('pending/')) await db.storage.from(PHOTO_BUCKET).remove([photo.storage_path])
+      if (!photo.storage_path.startsWith(PENDING_PHOTO_PREFIX)) await db.storage.from(PHOTO_BUCKET).remove([photo.storage_path])
     },
 
     /** Réordonne les photos : la première devient la photo principale. */

@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { FullPageSpinner } from '@/components/FullPageSpinner'
 import { useAuth } from '@/auth/AuthProvider'
+import { navState } from '@/lib/navState'
 
 export function LoginPage() {
   const { status, signIn } = useAuth()
@@ -16,7 +17,7 @@ export function LoginPage() {
   const [error, setError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
 
-  const from = (location.state as { from?: string } | null)?.from ?? '/planning'
+  const from = navState(location).from ?? '/planning'
 
   if (status === 'loading') return <FullPageSpinner />
   if (status === 'signedIn') return <Navigate to={from} replace />

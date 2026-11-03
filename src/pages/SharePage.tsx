@@ -4,7 +4,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { FullPageSpinner } from '@/components/FullPageSpinner'
-import { PageHeader } from '@/components/Layout'
+import { PageHeader } from '@/components/PageHeader'
 import { ImportChoices } from '@/components/recipes/ImportChoices'
 import { useApi } from '@/app/ApiContext'
 import { useSettings } from '@/app/SettingsContext'
@@ -14,6 +14,7 @@ import type { ImportSource } from '@/lib/quickImport'
 import { siteName } from '@/lib/recipes'
 import { homePath } from '@/lib/settings'
 import { handOffPhotos, takeSharedPhotos } from '@/lib/sharedPhotos'
+import type { NavState } from '@/lib/navState'
 
 /**
  * Cible du partage Android (`share_target` du manifeste) : /partage?url=…&text=…&title=…, ou /partage?photos=partage
@@ -87,7 +88,7 @@ export function SharePage() {
   /** Préremplir dans le formulaire, pour vérifier avant d'enregistrer. */
   function prefill() {
     if (source!.kind === 'link') {
-      void navigate('/recettes/nouvelle', { state: { importUrl: source!.url } })
+      void navigate('/recettes/nouvelle', { state: { importUrl: source!.url } satisfies NavState })
       return
     }
     handOffPhotos(source!.files)

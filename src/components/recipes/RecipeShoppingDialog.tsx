@@ -6,7 +6,7 @@ import { ShoppingDraftPreview } from '@/components/shopping/ShoppingDraftPreview
 import { useApi } from '@/app/ApiContext'
 import { useOnOpen } from '@/hooks/useOnOpen'
 import { useShoppingFromPlan } from '@/hooks/useShoppingFromPlan'
-import { todayIso } from '@/lib/dates'
+import { useToday } from '@/hooks/useToday'
 import type { Recipe } from '@/lib/recipes'
 
 interface Props {
@@ -20,6 +20,7 @@ interface Props {
 export function RecipeShoppingDialog({ recipe, people, onOpenChange }: Props) {
   const api = useApi()
   const flow = useShoppingFromPlan(api)
+  const today = useToday()
   const open = recipe !== null
 
   useOnOpen(open, () => {
@@ -46,7 +47,7 @@ export function RecipeShoppingDialog({ recipe, people, onOpenChange }: Props) {
         </DialogHeader>
 
         {flow.step === 'preview' ? (
-          <ShoppingDraftPreview flow={flow} today={todayIso()} backLabel="Annuler" onBack={() => close(false)} onDone={() => onOpenChange(false)} />
+          <ShoppingDraftPreview flow={flow} today={today} backLabel="Annuler" onBack={() => close(false)} onDone={() => onOpenChange(false)} />
         ) : (
           <div className="space-y-3" aria-busy="true">
             <p role="status" className="flex items-center gap-2 font-medium">

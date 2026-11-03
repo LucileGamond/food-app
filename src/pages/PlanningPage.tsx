@@ -9,14 +9,14 @@ import {
   type DragEndEvent,
   type DragStartEvent,
 } from '@dnd-kit/core'
-import { CalendarPlus, ChevronLeft, ChevronRight, Copy, MoveRight, RefreshCw, ShoppingCart, Sparkles } from 'lucide-react'
+import { CalendarPlus, ChevronLeft, ChevronRight, Copy, MoveRight, ShoppingCart, Sparkles } from 'lucide-react'
 import { useCallback, useMemo, useState } from 'react'
 import { useToday } from '@/hooks/useToday'
 import { useNavigate } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { ConfirmDialog } from '@/components/ConfirmDialog'
-import { PageHeader } from '@/components/Layout'
+import { PageHeader } from '@/components/PageHeader'
 import { DayCard } from '@/components/planning/DayCard'
 import { InboxPlanDialog, InboxRenameDialog } from '@/components/planning/InboxDialogs'
 import { InboxPanel, type InboxDragData } from '@/components/planning/InboxPanel'
@@ -25,6 +25,7 @@ import type { MealAction } from '@/components/planning/MealItem'
 import { MealTargetDialog } from '@/components/planning/MealTargetDialog'
 import { MealIdeasDialog } from '@/components/planning/MealIdeasDialog'
 import { ShoppingFromPlanDialog } from '@/components/planning/ShoppingFromPlanDialog'
+import { LoadError } from '@/components/LoadError'
 import { useApi } from '@/app/ApiContext'
 import { useSettings } from '@/app/SettingsContext'
 import { useAuth } from '@/auth/AuthProvider'
@@ -43,6 +44,7 @@ import {
   type RecipeSummary,
   type SlotRef,
 } from '@/lib/meals'
+import type { NavState } from '@/lib/navState'
 
 type DialogState =
   | { kind: 'none' }
@@ -101,7 +103,7 @@ export function PlanningPage({ today: fixedToday }: { today?: IsoDate }) {
         setDialog({ kind: action, meal })
         break
       case 'save':
-        navigate(`/recettes/${meal.recipe.id}/modifier`, { state: { from: '/planning' } })
+        navigate(`/recettes/${meal.recipe.id}/modifier`, { state: { from: '/planning' } satisfies NavState })
         break
       case 'delete':
         setDialog({ kind: 'delete', meal })
@@ -185,12 +187,7 @@ export function PlanningPage({ today: fixedToday }: { today?: IsoDate }) {
       />
 
       {planning.loadError ? (
-        <div role="alert" className="flex flex-col items-start gap-3 rounded-xl border border-destructive/30 bg-destructive/5 p-4 text-sm">
-          <p>{planning.loadError}</p>
-          <Button variant="outline" onClick={() => void planning.reload()}>
-            <RefreshCw /> Réessayer
-          </Button>
-        </div>
+        <LoadError message={planning.loadError} onRetry={() => void planning.reload()} />
       ) : null}
 
       {!planning.loadError && (

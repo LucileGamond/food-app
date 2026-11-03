@@ -2,6 +2,8 @@ import {
   normalizeIngredientUnit,
   roundQuantity,
   scaleIngredients,
+  ingredientsFor,
+  servingsFromParam,
   formHasContent,
   importedImageToFile,
   importedToFormValues,
@@ -184,6 +186,8 @@ describe('recherche', () => {
     expect(filterRecipes(recipes, 'CREME', null).map((r) => r.title)).toEqual(['Crème brûlée'])
     expect(filterRecipes(recipes, 'pois', null).map((r) => r.title)).toEqual(['Curry de légumes'])
     expect(filterRecipes(recipes, '  ', null)).toHaveLength(3)
+    // « oeuf » tapé au clavier trouve « œufs »
+    expect(filterRecipes(recipes, 'oeuf', null).map((r) => r.title)).toEqual(['Crème brûlée'])
   })
   it('filtre par tag, combiné à la recherche', () => {
     expect(filterRecipes(recipes, '', 'rapide').map((r) => r.title)).toEqual(['Curry de légumes', 'Pâtes pesto'])
@@ -468,5 +472,22 @@ describe('livre, page et valeurs nutritionnelles', () => {
     expect(formatNutrition({ nutrition_per: '100 g', kcal: null, carbs_g: null, protein_g: 4, fat_g: null })).toBe('protéines 4 g (pour 100 g)')
     expect(formatNutrition({ kcal: 300 })).toBe('300 kcal (par portion)')
     expect(formatNutrition({})).toBe('')
+  })
+})
+
+describe('personnes de l’adresse', () => {
+  it('garde un nombre valide de ?personnes=, sinon celui de la recette', () => {
+    expect(servingsFromParam(4, '6')).toBe(6)
+    expect(servingsFromParam(4, null)).toBe(4)
+    expect(servingsFromParam(4, '0')).toBe(4)
+    expect(servingsFromParam(4, '2.5')).toBe(4)
+    expect(servingsFromParam(4, '999')).toBe(4)
+    expect(servingsFromParam(null, '6')).toBeNull()
+  })
+
+  it('adapte les quantités et numérote les ingrédients', () => {
+    const recipe = { servings: 4, ingredients: [{ name: 'farine', quantity: 200, unit: 'g', note: null, section: null }] }
+    expect(ingredientsFor(recipe, 6)).toEqual([{ name: 'farine', quantity: 300, unit: 'g', note: null, section: null, position: 0 }])
+    expect(ingredientsFor({ ...recipe, servings: null }, null)[0]).toMatchObject({ quantity: 200, position: 0 })
   })
 })

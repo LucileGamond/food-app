@@ -571,7 +571,7 @@ describe('RecipeFormPage — lien déjà enregistré', () => {
     const alert = await screen.findByRole('alert', {}, { timeout: 2000 })
     expect(alert).toHaveTextContent('Le planning peut utiliser cette recette à la place de la recette ponctuelle.')
     await user.click(within(alert).getByRole('button', { name: 'Utiliser « Curry maison » dans le planning' }))
-    expect(api.recipes.useSavedRecipe).toHaveBeenCalledWith('r1', 'r-curry')
+    expect(api.recipes.replaceAdhocWithSaved).toHaveBeenCalledWith('r1', 'r-curry')
     expect(await screen.findByText('Écran planning')).toBeInTheDocument()
     expect(await screen.findByText('Le planning utilise maintenant « Curry maison »')).toBeInTheDocument()
   })
@@ -581,7 +581,7 @@ describe('RecipeFormPage — lien déjà enregistré', () => {
     const api = fakeApi()
     api.recipes.getRecipe.mockResolvedValue({ ...EXISTING, is_saved: false, url: 'https://exemple.fr/curry', ingredients: [], photos: [] })
     api.recipes.findSavedByUrl.mockResolvedValue(EXISTING_RECIPE)
-    api.recipes.useSavedRecipe.mockRejectedValueOnce(new AppError('Impossible de remplacer la recette.'))
+    api.recipes.replaceAdhocWithSaved.mockRejectedValueOnce(new AppError('Impossible de remplacer la recette.'))
     renderForm(api, '/recettes/r1/modifier')
     const alert = await screen.findByRole('alert', {}, { timeout: 2000 })
     await user.click(within(alert).getByRole('button', { name: /dans le planning/ }))
@@ -636,9 +636,12 @@ describe('RecipeFormPage — choix rapides et recettes en attente', () => {
   it('ouvert avec un lien partagé : prérempli tout de suite', async () => {
     const api = fakeApi()
     api.recipes.importFromUrl.mockResolvedValue(READ)
+    api.recipes.listTags.mockResolvedValue(['dessert', 'végé'])
     renderForm(api, { pathname: '/recettes/nouvelle', state: { importUrl: 'https://cuisine.fr/curry' } })
     expect(await screen.findByRole('status')).toHaveTextContent('Recette préremplie depuis cuisine.fr')
     expect(screen.getByLabelText('Titre')).toHaveValue('Curry coco')
+    // Lancé avant le chargement des tags du formulaire : la lecture reçoit quand même les tags existants.
+    expect(api.recipes.importFromUrl).toHaveBeenCalledWith('https://cuisine.fr/curry', ['dessert', 'végé'])
   })
 
   it('élément « De côté » avec un lien : prérempli, puis la liste est mise à jour à l’enregistrement', async () => {

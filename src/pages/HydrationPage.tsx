@@ -1,9 +1,10 @@
-import { BellRing, GlassWater, RefreshCw, Trash2 } from 'lucide-react'
+import { BellRing, GlassWater, Trash2 } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
-import { PageHeader } from '@/components/Layout'
+import { PageHeader } from '@/components/PageHeader'
+import { LoadError } from '@/components/LoadError'
 import { useApi } from '@/app/ApiContext'
 import { useSettings } from '@/app/SettingsContext'
 import { useHydration } from '@/hooks/useHydration'
@@ -48,12 +49,7 @@ export function HydrationPage({ today: fixedToday, now: fixedNow }: { today?: Is
       <PageHeader title="Eau" description={`Objectif : ${formatLiters(goal)} par jour · rien que pour toi`} />
 
       {hydration.loadError ? (
-        <div role="alert" className="flex flex-col items-start gap-3 rounded-xl border border-destructive/30 bg-destructive/5 p-4 text-sm">
-          <p>{hydration.loadError}</p>
-          <Button variant="outline" onClick={() => void hydration.reload()}>
-            <RefreshCw /> Réessayer
-          </Button>
-        </div>
+        <LoadError message={hydration.loadError} onRetry={() => void hydration.reload()} />
       ) : hydration.loading ? (
         <div className="space-y-3" aria-busy="true" aria-label="Chargement des verres du jour">
           <Skeleton className="h-36 rounded-2xl" />

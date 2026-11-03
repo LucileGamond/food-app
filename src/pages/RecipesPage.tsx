@@ -1,19 +1,23 @@
-import { BookOpen, History, ImageOff, Images, Leaf, Link2, Loader2, Plus, RefreshCw, Search, Sprout, Timer, X } from 'lucide-react'
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { BookOpen, History, ImageOff, Images, Leaf, Link2, Loader2, Plus, Search, Sprout, Timer, X } from 'lucide-react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { toast } from 'sonner'
 import { Button, buttonVariants } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Skeleton } from '@/components/ui/skeleton'
+import { NativeSelect } from '@/components/ui/native-select'
 import { EmptyState } from '@/components/EmptyState'
 import { RecipeCard } from '@/components/recipes/RecipeCard'
 import { SetAsideList } from '@/components/recipes/SetAsideList'
-import { PageHeader } from '@/components/Layout'
+import { PageHeader } from '@/components/PageHeader'
+import { LoadError } from '@/components/LoadError'
 import { useApi } from '@/app/ApiContext'
 import { errorMessage } from '@/api'
+import { useAsync } from '@/hooks/useAsync'
 import { useSignedUrls } from '@/hooks/useSignedUrls'
+import { useToday } from '@/hooks/useToday'
 import { applyAutoLinks, autoLinkMessage } from '@/lib/autoLinks'
-import { todayIso, type IsoDate } from '@/lib/dates'
+import type { IsoDate } from '@/lib/dates'
 import { monthOf } from '@/lib/season'
 import {
   applyListOptions,
@@ -31,11 +35,8 @@ import {
   type RecipeListOptions,
   type RecipeSort,
 } from '@/lib/recipeList'
-import { collectTags, type RecipeListItem } from '@/lib/recipes'
+import { collectTags } from '@/lib/recipes'
 import { cn } from '@/lib/utils'
-
-const selectClass =
-  'h-10 min-w-0 rounded-lg border border-input bg-background px-2 text-base md:text-sm focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none dark:bg-input/30'
 
 const QUICK_ICONS: Record<QuickFilter, typeof Timer> = { quick: Timer, vegetarian: Leaf, seasonal: Sprout, forgotten: History, noPhoto: ImageOff }
 
@@ -60,10 +61,13 @@ function Chip({ active, onClick, children }: { active: boolean; onClick: () => v
   )
 }
 
-export function RecipesPage({ today = todayIso() }: { today?: IsoDate }) {
+export function RecipesPage({ today: fixedToday }: { today?: IsoDate }) {
   const api = useApi()
-  const [recipes, setRecipes] = useState<RecipeListItem[] | null>(null)
-  const [error, setError] = useState<string | null>(null)
+  // Suit le passage à minuit quand l'application reste ouverte.
+  const today = useToday(fixedToday)
+  const list = useAsync(() => api.recipes.listSavedRecipes(today), [api, today])
+  const recipes = list.data ?? null
+  const error = list.error
   // Recherche, filtres et tri dans l'adresse : au retour d'une fiche, la liste est comme on l'a laissée.
   const [params, setParams] = useSearchParams()
   const options = useMemo(() => readListOptions(params), [params])
@@ -77,13 +81,6 @@ export function RecipesPage({ today = todayIso() }: { today?: IsoDate }) {
     latest.current = { ...latest.current, ...patch }
     setParams(writeListOptions(latest.current), { replace: true })
   }
-
-  const load = useCallback(() => {
-    setError(null)
-    api.recipes.listSavedRecipes(today).then(setRecipes, (e: unknown) => setError(errorMessage(e)))
-  }, [api, today])
-
-  useEffect(load, [load])
 
   const tags = useMemo(() => collectTags(recipes ?? []).filter((t) => !isVegetarianTag(t)), [recipes])
   const origins = useMemo(() => collectOrigins(recipes ?? []), [recipes])
@@ -147,12 +144,7 @@ export function RecipesPage({ today = todayIso() }: { today?: IsoDate }) {
       <SetAsideList />
 
       {error ? (
-        <div role="alert" className="flex flex-col items-start gap-3 rounded-xl border border-destructive/30 bg-destructive/5 p-4 text-sm">
-          <p>{error}</p>
-          <Button variant="outline" onClick={load}>
-            <RefreshCw /> Réessayer
-          </Button>
-        </div>
+        <LoadError message={error} onRetry={list.reload} />
       ) : recipes === null ? (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3" aria-busy="true" aria-label="Chargement des recettes">
           {[0, 1, 2].map((i) => (
@@ -181,23 +173,23 @@ export function RecipesPage({ today = todayIso() }: { today?: IsoDate }) {
                   className="h-10 bg-background pl-9"
                 />
               </div>
-              <select
+              <NativeSelect
                 aria-label="Trier les recettes"
                 value={options.sort}
                 onChange={(e) => setOptions({ sort: e.target.value as RecipeSort })}
-                className={cn(selectClass, 'flex-[1_1_10rem] sm:flex-none')}
+                className="flex-[1_1_10rem] px-2 sm:flex-none"
               >
                 {RECIPE_SORTS.map((s) => (
                   <option key={s.value} value={s.value}>
                     {s.label}
                   </option>
                 ))}
-              </select>
-              <select
+              </NativeSelect>
+              <NativeSelect
                 aria-label="Filtrer par source"
                 value={options.origin ?? ''}
                 onChange={(e) => setOptions({ origin: e.target.value || null })}
-                className={cn(selectClass, 'flex-[1_1_10rem] sm:max-w-60 sm:flex-none', !options.origin && 'text-muted-foreground')}
+                className={cn('flex-[1_1_10rem] px-2 sm:max-w-60 sm:flex-none', !options.origin && 'text-muted-foreground')}
               >
                 <option value="">Toutes les sources</option>
                 {origins.mine && <option value={MINE_ORIGIN}>Mes recettes (sans source)</option>}
@@ -221,7 +213,7 @@ export function RecipesPage({ today = todayIso() }: { today?: IsoDate }) {
                 )}
                 {/* Source choisie absente de la liste (adresse ancienne) : affichée pour pouvoir la retirer. */}
                 {options.origin && !optionValues(origins).includes(options.origin) && <option value={options.origin}>{options.origin}</option>}
-              </select>
+              </NativeSelect>
             </div>
 
             <div className="flex flex-wrap gap-2" role="group" aria-label="Filtres rapides">

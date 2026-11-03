@@ -2,6 +2,7 @@ import type { IsoDate } from '@/lib/dates'
 import type { AppSupabaseClient } from '@/lib/supabase'
 import type { WeighInValue, WeightEntry } from '@/lib/weights'
 import { toAppError } from './errors'
+import { subscribeTables } from './realtime'
 
 export function createWeightsApi(db: AppSupabaseClient) {
   return {
@@ -35,15 +36,7 @@ export function createWeightsApi(db: AppSupabaseClient) {
       if (error) throw toAppError(error, 'Impossible de supprimer le relevé.')
     },
 
-    subscribe(onChange: () => void, onStatus?: (status: string) => void): () => void {
-      const channel = db
-        .channel(`weights-${Math.random().toString(36).slice(2)}`)
-        .on('postgres_changes', { event: '*', schema: 'public', table: 'weight_entries' }, onChange)
-        .subscribe((status) => onStatus?.(status))
-      return () => {
-        void db.removeChannel(channel)
-      }
-    },
+    subscribe: (onChange: () => void, onStatus?: (status: string) => void) => subscribeTables(db, 'weights', ['weight_entries'], onChange, onStatus),
   }
 }
 

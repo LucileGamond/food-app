@@ -9,7 +9,7 @@
 export type SectionKind = 'rows' | 'repeat'
 
 /** Action d'une répétition, placée sur un rang de la répétition. */
-export interface RepeatAction {
+interface RepeatAction {
   text: string
   /** Rang dans la répétition (1 = premier) ; null = dernier rang. */
   rank: number | null
@@ -107,17 +107,17 @@ const OPEN_LIMIT = 2000
 export const MAX_ACTIONS = 10
 
 /** Actions d'une répétition (ancien format : le texte de la section, au dernier rang). */
-export function repeatActions(section: StepSection): RepeatAction[] {
+function repeatActions(section: StepSection): RepeatAction[] {
   if (section.actions?.length) return section.actions
   return section.text ? [{ text: section.text, rank: null }] : []
 }
 
 /** Rang de l'action dans la répétition (1 à `every`) ; dernier rang par défaut. */
-export function actionRank(action: RepeatAction, every: number): number {
+function actionRank(action: RepeatAction, every: number): number {
   return action.rank === null ? every : Math.min(Math.max(action.rank, 1), every)
 }
 
-export interface PlannedAction {
+interface PlannedAction {
   row: number
   action: RepeatAction
   /** Numéro de la répétition (1, 2…). */
@@ -166,7 +166,7 @@ export function planSections(sections: StepSection[], totalRows: number | null):
   })
 }
 
-export type SectionAlert =
+type SectionAlert =
   | { type: 'action'; section: StepSection; action: RepeatAction; count: number; times: number | null }
   | { type: 'start'; section: StepSection }
 
@@ -239,7 +239,7 @@ export function describeRange(planned: PlannedSection): string | null {
   return planned.end === planned.start ? `Rang ${planned.start}` : `Rangs ${planned.start} à ${planned.end}`
 }
 
-export interface ActionForm {
+interface ActionForm {
   text: string
   /** Rang dans la répétition : « 1 », « 2 »… ou « last ». */
   rank: string
@@ -297,7 +297,7 @@ export function formToSection(form: SectionForm, pattern: string | null = null):
   return { kind: 'repeat', rows: null, every, times, actions: normalized, text: '', pattern }
 }
 
-export type ActionEffect = 'decrease' | 'increase' | 'other'
+type ActionEffect = 'decrease' | 'increase' | 'other'
 
 /** Diminution (bord rouge), augmentation (bord bleu) ou autre action, d'après son texte. */
 export function actionEffect(text: string): ActionEffect {
@@ -307,7 +307,7 @@ export function actionEffect(text: string): ActionEffect {
   return 'other'
 }
 
-export interface DotLine {
+interface DotLine {
   /** Rangs de la ligne, dans l'ordre. */
   rows: number[]
   /** Actions de la ligne, par rang. */

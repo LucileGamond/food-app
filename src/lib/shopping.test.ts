@@ -1,25 +1,7 @@
 import shoppingSql from '../../supabase/migrations/20261029000000_shopping_lists.sql?raw'
 import { AISLES as FUNCTION_AISLES } from '../../supabase/functions/tidy-shopping/tidy.ts'
-import {
-  addAmounts,
-  productKey,
-  AISLES,
-  aisleLabel,
-  convertQuantity,
-  defaultListName,
-  emptyItemForm,
-  findMergeTarget,
-  formatAmount,
-  groupByAisle,
-  guessAisle,
-  itemToForm,
-  listProgress,
-  nextPosition,
-  normalizeName,
-  toItemInput,
-  validateItemForm,
-  type ShoppingItem,
-} from './shopping'
+import { addAmounts, productKey, AISLES, aisleLabel, convertQuantity, defaultListName, emptyItemForm, findMergeTarget, formatAmount, groupByAisle, guessAisle, itemToForm, listProgress, nextItemPosition, formToItemInput, validateItemForm, type ShoppingItem } from './shopping'
+import { foldText } from './text'
 
 const item = (overrides: Partial<ShoppingItem>): ShoppingItem => ({
   id: 'i',
@@ -70,7 +52,7 @@ describe('rayons', () => {
 
   it('donne le libellé et normalise les noms', () => {
     expect(aisleLabel('EPICERIE_SALEE')).toBe('Épicerie salée')
-    expect(normalizeName('  Œufs   FRAIS ')).toBe('oeufs frais')
+    expect(foldText('  Œufs   FRAIS ')).toBe('oeufs frais')
   })
 })
 
@@ -97,8 +79,8 @@ describe('regroupement et affichage', () => {
     expect(formatAmount({ quantity: null, unit: null })).toBe('')
     expect(listProgress({ checked: 3, total: 12 })).toBe('3 / 12')
     expect(defaultListName('2026-10-25')).toBe('Courses du 25 oct.')
-    expect(nextPosition([])).toBe(0)
-    expect(nextPosition([{ position: 4 }, { position: 2 }])).toBe(5)
+    expect(nextItemPosition([])).toBe(0)
+    expect(nextItemPosition([{ position: 4 }, { position: 2 }])).toBe(5)
   })
 })
 
@@ -144,8 +126,8 @@ describe('formulaire d’article', () => {
   it('valide et convertit la saisie', () => {
     const ok = { name: '  Farine ', quantity: '1,5', unit: 'kg', aisle: 'EPICERIE_SALEE' as const }
     expect(validateItemForm(ok)).toEqual({})
-    expect(toItemInput(ok)).toEqual({ name: 'Farine', quantity: 1.5, unit: 'kg', aisle: 'EPICERIE_SALEE' })
-    expect(toItemInput({ ...ok, quantity: '', unit: '' })).toMatchObject({ quantity: null, unit: null })
+    expect(formToItemInput(ok)).toEqual({ name: 'Farine', quantity: 1.5, unit: 'kg', aisle: 'EPICERIE_SALEE' })
+    expect(formToItemInput({ ...ok, quantity: '', unit: '' })).toMatchObject({ quantity: null, unit: null })
     expect(validateItemForm({ ...ok, name: ' ' })).toEqual({ name: 'Nom requis' })
     expect(validateItemForm({ ...ok, name: 'x'.repeat(121) })).toEqual({ name: '120 caractères maximum' })
     expect(validateItemForm({ ...ok, quantity: 'deux' })).toEqual({ quantity: 'Quantité invalide' })

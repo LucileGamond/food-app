@@ -1,7 +1,8 @@
 import { addDays, formatShortDate, type IsoDate } from './dates'
 import { monthOf, recipeSeason } from './season'
-import { guessAisle, normalizeName } from './shopping'
+import { guessAisle } from './shopping'
 import { filterRecipes, siteName, type NutritionBasis, type RecipeHistory, type RecipeListItem } from './recipes'
+import { foldText } from './text'
 
 // ---------------------------------------------------------------------------
 // Tri et filtres de l'écran des recettes
@@ -56,7 +57,7 @@ const MEAT_WORDS = /(^|[^a-z])(thon|anchois|sardine|maquereau|volaille|pancetta|
 
 /** Tag « végé », « végétarien »… : le filtre rapide « Végé » le remplace dans la liste des tags. */
 export function isVegetarianTag(tag: string): boolean {
-  return VEGETARIAN_TAG.test(normalizeName(tag))
+  return VEGETARIAN_TAG.test(foldText(tag))
 }
 
 /**
@@ -64,10 +65,10 @@ export function isVegetarianTag(tag: string): boolean {
  * reconnu. Un tag « viande » ou « poisson » l'exclut.
  */
 export function isVegetarian(recipe: Pick<RecipeListItem, 'tags' | 'ingredientNames'>): boolean {
-  const tags = recipe.tags.map(normalizeName)
+  const tags = recipe.tags.map(foldText)
   if (recipe.tags.some(isVegetarianTag)) return true
   if (tags.some((t) => MEAT_TAG.test(t))) return false
-  return recipe.ingredientNames.length > 0 && !recipe.ingredientNames.some((name) => guessAisle(name) === 'BOUCHERIE_POISSON' || MEAT_WORDS.test(normalizeName(name)))
+  return recipe.ingredientNames.length > 0 && !recipe.ingredientNames.some((name) => guessAisle(name) === 'BOUCHERIE_POISSON' || MEAT_WORDS.test(foldText(name)))
 }
 
 /** Pas cuisinée depuis `FORGOTTEN_DAYS` jours (ou jamais), et rien de prévu. */

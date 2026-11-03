@@ -3,9 +3,15 @@ import type { InboxItem, InboxList } from '@/lib/inbox'
 import type { MealSlot } from '@/lib/meals'
 import type { AppSupabaseClient } from '@/lib/supabase'
 import { AppError, toAppError } from './errors'
-import { PHOTO_BUCKET } from './photos'
+import { PENDING_PHOTO_PREFIX, PHOTO_BUCKET } from './photos'
+import { subscribeTables } from './realtime'
 
 export function createInboxApi(db: AppSupabaseClient) {
+  /** Retire des photos en attente du stockage ; un échec laisse un fichier orphelin, sans gêner l'application. */
+  async function removePhotos(paths: string[]): Promise<void> {
+    if (paths.length > 0) await db.storage.from(PHOTO_BUCKET).remove(paths)
+  }
+
   return {
     async listItems(list: InboxList = 'plan'): Promise<InboxItem[]> {
       const { data, error } = await db.from('planning_inbox').select('id, title, url, recipe_id, created_at, list, photos').eq('list', list).order('created_at')
@@ -35,10 +41,10 @@ export function createInboxApi(db: AppSupabaseClient) {
     async uploadPhotos(photos: Blob[]): Promise<string[]> {
       const paths: string[] = []
       for (const photo of photos) {
-        const path = `pending/${crypto.randomUUID()}.jpg`
+        const path = `${PENDING_PHOTO_PREFIX}${crypto.randomUUID()}.jpg`
         const { error } = await db.storage.from(PHOTO_BUCKET).upload(path, photo, { contentType: 'image/jpeg' })
         if (error) {
-          await this.removePhotos(paths)
+          await removePhotos(paths)
           throw toAppError(null, "Impossible d'envoyer les photos.")
         }
         paths.push(path)
@@ -57,10 +63,7 @@ export function createInboxApi(db: AppSupabaseClient) {
       )
     },
 
-    /** Retire des photos en attente du stockage ; un échec laisse un fichier orphelin, sans gêner l'application. */
-    async removePhotos(paths: string[]): Promise<void> {
-      if (paths.length > 0) await db.storage.from(PHOTO_BUCKET).remove(paths)
-    },
+    removePhotos,
 
     /** Passe un élément dans l'autre liste (« De côté » → « À planifier »…). */
     async moveItem(id: string, list: InboxList): Promise<void> {
@@ -72,7 +75,7 @@ export function createInboxApi(db: AppSupabaseClient) {
     async resolveItem(id: string, recipeId: string): Promise<void> {
       const { data, error } = await db.rpc('resolve_inbox_item', { p_item_id: id, p_recipe_id: recipeId })
       if (error) throw toAppError(error, 'La recette est enregistrée, mais la liste n’a pas pu être mise à jour.')
-      await this.removePhotos(data ?? []).catch(() => undefined)
+      await removePhotos(data ?? []).catch(() => undefined)
     },
 
     /** Renomme ; avec `ifTitle`, seulement si le titre n'a pas changé entre-temps (renommage à la main). */
@@ -87,7 +90,7 @@ export function createInboxApi(db: AppSupabaseClient) {
     async deleteItem(id: string, photos: string[] = []): Promise<void> {
       const { error } = await db.from('planning_inbox').delete().eq('id', id)
       if (error) throw toAppError(error, 'Impossible de retirer de la liste.')
-      await this.removePhotos(photos).catch(() => undefined)
+      await removePhotos(photos).catch(() => undefined)
     },
 
     /** Crée le repas et retire l'élément de la liste ; renvoie l'id du repas. */
@@ -104,15 +107,7 @@ export function createInboxApi(db: AppSupabaseClient) {
       return data.title.trim() || null
     },
 
-    subscribe(onChange: () => void, onStatus?: (status: string) => void): () => void {
-      const channel = db
-        .channel(`inbox-${Math.random().toString(36).slice(2)}`)
-        .on('postgres_changes', { event: '*', schema: 'public', table: 'planning_inbox' }, onChange)
-        .subscribe((status) => onStatus?.(status))
-      return () => {
-        void db.removeChannel(channel)
-      }
-    },
+    subscribe: (onChange: () => void, onStatus?: (status: string) => void) => subscribeTables(db, 'inbox', ['planning_inbox'], onChange, onStatus),
   }
 }
 

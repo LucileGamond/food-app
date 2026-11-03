@@ -1,17 +1,18 @@
-import { ArrowLeft, ClipboardList, Plus, RefreshCw } from 'lucide-react'
+import { ArrowLeft, ClipboardList, Plus } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { ConfirmDialog } from '@/components/ConfirmDialog'
 import { EmptyState } from '@/components/EmptyState'
-import { PageHeader } from '@/components/Layout'
+import { PageHeader } from '@/components/PageHeader'
 import { PlanItemDialog } from '@/components/food/PlanItemDialog'
 import { ProfileSwitch, useProfileParam } from '@/components/food/ProfileSwitch'
+import { LoadError } from '@/components/LoadError'
 import { useApi } from '@/app/ApiContext'
 import { useAuth } from '@/auth/AuthProvider'
 import { useFoodPlan } from '@/hooks/useFoodPlan'
-import { formatPortion, groupItems, mealLabel, nextPosition, type FoodMeal, type PlanItem, type PlanItemInput } from '@/lib/food'
+import { formatPortion, groupItems, mealLabel, nextPlanItemPosition, type FoodMeal, type PlanItem, type PlanItemInput } from '@/lib/food'
 
 type DialogState =
   | { kind: 'none' }
@@ -29,7 +30,7 @@ export function FoodPlanPage() {
   const deleting = dialog.kind === 'delete' ? dialog.item : null
 
   function submit(input: PlanItemInput, id?: string) {
-    return plan.save(id ? input : { ...input, position: nextPosition(plan.items, input.meal, input.category) }, id)
+    return plan.save(id ? input : { ...input, position: nextPlanItemPosition(plan.items, input.meal, input.category) }, id)
   }
 
   const addButton = (
@@ -57,12 +58,7 @@ export function FoodPlanPage() {
       </div>
 
       {plan.loadError ? (
-        <div role="alert" className="flex flex-col items-start gap-3 rounded-xl border border-destructive/30 bg-destructive/5 p-4 text-sm">
-          <p>{plan.loadError}</p>
-          <Button variant="outline" onClick={() => void plan.reload()}>
-            <RefreshCw /> Réessayer
-          </Button>
-        </div>
+        <LoadError message={plan.loadError} onRetry={() => void plan.reload()} />
       ) : plan.loading || !profile ? (
         <div className="space-y-3" aria-busy="true" aria-label="Chargement du plan">
           <Skeleton className="h-48 rounded-2xl" />

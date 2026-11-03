@@ -1,4 +1,7 @@
 {
+  "compilerOptions": {
+    "lib": ["deno.window", "dom", "dom.iterable"]
+  },
   "imports": {
     "linkedom": "npm:linkedom@0.18.13"
   }

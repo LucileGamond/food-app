@@ -25,7 +25,8 @@ describe('App', () => {
 
     const nav = screen.getAllByRole('navigation', { name: 'Navigation principale' })[0]!
     await user.click(within(nav).getByRole('link', { name: 'Recettes' }))
-    expect(await screen.findByRole('heading', { name: 'Recettes' })).toBeInTheDocument()
+    // Page chargée à la demande : plus lente sous la mesure de couverture.
+    expect(await screen.findByRole('heading', { name: 'Recettes' }, { timeout: 5000 })).toBeInTheDocument()
     expect(within(nav).getByRole('link', { name: 'Recettes' })).toHaveAttribute('aria-current', 'page')
   })
 

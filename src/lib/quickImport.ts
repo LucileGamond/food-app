@@ -19,7 +19,7 @@ import {
 /** Ce qu'on importe : un lien, ou 1 à 3 photos (pages d'un livre, captures d'écran). */
 export type ImportSource = { kind: 'link'; url: string; title?: string | null } | { kind: 'photos'; files: File[] }
 
-export type DirectResult =
+type DirectResult =
   /** Recettes enregistrées (une page de livre peut en contenir plusieurs). */
   | { kind: 'saved'; recipes: { id: string; title: string }[] }
   /** Lien, ou titre et livre, déjà enregistrés : rien n'est refait. */

@@ -1,39 +1,36 @@
-import { ArrowLeft, ChevronLeft, ChevronRight, RefreshCw, Sprout } from 'lucide-react'
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { ArrowLeft, ChevronLeft, ChevronRight, Sprout } from 'lucide-react'
+import { useMemo } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { EmptyState } from '@/components/EmptyState'
-import { PageHeader } from '@/components/Layout'
+import { PageHeader } from '@/components/PageHeader'
 import { RecipeCard } from '@/components/recipes/RecipeCard'
+import { LoadError } from '@/components/LoadError'
 import { useApi } from '@/app/ApiContext'
-import { errorMessage } from '@/api'
+import { useAsync } from '@/hooks/useAsync'
 import { useSignedUrls } from '@/hooks/useSignedUrls'
-import { todayIso, type IsoDate } from '@/lib/dates'
+import { useToday } from '@/hooks/useToday'
+import type { IsoDate } from '@/lib/dates'
 import type { RecipeListItem } from '@/lib/recipes'
 import { MONTH_NAMES, monthOf, produceOfMonth, recipeSeason, type Produce } from '@/lib/season'
 import { cn } from '@/lib/utils'
-
-const capitalize = (text: string) => text.charAt(0).toUpperCase() + text.slice(1)
+import { capitalize } from '@/lib/text'
 
 /** Fruits et légumes du mois (calendrier ADEME) et les recettes de saison ; un produit choisi montre ses recettes. */
-export function SeasonPage({ today = todayIso() }: { today?: IsoDate }) {
+export function SeasonPage({ today: fixedToday }: { today?: IsoDate }) {
   const api = useApi()
-  const [recipes, setRecipes] = useState<RecipeListItem[] | null>(null)
-  const [error, setError] = useState<string | null>(null)
+  // Suit le passage à minuit quand l'application reste ouverte.
+  const today = useToday(fixedToday)
+  const list = useAsync(() => api.recipes.listSavedRecipes(today), [api, today])
+  const recipes = list.data ?? null
+  const error = list.error
   // Mois et produit dans l'adresse : au retour d'une fiche, la page est comme on l'a laissée.
   const [params, setParams] = useSearchParams()
   const current = monthOf(today)
   const asked = Number(params.get('mois'))
   const month = Number.isInteger(asked) && asked >= 1 && asked <= 12 ? asked : current
   const selected = params.get('produit')
-
-  const load = useCallback(() => {
-    setError(null)
-    api.recipes.listSavedRecipes(today).then(setRecipes, (e: unknown) => setError(errorMessage(e)))
-  }, [api, today])
-
-  useEffect(load, [load])
 
   const produce = useMemo(() => produceOfMonth(month), [month])
   // Recettes de saison ce mois-là, et recettes de chaque fruit ou légume.
@@ -131,12 +128,7 @@ export function SeasonPage({ today = todayIso() }: { today?: IsoDate }) {
           {recipes && <span className="ml-2 font-normal text-muted-foreground tabular-nums">{shown.length}</span>}
         </h2>
         {error ? (
-          <div role="alert" className="flex flex-col items-start gap-3 rounded-xl border border-destructive/30 bg-destructive/5 p-4 text-sm">
-            <p>{error}</p>
-            <Button variant="outline" onClick={load}>
-              <RefreshCw /> Réessayer
-            </Button>
-          </div>
+          <LoadError message={error} onRetry={list.reload} />
         ) : recipes === null ? (
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3" aria-busy="true" aria-label="Chargement des recettes">
             {[0, 1, 2].map((i) => (

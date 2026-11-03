@@ -1,25 +1,29 @@
-import { ArrowLeft, BookOpen, ChefHat, Clock, ExternalLink, Flame, History, Inbox, Minus, Pencil, Plus, Printer, RefreshCw, SearchX, ShoppingCart, Sprout, Trash2, Users } from 'lucide-react'
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { ArrowLeft, BookOpen, ChefHat, Clock, ExternalLink, Flame, History, Inbox, Pencil, Printer, ShoppingCart, Sprout, Trash2, Users } from 'lucide-react'
+import { useMemo, useState } from 'react'
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom'
 import { toast } from 'sonner'
 import { Badge } from '@/components/ui/badge'
 import { Button, buttonVariants } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { ConfirmDialog } from '@/components/ConfirmDialog'
-import { EmptyState } from '@/components/EmptyState'
 import { LinkifiedText } from '@/components/LinkifiedText'
 import { LinkRecipeDialog } from '@/components/recipes/LinkRecipeDialog'
 import { LinkedRecipesOffer } from '@/components/recipes/LinkedRecipesOffer'
 import { NutritionEstimateDialog } from '@/components/recipes/NutritionEstimateDialog'
 import { RecipeReviews } from '@/components/recipes/RecipeReviews'
 import { RecipeShoppingDialog } from '@/components/recipes/RecipeShoppingDialog'
+import { LoadError } from '@/components/LoadError'
+import { RecipeNotFound } from '@/components/recipes/RecipeNotFound'
+import { ServingsStepper } from '@/components/recipes/ServingsStepper'
 import { useApi } from '@/app/ApiContext'
 import { errorMessage } from '@/api'
 import type { RecipeUsages } from '@/api/recipes'
+import { useAsync } from '@/hooks/useAsync'
 import { useSignedUrls } from '@/hooks/useSignedUrls'
-import { formatDay, todayIso } from '@/lib/dates'
+import { useToday } from '@/hooks/useToday'
+import { formatDay } from '@/lib/dates'
 import { slotLabel } from '@/lib/meals'
-import { resumeStep, splitSteps, type SavedProgress } from '@/lib/cooking'
+import { resumeStep, splitSteps } from '@/lib/cooking'
 import { needsNutrition } from '@/lib/nutritionEstimate'
 import { formatHistory } from '@/lib/recipeList'
 import { MONTH_NAMES, monthOf, produceList, recipeSeason } from '@/lib/season'
@@ -32,14 +36,13 @@ import {
   groupBySection,
   linkedImportPath,
   pendingLinks,
-  scaleIngredients,
+  ingredientsFor,
   SERVINGS_MAX,
   type LinkedRecipe,
   type PendingLink,
-  type Recipe,
-  type RecipeHistory,
 } from '@/lib/recipes'
 import { cn } from '@/lib/utils'
+import { navState } from '@/lib/navState'
 import { useSettings } from '@/app/SettingsContext'
 
 export function RecipeDetailPage() {
@@ -50,37 +53,27 @@ export function RecipeDetailPage() {
 
 function RecipeDetail({ id }: { id: string }) {
   const api = useApi()
+  const today = useToday()
   const navigate = useNavigate()
   const { isEnabled } = useSettings()
   const location = useLocation()
-  const [recipe, setRecipe] = useState<Recipe | null | undefined>(undefined)
-  const [error, setError] = useState<string | null>(null)
+  const { data: recipe, error, reload, setData: setRecipe } = useAsync(() => api.recipes.getRecipe(id), [api, id])
   const [activePhoto, setActivePhoto] = useState(0)
   const [deleteOpen, setDeleteOpen] = useState(false)
   const [usages, setUsages] = useState<RecipeUsages | null>(null)
   // Nombre de personnes choisi pour adapter les quantités (non enregistré).
   const [people, setPeople] = useState<{ recipeId: string; value: number } | null>(null)
   // Juste après l'enregistrement : proposer d'importer ou de lier les recettes auxquelles elle renvoie.
-  const offerRequested = Boolean((location.state as { offerLinks?: boolean } | null)?.offerLinks)
+  const offerRequested = Boolean(navState(location).offerLinks)
   const [offerDismissed, setOfferDismissed] = useState<string | null>(null)
   const [linking, setLinking] = useState<PendingLink | null>(null)
   const [shopping, setShopping] = useState(false)
   const [estimating, setEstimating] = useState(false)
-  const closeLinking = useCallback(() => setLinking(null), [])
 
   // Historique (repas du planning) : secondaire, rien ne s'affiche s'il ne se charge pas.
-  const [history, setHistory] = useState<RecipeHistory | null>(null)
+  const history = useAsync(() => api.recipes.getHistory(id).catch(() => null), [api, id]).data ?? null
   // Recette en cours (mode cuisine, sur plusieurs jours) : « Reprendre » à la place de « Cuisiner ».
-  const [progress, setProgress] = useState<SavedProgress | null>(null)
-
-  const load = useCallback(() => {
-    setError(null)
-    api.recipes.getRecipe(id).then(setRecipe, (e: unknown) => setError(errorMessage(e)))
-    api.recipes.getHistory(id).then(setHistory, () => setHistory(null))
-    api.recipes.getProgress(id).then(setProgress, () => setProgress(null))
-  }, [api, id])
-
-  useEffect(load, [load])
+  const progress = useAsync(() => api.recipes.getProgress(id).catch(() => null), [api, id]).data ?? null
 
   const paths = useMemo(() => recipe?.photos.map((p) => p.storage_path) ?? [], [recipe])
   const urls = useSignedUrls(api, paths)
@@ -124,12 +117,7 @@ function RecipeDetail({ id }: { id: string }) {
 
   if (error) {
     return (
-      <div role="alert" className="flex flex-col items-start gap-3 rounded-xl border border-destructive/30 bg-destructive/5 p-4 text-sm">
-        <p>{error}</p>
-        <Button variant="outline" onClick={load}>
-          <RefreshCw /> Réessayer
-        </Button>
-      </div>
+      <LoadError message={error} onRetry={reload} />
     )
   }
 
@@ -144,16 +132,7 @@ function RecipeDetail({ id }: { id: string }) {
 
   if (recipe === null || !recipe.is_saved) {
     return (
-      <EmptyState
-        icon={SearchX}
-        title="Recette introuvable"
-        description="Elle a peut-être été supprimée."
-        action={
-          <Link to="/recettes" className={cn(buttonVariants({ variant: 'outline' }), 'h-10')}>
-            Retour aux recettes
-          </Link>
-        }
-      />
+      <RecipeNotFound />
     )
   }
 
@@ -163,14 +142,12 @@ function RecipeDetail({ id }: { id: string }) {
   const inUse = inPlanning || inRecipes
   const baseServings = recipe.servings
   const servings = baseServings === null ? null : people?.recipeId === recipe.id ? people.value : baseServings
-  const ingredients = (baseServings !== null && servings !== null ? scaleIngredients(recipe.ingredients, baseServings, servings) : recipe.ingredients).map(
-    (ingredient, position) => ({ ...ingredient, position }),
-  )
+  const ingredients = ingredientsFor(recipe, servings)
   const pending = pendingLinks(recipe.ingredients)
   const pendingAt = new Map(pending.map((p) => [p.position, p]))
   const importLinked = (reference: PendingLink) => navigate(linkedImportPath(recipe.id, reference))
   const times = DURATION_FIELDS.flatMap(({ label, column }) => (recipe[column] ? [`${label} ${formatDuration(recipe[column])}`] : []))
-  const month = monthOf(todayIso())
+  const month = monthOf(today)
   const season = recipeSeason(recipe.ingredients.map((i) => i.name), month)
   const stepCount = splitSteps(recipe.notes).length
   const resume = resumeStep(progress, stepCount)
@@ -300,17 +277,7 @@ function RecipeDetail({ id }: { id: string }) {
               Ingrédients
             </h2>
             {servings !== null && (
-              <div className="flex items-center gap-1" role="group" aria-label="Nombre de personnes">
-                <Button variant="outline" size="icon" aria-label="Une personne de moins" disabled={servings <= 1} onClick={() => setServings(servings - 1)}>
-                  <Minus />
-                </Button>
-                <span className="min-w-24 text-center text-sm tabular-nums" aria-live="polite">
-                  {servings} {servings > 1 ? 'personnes' : 'personne'}
-                </span>
-                <Button variant="outline" size="icon" aria-label="Une personne de plus" disabled={servings >= SERVINGS_MAX} onClick={() => setServings(servings + 1)}>
-                  <Plus />
-                </Button>
-              </div>
+              <ServingsStepper value={servings} onChange={setServings} />
             )}
           </div>
           {servings !== null && servings !== baseServings && (
@@ -393,7 +360,7 @@ function RecipeDetail({ id }: { id: string }) {
         onOpenChange={setEstimating}
         onSaved={(e) => setRecipe({ ...recipe, nutrition_per: e.per, kcal: e.kcal, carbs_g: e.carbs, protein_g: e.protein, fat_g: e.fat })}
       />
-      <LinkRecipeDialog reference={linking} recipeId={recipe.id} onClose={closeLinking} onLink={link} />
+      <LinkRecipeDialog reference={linking} recipeId={recipe.id} onClose={() => setLinking(null)} onLink={link} />
 
       <ConfirmDialog
         open={deleteOpen}

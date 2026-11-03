@@ -74,7 +74,7 @@ Deno.serve(
     async listFiles(bucket) {
       // Fichiers rangés par dossier : « pending/ », « <recette>/ », « <personne>/ ».
       const list = async (folder: string) => {
-        const entries: { name: string; id: string | null; created_at?: string }[] = []
+        const entries: { name: string; id: string | null; created_at?: string | null }[] = []
         for (let offset = 0; ; offset += 1000) {
           const { data, error } = await db.storage.from(bucket).list(folder, { limit: 1000, offset })
           if (error) throw error

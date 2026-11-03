@@ -1,11 +1,10 @@
-import { ArrowLeft, Printer, RefreshCw, SearchX } from "lucide-react";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { ArrowLeft, Printer } from "lucide-react";
+import { useEffect, useRef } from "react";
 import { Link, useParams, useSearchParams } from "react-router-dom";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { EmptyState } from "@/components/EmptyState";
 import { useApi } from "@/app/ApiContext";
-import { errorMessage } from "@/api";
+import { useAsync } from "@/hooks/useAsync";
 import { splitSteps } from "@/lib/cooking";
 import {
   DURATION_FIELDS,
@@ -14,11 +13,12 @@ import {
   formatNutrition,
   formatSource,
   groupBySection,
-  scaleIngredients,
-  SERVINGS_MAX,
-  type Recipe,
+  ingredientsFor,
+  servingsFromParam,
 } from "@/lib/recipes";
 import { cn } from "@/lib/utils";
+import { LoadError } from "@/components/LoadError";
+import { RecipeNotFound } from "@/components/recipes/RecipeNotFound";
 
 /**
  * Fiche à imprimer ou à enregistrer en PDF (boîte d'impression du navigateur) : sans navigation ni boutons,
@@ -28,18 +28,8 @@ export function RecipePrintPage() {
   const { id = "" } = useParams();
   const api = useApi();
   const [params] = useSearchParams();
-  const [recipe, setRecipe] = useState<Recipe | null | undefined>(undefined);
-  const [error, setError] = useState<string | null>(null);
+  const { data: recipe, error, reload } = useAsync(() => api.recipes.getRecipe(id), [api, id]);
   const printed = useRef(false);
-
-  const load = useCallback(() => {
-    setError(null);
-    api.recipes
-      .getRecipe(id)
-      .then(setRecipe, (e: unknown) => setError(errorMessage(e)));
-  }, [api, id]);
-
-  useEffect(load, [load]);
 
   // Boîte d'impression ouverte d'elle-même une fois la fiche affichée (une seule fois) ; le bouton la rouvre.
   const ready = Boolean(recipe?.is_saved);
@@ -55,15 +45,7 @@ export function RecipePrintPage() {
   if (error) {
     return (
       <div className="p-4">
-        <div
-          role="alert"
-          className="flex flex-col items-start gap-3 rounded-xl border border-destructive/30 bg-destructive/5 p-4 text-sm"
-        >
-          <p>{error}</p>
-          <Button variant="outline" onClick={load}>
-            <RefreshCw /> Réessayer
-          </Button>
-        </div>
+        <LoadError message={error} onRetry={reload} />
       </div>
     );
   }
@@ -84,34 +66,13 @@ export function RecipePrintPage() {
   if (recipe === null || !recipe.is_saved) {
     return (
       <div className="p-4">
-        <EmptyState
-          icon={SearchX}
-          title="Recette introuvable"
-          description="Elle a peut-être été supprimée."
-          action={
-            <Link
-              to="/recettes"
-              className={cn(buttonVariants({ variant: "outline" }), "h-10")}
-            >
-              Retour aux recettes
-            </Link>
-          }
-        />
+        <RecipeNotFound />
       </div>
     );
   }
 
-  const asked = Number(params.get("personnes"));
-  const servings =
-    recipe.servings === null
-      ? null
-      : Number.isInteger(asked) && asked >= 1 && asked <= SERVINGS_MAX
-        ? asked
-        : recipe.servings;
-  const ingredients =
-    recipe.servings !== null && servings !== null
-      ? scaleIngredients(recipe.ingredients, recipe.servings, servings)
-      : recipe.ingredients;
+  const servings = servingsFromParam(recipe.servings, params.get("personnes"));
+  const ingredients = ingredientsFor(recipe, servings);
   const times = DURATION_FIELDS.flatMap(({ label, column }) =>
     recipe[column] ? [`${label} ${formatDuration(recipe[column])}`] : [],
   );

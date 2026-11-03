@@ -1,11 +1,12 @@
-import { Loader2, RefreshCw } from 'lucide-react'
+import { Loader2 } from 'lucide-react'
 import { useState, type FormEvent, type ReactNode } from 'react'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Skeleton } from '@/components/ui/skeleton'
-import { PageHeader } from '@/components/Layout'
+import { PageHeader } from '@/components/PageHeader'
+import { LoadError } from '@/components/LoadError'
 import { useSettings } from '@/app/SettingsContext'
 import { isPageEnabled, NOTIFICATION_TOPICS, PAGES, parseGoalLiters, toggleNotification, togglePage, MAX_GOAL_ML, MIN_GOAL_ML } from '@/lib/settings'
 
@@ -102,12 +103,7 @@ export function SettingsPage() {
     return (
       <>
         <PageHeader title="Réglages" />
-        <div role="alert" className="flex flex-col items-start gap-3 rounded-xl border border-destructive/30 bg-destructive/5 p-4 text-sm">
-          <p>{loadError ?? 'Réglages indisponibles.'}</p>
-          <Button variant="outline" onClick={reload}>
-            <RefreshCw /> Réessayer
-          </Button>
-        </div>
+        <LoadError message={loadError ?? 'Réglages indisponibles.'} onRetry={reload} />
       </>
     )
   }

@@ -10,6 +10,7 @@ import { RemoveInboxItemDialog } from '@/components/planning/InboxDialogs'
 import type { InboxState } from '@/hooks/useInbox'
 import { canPrefill, inboxKind, inboxSubtitle, type InboxItem } from '@/lib/inbox'
 import { cn } from '@/lib/utils'
+import type { NavState } from '@/lib/navState'
 import { useSettings } from '@/app/SettingsContext'
 
 /** Données transportées pendant le glisser-déposer d'un élément vers un créneau. */
@@ -72,7 +73,7 @@ function InboxCard({ item, onPlan, onRename, onRemove, onSetAside }: CardProps) 
           )}
           {canPrefill(item) && recipes && (
             // Analyse la recette dans le formulaire ; une fois enregistrée, l'élément devient la recette.
-            <DropdownMenuItem onClick={() => void navigate('/recettes/nouvelle', { state: { fromInbox: item } })}>
+            <DropdownMenuItem onClick={() => void navigate('/recettes/nouvelle', { state: { fromInbox: item } satisfies NavState })}>
               <ScanText /> Préremplir et enregistrer
             </DropdownMenuItem>
           )}

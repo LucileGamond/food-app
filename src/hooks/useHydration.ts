@@ -3,6 +3,7 @@ import { toast } from 'sonner'
 import { errorMessage, type Api } from '@/api'
 import { startOfDay, type WaterIntake } from '@/lib/hydration'
 import type { IsoDate } from '@/lib/dates'
+import { useRealtimeReload } from './useRealtimeReload'
 
 export interface HydrationState {
   intakes: WaterIntake[]
@@ -37,17 +38,9 @@ export function useHydration(api: Api, today: IsoDate): HydrationState {
 
   useEffect(() => {
     void reload()
-    // Verres notés sur un autre appareil : la page suit en direct.
-    let timer: ReturnType<typeof setTimeout> | undefined
-    const unsubscribe = api.hydration.subscribe(() => {
-      clearTimeout(timer)
-      timer = setTimeout(() => void reload(), 250)
-    })
-    return () => {
-      clearTimeout(timer)
-      unsubscribe()
-    }
-  }, [api, reload])
+  }, [reload])
+  // Verres notés sur un autre appareil : la page suit en direct.
+  useRealtimeReload(api.hydration.subscribe, reload)
 
   const add = useCallback(
     async (volumeMl: number) => {

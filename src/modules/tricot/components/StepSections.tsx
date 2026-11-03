@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { NativeSelect } from '@/components/ui/native-select'
 import { cn } from '@/lib/utils'
 import { RowDots } from './RowDots'
 import {
@@ -38,9 +39,6 @@ const KINDS: { kind: SectionKind; label: string }[] = [
   { kind: 'rows', label: 'Rangs sans répétition' },
   { kind: 'repeat', label: 'Répétition' },
 ]
-
-const selectClass =
-  'h-10 rounded-lg border border-input bg-background px-2 text-sm shadow-xs focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none'
 
 /** Choix du rang de l'action dans la répétition : 1er, 2e… dernier. */
 function rankOptions(every: number | null): { value: string; label: string }[] {
@@ -116,13 +114,13 @@ function SectionForm({ section, onSave, onCancel }: { section: StepSection; onSa
                   maxLength={200}
                   placeholder="1 diminution de chaque côté"
                 />
-                <select aria-label={`Rang de l’action ${i + 1}`} className={cn(selectClass, 'w-32 shrink-0')} value={options.some((o) => o.value === action.rank) ? action.rank : 'last'} onChange={(e) => setAction(i, { rank: e.target.value })}>
+                <NativeSelect aria-label={`Rang de l’action ${i + 1}`} className="w-32 shrink-0 px-2" value={options.some((o) => o.value === action.rank) ? action.rank : 'last'} onChange={(e) => setAction(i, { rank: e.target.value })}>
                   {options.map((o) => (
                     <option key={o.value} value={o.value}>
                       {o.label}
                     </option>
                   ))}
-                </select>
+                </NativeSelect>
                 {form.actions.length > 1 && (
                   <Button
                     type="button"

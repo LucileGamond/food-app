@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Skeleton } from '@/components/ui/skeleton'
+import { LoadError } from '@/components/LoadError'
 import { useApi } from '@/app/ApiContext'
 import { AppError, errorMessage } from '@/api'
 import type { IsoDate } from '@/lib/dates'
@@ -124,12 +125,7 @@ export function MealIdeasDialog({ open, onOpenChange, today, onAdded }: Props) {
           )}
 
           {state.kind === 'error' && (
-            <div role="alert" className="flex flex-col items-start gap-3 rounded-xl border border-destructive/30 bg-destructive/5 p-4 text-sm">
-              <p>{state.message}</p>
-              <Button variant="outline" onClick={() => void search()}>
-                <RefreshCw /> Réessayer
-              </Button>
-            </div>
+            <LoadError message={state.message} onRetry={() => void search()} />
           )}
 
           {state.kind === 'ready' && (

@@ -1,4 +1,4 @@
-import { ArrowRight, BellRing, Check, SearchX, ChevronLeft, ChevronRight, FileText, Minus, MoreHorizontal, Plus, RefreshCw, Trash2, Undo2 } from 'lucide-react'
+import { ArrowRight, BellRing, Check, SearchX, ChevronLeft, ChevronRight, FileText, Minus, MoreHorizontal, Plus, Trash2, Undo2 } from 'lucide-react'
 import { useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { toast } from 'sonner'
@@ -6,19 +6,18 @@ import { errorMessage } from '@/api'
 import { useApi } from '@/app/ApiContext'
 import { ConfirmDialog } from '@/components/ConfirmDialog'
 import { EmptyState } from '@/components/EmptyState'
-import { PageHeader } from '@/components/Layout'
+import { PageHeader } from '@/components/PageHeader'
 import { Button, buttonVariants } from '@/components/ui/button'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { Label } from '@/components/ui/label'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Textarea } from '@/components/ui/textarea'
+import { NativeSelect } from '@/components/ui/native-select'
+import { LoadError } from '@/components/LoadError'
 import { cn } from '@/lib/utils'
 import { StepSections } from '../components/StepSections'
 import { useKnitProject } from '../hooks/useKnitProject'
 import { alertsAt, currentStepIndex, describeSection, MAX_ROW_COUNT, type KnitStep } from '../lib/pattern'
-
-const selectClass =
-  'h-10 min-w-0 flex-1 rounded-lg border border-input bg-background px-3 text-sm shadow-xs focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none'
 
 function RowCounter({ step, onCount }: { step: KnitStep; onCount: (delta: number) => void }) {
   // Le compteur compte les rangs terminés : on annonce ce qu'il y a à faire sur le rang à tricoter.
@@ -111,12 +110,7 @@ export function KnittingProjectPage() {
     return (
       <>
         {back}
-        <div role="alert" className="flex flex-col items-start gap-3 rounded-xl border border-destructive/30 bg-destructive/5 p-4 text-sm">
-          <p>{loadError}</p>
-          <Button variant="outline" onClick={() => void reload()}>
-            <RefreshCw /> Réessayer
-          </Button>
-        </div>
+        <LoadError message={loadError} onRetry={() => void reload()} />
       </>
     )
   }
@@ -210,14 +204,14 @@ export function KnittingProjectPage() {
           <label htmlFor="step-select" className="sr-only">
             Étape
           </label>
-          <select id="step-select" className={selectClass} value={step.id} onChange={(e) => setSelected(e.target.value)}>
+          <NativeSelect id="step-select" className="flex-1" value={step.id} onChange={(e) => setSelected(e.target.value)}>
             {steps.map((s, i) => (
               <option key={s.id} value={s.id}>
                 {i + 1}. {s.title}
                 {s.done ? ' ✓' : ''}
               </option>
             ))}
-          </select>
+          </NativeSelect>
           <Button variant="outline" size="icon-lg" aria-label="Étape suivante" disabled={index === steps.length - 1} onClick={() => setSelected(steps[index + 1]!.id)}>
             <ChevronRight />
           </Button>

@@ -1,39 +1,19 @@
-import { ChevronRight, FilePlus2, RefreshCw, Spool } from 'lucide-react'
-import { useEffect, useState } from 'react'
+import { ChevronRight, FilePlus2, Spool } from 'lucide-react'
 import { Link } from 'react-router-dom'
-import { errorMessage } from '@/api'
 import { useApi } from '@/app/ApiContext'
 import { buttonVariants } from '@/components/ui/button'
-import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { EmptyState } from '@/components/EmptyState'
-import { PageHeader } from '@/components/Layout'
+import { PageHeader } from '@/components/PageHeader'
+import { LoadError } from '@/components/LoadError'
+import { useAsync } from '@/hooks/useAsync'
 import { cn } from '@/lib/utils'
-import type { KnitProjectSummary } from '../lib/pattern'
 
 /** Module Tricot : projets en cours (un patron suivi pour une taille). */
 export function KnittingPage() {
   const api = useApi()
-  const [projects, setProjects] = useState<KnitProjectSummary[] | null>(null)
-  const [loadError, setLoadError] = useState<string | null>(null)
-  const [attempt, setAttempt] = useState(0)
-
-  useEffect(() => {
-    let active = true
-    api.knitting
-      .listProjects()
-      .then((list) => {
-        if (!active) return
-        setProjects(list)
-        setLoadError(null)
-      })
-      .catch((error: unknown) => {
-        if (active) setLoadError(errorMessage(error))
-      })
-    return () => {
-      active = false
-    }
-  }, [api, attempt])
+  const list = useAsync(() => api.knitting.listProjects(), [api])
+  const projects = list.data ?? null
 
   const newLink = (
     <Link to="/tricot/nouveau" className={cn(buttonVariants(), 'h-10 px-4')}>
@@ -44,13 +24,8 @@ export function KnittingPage() {
   return (
     <>
       <PageHeader title="Tricot" description="Patrons découpés en étapes pour ta taille, avec compteur de rangs. Rien que pour toi." actions={newLink} />
-      {loadError ? (
-        <div role="alert" className="flex flex-col items-start gap-3 rounded-xl border border-destructive/30 bg-destructive/5 p-4 text-sm">
-          <p>{loadError}</p>
-          <Button variant="outline" onClick={() => setAttempt((n) => n + 1)}>
-            <RefreshCw /> Réessayer
-          </Button>
-        </div>
+      {list.error ? (
+        <LoadError message={list.error} onRetry={list.reload} />
       ) : projects === null ? (
         <div className="space-y-2" aria-busy="true" aria-label="Chargement des projets">
           <Skeleton className="h-16 rounded-2xl" />

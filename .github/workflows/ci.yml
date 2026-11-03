@@ -28,6 +28,7 @@ jobs:
       - run: npm ci
       - run: npm run lint
       - run: npm run typecheck
+      - run: npm run check:functions
       - run: npm run test:coverage
 
       - uses: supabase/setup-cli@v1
@@ -74,6 +75,14 @@ jobs:
           cache: npm
       - run: npm ci
 
+      # Construite avant de toucher à la prod : un build cassé ne la laisse pas à moitié à jour (base et fonctions déployées, ancienne application).
+      - name: Construire l'application
+        env:
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+        run: npm run build
+      - run: cp staticwebapp.config.json dist/
+
       - uses: supabase/setup-cli@v1
         with:
           version: 2.121.0
@@ -95,13 +104,6 @@ jobs:
           supabase functions deploy estimate-nutrition --project-ref "${{ secrets.SUPABASE_PROJECT_REF }}" --use-api
           supabase functions deploy knit-pattern --project-ref "${{ secrets.SUPABASE_PROJECT_REF }}" --use-api
           supabase functions deploy notify-shopping --project-ref "${{ secrets.SUPABASE_PROJECT_REF }}" --use-api --no-verify-jwt
-
-      - name: Construire l'application
-        env:
-          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
-          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
-        run: npm run build
-      - run: cp staticwebapp.config.json dist/
 
       - name: Publier sur Azure Static Web Apps
         uses: Azure/static-web-apps-deploy@v1

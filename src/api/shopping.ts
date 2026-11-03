@@ -2,6 +2,7 @@ import type { Aisle, ShoppingItem, ShoppingItemInput, ShoppingList } from '@/lib
 import type { TidyLine } from '@/lib/shoppingFromPlan'
 import type { AppSupabaseClient } from '@/lib/supabase'
 import { AppError, toAppError } from './errors'
+import { subscribeTables } from './realtime'
 
 const ITEM_COLUMNS = 'id, list_id, name, quantity, unit, aisle, checked, position'
 
@@ -95,16 +96,7 @@ export function createShoppingApi(db: AppSupabaseClient) {
       if (error) throw toAppError(error, 'Impossible de retirer les articles cochés.')
     },
 
-    subscribe(onChange: () => void, onStatus?: (status: string) => void): () => void {
-      const channel = db.channel(`shopping-${Math.random().toString(36).slice(2)}`)
-      for (const table of ['shopping_lists', 'shopping_items']) {
-        channel.on('postgres_changes', { event: '*', schema: 'public', table }, onChange)
-      }
-      channel.subscribe((status) => onStatus?.(status))
-      return () => {
-        void db.removeChannel(channel)
-      }
-    },
+    subscribe: (onChange: () => void, onStatus?: (status: string) => void) => subscribeTables(db, 'shopping', ['shopping_lists', 'shopping_items'], onChange, onStatus),
   }
 }
 

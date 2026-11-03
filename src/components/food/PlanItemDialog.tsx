@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { NativeSelect } from '@/components/ui/native-select'
 import { useOnOpen } from '@/hooks/useOnOpen'
 import {
   MEALS,
@@ -30,9 +31,6 @@ interface Props {
   onSubmit: (input: PlanItemInput, id?: string) => Promise<boolean>
   onDelete: (item: PlanItem) => void
 }
-
-const selectClass =
-  'h-10 w-full rounded-lg border border-input bg-background px-3 text-sm shadow-xs focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none'
 
 export function PlanItemDialog({ open, onOpenChange, editing, defaults, items, onSubmit, onDelete }: Props) {
   const [values, setValues] = useState<PlanItemFormValues>(emptyPlanItemForm)
@@ -81,13 +79,13 @@ export function PlanItemDialog({ open, onOpenChange, editing, defaults, items, o
             {field(
               'meal',
               'Moment',
-              <select id="plan-meal" className={selectClass} value={values.meal} onChange={(e) => set('meal', e.target.value as FoodMeal)}>
+              <NativeSelect id="plan-meal" className="w-full" value={values.meal} onChange={(e) => set('meal', e.target.value as FoodMeal)}>
                 {MEALS.map((m) => (
                   <option key={m.value} value={m.value}>
                     {m.label}
                   </option>
                 ))}
-              </select>,
+              </NativeSelect>,
             )}
             {field(
               'category',

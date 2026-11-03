@@ -115,6 +115,7 @@ export function sanitizeFound(output: unknown, blocks: readonly ContentBlock[], 
 export async function findWrittenRecipe(
   video: YoutubeVideo,
   options: ModelOptions & { webSearchTool?: string },
+  timeoutMs = 60_000,
 ): Promise<{ url: string | null; usage: ModelUsage }> {
   const links = descriptionLinks(video.description)
   const { input, blocks, usage } = await runConversation(
@@ -135,7 +136,7 @@ export async function findWrittenRecipe(
       retryAfterTruncation: () => 'Réponds maintenant avec ce que tu as trouvé.',
       failure: 'La recherche de la recette a échoué',
       missing: 'réponse sans adresse',
-      timeoutMs: 60_000,
+      timeoutMs,
     },
     options,
   )

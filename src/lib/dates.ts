@@ -1,3 +1,5 @@
+import { capitalize } from './text'
+
 /** Dates « métier » manipulées au format ISO local AAAA-MM-JJ (sans fuseau). */
 export type IsoDate = string
 
@@ -37,10 +39,6 @@ const dayFormatter = new Intl.DateTimeFormat('fr-FR', { weekday: 'long', day: 'n
 const shortFormatter = new Intl.DateTimeFormat('fr-FR', { day: 'numeric', month: 'long' })
 const fullFormatter = new Intl.DateTimeFormat('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })
 const compactFormatter = new Intl.DateTimeFormat('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' })
-
-function capitalize(text: string): string {
-  return text.charAt(0).toLocaleUpperCase('fr-FR') + text.slice(1)
-}
 
 /** « Lundi 20 octobre » */
 export function formatDay(iso: IsoDate): string {

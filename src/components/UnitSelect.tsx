@@ -1,8 +1,6 @@
 import { isUnit, UNIT_GROUPS } from '@/lib/units'
 import { cn } from '@/lib/utils'
-
-const selectClass =
-  'h-10 w-full min-w-0 rounded-lg border border-input bg-transparent px-2 text-base md:text-sm focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none dark:bg-input/30'
+import { NativeSelect } from '@/components/ui/native-select'
 
 interface Props {
   value: string
@@ -16,13 +14,13 @@ interface Props {
 /** Choix d'une unité dans la liste fermée (« — » : sans unité). */
 export function UnitSelect({ value, onChange, id, className, disabled, ...rest }: Props) {
   return (
-    <select
+    <NativeSelect
       id={id}
       aria-label={rest['aria-label']}
       value={value}
       disabled={disabled}
       onChange={(e) => onChange(e.target.value)}
-      className={cn(selectClass, value === '' && 'text-muted-foreground', className)}
+      className={cn('w-full px-2', value === '' && 'text-muted-foreground', className)}
     >
       <option value="">—</option>
       {/* Unité d'une ancienne saisie hors liste : affichée pour ne pas la perdre, signalée à l'enregistrement. */}
@@ -36,6 +34,6 @@ export function UnitSelect({ value, onChange, id, className, disabled, ...rest }
           ))}
         </optgroup>
       ))}
-    </select>
+    </NativeSelect>
   )
 }

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useEffectEvent, useState } from 'react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
@@ -24,6 +24,8 @@ export function LinkRecipeDialog({ reference, recipeId, onClose, onLink }: Props
   const [selected, setSelected] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
   const open = reference !== null
+  // Hors des dépendances : le parent n'a pas à mémoriser `onClose` pour éviter un rechargement à chaque rendu.
+  const closeOnError = useEffectEvent(onClose)
 
   useEffect(() => {
     if (!open) return
@@ -35,13 +37,13 @@ export function LinkRecipeDialog({ reference, recipeId, onClose, onLink }: Props
       (e: unknown) => {
         if (!active) return
         toast.error(errorMessage(e))
-        onClose()
+        closeOnError()
       },
     )
     return () => {
       active = false
     }
-  }, [api, open, recipeId, onClose])
+  }, [api, open, recipeId])
 
   async function confirm() {
     const recipe = recipes?.find((r) => r.id === selected)

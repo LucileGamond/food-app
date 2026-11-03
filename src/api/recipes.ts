@@ -3,11 +3,11 @@ import { todayIso, type IsoDate } from '@/lib/dates'
 import type { LinkableRecipe } from '@/lib/autoLinks'
 import type { CookingProgress, SavedProgress } from '@/lib/cooking'
 import { averageRating, isVegetarian, totalMinutes } from '@/lib/recipeList'
-import type { Ingredient, LinkedRecipe, NutritionBasis, Recipe, RecipeHistory, RecipeImport, RecipeListItem, SaveRecipeInput } from '@/lib/recipes'
+import { isNutritionBasis, type Ingredient, type LinkedRecipe, type Recipe, type RecipeHistory, type RecipeImport, type RecipeListItem, type SaveRecipeInput } from '@/lib/recipes'
 import { estimateInput, parseEstimate, type NutritionEstimate } from '@/lib/nutritionEstimate'
 import { groupSources } from '@/lib/sources'
 import type { AppSupabaseClient } from '@/lib/supabase'
-import { PHOTO_BUCKET } from './photos'
+import { PENDING_PHOTO_PREFIX, PHOTO_BUCKET } from './photos'
 import { AppError, DuplicateRecipeUrlError, functionError, RecipeInUseError, toAppError } from './errors'
 
 export interface RecipeUsage {
@@ -72,7 +72,7 @@ export function createRecipesApi(db: AppSupabaseClient) {
           url: r.url,
           totalMinutes: totalMinutes({ prep: r.prep_minutes, rest: r.rest_minutes, cook: r.cook_minutes }),
           kcal: r.kcal,
-          nutritionPer: r.nutrition_per as NutritionBasis | null,
+          nutritionPer: isNutritionBasis(r.nutrition_per) ? r.nutrition_per : null,
           vegetarian: isVegetarian({ tags: r.tags, ingredientNames }),
           timesCooked: h?.times_cooked ?? 0,
           lastCooked: h?.last_cooked ?? null,
@@ -167,7 +167,7 @@ export function createRecipesApi(db: AppSupabaseClient) {
       return {
         ...recipe,
         // La base n'accepte que ces valeurs (contrainte de la colonne).
-        nutrition_per: recipe.nutrition_per as NutritionBasis | null,
+        nutrition_per: isNutritionBasis(recipe.nutrition_per) ? recipe.nutrition_per : null,
         ingredients: [...recipe_ingredients]
           .sort((a, b) => a.position - b.position)
           .map(({ name, quantity, unit, note, section, linked_recipe_id }) => {
@@ -259,7 +259,7 @@ export function createRecipesApi(db: AppSupabaseClient) {
     },
 
     /** Les repas qui utilisent la recette ponctuelle passent sur la recette sauvegardée ; renvoie leur nombre. */
-    async useSavedRecipe(adhocId: string, savedId: string): Promise<number> {
+    async replaceAdhocWithSaved(adhocId: string, savedId: string): Promise<number> {
       const { data, error } = await db.rpc('use_saved_recipe', { p_adhoc_id: adhocId, p_saved_id: savedId })
       if (error) throw toAppError(error, 'Impossible de remplacer la recette.')
       return data
@@ -290,7 +290,7 @@ export function createRecipesApi(db: AppSupabaseClient) {
       }
 
       // Les photos pending/ (temporaires, parfois partagées) sont supprimées par le ménage de nuit.
-      const owned = photos.map((p) => p.storage_path).filter((path) => !path.startsWith('pending/'))
+      const owned = photos.map((p) => p.storage_path).filter((path) => !path.startsWith(PENDING_PHOTO_PREFIX))
       if (owned.length > 0) {
         // Les fichiers orphelins ne gênent pas l'application : un échec ici n'est pas bloquant.
         await db.storage.from(PHOTO_BUCKET).remove(owned)

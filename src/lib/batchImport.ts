@@ -2,8 +2,9 @@ import type { Api } from '@/api'
 import { AppError } from '@/api/errors'
 import { compressForReading, cropImage } from './image'
 import { hasErrors, importedToFormValues, toSaveRecipeInput, validateRecipeForm, type ImportedRecipe, type RecipeFormErrors } from './recipes'
-import { normalizeName } from './shopping'
+
 import { recipeKey } from './sources'
+import { foldText } from './text'
 
 /** Images lues en même temps : plus rapide, sans trop solliciter le service d'analyse. */
 export const BATCH_CONCURRENCY = 2
@@ -155,8 +156,8 @@ export function mergeRetry(previous: readonly BatchRecipe[], next: BatchResult):
   const kept = previous.filter((r) => r.status !== 'error')
   // Relecture en échec : l'image garde son premier résultat (et ses erreurs, à réessayer encore).
   if (next.status !== 'done') return previous.length > 0 ? { status: 'done', recipes: [...previous] } : next
-  const done = new Set(kept.map((r) => normalizeName(r.title)))
-  return { status: 'done', recipes: [...kept, ...next.recipes.filter((r) => !done.has(normalizeName(r.title)))] }
+  const done = new Set(kept.map((r) => foldText(r.title)))
+  return { status: 'done', recipes: [...kept, ...next.recipes.filter((r) => !done.has(foldText(r.title)))] }
 }
 
 export type Tally = Record<RecipeOutcome | 'skipped', number>

@@ -12,7 +12,7 @@ import {
   canRemoveOn,
   mealLabel,
   mealStats,
-  nextPosition,
+  nextPlanItemPosition,
   periodLength,
   periodNotice,
   periodProgress,
@@ -253,9 +253,9 @@ describe('plan', () => {
       { ...existing, id: 'g', meal: 'DINNER', category: 'Autres', name: 'Avocat', position: 80 },
     ]
     expect(planCategories(items)).toEqual(['Autres', 'Produit laitier'])
-    expect(nextPosition(items, 'LUNCH', 'Produit laitier')).toBe(11)
-    expect(nextPosition(items, 'LUNCH', 'Nouvelle')).toBe(31)
-    expect(nextPosition(items, 'SPORT', 'Sport')).toBe(81)
-    expect(nextPosition([], 'SPORT', 'Sport')).toBe(1)
+    expect(nextPlanItemPosition(items, 'LUNCH', 'Produit laitier')).toBe(11)
+    expect(nextPlanItemPosition(items, 'LUNCH', 'Nouvelle')).toBe(31)
+    expect(nextPlanItemPosition(items, 'SPORT', 'Sport')).toBe(81)
+    expect(nextPlanItemPosition([], 'SPORT', 'Sport')).toBe(1)
   })
 })

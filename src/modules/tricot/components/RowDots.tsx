@@ -3,7 +3,7 @@ import { cn } from '@/lib/utils'
 import { actionEffect, sectionLines, type PlannedSection } from '../lib/pattern'
 
 /** Durée d'appui pour décocher une pastille. */
-export const LONG_PRESS_MS = 500
+const LONG_PRESS_MS = 500
 
 const EFFECT_BORDER = {
   decrease: 'border-red-500',

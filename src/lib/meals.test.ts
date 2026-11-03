@@ -1,5 +1,4 @@
 import {
-  countMealsOnDay,
   dropTarget,
   groupMealsBySlot,
   isMoveNeeded,
@@ -142,9 +141,7 @@ describe('regroupement et comptage', () => {
     expect(groups.get('2026-10-20|DINNER')).toBeUndefined()
   })
 
-  it('compte les repas d’un jour et formate le libellé', () => {
-    expect(countMealsOnDay(meals, '2026-10-20')).toBe(2)
-    expect(countMealsOnDay(meals, '2026-10-22')).toBe(0)
+  it('formate le nombre de repas', () => {
     expect(mealCountLabel(0)).toBe('Aucun repas')
     expect(mealCountLabel(1)).toBe('1 repas')
     expect(mealCountLabel(3)).toBe('3 repas')

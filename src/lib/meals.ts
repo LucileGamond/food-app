@@ -1,6 +1,7 @@
+import type { Database } from './database.types'
 import type { IsoDate } from './dates'
 
-export type MealSlot = 'LUNCH' | 'DINNER'
+export type MealSlot = Database['public']['Enums']['meal_slot']
 export const SLOTS: readonly MealSlot[] = ['LUNCH', 'DINNER']
 
 export interface Profile {
@@ -45,7 +46,7 @@ export function peopleLabel(people: readonly string[], profiles: readonly Profil
   return `${names.slice(0, -1).join(', ')} et ${names[names.length - 1]}`
 }
 
-export type TextPart = { type: 'text'; value: string } | { type: 'link'; value: string }
+type TextPart = { type: 'text'; value: string } | { type: 'link'; value: string }
 
 const URL_PATTERN = /https?:\/\/[^\s]+/g
 const TRAILING_PUNCTUATION = /[.,;:!?)\]]+$/
@@ -142,10 +143,6 @@ export function groupMealsBySlot(meals: readonly Meal[]): Map<string, Meal[]> {
     else groups.set(key, [meal])
   }
   return groups
-}
-
-export function countMealsOnDay(meals: readonly Meal[], date: IsoDate): number {
-  return meals.filter((m) => m.meal_date === date).length
 }
 
 export function mealCountLabel(count: number): string {

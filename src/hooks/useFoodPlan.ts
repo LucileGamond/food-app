@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { toast } from 'sonner'
 import { errorMessage, type Api } from '@/api'
 import type { PlanItem, PlanItemInput } from '@/lib/food'
+import { useRealtimeReload } from './useRealtimeReload'
 
 export interface FoodPlanState {
   items: PlanItem[]
@@ -38,16 +39,8 @@ export function useFoodPlan(api: Api, profileId: string | null): FoodPlanState {
     setLoading(true)
     setItems([])
     void reload()
-    let timer: ReturnType<typeof setTimeout> | undefined
-    const unsubscribe = api.food.subscribe(() => {
-      clearTimeout(timer)
-      timer = setTimeout(() => void reload(), 250)
-    })
-    return () => {
-      clearTimeout(timer)
-      unsubscribe()
-    }
-  }, [api, reload])
+  }, [reload])
+  useRealtimeReload(api.food.subscribe, reload)
 
   const run = useCallback(
     async (action: () => Promise<unknown>, success: string): Promise<boolean> => {

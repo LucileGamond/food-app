@@ -3,7 +3,7 @@ import { toast } from 'sonner'
 import { errorMessage, type Api } from '@/api'
 import type { Meal } from '@/lib/meals'
 import type { Ingredient } from '@/lib/recipes'
-import { nextPosition, type ShoppingItemInput } from '@/lib/shopping'
+import { nextItemPosition, type ShoppingItemInput } from '@/lib/shopping'
 import {
   applyTidy,
   buildDraft,
@@ -12,7 +12,7 @@ import {
   mergeIntoList,
   skippedInput,
   skippedMeal,
-  toItemInput,
+  draftLineToItemInput,
   lineEntries,
   type DraftLine,
   type MealIngredients,
@@ -209,7 +209,7 @@ export function useShoppingFromPlan(api: Api): ShoppingFromPlanState {
 
   const submit = useCallback(
     async (destination: Destination): Promise<ShoppingFromPlanResult | null> => {
-      const inputs = lines.filter((l) => l.include).map(toItemInput)
+      const inputs = lines.filter((l) => l.include).map(draftLineToItemInput)
       setSubmitting(true)
       let created: string | null = null
       let written = false
@@ -224,7 +224,7 @@ export function useShoppingFromPlan(api: Api): ShoppingFromPlanState {
           const { updates, additions } = mergeIntoList(items, inputs)
           written = true
           await Promise.all(updates.map((u) => api.shopping.updateItem(u.item.id, { quantity: u.quantity })))
-          await api.shopping.addItems(listId, additions, nextPosition(items))
+          await api.shopping.addItems(listId, additions, nextItemPosition(items))
         }
         return { listId, count: inputs.length, skipped: [...skipped, ...lineEntries(lines)] }
       } catch (error) {

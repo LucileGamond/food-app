@@ -2,6 +2,7 @@ import type { IsoDate } from '@/lib/dates'
 import type { Consumption, FoodPeriod, PeriodItem, PlanItem, PlanItemInput } from '@/lib/food'
 import type { AppSupabaseClient } from '@/lib/supabase'
 import { AppError, toAppError } from './errors'
+import { subscribeTables } from './realtime'
 
 const ITEM_COLUMNS = 'id, meal, category, name, quantity, unit, allowed_occurrences, position'
 
@@ -85,16 +86,7 @@ export function createFoodApi(db: AppSupabaseClient) {
     },
 
     /** Prévient de tout changement du suivi (plan, périodes, consommations). */
-    subscribe(onChange: () => void, onStatus?: (status: string) => void): () => void {
-      const channel = db.channel(`food-${Math.random().toString(36).slice(2)}`)
-      for (const table of ['food_plan_items', 'food_periods', 'food_period_items', 'food_consumptions']) {
-        channel.on('postgres_changes', { event: '*', schema: 'public', table }, onChange)
-      }
-      channel.subscribe((status) => onStatus?.(status))
-      return () => {
-        void db.removeChannel(channel)
-      }
-    },
+    subscribe: (onChange: () => void, onStatus?: (status: string) => void) => subscribeTables(db, 'food', ['food_plan_items', 'food_periods', 'food_period_items', 'food_consumptions'], onChange, onStatus),
   }
 }
 

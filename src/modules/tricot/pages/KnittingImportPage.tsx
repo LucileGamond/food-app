@@ -7,7 +7,7 @@ import { useApi } from '@/app/ApiContext'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { PageHeader } from '@/components/Layout'
+import { PageHeader } from '@/components/PageHeader'
 import { describeSection, MAX_PDF_BYTES, type ReadPattern } from '../lib/pattern'
 
 /** Nouveau projet : PDF du patron + taille → étapes lues par le modèle, vérifiées puis enregistrées. */

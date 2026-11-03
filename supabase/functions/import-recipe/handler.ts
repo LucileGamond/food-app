@@ -17,13 +17,18 @@ import { extractRecipe, extractRecipeFromPhotos, ImportError, type ImportedRecip
 import { checkPublicUrl, resolvesToPublic, type ResolveDns } from './url.ts'
 import { fetchYoutubeVideo, findWrittenRecipe, INSTAGRAM_CAPTION, isInstagram, NOT_WRITTEN, videoText, youtubeId } from './video.ts'
 
-export { CORS_HEADERS }
-
 export const MAX_PAGE_BYTES = 3_000_000
 export const MAX_IMAGE_BYTES = 3_000_000
-const PAGE_TIMEOUT_MS = 12_000
+/** Durée maximale d'un téléchargement, redirections comprises. */
+const PAGE_TIMEOUT_MS = 15_000
+/** Import YouTube (description, recherche web, page trouvée) : borné sous la coupure des fonctions à 150 s. */
+const YOUTUBE_BUDGET_MS = 130_000
+/** En deçà, une étape n'a plus le temps d'aboutir. */
+const MIN_STEP_MS = 15_000
+const TOO_LONG = 'La lecture de cette vidéo prend trop de temps. Réessaie, ou saisis la recette à la main.'
 const MAX_REDIRECTS = 4
-const IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp']
+/** Images acceptées : photo d'une page téléchargée, photos envoyées par le navigateur. */
+const IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp'] as const
 
 export interface ImportResult {
   /** La recette (la première de la page pour une photo : ce que lit une ancienne version de l'application). */
@@ -61,6 +66,7 @@ async function download(
   resolve?: ResolveDns,
 ): Promise<{ url: URL; type: string; bytes: Uint8Array }> {
   let check = checkPublicUrl(rawUrl)
+  const signal = AbortSignal.timeout(PAGE_TIMEOUT_MS)
   for (let hop = 0; ; hop++) {
     if (!check.ok) throw new ImportError(check.reason, 400)
     // Nom d'hôte qui pointe vers une adresse privée (vérifié à chaque redirection).
@@ -74,7 +80,7 @@ async function download(
           'accept-language': 'fr-FR,fr;q=0.9,en;q=0.5',
           'user-agent': 'Mozilla/5.0 (compatible; FoodApp/1.0; +import de recette)',
         },
-        signal: AbortSignal.timeout(PAGE_TIMEOUT_MS),
+        signal,
       })
     } catch {
       throw new ImportError('Impossible de joindre ce site.', 502)
@@ -97,7 +103,14 @@ async function download(
     const chunks: Uint8Array[] = []
     let size = 0
     while (reader) {
-      const { done, value } = await reader.read()
+      let chunk: ReadableStreamReadResult<Uint8Array>
+      try {
+        chunk = await reader.read()
+      } catch {
+        // Délai dépassé (ou connexion coupée) pendant la lecture.
+        throw new ImportError('Impossible de joindre ce site.', 502)
+      }
+      const { done, value } = chunk
       if (done) break
       size += value.byteLength
       if (size > maxBytes) {
@@ -139,7 +152,7 @@ async function downloadImage(url: string | null, doFetch: typeof fetch, resolve?
   try {
     const image = await download(url, IMAGE_TYPES.join(','), MAX_IMAGE_BYTES, doFetch, resolve)
     const type = image.type.split(';')[0]!.trim().toLowerCase()
-    if (!IMAGE_TYPES.includes(type) || image.bytes.length === 0) return null
+    if (!IMAGE_TYPES.some((t) => t === type) || image.bytes.length === 0) return null
     return { data: toBase64(image.bytes), type }
   } catch {
     return null
@@ -179,9 +192,9 @@ async function readPage(url: string, deps: Deps): Promise<{ content: PageContent
 }
 
 /** Recette d'une page lue (appel au modèle) et sa photo. */
-async function importContent({ content, url }: { content: PageContent; url: string }, knownTags: string[], deps: Deps): Promise<Result> {
+async function importContent({ content, url }: { content: PageContent; url: string }, knownTags: string[], deps: Deps, timeoutMs?: number): Promise<Result> {
   const [{ recipe, usage }, image] = await Promise.all([
-    extractRecipe(content, url, knownTags, { apiKey: deps.apiKey!, model: deps.model, fetch: deps.fetchModel }),
+    extractRecipe(content, url, knownTags, { apiKey: deps.apiKey!, model: deps.model, fetch: deps.fetchModel }, timeoutMs),
     downloadImage(content.imageUrl, deps.fetchPage, deps.resolveDns),
   ])
   return { recipe, source: content.structured ? 'structured' : 'text', image, usage }
@@ -199,11 +212,18 @@ async function importYoutube(id: string, knownTags: string[], deps: Deps): Promi
   const options = { apiKey: deps.apiKey!, model: deps.model, fetch: deps.fetchModel }
   const thumbnail = downloadImage(video.thumbnail, deps.fetchPage, deps.resolveDns)
   const videoUrl = `https://www.youtube.com/watch?v=${id}`
+  // Jusqu'à trois appels au modèle et une page : chaque étape prend ce qui reste du budget.
+  const deadline = Date.now() + YOUTUBE_BUDGET_MS
+  const stepTime = (max: number) => {
+    const left = deadline - Date.now()
+    if (left < MIN_STEP_MS) throw new ImportError(TOO_LONG, 504)
+    return Math.min(max, left)
+  }
 
   let usage: ModelUsage | null = null
   try {
     const content = { structured: null, text: videoText(video), title: video.title, imageUrl: video.thumbnail }
-    const described = await extractRecipe(content, videoUrl, knownTags, options)
+    const described = await extractRecipe(content, videoUrl, knownTags, options, stepTime(45_000))
     usage = described.usage
     if (described.recipe.ingredients.length >= 2) return { recipe: described.recipe, source: 'video', image: await thumbnail, usage }
   } catch (error) {
@@ -211,18 +231,19 @@ async function importYoutube(id: string, knownTags: string[], deps: Deps): Promi
     if (!(error instanceof ImportError && error.status === 422)) throw error
   }
 
-  const found = await findWrittenRecipe(video, options)
+  const found = await findWrittenRecipe(video, options, stepTime(50_000))
   usage = addUsage(usage, found.usage)
   if (!found.url) throw new ImportError(NOT_WRITTEN, 422)
   // Page trouvée mais injoignable ou illisible : la recette n'est pas récupérable. Les erreurs du modèle, elles, remontent.
   let read: Awaited<ReturnType<typeof readPage>>
+  stepTime(PAGE_TIMEOUT_MS)
   try {
     read = await readPage(found.url, deps)
   } catch (error) {
     if (error instanceof ImportError) throw new ImportError(NOT_WRITTEN, 422)
     throw error
   }
-  const page = await importContent(read, knownTags, deps)
+  const page = await importContent(read, knownTags, deps, stepTime(60_000))
   const site = new URL(found.url).hostname.replace(/^www\./, '')
   return {
     recipe: { ...page.recipe, source: page.recipe.source ?? site },
@@ -270,7 +291,6 @@ export async function fetchTitle(body: unknown, deps: Pick<Deps, 'fetchPage' | '
 export const MAX_PHOTOS = 3
 /** Taille maximale d'une photo en base64 (≈ 3 Mo d'image ; le navigateur les réduit à quelques centaines de Ko). */
 export const MAX_PHOTO_BASE64 = 4_000_000
-const PHOTO_TYPES = ['image/jpeg', 'image/png', 'image/webp'] as const
 
 /** Photos reçues du navigateur : 1 à 3 images de type connu, de taille bornée. */
 export function parsePhotos(body: unknown): PhotoInput[] {
@@ -279,7 +299,7 @@ export function parsePhotos(body: unknown): PhotoInput[] {
   if (raw.length > MAX_PHOTOS) throw new ImportError(`${MAX_PHOTOS} photos au plus.`, 400)
   return raw.map((value) => {
     const image = (typeof value === 'object' && value !== null ? value : {}) as Record<string, unknown>
-    const type = PHOTO_TYPES.find((t) => t === image.type)
+    const type = IMAGE_TYPES.find((t) => t === image.type)
     if (!type || typeof image.data !== 'string') throw new ImportError('Photo illisible (JPEG, PNG ou WebP).', 400)
     if (image.data.length > MAX_PHOTO_BASE64) throw new ImportError('Photo trop lourde.', 413)
     if (!/^[A-Za-z0-9+/]+=*$/.test(image.data)) throw new ImportError('Photo illisible (JPEG, PNG ou WebP).', 400)
@@ -290,7 +310,7 @@ export function parsePhotos(body: unknown): PhotoInput[] {
 export async function importPhotos(body: unknown, deps: Deps): Promise<ImportResult & { usage: ModelUsage | null }> {
   const photos = parsePhotos(body)
   const input = body as Record<string, unknown>
-  const knownTags = Array.isArray(input.knownTags) ? input.knownTags.filter((t): t is string => typeof t === 'string').map((t) => t.slice(0, 30)) : []
+  const knownTags = knownTagsOf(input)
   if (!deps.apiKey) throw new ImportError('Le service d’analyse est mal configuré.', 500)
   const { recipes, usage } = await extractRecipeFromPhotos(photos, knownTags, { apiKey: deps.apiKey, model: deps.model, fetch: deps.fetchModel })
   return { recipe: recipes[0]!, recipes, source: 'photo', image: null, usage }

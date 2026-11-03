@@ -1,4 +1,4 @@
-import { ArrowLeft, CheckCheck, MoreHorizontal, Pencil, RefreshCw, SearchX, ShoppingBasket, Trash2 } from 'lucide-react'
+import { ArrowLeft, CheckCheck, MoreHorizontal, Pencil, SearchX, ShoppingBasket, Trash2 } from 'lucide-react'
 import { useState } from 'react'
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom'
 import { toast } from 'sonner'
@@ -12,12 +12,14 @@ import { ListNameDialog } from '@/components/shopping/ListNameDialog'
 import { QuickAddBar } from '@/components/shopping/QuickAddBar'
 import { ShoppingItemRow } from '@/components/shopping/ShoppingItemRow'
 import { SkippedPanel } from '@/components/shopping/SkippedPanel'
+import { LoadError } from '@/components/LoadError'
 import { useApi } from '@/app/ApiContext'
 import { errorMessage } from '@/api'
 import { useShoppingList } from '@/hooks/useShoppingList'
 import { groupByAisle, listProgress, type ShoppingItem } from '@/lib/shopping'
 import type { SkippedEntry } from '@/lib/shoppingFromPlan'
 import { cn } from '@/lib/utils'
+import { navState } from '@/lib/navState'
 
 type DialogState =
   | { kind: 'none' }
@@ -32,7 +34,7 @@ export function ShoppingListPage() {
   const location = useLocation()
   const list = useShoppingList(api, id)
   // Éléments non repris lors d'une génération depuis le planning (transmis par la navigation, jamais stockés).
-  const [skipped, setSkipped] = useState<SkippedEntry[]>(() => (location.state as { skipped?: SkippedEntry[] } | null)?.skipped ?? [])
+  const [skipped, setSkipped] = useState<SkippedEntry[]>(() => navState(location).skipped ?? [])
   const [dialog, setDialog] = useState<DialogState>({ kind: 'none' })
   const close = () => setDialog({ kind: 'none' })
 
@@ -48,12 +50,7 @@ export function ShoppingListPage() {
     return (
       <>
         {back}
-        <div role="alert" className="flex flex-col items-start gap-3 rounded-xl border border-destructive/30 bg-destructive/5 p-4 text-sm">
-          <p>{list.loadError}</p>
-          <Button variant="outline" onClick={() => void list.reload()}>
-            <RefreshCw /> Réessayer
-          </Button>
-        </div>
+        <LoadError message={list.loadError} onRetry={() => void list.reload()} />
       </>
     )
   }

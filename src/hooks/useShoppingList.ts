@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { toast } from 'sonner'
 import { errorMessage, type Api } from '@/api'
-import { findMergeTarget, formatAmount, nextPosition, type ShoppingItem, type ShoppingItemInput } from '@/lib/shopping'
+import { findMergeTarget, formatAmount, nextItemPosition, type ShoppingItem, type ShoppingItemInput } from '@/lib/shopping'
+import { useRealtimeReload } from './useRealtimeReload'
 
 export interface ShoppingListState {
   name: string | null
@@ -73,16 +74,8 @@ export function useShoppingList(api: Api, listId: string): ShoppingListState {
   useEffect(() => {
     setLoading(true)
     void reload()
-    let timer: ReturnType<typeof setTimeout> | undefined
-    const unsubscribe = api.shopping.subscribe(() => {
-      clearTimeout(timer)
-      timer = setTimeout(() => void reload(), 250)
-    })
-    return () => {
-      clearTimeout(timer)
-      unsubscribe()
-    }
-  }, [api, reload])
+  }, [reload])
+  useRealtimeReload(api.shopping.subscribe, reload)
 
   const latestReload = useRef(reload)
   useEffect(() => {
@@ -133,7 +126,7 @@ export function useShoppingList(api: Api, listId: string): ShoppingListState {
         if (ok) toast.success(`Quantité ajoutée à « ${before.name} » (${formatAmount({ quantity: merge.quantity, unit: before.unit })})`)
         return ok
       }
-      const position = nextPosition(latestItems.current)
+      const position = nextItemPosition(latestItems.current)
       const temp: ShoppingItem = { id: `${TEMP_PREFIX}${++tempSeq.current}`, list_id: listId, checked: false, position, ...input }
       return write(
         () => setItems((list) => [...list, temp]),

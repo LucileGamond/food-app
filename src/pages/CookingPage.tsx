@@ -1,19 +1,21 @@
-import { Check, CheckCheck, Loader2, Minus, Plus, RefreshCw, SearchX, Sun, Timer as TimerIcon, X } from 'lucide-react'
+import { Check, CheckCheck, Loader2, Sun, Timer as TimerIcon, X } from 'lucide-react'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { toast } from 'sonner'
 import { Button, buttonVariants } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
-import { EmptyState } from '@/components/EmptyState'
 import { NewTimerForm, StepText, TimersBar } from '@/components/cooking/CookingTimers'
 import { VoiceControl } from '@/components/cooking/VoiceControl'
+import { LoadError } from '@/components/LoadError'
+import { RecipeNotFound } from '@/components/recipes/RecipeNotFound'
 import { useApi } from '@/app/ApiContext'
 import { errorMessage } from '@/api'
 import { useTimers } from '@/hooks/useTimers'
 import { useWakeLock } from '@/hooks/useWakeLock'
 import { NO_PROGRESS, splitSteps, toggle, type CookingProgress } from '@/lib/cooking'
 import { formatTimerDuration } from '@/lib/timers'
-import { formatIngredient, groupBySection, scaleIngredients, SERVINGS_MAX, type Recipe } from '@/lib/recipes'
+import { formatIngredient, groupBySection, ingredientsFor, SERVINGS_MAX, servingsFromParam, type Recipe } from '@/lib/recipes'
+import { ServingsStepper } from '@/components/recipes/ServingsStepper'
 import { cn } from '@/lib/utils'
 
 /** Mode cuisine : écran allumé, ingrédients et étapes à cocher, en gros ; progression enregistrée (plusieurs jours) ; minuteurs ; mode vocal. */
@@ -33,6 +35,7 @@ function Cooking({ id }: { id: string }) {
   const awake = useWakeLock()
   const timers = useTimers(id)
   const [newTimer, setNewTimer] = useState(false)
+  const [resumePeople, setResumePeople] = useState<number | null>(null)
 
   // La progression est chargée avec la recette : sans elle, la première case cochée écraserait celle enregistrée.
   const load = useCallback(() => {
@@ -41,16 +44,22 @@ function Cooking({ id }: { id: string }) {
       ([loaded, saved]) => {
         if (saved) {
           setProgress({ ingredients: saved.ingredients, steps: saved.steps })
-          // Reprise sans nombre de personnes dans l'adresse : celui de la séance précédente.
-          if (saved.people) setParams((p) => (p.has('personnes') ? p : new URLSearchParams({ personnes: String(saved.people) })), { replace: true })
+          setResumePeople(saved.people ?? null)
         }
         setRecipe(loaded)
       },
       (e: unknown) => setError(errorMessage(e)),
     )
-  }, [api, id, setParams])
+  }, [api, id])
 
   useEffect(load, [load])
+
+  // Reprise sans nombre de personnes dans l'adresse : celui de la séance précédente.
+  // À part du chargement : setParams change à chaque clic +/-, la recette ne doit pas être relue pour autant.
+  const resumeTo = resumePeople && !params.has('personnes') ? resumePeople : null
+  useEffect(() => {
+    if (resumeTo) setParams(new URLSearchParams({ personnes: String(resumeTo) }), { replace: true })
+  }, [resumeTo, setParams])
 
   // Enregistrement en base, un à la fois : seule la dernière progression compte (cases cochées vite à la suite).
   const saving = useRef<{ next: CookingProgress | null; running: Promise<void> | null; failed: boolean }>({ next: null, running: null, failed: false })
@@ -106,12 +115,7 @@ function Cooking({ id }: { id: string }) {
   if (error) {
     return (
       <div className="p-4">
-        <div role="alert" className="flex flex-col items-start gap-3 rounded-xl border border-destructive/30 bg-destructive/5 p-4 text-sm">
-          <p>{error}</p>
-          <Button variant="outline" onClick={load}>
-            <RefreshCw /> Réessayer
-          </Button>
-        </div>
+        <LoadError message={error} onRetry={load} />
       </div>
     )
   }
@@ -128,31 +132,19 @@ function Cooking({ id }: { id: string }) {
   if (recipe === null || !recipe.is_saved) {
     return (
       <div className="p-4">
-        <EmptyState
-          icon={SearchX}
-          title="Recette introuvable"
-          description="Elle a peut-être été supprimée."
-          action={
-            <Link to="/recettes" className={cn(buttonVariants({ variant: 'outline' }), 'h-10')}>
-              Retour aux recettes
-            </Link>
-          }
-        />
+        <RecipeNotFound />
       </div>
     )
   }
 
   // Nombre de personnes choisi sur la fiche (adresse), sinon celui de la recette.
-  const asked = Number(params.get('personnes'))
-  const servings = recipe.servings === null ? null : Number.isInteger(asked) && asked >= 1 && asked <= SERVINGS_MAX ? asked : recipe.servings
+  const servings = servingsFromParam(recipe.servings, params.get('personnes'))
   const setServings = (value: number) => {
     const next = Math.min(SERVINGS_MAX, Math.max(1, value))
     setParams({ personnes: String(next) }, { replace: true })
     if (started) persist({ ...progress, people: next })
   }
-  const ingredients = (recipe.servings !== null && servings !== null ? scaleIngredients(recipe.ingredients, recipe.servings, servings) : recipe.ingredients).map(
-    (ingredient, position) => ({ ...ingredient, position }),
-  )
+  const ingredients = ingredientsFor(recipe, servings)
   const steps = splitSteps(recipe.notes)
   const current = steps.findIndex((_, i) => !progress.steps.includes(i))
   const finished = steps.length > 0 && current === -1
@@ -204,17 +196,7 @@ function Cooking({ id }: { id: string }) {
               Ingrédients
             </h2>
             {servings !== null && (
-              <div className="flex items-center gap-1" role="group" aria-label="Nombre de personnes">
-                <Button variant="outline" size="icon-lg" aria-label="Une personne de moins" disabled={servings <= 1} onClick={() => setServings(servings - 1)}>
-                  <Minus />
-                </Button>
-                <span className="min-w-24 text-center tabular-nums" aria-live="polite">
-                  {servings} {servings > 1 ? 'personnes' : 'personne'}
-                </span>
-                <Button variant="outline" size="icon-lg" aria-label="Une personne de plus" disabled={servings >= SERVINGS_MAX} onClick={() => setServings(servings + 1)}>
-                  <Plus />
-                </Button>
-              </div>
+              <ServingsStepper value={servings} onChange={setServings} large />
             )}
           </div>
           {groupBySection(ingredients).map((group, g) => (
