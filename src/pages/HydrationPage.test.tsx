@@ -28,7 +28,8 @@ describe('HydrationPage', () => {
     const user = userEvent.setup()
     const { api } = renderPage()
     expect(await screen.findByText('Rien bu aujourd’hui pour l’instant.')).toBeInTheDocument()
-    expect(api.hydration.listIntakes).toHaveBeenCalledWith(new Date('2026-11-10T00:00:00'))
+    // Minuit à Paris (UTC+1 en novembre)
+    expect(api.hydration.listIntakes).toHaveBeenCalledWith(new Date('2026-11-10T00:00:00+01:00'))
 
     await user.click(screen.getByRole('button', { name: /Petit verre/ }))
     expect(api.hydration.addIntake).toHaveBeenCalledWith(200)

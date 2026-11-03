@@ -1,7 +1,7 @@
 import { parisTime, startOfDay, formatCl, formatElapsed, formatLiters, lastDrink, nextReminder, totalMl, type WaterIntake } from './hydration'
 
-// Heures locales (Europe/Paris dans les tests)
-const at = (time: string) => new Date(`2026-11-10T${time}:00`)
+// Heures de Paris (UTC+1 en novembre), quel que soit le fuseau de la machine de test
+const at = (time: string) => new Date(`2026-11-10T${time}:00+01:00`)
 const glass = (time: string, volume_ml = 200): WaterIntake => ({ id: time, volume_ml, drunk_at: at(time).toISOString() })
 
 describe('hydratation', () => {
