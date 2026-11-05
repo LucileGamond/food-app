@@ -2,10 +2,13 @@
 // Appelée par pg_cron (en-tête x-cron-secret) :
 //   - toutes les 3 minutes : notifications groupées des modifications de listes de courses aux appareils des autres ;
 //   - toutes les 10 minutes, corps {"job": "hydration"} : rappels « pense à boire » ;
+//   - toutes les heures, corps {"job": "plants"} : rappels d'arrosage du matin (à partir de 8 h, une fois par jour) ;
 //   - chaque nuit, corps {"job": "cleanup"} : suppression des fichiers (photos, PDF) que plus rien n'utilise.
 
 import { CLEANED_BUCKETS, orphanFiles, type CleanedBucket, type StoredFile } from './cleanup.ts'
+import { toCivilDate } from '../_shared/watering/civil-date.ts'
 import { buildHydrationMessage, type HydrationReminder } from './hydration.ts'
+import { buildPlantsMessage, duePlants, type PlantData } from './plants.ts'
 import { buildShoppingMessage, QUIET_MS, readyGroups, type PushPayload, type ShoppingEvent } from './message.ts'
 
 export interface DeviceSubscription {
@@ -27,6 +30,10 @@ export interface Deps {
   loadProfileSubscriptions: (profileId: string) => Promise<DeviceSubscription[]>
   /** Rappels d'hydratation dus, réservés (une seule exécution les envoie). */
   claimHydrationReminders: () => Promise<HydrationReminder[]>
+  /** Plantes non archivées, avec leurs règles et leurs arrosages récents. */
+  loadActivePlants: () => Promise<PlantData[]>
+  /** Personnes à qui envoyer le rappel d'arrosage du jour, réservées (une seule exécution les envoie). */
+  claimPlantReminders: () => Promise<string[]>
   /** Fichiers d'un bucket du stockage, et ceux encore utilisés. */
   listFiles: (bucket: CleanedBucket) => Promise<StoredFile[]>
   referencedFiles: (bucket: CleanedBucket) => Promise<string[]>
@@ -91,14 +98,14 @@ export async function notifyPending(deps: Deps): Promise<RunReport> {
   return report
 }
 
-export async function notifyHydration(deps: Deps): Promise<RunReport> {
+/** Un message par personne, sur tous ses appareils ; les abonnements expirés sont retirés. */
+async function sendToProfiles(deps: Deps, messages: { profileId: string; payload: PushPayload }[]): Promise<RunReport> {
   const report: RunReport = { groups: 0, sent: 0, failed: 0, removed: 0 }
   const gone: string[] = []
   try {
-    for (const reminder of await deps.claimHydrationReminders()) {
+    for (const { profileId, payload } of messages) {
       report.groups += 1
-      const payload = buildHydrationMessage(reminder)
-      for (const subscription of await deps.loadProfileSubscriptions(reminder.profile_id)) {
+      for (const subscription of await deps.loadProfileSubscriptions(profileId)) {
         const result = await deps.send(subscription, payload)
         if (result === 'sent') report.sent += 1
         else if (result === 'gone') gone.push(subscription.id)
@@ -112,6 +119,20 @@ export async function notifyHydration(deps: Deps): Promise<RunReport> {
     }
   }
   return report
+}
+
+export async function notifyHydration(deps: Deps): Promise<RunReport> {
+  const reminders = await deps.claimHydrationReminders()
+  return sendToProfiles(deps, reminders.map((reminder) => ({ profileId: reminder.profile_id, payload: buildHydrationMessage(reminder) })))
+}
+
+export async function notifyPlants(deps: Deps): Promise<RunReport> {
+  const today = toCivilDate(new Date(deps.now()), 'Europe/Paris')
+  const due = duePlants(await deps.loadActivePlants(), today)
+  // Rien à arroser : personne n'est réservé, une plante qui le devient dans la journée sera rappelée au passage suivant.
+  if (due.length === 0) return { groups: 0, sent: 0, failed: 0, removed: 0 }
+  const payload = buildPlantsMessage(due, today)
+  return sendToProfiles(deps, (await deps.claimPlantReminders()).map((profileId) => ({ profileId, payload })))
 }
 
 export async function cleanupFiles(deps: Deps): Promise<{ removed: number }> {
@@ -149,7 +170,8 @@ export function createHandler(deps: Deps) {
         if (result.removed > 0) deps.log?.('fichiers inutilisés supprimés', result)
         return json(result)
       }
-      const report = body?.job === 'hydration' ? await notifyHydration(deps) : await notifyPending(deps)
+      const report =
+        body?.job === 'hydration' ? await notifyHydration(deps) : body?.job === 'plants' ? await notifyPlants(deps) : await notifyPending(deps)
       if (report.groups > 0) deps.log?.('notifications envoyées', { ...report })
       return json(report)
     } catch (error) {

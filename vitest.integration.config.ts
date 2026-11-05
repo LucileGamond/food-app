@@ -4,7 +4,10 @@ import { defineConfig } from 'vitest/config'
 // Tests de src/api contre la Supabase locale (`npx supabase start`).
 export default defineConfig({
   resolve: {
-    alias: { '@': fileURLToPath(new URL('./src', import.meta.url)) },
+    alias: {
+      '@': fileURLToPath(new URL('./src', import.meta.url)),
+      '@watering': fileURLToPath(new URL('./supabase/functions/_shared/watering', import.meta.url)),
+    },
   },
   test: {
     globals: true,

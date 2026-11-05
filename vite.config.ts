@@ -63,7 +63,11 @@ export default defineConfig({
   // Le bundle principal (React, Supabase, composants) fait ~200 Ko gzip : acceptable pour une PWA mise en cache.
   build: { chunkSizeWarningLimit: 750 },
   resolve: {
-    alias: { '@': fileURLToPath(new URL('./src', import.meta.url)) },
+    alias: {
+      '@': fileURLToPath(new URL('./src', import.meta.url)),
+      // Moteur d'arrosage partagé avec les rappels (Edge Function).
+      '@watering': fileURLToPath(new URL('./supabase/functions/_shared/watering', import.meta.url)),
+    },
   },
   test: {
     globals: true,

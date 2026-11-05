@@ -76,7 +76,7 @@ function RecipeDetail({ id }: { id: string }) {
   const progress = useAsync(() => api.recipes.getProgress(id).catch(() => null), [api, id]).data ?? null
 
   const paths = useMemo(() => recipe?.photos.map((p) => p.storage_path) ?? [], [recipe])
-  const urls = useSignedUrls(api, paths)
+  const urls = useSignedUrls(api.photos.signedUrls, paths)
 
   async function addToInbox() {
     if (!recipe) return

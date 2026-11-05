@@ -18,12 +18,12 @@ describe('réglages', () => {
   it('choisit la première page affichée comme accueil', () => {
     expect(homePath(DEFAULT_SETTINGS)).toBe('/planning')
     expect(homePath({ ...DEFAULT_SETTINGS, disabledPages: ['planning', 'recettes'] })).toBe('/plan')
-    expect(homePath({ ...DEFAULT_SETTINGS, disabledPages: ['planning', 'recettes', 'plan', 'courses', 'poids', 'hydratation', 'tricot'] })).toBe('/reglages')
+    expect(homePath({ ...DEFAULT_SETTINGS, disabledPages: ['planning', 'recettes', 'plan', 'courses', 'poids', 'hydratation', 'tricot', 'plantes'] })).toBe('/reglages')
   })
 
   it('active et désactive pages et notifications', () => {
-    expect(togglePage(DEFAULT_SETTINGS, 'hydratation', true)).toEqual({ disabledPages: ['tricot'] })
-    expect(togglePage(DEFAULT_SETTINGS, 'poids', false)).toEqual({ disabledPages: ['hydratation', 'tricot', 'poids'] })
+    expect(togglePage(DEFAULT_SETTINGS, 'hydratation', true)).toEqual({ disabledPages: ['tricot', 'plantes'] })
+    expect(togglePage(DEFAULT_SETTINGS, 'poids', false)).toEqual({ disabledPages: ['hydratation', 'tricot', 'plantes', 'poids'] })
     expect(toggleNotification(DEFAULT_SETTINGS, 'courses', false)).toEqual({ mutedNotifications: ['courses'] })
     expect(toggleNotification({ ...DEFAULT_SETTINGS, mutedNotifications: ['courses'] }, 'courses', true)).toEqual({ mutedNotifications: [] })
   })
@@ -31,8 +31,8 @@ describe('réglages', () => {
   it('liste les notifications qu’on recevra', () => {
     expect(activeTopics(DEFAULT_SETTINGS).map((t) => t.key)).toEqual(['courses'])
     const all = activeTopics({ ...DEFAULT_SETTINGS, disabledPages: [] })
-    expect(describeTopics(all)).toBe('listes de courses modifiées par l’autre et rappels pour boire')
-    expect(activeTopics({ ...DEFAULT_SETTINGS, disabledPages: [], mutedNotifications: ['courses'] }).map((t) => t.key)).toEqual(['hydratation'])
+    expect(describeTopics(all)).toBe('listes de courses modifiées par l’autre, rappels pour boire et plantes à arroser')
+    expect(activeTopics({ ...DEFAULT_SETTINGS, disabledPages: [], mutedNotifications: ['courses'] }).map((t) => t.key)).toEqual(['hydratation', 'plantes'])
     expect(describeTopics([])).toBe('')
   })
 

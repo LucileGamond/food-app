@@ -221,6 +221,46 @@ isOneToOne: false
       referencedColumns: ["id"]
     }
                   ]
+                },"plant_photos": {
+                  Row: {
+                    "created_at": string,"id": string,"plant_id": string,"position": number,"storage_path": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "created_at"?: string,"id"?: string,"plant_id": string,"position": number,"storage_path": string
+                  }
+                  Update: {
+                    "created_at"?: string,"id"?: string,"plant_id"?: string,"position"?: number,"storage_path"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "plant_photos_plant_id_fkey"
+      columns: ["plant_id"]
+isOneToOne: false
+      referencedRelation: "plants"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"plants": {
+                  Row: {
+                    "archived_at": string | null,"created_at": string,"created_by": string | null,"id": string,"location": string | null,"name": string,"notes": string | null,"planted_height_cm": number | null,"planted_on": string | null,"pot_diameter_cm": number | null,"species": string | null,"updated_at": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "archived_at"?: string | null,"created_at"?: string,"created_by"?: string | null,"id"?: string,"location"?: string | null,"name": string,"notes"?: string | null,"planted_height_cm"?: number | null,"planted_on"?: string | null,"pot_diameter_cm"?: number | null,"species"?: string | null,"updated_at"?: string
+                  }
+                  Update: {
+                    "archived_at"?: string | null,"created_at"?: string,"created_by"?: string | null,"id"?: string,"location"?: string | null,"name"?: string,"notes"?: string | null,"planted_height_cm"?: number | null,"planted_on"?: string | null,"pot_diameter_cm"?: number | null,"species"?: string | null,"updated_at"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "plants_created_by_fkey"
+      columns: ["created_by"]
+isOneToOne: false
+      referencedRelation: "profiles"
+      referencedColumns: ["id"]
+    }
+                  ]
                 },"profiles": {
                   Row: {
                     "created_at": string,"display_name": string,"id": string
@@ -415,14 +455,14 @@ isOneToOne: false
                   ]
                 },"user_settings": {
                   Row: {
-                    "disabled_pages": (string)[],"hydration_goal_ml": number,"hydration_reminded_at": string | null,"muted_notifications": (string)[],"profile_id": string,"updated_at": string
+                    "disabled_pages": (string)[],"hydration_goal_ml": number,"hydration_reminded_at": string | null,"muted_notifications": (string)[],"plants_reminded_on": string | null,"profile_id": string,"updated_at": string
                   }
                   ComputedFields: never
                   Insert: {
-                    "disabled_pages"?: (string)[],"hydration_goal_ml"?: number,"hydration_reminded_at"?: string | null,"muted_notifications"?: (string)[],"profile_id"?: string,"updated_at"?: string
+                    "disabled_pages"?: (string)[],"hydration_goal_ml"?: number,"hydration_reminded_at"?: string | null,"muted_notifications"?: (string)[],"plants_reminded_on"?: string | null,"profile_id"?: string,"updated_at"?: string
                   }
                   Update: {
-                    "disabled_pages"?: (string)[],"hydration_goal_ml"?: number,"hydration_reminded_at"?: string | null,"muted_notifications"?: (string)[],"profile_id"?: string,"updated_at"?: string
+                    "disabled_pages"?: (string)[],"hydration_goal_ml"?: number,"hydration_reminded_at"?: string | null,"muted_notifications"?: (string)[],"plants_reminded_on"?: string | null,"profile_id"?: string,"updated_at"?: string
                   }
                   Relationships: [
                     {
@@ -450,6 +490,58 @@ isOneToOne: true
       columns: ["profile_id"]
 isOneToOne: false
       referencedRelation: "profiles"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"watering_events": {
+                  Row: {
+                    "amount_ml": number | null,"created_at": string,"done_by": string | null,"id": string,"note": string | null,"plant_id": string,"rule_id": string | null,"scheduled_on": string | null,"watered_at": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "amount_ml"?: number | null,"created_at"?: string,"done_by"?: string | null,"id"?: string,"note"?: string | null,"plant_id": string,"rule_id"?: string | null,"scheduled_on"?: string | null,"watered_at"?: string
+                  }
+                  Update: {
+                    "amount_ml"?: number | null,"created_at"?: string,"done_by"?: string | null,"id"?: string,"note"?: string | null,"plant_id"?: string,"rule_id"?: string | null,"scheduled_on"?: string | null,"watered_at"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "watering_events_done_by_fkey"
+      columns: ["done_by"]
+isOneToOne: false
+      referencedRelation: "profiles"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "watering_events_plant_id_fkey"
+      columns: ["plant_id"]
+isOneToOne: false
+      referencedRelation: "plants"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "watering_events_rule_id_fkey"
+      columns: ["rule_id"]
+isOneToOne: false
+      referencedRelation: "watering_rules"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"watering_rules": {
+                  Row: {
+                    "amount_ml": number,"created_at": string,"first_watering_on": string,"id": string,"interval_count": number,"interval_unit": Database["public"]['Enums']["watering_interval"],"months": (number)[],"note": string | null,"plant_id": string,"updated_at": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "amount_ml": number,"created_at"?: string,"first_watering_on": string,"id"?: string,"interval_count": number,"interval_unit": Database["public"]['Enums']["watering_interval"],"months": (number)[],"note"?: string | null,"plant_id": string,"updated_at"?: string
+                  }
+                  Update: {
+                    "amount_ml"?: number,"created_at"?: string,"first_watering_on"?: string,"id"?: string,"interval_count"?: number,"interval_unit"?: Database["public"]['Enums']["watering_interval"],"months"?: (number)[],"note"?: string | null,"plant_id"?: string,"updated_at"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "watering_rules_plant_id_fkey"
+      columns: ["plant_id"]
+isOneToOne: false
+      referencedRelation: "plants"
       referencedColumns: ["id"]
     }
                   ]
@@ -493,6 +585,11 @@ isOneToOne: false
               "drunk_ml": number,"goal_ml": number,"profile_id": string
             }[]
                            },
+"claim_plant_reminders":
+{ Args: { "p_now"?: string }; Returns: {
+              "profile_id": string
+            }[]
+                           },
 "create_food_period":
 { Args: { "p_end": string,"p_profile_id": string,"p_start": string }; Returns: string
                            },
@@ -521,11 +618,19 @@ isOneToOne: false
 "linkable_recipe":
 { Args: { "p_linked_recipe_id": string,"p_recipe_id": string }; Returns: string
                            },
+"months_are_valid":
+{ Args: { "p_months": (number)[] }; Returns: boolean
+                           },
 "normalize_unit":
 { Args: { "p_unit": string }; Returns: string
                            },
 "plan_inbox_item":
 { Args: { "p_item_id": string,"p_meal_date": string,"p_people": (string)[],"p_slot": Database["public"]['Enums']["meal_slot"] }; Returns: string
+                           },
+"plant_reminders_due":
+{ Args: { "p_now"?: string }; Returns: {
+              "profile_id": string
+            }[]
                            },
 "recipe_history":
 { Args: { "p_recipe_id"?: string,"p_today": string }; Returns: {
@@ -538,8 +643,14 @@ isOneToOne: false
 "referenced_files":
 { Args: { "p_bucket": string }; Returns: string[]
                            },
+"replace_watering_rules":
+{ Args: { "p_plant_id": string,"p_rules": Json }; Returns: undefined
+                           },
 "resolve_inbox_item":
 { Args: { "p_item_id": string,"p_recipe_id": string }; Returns: (string)[]
+                           },
+"save_plant":
+{ Args: { "p_plant": Json,"p_plant_id"?: string,"p_rules": Json }; Returns: string
                            },
 "save_push_subscription":
 { Args: { "p_auth": string,"p_endpoint": string,"p_p256dh": string,"p_user_agent"?: string }; Returns: string
@@ -573,7 +684,7 @@ isOneToOne: false
                            }
           }
           Enums: {
-            "food_meal": "BREAKFAST"|"LUNCH"|"SNACK"|"APERITIF"|"DINNER"|"POOL"|"SPORT","meal_slot": "LUNCH"|"DINNER","shopping_aisle": "FRUITS_LEGUMES"|"BOULANGERIE"|"BOUCHERIE_POISSON"|"CREMERIE"|"EPICERIE_SALEE"|"EPICERIE_SUCREE"|"SURGELES"|"BOISSONS"|"HYGIENE_MAISON"|"AUTRE","shopping_event_kind": "ADDED"|"CHECKED"|"UNCHECKED"|"UPDATED"|"REMOVED"
+            "food_meal": "BREAKFAST"|"LUNCH"|"SNACK"|"APERITIF"|"DINNER"|"POOL"|"SPORT","meal_slot": "LUNCH"|"DINNER","shopping_aisle": "FRUITS_LEGUMES"|"BOULANGERIE"|"BOUCHERIE_POISSON"|"CREMERIE"|"EPICERIE_SALEE"|"EPICERIE_SUCREE"|"SURGELES"|"BOISSONS"|"HYGIENE_MAISON"|"AUTRE","shopping_event_kind": "ADDED"|"CHECKED"|"UNCHECKED"|"UPDATED"|"REMOVED","watering_interval": "day"|"week"|"month"
           }
           CompositeTypes: {
             [_ in never]: never
@@ -693,7 +804,7 @@ export const Constants = {
           }
         },"public": {
           Enums: {
-            "food_meal": ["BREAKFAST", "LUNCH", "SNACK", "APERITIF", "DINNER", "POOL", "SPORT"],"meal_slot": ["LUNCH", "DINNER"],"shopping_aisle": ["FRUITS_LEGUMES", "BOULANGERIE", "BOUCHERIE_POISSON", "CREMERIE", "EPICERIE_SALEE", "EPICERIE_SUCREE", "SURGELES", "BOISSONS", "HYGIENE_MAISON", "AUTRE"],"shopping_event_kind": ["ADDED", "CHECKED", "UNCHECKED", "UPDATED", "REMOVED"]
+            "food_meal": ["BREAKFAST", "LUNCH", "SNACK", "APERITIF", "DINNER", "POOL", "SPORT"],"meal_slot": ["LUNCH", "DINNER"],"shopping_aisle": ["FRUITS_LEGUMES", "BOULANGERIE", "BOUCHERIE_POISSON", "CREMERIE", "EPICERIE_SALEE", "EPICERIE_SUCREE", "SURGELES", "BOISSONS", "HYGIENE_MAISON", "AUTRE"],"shopping_event_kind": ["ADDED", "CHECKED", "UNCHECKED", "UPDATED", "REMOVED"],"watering_interval": ["day", "week", "month"]
           }
         }
 } as const

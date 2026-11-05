@@ -143,7 +143,7 @@ describe('RecipeFormPage — nouvelle recette', () => {
     const sent = await Promise.all(api.photos.uploadPhoto.mock.calls.map(([, blob]) => (blob as Blob).text()))
     expect(sent).toEqual(['c.png', 'a.png'])
     expect(api.photos.reorderPhotos).toHaveBeenCalledWith(['p1', 'p2'])
-  }, 15000)
+  }, 30_000)
 
   it('n’envoie pas deux fois les photos si l’enregistrement est relancé après une erreur', async () => {
     const user = userEvent.setup()

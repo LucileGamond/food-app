@@ -30,6 +30,10 @@ const SettingsPage = lazy(() => import('@/pages/SettingsPage').then((m) => ({ de
 const KnittingPage = lazy(() => import('@/modules/tricot/pages/KnittingPage').then((m) => ({ default: m.KnittingPage })))
 const KnittingImportPage = lazy(() => import('@/modules/tricot/pages/KnittingImportPage').then((m) => ({ default: m.KnittingImportPage })))
 const KnittingProjectPage = lazy(() => import('@/modules/tricot/pages/KnittingProjectPage').then((m) => ({ default: m.KnittingProjectPage })))
+// Module Plantes (indépendant de la cuisine, partagé par le foyer).
+const PlantsPage = lazy(() => import('@/modules/plantes/pages/PlantsPage').then((m) => ({ default: m.PlantsPage })))
+const PlantFormPage = lazy(() => import('@/modules/plantes/pages/PlantFormPage').then((m) => ({ default: m.PlantFormPage })))
+const PlantDetailPage = lazy(() => import('@/modules/plantes/pages/PlantDetailPage').then((m) => ({ default: m.PlantDetailPage })))
 const RecipeFormPage = lazy(() => import('@/pages/RecipeFormPage').then((m) => ({ default: m.RecipeFormPage })))
 
 export function App({ api, auth }: { api: Api; auth: AuthClient }) {
@@ -78,6 +82,10 @@ export function App({ api, auth }: { api: Api; auth: AuthClient }) {
                 <Route path="/tricot" element={<KnittingPage />} />
                 <Route path="/tricot/nouveau" element={<KnittingImportPage />} />
                 <Route path="/tricot/:id" element={<KnittingProjectPage />} />
+                <Route path="/plantes" element={<PlantsPage />} />
+                <Route path="/plantes/nouvelle" element={<PlantFormPage />} />
+                <Route path="/plantes/:id" element={<PlantDetailPage />} />
+                <Route path="/plantes/:id/modifier" element={<PlantFormPage />} />
               </Route>
             </Route>
           </Route>

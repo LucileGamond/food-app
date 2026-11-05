@@ -1,5 +1,4 @@
 import { act, renderHook, waitFor } from '@testing-library/react'
-import type { Api } from '@/api'
 import { fakeApi } from '@/test/fakes'
 import { SIGNED_URLS_REFRESH_MS, useSignedUrls } from './useSignedUrls'
 
@@ -16,7 +15,7 @@ describe('useSignedUrls', () => {
     const api = fakeApi()
     let version = 0
     api.photos.signedUrls.mockImplementation(async (paths: string[]) => Object.fromEntries(paths.map((p) => [p, `https://cdn.test/${p}?v${++version}`])))
-    const { result } = renderHook(() => useSignedUrls(api as unknown as Api, ['r/a.jpg']))
+    const { result } = renderHook(() => useSignedUrls(api.photos.signedUrls, ['r/a.jpg']))
     await flush()
     expect(result.current['r/a.jpg']).toBe('https://cdn.test/r/a.jpg?v1')
 
@@ -45,7 +44,7 @@ describe('useSignedUrls', () => {
 
   it('ne demande rien sans photo, et laisse les photos vides en cas d’erreur', async () => {
     const api = fakeApi()
-    const { result, rerender } = renderHook(({ paths }) => useSignedUrls(api as unknown as Api, paths), { initialProps: { paths: [] as string[] } })
+    const { result, rerender } = renderHook(({ paths }) => useSignedUrls(api.photos.signedUrls, paths), { initialProps: { paths: [] as string[] } })
     expect(result.current).toEqual({})
     expect(api.photos.signedUrls).not.toHaveBeenCalled()
     api.photos.signedUrls.mockRejectedValueOnce(new Error('hors ligne'))

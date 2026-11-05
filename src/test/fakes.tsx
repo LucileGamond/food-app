@@ -20,6 +20,8 @@ import type { ShoppingItem, ShoppingItemInput, ShoppingList } from '@/lib/shoppi
 import type { TidyLine } from '@/lib/shoppingFromPlan'
 import type { WeightEntry } from '@/lib/weights'
 import type { WaterIntake } from '@/lib/hydration'
+import type { WaterInput } from '@/modules/plantes/api'
+import type { Plant, PlantPhoto, WateringEvent } from '@/modules/plantes/lib/plants'
 import type { KnitProject, KnitProjectSummary, ReadPattern } from '@/modules/tricot/lib/pattern'
 import { DEFAULT_SETTINGS, type UserSettings } from '@/lib/settings'
 
@@ -164,6 +166,30 @@ export function fakeApi(): FakeApi {
       saveProgress: vi.fn(async () => undefined),
       deleteProject: vi.fn(async () => undefined),
       pdfUrl: vi.fn(async (path: string) => `https://cdn.test/${path}`),
+    },
+    plants: {
+      listPlants: vi.fn(async () => [] as Plant[]),
+      getPlant: vi.fn(async () => null as Plant | null),
+      savePlant: vi.fn(async () => 'new-plant'),
+      setArchived: vi.fn(async () => undefined),
+      deletePlant: vi.fn(async () => undefined),
+      listEvents: vi.fn(async () => [] as WateringEvent[]),
+      water: vi.fn(async (input: WaterInput): Promise<WateringEvent> => ({
+        id: `w-${Math.random()}`,
+        plant_id: input.plantId,
+        rule_id: input.ruleId,
+        scheduled_on: input.scheduledOn,
+        watered_at: new Date().toISOString(),
+        amount_ml: input.amountMl,
+        done_by: 'u-lucile',
+        note: null,
+      })),
+      undoWatering: vi.fn(async () => undefined),
+      uploadPhoto: vi.fn(async (_plantId: string, _file: Blob): Promise<PlantPhoto> => ({ id: `p-${Math.random()}`, storage_path: 'plant-1/photo.jpg', position: 0 })),
+      deletePhoto: vi.fn(async () => undefined),
+      reorderPhotos: vi.fn(async () => undefined),
+      signedUrls: vi.fn(async (paths: string[]) => Object.fromEntries(paths.map((p) => [p, `https://cdn.test/${p}`]))),
+      subscribe: vi.fn(() => () => undefined),
     },
     food: {
       listPlan: vi.fn(async () => [] as PlanItem[]),

@@ -86,7 +86,7 @@ export function RecipesPage({ today: fixedToday }: { today?: IsoDate }) {
   const origins = useMemo(() => collectOrigins(recipes ?? []), [recipes])
   const visible = useMemo(() => applyListOptions(recipes ?? [], options, today), [recipes, options, today])
   const photoPaths = useMemo(() => (recipes ?? []).flatMap((r) => (r.mainPhotoPath ? [r.mainPhotoPath] : [])), [recipes])
-  const urls = useSignedUrls(api, photoPaths)
+  const urls = useSignedUrls(api.photos.signedUrls, photoPaths)
   const filtered = options.query !== '' || options.tag !== null || options.origin !== null || options.filters.length > 0
 
   const [linking, setLinking] = useState(false)

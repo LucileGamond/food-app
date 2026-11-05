@@ -1,9 +1,9 @@
 // Ménage de nuit des fichiers que plus rien n'utilise : photos temporaires (pending/) d'un élément planifié puis
 // remplacé, d'un repas supprimé ou d'une recette enregistrée ; photos d'une recette supprimée dont l'effacement a
-// échoué ; PDF d'un projet de tricot ; envois interrompus.
+// échoué ; PDF d'un projet de tricot ; photos d'une plante supprimée ; envois interrompus.
 
 /** Buckets nettoyés. */
-export const CLEANED_BUCKETS = ['recipe-photos', 'knit-patterns'] as const
+export const CLEANED_BUCKETS = ['recipe-photos', 'knit-patterns', 'plant-photos'] as const
 export type CleanedBucket = (typeof CLEANED_BUCKETS)[number]
 
 export interface StoredFile {

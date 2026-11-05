@@ -1,4 +1,5 @@
-// Edge Function Supabase : notifications Web Push des modifications de listes de courses et rappels d'hydratation.
+// Edge Function Supabase : notifications Web Push des modifications de listes de courses, rappels d'hydratation
+// et d'arrosage des plantes.
 // Appelée par pg_cron (voir les migrations shopping_notifications et settings_hydration). Secrets :
 //   NOTIFY_SECRET  secret partagé avec la tâche planifiée (en-tête x-cron-secret)
 //   VAPID_KEYS     paire de clés VAPID au format JWK : {"publicKey": {...}, "privateKey": {...}}
@@ -7,6 +8,7 @@
 import { ApplicationServer, importVapidKeys, PushMessageError } from '@negrel/webpush'
 import { createClient } from '@supabase/supabase-js'
 import { createHandler, type DeviceSubscription } from './handler.ts'
+import { toCivilDate } from '../_shared/watering/civil-date.ts'
 import type { HydrationReminder } from './hydration.ts'
 import type { PushPayload, ShoppingEvent } from './message.ts'
 
@@ -32,6 +34,12 @@ async function send(subscription: DeviceSubscription, payload: PushPayload) {
     console.log(JSON.stringify({ message: 'envoi impossible', error: String(error) }))
     return 'failed' as const
   }
+}
+
+interface PlantRow {
+  name: string
+  rules: { id: string; months: number[]; first_watering_on: string; interval_count: number; interval_unit: 'day' | 'week' | 'month'; amount_ml: number }[]
+  events: { id: string; scheduled_on: string | null; watered_at: string }[]
 }
 
 type EventRow = Omit<ShoppingEvent, 'list_name' | 'actor_name'> & {
@@ -103,6 +111,33 @@ Deno.serve(
       const { data, error } = await db.rpc('claim_hydration_reminders')
       if (error) throw error
       return data as HydrationReminder[]
+    },
+    async loadActivePlants() {
+      // Arrosages de la dernière année et demie : assez pour retrouver l'échéance en cours de chaque règle.
+      const since = new Date(Date.now() - 400 * 86_400_000).toISOString()
+      const { data, error } = await db
+        .from('plants')
+        .select('name, rules:watering_rules(id, months, first_watering_on, interval_count, interval_unit, amount_ml), events:watering_events(id, scheduled_on, watered_at)')
+        .is('archived_at', null)
+        .gte('events.watered_at', since)
+      if (error) throw error
+      return (data as PlantRow[]).map((plant) => ({
+        name: plant.name,
+        rules: plant.rules.map((r) => ({
+          id: r.id,
+          months: r.months,
+          firstWateringOn: r.first_watering_on,
+          intervalCount: r.interval_count,
+          intervalUnit: r.interval_unit,
+          amountMl: r.amount_ml,
+        })),
+        events: plant.events.map((e) => ({ id: e.id, scheduledOn: e.scheduled_on, wateredOn: toCivilDate(e.watered_at, 'Europe/Paris') })),
+      }))
+    },
+    async claimPlantReminders() {
+      const { data, error } = await db.rpc('claim_plant_reminders')
+      if (error) throw error
+      return (data as { profile_id: string }[]).map((row) => row.profile_id)
     },
     send,
     async deleteSubscriptions(ids) {

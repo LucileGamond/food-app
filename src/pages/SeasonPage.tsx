@@ -49,7 +49,7 @@ export function SeasonPage({ today: fixedToday }: { today?: IsoDate }) {
   const shown = chosen ? uses(chosen) : inSeason
   // Toutes les photos d'un coup : changer de mois ou de produit ne les redemande pas.
   const photoPaths = useMemo(() => (recipes ?? []).flatMap((r) => (r.mainPhotoPath ? [r.mainPhotoPath] : [])), [recipes])
-  const urls = useSignedUrls(api, photoPaths)
+  const urls = useSignedUrls(api.photos.signedUrls, photoPaths)
 
   const setMonth = (value: number) => {
     const next = ((value - 1 + 12) % 12) + 1

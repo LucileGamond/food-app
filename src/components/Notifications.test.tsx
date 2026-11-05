@@ -57,14 +57,14 @@ describe('notifications de l’application', () => {
     api.settings.getSettings.mockResolvedValue({ disabledPages: [], mutedNotifications: [], hydrationGoalMl: 1500 })
     const { unmount } = renderLayout(api)
     expect(await screen.findByRole('region', { name: 'Activer les notifications' })).toHaveTextContent(
-      'Tu seras prévenu(e) : listes de courses modifiées par l’autre et rappels pour boire.',
+      'Tu seras prévenu(e) : listes de courses modifiées par l’autre, rappels pour boire et plantes à arroser.',
     )
     await user.click(await bell())
-    expect(screen.getByRole('dialog')).toHaveTextContent('listes de courses modifiées par l’autre et rappels pour boire (au choix dans les réglages)')
+    expect(screen.getByRole('dialog')).toHaveTextContent('listes de courses modifiées par l’autre, rappels pour boire et plantes à arroser (au choix dans les réglages)')
     unmount()
 
     const none = fakeApi()
-    none.settings.getSettings.mockResolvedValue({ disabledPages: ['hydratation', 'tricot'], mutedNotifications: ['courses'], hydrationGoalMl: 1500 })
+    none.settings.getSettings.mockResolvedValue({ disabledPages: ['hydratation', 'tricot', 'plantes'], mutedNotifications: ['courses'], hydrationGoalMl: 1500 })
     renderLayout(none)
     await user.click(await bell())
     expect(screen.getByRole('dialog')).toHaveTextContent('Aucune notification n’est choisie dans les réglages.')

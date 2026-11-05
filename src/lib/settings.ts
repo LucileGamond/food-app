@@ -1,7 +1,7 @@
 // Réglages de chacun : pages affichées, notifications reçues, objectif d'hydratation.
 
-export type PageKey = 'planning' | 'recettes' | 'plan' | 'courses' | 'poids' | 'hydratation' | 'tricot'
-export type NotificationTopic = 'courses' | 'hydratation'
+export type PageKey = 'planning' | 'recettes' | 'plan' | 'courses' | 'poids' | 'hydratation' | 'tricot' | 'plantes'
+export type NotificationTopic = 'courses' | 'hydratation' | 'plantes'
 
 export interface PageInfo {
   key: PageKey
@@ -20,11 +20,13 @@ export const PAGES: PageInfo[] = [
   { key: 'poids', to: '/poids', label: 'Poids', description: 'Suivi du poids' },
   { key: 'hydratation', to: '/hydratation', label: 'Eau', description: 'Suivi d’hydratation' },
   { key: 'tricot', to: '/tricot', label: 'Tricot', description: 'Patrons découpés en étapes, compteur de rangs' },
+  { key: 'plantes', to: '/plantes', label: 'Plantes', description: 'Plantes de la maison et arrosages, partagés' },
 ]
 
 export const NOTIFICATION_TOPICS: { key: NotificationTopic; label: string; description: string; summary: string }[] = [
   { key: 'courses', label: 'Courses', description: 'Quand l’autre modifie une liste de courses', summary: 'listes de courses modifiées par l’autre' },
   { key: 'hydratation', label: 'Eau', description: 'Rappel après 4 h sans boire (9 h – 23 h), jusqu’à l’objectif', summary: 'rappels pour boire' },
+  { key: 'plantes', label: 'Plantes', description: 'Le matin à 8 h, les plantes à arroser dans la journée', summary: 'plantes à arroser' },
 ]
 
 /** Notifications qu'on recevra : page affichée et sujet non coupé. */
@@ -45,7 +47,7 @@ export interface UserSettings {
 }
 
 /** Valeurs tant que la personne n'a rien enregistré (identiques à celles de la base). */
-export const DEFAULT_SETTINGS: UserSettings = { disabledPages: ['hydratation', 'tricot'], mutedNotifications: [], hydrationGoalMl: 1500 }
+export const DEFAULT_SETTINGS: UserSettings = { disabledPages: ['hydratation', 'tricot', 'plantes'], mutedNotifications: [], hydrationGoalMl: 1500 }
 
 export const MIN_GOAL_ML = 500
 export const MAX_GOAL_ML = 5000

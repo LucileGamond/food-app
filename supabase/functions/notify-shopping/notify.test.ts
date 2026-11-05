@@ -1,6 +1,7 @@
-import { createHandler, notifyHydration, notifyPending, parisHour, sameSecret, type Deps, type DeviceSubscription } from './handler.ts'
+import { createHandler, notifyHydration, notifyPending, notifyPlants, parisHour, sameSecret, type Deps, type DeviceSubscription } from './handler.ts'
 import { CLEANUP_MIN_AGE_MS, orphanFiles, type CleanedBucket, type StoredFile } from './cleanup.ts'
 import { buildHydrationMessage, liters, type HydrationReminder } from './hydration.ts'
+import { buildPlantsMessage, duePlants, type PlantData } from './plants.ts'
 import { buildShoppingMessage, joinFr, QUIET_MS, readyGroups, shorten, type ShoppingEvent, type ShoppingEventKind } from './message.ts'
 
 const NOW = Date.parse('2026-10-25T12:00:00Z')
@@ -73,6 +74,8 @@ function setup(
   subscriptions: Record<string, DeviceSubscription[]> = {},
   reserved = new Set<number>(),
   reminders: HydrationReminder[] = [],
+  plants: PlantData[] = [],
+  plantRecipients: string[] = [],
 ) {
   const deps = {
     secret: 'secret-cron',
@@ -86,6 +89,8 @@ function setup(
     purgeOldEvents: vi.fn(async () => undefined),
     loadProfileSubscriptions: vi.fn(async (profile: string) => subscriptions[profile] ?? []),
     claimHydrationReminders: vi.fn(async () => reminders),
+    loadActivePlants: vi.fn(async () => plants),
+    claimPlantReminders: vi.fn(async () => plantRecipients),
     listFiles: vi.fn(async (_bucket: CleanedBucket): Promise<StoredFile[]> => []),
     referencedFiles: vi.fn(async (_bucket: CleanedBucket) => [] as string[]),
     removeFiles: vi.fn(async (_bucket: CleanedBucket, _paths: string[]) => undefined),
@@ -185,6 +190,56 @@ describe('rappels d’hydratation', () => {
   })
 })
 
+// Samedi 24 octobre ; la règle hebdomadaire tombe les jeudis (22, 29 oct.).
+const weekly = { id: 'r', months: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12], firstWateringOn: '2026-10-01', intervalCount: 1, intervalUnit: 'week' as const, amountMl: 250 }
+const PLANTS: PlantData[] = [
+  { name: 'Monstera', rules: [weekly], events: [] }, // en retard depuis le 22
+  { name: 'Basilic', rules: [{ ...weekly, firstWateringOn: '2026-10-24', intervalUnit: 'day', amountMl: 1500 }], events: [] },
+  { name: 'Cactus', rules: [weekly], events: [{ id: 'e', scheduledOn: '2026-10-22', wateredOn: '2026-10-22' }] },
+]
+const MORNING = Date.parse('2026-10-24T06:30:00Z') // 8 h 30 à Paris
+
+describe('rappels d’arrosage', () => {
+  it('plantes à arroser, les plus en retard d’abord', () => {
+    expect(duePlants(PLANTS, '2026-10-24')).toEqual([
+      { name: 'Monstera', amountMl: 250, overdueDays: 2 },
+      { name: 'Basilic', amountMl: 1500, overdueDays: 0 },
+    ])
+  })
+
+  it('résume les plantes dans la notification', () => {
+    expect(buildPlantsMessage(duePlants(PLANTS, '2026-10-24'), '2026-10-24')).toEqual({
+      title: '2 plantes à arroser 🪴',
+      body: 'Monstera (250 ml), Basilic (1,5 L)',
+      url: '/plantes',
+      tag: 'plants-2026-10-24',
+    })
+    const many = ['A', 'B', 'C', 'D', 'E', 'F'].map((name) => ({ name, amountMl: 100, overdueDays: 0 }))
+    expect(buildPlantsMessage(many, '2026-10-24').body).toBe('A (100 ml), B (100 ml), C (100 ml), D (100 ml) et 2 autres')
+    expect(buildPlantsMessage(many.slice(0, 5), '2026-10-24').body).toMatch(/ et 1 autre$/)
+    expect(buildPlantsMessage(many.slice(0, 1), '2026-10-24').title).toBe('1 plante à arroser 🪴')
+  })
+
+  it('envoie le même résumé aux personnes réservées, sur leurs appareils', async () => {
+    const deps = { ...setup([], { lucile: [device('tel'), device('pc')], eric: [device('tel-eric')] }, new Set(), [], PLANTS, ['lucile', 'eric']), now: () => MORNING }
+    expect(await notifyPlants(deps)).toEqual({ groups: 2, sent: 3, failed: 0, removed: 0 })
+    expect(deps.send.mock.calls.map(([sub, payload]) => `${sub.id} ${payload.tag}`)).toEqual(['tel plants-2026-10-24', 'pc plants-2026-10-24', 'tel-eric plants-2026-10-24'])
+  })
+
+  it('rien à arroser : personne n’est réservé (une plante à arroser plus tard dans la journée sera rappelée)', async () => {
+    const deps = { ...setup([], { lucile: [device('tel')] }, new Set(), [], [PLANTS[2]!], ['lucile']), now: () => MORNING }
+    expect(await notifyPlants(deps)).toEqual({ groups: 0, sent: 0, failed: 0, removed: 0 })
+    expect(deps.claimPlantReminders).not.toHaveBeenCalled()
+  })
+
+  it('tâche « plants » du handler', async () => {
+    const deps = { ...setup([], { lucile: [device('tel')] }, new Set(), [], PLANTS, ['lucile']), now: () => MORNING }
+    const request = new Request('https://fn.local/notify-shopping', { method: 'POST', headers: { 'x-cron-secret': 'secret-cron' }, body: JSON.stringify({ job: 'plants' }) })
+    expect(await (await createHandler(deps)(request)).json()).toEqual({ groups: 1, sent: 1, failed: 0, removed: 0 })
+    expect(deps.loadPendingEvents).not.toHaveBeenCalled()
+  })
+})
+
 describe('nuit', () => {
   it('pas de notification de courses entre 22 h et 8 h (heure de Paris) : les modifications attendent', async () => {
     expect(parisHour(Date.parse('2026-11-10T21:30:00Z'))).toBe(22)
@@ -209,21 +264,25 @@ describe('ménage des fichiers inutilisés', () => {
 
   it('supprime par paquets, photos et PDF, et rend compte, sur demande de la tâche de nuit', async () => {
     const deps = setup([])
-    deps.listFiles.mockImplementation(async (bucket) =>
-      bucket === 'recipe-photos'
-        ? Array.from({ length: 150 }, (_, i) => file(i < 100 ? `pending/${i}.jpg` : `r1/${i}.jpg`, 48))
-        : [file('u1/a.pdf', 48), file('u1/b.pdf', 48)],
-    )
-    deps.referencedFiles.mockImplementation(async (bucket) => (bucket === 'recipe-photos' ? ['pending/0.jpg', 'r1/100.jpg'] : ['u1/a.pdf']))
+    const files: Record<CleanedBucket, StoredFile[]> = {
+      'recipe-photos': Array.from({ length: 150 }, (_, i) => file(i < 100 ? `pending/${i}.jpg` : `r1/${i}.jpg`, 48)),
+      'knit-patterns': [file('u1/a.pdf', 48), file('u1/b.pdf', 48)],
+      'plant-photos': [file('p1/a.jpg', 48), file('p2/b.jpg', 48)],
+    }
+    const used: Record<CleanedBucket, string[]> = { 'recipe-photos': ['pending/0.jpg', 'r1/100.jpg'], 'knit-patterns': ['u1/a.pdf'], 'plant-photos': ['p1/a.jpg'] }
+    deps.listFiles.mockImplementation(async (bucket) => files[bucket])
+    deps.referencedFiles.mockImplementation(async (bucket) => used[bucket])
     const response = await createHandler(deps)(post('secret-cron', { job: 'cleanup' }))
-    expect(await response.json()).toEqual({ removed: 149 })
+    expect(await response.json()).toEqual({ removed: 150 })
     expect(deps.removeFiles.mock.calls.map(([bucket, paths]) => [bucket, paths.length])).toEqual([
       ['recipe-photos', 100],
       ['recipe-photos', 48],
       ['knit-patterns', 1],
+      ['plant-photos', 1],
     ])
-    expect(deps.removeFiles).toHaveBeenLastCalledWith('knit-patterns', ['u1/b.pdf'])
-    expect(deps.log).toHaveBeenCalledWith('fichiers inutilisés supprimés', { removed: 149 })
+    expect(deps.removeFiles).toHaveBeenCalledWith('knit-patterns', ['u1/b.pdf'])
+    expect(deps.removeFiles).toHaveBeenLastCalledWith('plant-photos', ['p2/b.jpg'])
+    expect(deps.log).toHaveBeenCalledWith('fichiers inutilisés supprimés', { removed: 150 })
     expect(deps.loadPendingEvents).not.toHaveBeenCalled()
 
     const nothing = setup([])

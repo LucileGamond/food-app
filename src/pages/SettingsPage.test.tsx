@@ -28,7 +28,7 @@ describe('SettingsPage', () => {
     expect(notification).toHaveAttribute('aria-disabled', 'true')
 
     await user.click(page!)
-    expect(api.settings.saveSettings).toHaveBeenCalledWith({ ...DEFAULT_SETTINGS, disabledPages: ['tricot'] })
+    expect(api.settings.saveSettings).toHaveBeenCalledWith({ ...DEFAULT_SETTINGS, disabledPages: ['tricot', 'plantes'] })
     expect(screen.getByRole('region', { name: 'Eau' })).toBeInTheDocument()
     expect(checkboxes('Eau')[1]).toBeChecked()
   })
@@ -38,7 +38,7 @@ describe('SettingsPage', () => {
     const { api } = renderPage()
     await screen.findAllByRole('checkbox', { name: 'Courses' })
     await user.click(checkboxes('Courses')[0]!)
-    expect(api.settings.saveSettings).toHaveBeenLastCalledWith({ ...DEFAULT_SETTINGS, disabledPages: ['hydratation', 'tricot', 'courses'] })
+    expect(api.settings.saveSettings).toHaveBeenLastCalledWith({ ...DEFAULT_SETTINGS, disabledPages: ['hydratation', 'tricot', 'plantes', 'courses'] })
     expect(checkboxes('Courses')[1]).toHaveAttribute('aria-disabled', 'true')
 
     await user.click(checkboxes('Courses')[0]!)

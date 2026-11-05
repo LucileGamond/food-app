@@ -129,9 +129,14 @@
     }
 }
 /* Accent unique de l'application + fond de page légèrement grisé
-   + couleurs des séries de graphiques (palette validée daltonisme, clair et sombre) */
+   + couleurs des séries de graphiques (palette validée daltonisme, clair et sombre)
+   + module Plantes : fond doux de l'accent, couleur « eau » de l'arrosage, couleur d'alerte des retards */
 :root {
     --brand: oklch(0.5 0.11 163);
+    --brand-soft: oklch(0.96 0.03 163);
+    --water: oklch(0.55 0.13 240);
+    --water-soft: oklch(0.96 0.025 240);
+    --warning: oklch(0.6 0.16 55);
     --page: oklch(0.985 0 0);
     --series-1: #2a78d6;
     --series-2: #eb6834;
@@ -139,6 +144,10 @@
 }
 .dark {
     --brand: oklch(0.72 0.13 163);
+    --brand-soft: oklch(0.3 0.05 163);
+    --water: oklch(0.74 0.12 240);
+    --water-soft: oklch(0.3 0.05 240);
+    --warning: oklch(0.78 0.14 65);
     --page: oklch(0.145 0 0);
     --series-1: #3987e5;
     --series-2: #d95926;
@@ -146,6 +155,10 @@
 }
 @theme inline {
     --color-brand: var(--brand);
+    --color-brand-soft: var(--brand-soft);
+    --color-water: var(--water);
+    --color-water-soft: var(--water-soft);
+    --color-warning: var(--warning);
     --color-page: var(--page);
 }
 @layer base {
