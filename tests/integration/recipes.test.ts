@@ -1,6 +1,6 @@
 import { DuplicateRecipeUrlError, RecipeInUseError } from '@/api'
 import { createRecipesApi } from '@/api/recipes'
-import { applyAutoLinks } from '@/lib/autoLinks'
+import { applyAutoLinks } from '@/services/autoLinks'
 import { ERIC, LUCILE, PNG_1PX, anonClient, resetData, signedInApi } from './helpers'
 
 beforeEach(async () => {

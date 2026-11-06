@@ -1,5 +1,5 @@
 import { photoPath, type RecipePhoto } from '@/lib/recipes'
-import type { AppSupabaseClient } from '@/lib/supabase'
+import type { AppSupabaseClient } from '@/api/client'
 import { toAppError } from './errors'
 
 export const PHOTO_BUCKET = 'recipe-photos'

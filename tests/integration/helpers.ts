@@ -1,5 +1,5 @@
 import { createApi } from '@/api'
-import { createAppClient, type AppSupabaseClient } from '@/lib/supabase'
+import { createAppClient, type AppSupabaseClient } from '@/api/client'
 
 // Clés publiques de démonstration de la Supabase locale (identiques sur toutes les installations).
 export const LOCAL_URL = process.env.SUPABASE_URL ?? 'http://127.0.0.1:54321'

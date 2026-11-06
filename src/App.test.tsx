@@ -39,9 +39,9 @@ describe('App', () => {
     expect(auth.signOut).toHaveBeenCalled()
   })
 
-  it('redirige les adresses inconnues vers le planning', async () => {
+  it('redirige les adresses inconnues vers l’accueil', async () => {
     renderApp('/nimporte-quoi')
-    expect(await screen.findByRole('heading', { name: 'Planning' })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: 'Aujourd’hui' })).toBeInTheDocument()
   })
 
   it('n’affiche que les pages choisies dans les réglages, et redirige depuis une page masquée', async () => {
@@ -52,12 +52,14 @@ describe('App', () => {
         <App api={api as unknown as Api} auth={fakeAuth()} />
       </MemoryRouter>,
     )
-    // Accueil : la première page affichée
-    expect(await screen.findByRole('heading', { name: 'Recettes' })).toBeInTheDocument()
+    // Retour à l'accueil
+    expect(await screen.findByRole('heading', { name: 'Aujourd’hui' })).toBeInTheDocument()
     const nav = screen.getAllByRole('navigation', { name: 'Navigation principale' })[0]!
     expect(within(nav).queryByRole('link', { name: 'Planning' })).not.toBeInTheDocument()
     expect(within(nav).queryByRole('link', { name: 'Eau' })).not.toBeInTheDocument()
     expect(within(nav).getByRole('link', { name: 'Courses' })).toBeInTheDocument()
+    // Santé : seul le plan alimentaire reste
+    expect(within(nav).getByRole('group', { name: 'Santé' })).toHaveTextContent('Plan')
     expect(screen.getAllByRole('link', { name: 'Réglages' })[0]).toHaveAttribute('href', '/reglages')
   })
 
@@ -93,29 +95,37 @@ describe('App', () => {
         <App api={api as unknown as Api} auth={fakeAuth()} />
       </MemoryRouter>,
     )
-    expect(await screen.findByRole('heading', { name: 'Planning' })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: 'Aujourd’hui' })).toBeInTheDocument()
     expect(await screen.findByText('« Recettes » est masquée dans tes réglages')).toBeInTheDocument()
     expect(api.recipes.getRecipe).not.toHaveBeenCalled()
   })
 
-  it('téléphone : 5 onglets au plus, les autres pages dans « Plus »', async () => {
+  it('navigation par sections : barre latérale groupée, onglets par section et pages de la section', async () => {
     const user = userEvent.setup()
     const api = fakeApi()
     api.settings.getSettings.mockResolvedValue({ ...DEFAULT_SETTINGS, disabledPages: [] })
     render(
-      <MemoryRouter initialEntries={['/planning']}>
+      <MemoryRouter initialEntries={['/']}>
         <App api={api as unknown as Api} auth={fakeAuth()} />
       </MemoryRouter>,
     )
-    await screen.findByRole('heading', { name: 'Planning' })
+    await screen.findByRole('heading', { name: 'Aujourd’hui' })
     // Barre latérale (ordinateur) puis onglets (téléphone)
     const [sidebar, tabs] = screen.getAllByRole('navigation', { name: 'Navigation principale' })
-    expect(await within(sidebar!).findAllByRole('link')).toHaveLength(8)
-    expect(within(tabs!).getAllByRole('link').map((l) => l.textContent)).toEqual(['Planning', 'Recettes', 'Plan', 'Courses'])
-    await user.click(within(tabs!).getByRole('button', { name: 'Plus' }))
-    expect((await screen.findAllByRole('menuitem')).map((i) => i.textContent?.trim())).toEqual(['Poids', 'Eau', 'Tricot', 'Plantes'])
-    await user.click(screen.getByRole('menuitem', { name: 'Eau' }))
+    expect(within(within(sidebar!).getByRole('group', { name: 'Repas' })).getAllByRole('link').map((l) => l.textContent)).toEqual(['Planning', 'Recettes', 'Courses'])
+    expect(within(within(sidebar!).getByRole('group', { name: 'Santé' })).getAllByRole('link').map((l) => l.textContent)).toEqual(['Poids', 'Plan', 'Eau'])
+    expect(within(tabs!).getAllByRole('link').map((l) => l.textContent)).toEqual(['Accueil', 'Repas', 'Santé', 'Tricot', 'Plantes'])
+
+    // Section Santé : ses pages en haut ; l'onglet ramène ensuite à la dernière page ouverte
+    await user.click(within(tabs!).getByRole('link', { name: 'Santé' }))
+    expect(await screen.findByRole('heading', { name: 'Poids' })).toBeInTheDocument()
+    const pages = screen.getByRole('navigation', { name: 'Pages de la section Santé' })
+    await user.click(within(pages).getByRole('link', { name: 'Eau' }))
     expect(await screen.findByRole('heading', { name: 'Eau' })).toBeInTheDocument()
+    expect(within(tabs!).getByRole('link', { name: 'Santé' })).toHaveAttribute('aria-current', 'page')
+    await user.click(within(tabs!).getByRole('link', { name: 'Repas' }))
+    await screen.findByRole('heading', { name: 'Planning' })
+    expect(within(tabs!).getByRole('link', { name: 'Santé' })).toHaveAttribute('href', '/hydratation')
   })
 
   it('protège les écrans quand personne n’est connecté', async () => {

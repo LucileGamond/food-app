@@ -2,27 +2,22 @@ import { useCallback, useRef, useState } from 'react'
 import { toast } from 'sonner'
 import { errorMessage, type Api } from '@/api'
 import type { Meal } from '@/lib/meals'
-import type { Ingredient } from '@/lib/recipes'
 import { nextItemPosition, type ShoppingItemInput } from '@/lib/shopping'
 import {
   applyTidy,
   buildDraft,
-  fromMeal,
-  mealSource,
   mergeIntoList,
   skippedInput,
-  skippedMeal,
   draftLineToItemInput,
   lineEntries,
   type DraftLine,
   type MealIngredients,
   type SkippedEntry,
 } from '@/lib/shoppingFromPlan'
+import { collectMealIngredients } from '@/services/mealIngredients'
 
 /** Lignes envoyées au modèle au plus (limite de la fonction tidy-shopping). */
 const MAX_TIDY_LINES = 150
-/** Pages de recettes lues en même temps. */
-const IMPORT_CONCURRENCY = 3
 
 export type Destination = { kind: 'new'; name: string } | { kind: 'existing'; listId: string }
 
@@ -52,20 +47,6 @@ export interface ShoppingFromPlanState {
   /** Repas non repris ajouté comme article libre (« Ingrédients : Poulet basquaise »). */
   addSkipped: (entry: SkippedEntry) => void
   submit: (destination: Destination) => Promise<ShoppingFromPlanResult | null>
-}
-
-/** Exécute `task` sur chaque élément, `limit` à la fois, en conservant l'ordre des résultats. */
-async function pool<T, R>(items: readonly T[], limit: number, task: (item: T) => Promise<R>): Promise<R[]> {
-  const results: R[] = new Array(items.length)
-  let next = 0
-  async function worker() {
-    while (next < items.length) {
-      const index = next++
-      results[index] = await task(items[index]!)
-    }
-  }
-  await Promise.all(Array.from({ length: Math.min(limit, items.length) }, worker))
-  return results
 }
 
 /** Génération d'une liste de courses depuis le planning : lecture des recettes, regroupement, aperçu, enregistrement. */
@@ -115,54 +96,17 @@ export function useShoppingFromPlan(api: Api): ShoppingFromPlanState {
       const run = ++runId.current
       setStep('loading')
       setPhase('recipes')
-      const missing: SkippedEntry[] = []
-      const found: MealIngredients[] = []
-
-      let recipes: Awaited<ReturnType<Api['recipes']['getIngredients']>>
+      let collected: Awaited<ReturnType<typeof collectMealIngredients>>
       try {
-        recipes = await api.recipes.getIngredients([...new Set(meals.filter((m) => mealSource(m) === 'recipe').map((m) => m.recipe.id))])
+        collected = await collectMealIngredients(api, meals)
       } catch (error) {
         if (run !== runId.current) return
         toast.error(errorMessage(error))
         setStep('meals')
         return
       }
-
-      // Une même page n'est lue qu'une fois, même si le repas est planifié plusieurs fois.
-      const pages = new Map<string, Promise<{ servings: number | null; ingredients: Ingredient[] } | null>>()
-      const readPage = (url: string) => {
-        if (!pages.has(url)) {
-          pages.set(
-            url,
-            api.recipes.importFromUrl(url).then(
-              ({ recipe }) => (recipe.ingredients.length > 0 ? { servings: recipe.servings, ingredients: recipe.ingredients } : null),
-              () => null,
-            ),
-          )
-        }
-        return pages.get(url)!
-      }
-
-      const results = await pool(meals, IMPORT_CONCURRENCY, async (meal): Promise<MealIngredients | SkippedEntry> => {
-        const source = mealSource(meal)
-        if (source === 'recipe') {
-          const recipe = recipes.find((r) => r.id === meal.recipe.id)
-          if (!recipe || recipe.ingredients.length === 0) return skippedMeal(meal, 'no-ingredients')
-          return fromMeal(meal, recipe.servings, recipe.ingredients)
-        }
-        if (source === 'link') {
-          const page = await readPage(meal.recipe.url!)
-          return page ? fromMeal(meal, page.servings, page.ingredients) : skippedMeal(meal, 'unreadable-page')
-        }
-        return skippedMeal(meal, 'no-ingredients')
-      })
       if (run !== runId.current) return
-      for (const result of results) {
-        if ('reason' in result) missing.push(result)
-        else found.push(result)
-      }
-
-      await finish(run, found, missing)
+      await finish(run, collected.found, collected.missing)
     },
     [api, finish],
   )

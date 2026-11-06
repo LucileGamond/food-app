@@ -1,4 +1,4 @@
-import type { AppSupabaseClient } from '@/lib/supabase'
+import type { AppSupabaseClient } from '@/api/client'
 import { toAppError } from './errors'
 
 export interface PushSubscriptionInput {

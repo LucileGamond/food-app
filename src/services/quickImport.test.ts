@@ -2,7 +2,7 @@ import { AppError } from '@/api'
 import { compressForReading, cropImage } from '@/lib/image'
 import { fakeApi } from '@/test/fakes'
 import { keepForLater, saveDirectly } from './quickImport'
-import type { RecipeImport } from './recipes'
+import type { RecipeImport } from '@/lib/recipes'
 
 vi.mock('@/lib/image', () => ({
   compressForReading: vi.fn(async (file: File) => new Blob([`réduite ${file.name}`], { type: 'image/jpeg' })),

@@ -1,4 +1,4 @@
-import type { AppSupabaseClient } from '@/lib/supabase'
+import type { AppSupabaseClient } from '@/api/client'
 import { DEFAULT_SETTINGS, type NotificationTopic, type PageKey, type UserSettings } from '@/lib/settings'
 import { toAppError } from './errors'
 

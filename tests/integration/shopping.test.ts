@@ -1,7 +1,7 @@
 import { AppError } from '@/api'
 import { createPushApi } from '@/api/push'
 import { createShoppingApi } from '@/api/shopping'
-import { createAppClient } from '@/lib/supabase'
+import { createAppClient } from '@/api/client'
 import { ERIC, LOCAL_SERVICE_KEY, LOCAL_URL, LUCILE, anonClient, resetData, signedInApi, waitFor } from './helpers'
 
 beforeEach(async () => {

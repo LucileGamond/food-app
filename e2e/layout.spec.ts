@@ -143,6 +143,11 @@ test('aucun écran ni aucune fenêtre ne déborde', async ({ page, isMobile }) =
   await page.route('**/functions/v1/import-recipe', (route) => route.fulfill({ json: { title: LONG_TITLE } }))
   await login(page)
 
+  // Accueil « Aujourd’hui »
+  await page.goto('/')
+  await expect(page.getByRole('region', { name: 'Plantes à arroser' })).toBeVisible()
+  await check(page, 'accueil')
+
   // Planning et ses fenêtres
   await page.goto('/planning')
   await expect(page.getByText('Raclette').first()).toBeVisible()

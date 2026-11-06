@@ -1,5 +1,5 @@
 import type { WaterIntake } from '@/lib/hydration'
-import type { AppSupabaseClient } from '@/lib/supabase'
+import type { AppSupabaseClient } from '@/api/client'
 import { toAppError } from './errors'
 import { subscribeTables } from './realtime'
 

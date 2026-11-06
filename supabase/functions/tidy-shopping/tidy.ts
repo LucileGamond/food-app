@@ -3,6 +3,7 @@
 // les quantités sont calculées et additionnées par l'application, jamais par le modèle.
 
 import { callTool, HttpError, type ModelOptions, type ModelUsage } from '../_shared/anthropic.ts'
+import { asRecord, str } from '../_shared/sanitize.ts'
 
 /** Rayons (identiques à l'enum shopping_aisle et à src/lib/shopping.ts, vérifié par un test). */
 export const AISLES = [
@@ -66,7 +67,6 @@ const SYSTEM = [
   `Réponds uniquement en appelant l’outil ${TOOL_NAME}.`,
 ].join('\n')
 
-const str = (v: unknown, max: number): string => (typeof v === 'string' ? v.replace(/\s+/g, ' ').trim().slice(0, max) : '')
 const isAisle = (v: unknown): v is Aisle => typeof v === 'string' && (AISLES as readonly string[]).includes(v)
 
 /** Lignes reçues du navigateur : validées et bornées. */
@@ -75,7 +75,7 @@ export function parseInput(body: unknown): TidyInputLine[] {
   if (!Array.isArray(raw) || raw.length === 0) throw new HttpError('Liste vide.', 400)
   if (raw.length > MAX_LINES) throw new HttpError(`${MAX_LINES} articles au plus.`, 400)
   return raw.map((value) => {
-    const line = (typeof value === 'object' && value !== null ? value : {}) as Record<string, unknown>
+    const line = asRecord(value)
     const id = str(line.id, 40)
     const name = str(line.name, 120)
     if (!id || !name) throw new HttpError('Article invalide.', 400)
@@ -92,7 +92,7 @@ export function buildUserMessage(lines: readonly TidyInputLine[]): string {
 
 /** Ne garde que des réponses sûres : identifiants connus, rayons valides, noms bornés (sinon ceux d'origine). */
 export function sanitizeTidy(output: unknown, lines: readonly TidyInputLine[]): TidyLine[] {
-  const data = (typeof output === 'object' && output !== null ? output : {}) as Record<string, unknown>
+  const data = asRecord(output)
   const answers = new Map<string, Record<string, unknown>>()
   for (const value of Array.isArray(data.lines) ? data.lines : []) {
     if (typeof value !== 'object' || value === null) continue

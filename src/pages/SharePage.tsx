@@ -10,9 +10,9 @@ import { useApi } from '@/app/ApiContext'
 import { useSettings } from '@/app/SettingsContext'
 import { errorMessage } from '@/api'
 import { MAX_INBOX_PHOTOS, parseInboxInput } from '@/lib/inbox'
-import type { ImportSource } from '@/lib/quickImport'
+import type { ImportSource } from '@/services/quickImport'
 import { siteName } from '@/lib/recipes'
-import { homePath } from '@/lib/settings'
+import { HOME_PATH } from '@/lib/settings'
 import { handOffPhotos, takeSharedPhotos } from '@/lib/sharedPhotos'
 import type { NavState } from '@/lib/navState'
 
@@ -57,7 +57,7 @@ export function SharePage() {
 
     // Pas de lien : une idée de repas, ajoutée à « À planifier ».
     const planning = isEnabled('planning')
-    const finish = () => void navigate(planning ? '/planning' : homePath(settings), { replace: true })
+    const finish = () => void navigate(planning ? '/planning' : HOME_PATH, { replace: true })
     if (!input) {
       toast.error('Rien à ajouter : le partage ne contenait ni lien ni texte')
       finish()

@@ -1,5 +1,5 @@
 import type { IsoDate } from '@/lib/dates'
-import type { AppSupabaseClient } from '@/lib/supabase'
+import type { AppSupabaseClient } from '@/api/client'
 import type { WeighInValue, WeightEntry } from '@/lib/weights'
 import { toAppError } from './errors'
 import { subscribeTables } from './realtime'

@@ -1,4 +1,4 @@
-import { expect, login, test } from './fixtures'
+import { expect, login, openNavPage, test } from './fixtures'
 
 function today(): string {
   const d = new Date()
@@ -13,7 +13,7 @@ function daysAgo(n: number): string {
 
 test.beforeEach(async ({ page }) => {
   await login(page)
-  await page.getByRole('link', { name: 'Poids' }).filter({ visible: true }).click()
+  await openNavPage(page, 'Poids')
   await expect(page.getByRole('heading', { name: 'Poids', exact: true })).toBeVisible()
 })
 

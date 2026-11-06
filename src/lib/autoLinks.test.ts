@@ -1,6 +1,7 @@
 import { fakeApi } from '@/test/fakes'
 import { AppError } from '@/api'
-import { applyAutoLinks, findAutoLinks, type LinkableRecipe } from './autoLinks'
+import { applyAutoLinks } from '@/services/autoLinks'
+import { findAutoLinks, type LinkableRecipe } from './autoLinks'
 
 const ing = (position: number, name: string, note: string | null = null, linkedRecipeId: string | null = null) => ({ position, name, note, linkedRecipeId })
 const recipe = (id: string, title: string, source: string | null, sourcePage: string | null, ingredients: LinkableRecipe['ingredients'] = []): LinkableRecipe => ({

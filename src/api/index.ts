@@ -1,4 +1,4 @@
-import type { AppSupabaseClient } from '@/lib/supabase'
+import type { AppSupabaseClient } from '@/api/client'
 import { createFoodApi } from './food'
 import { createHydrationApi } from './hydration'
 import { createIdeasApi } from './ideas'

@@ -1,4 +1,4 @@
-import type { AppSupabaseClient } from '@/lib/supabase'
+import type { AppSupabaseClient } from '@/api/client'
 
 /**
  * Suit les modifications de tables (lignes visibles par la personne connectée) ; renvoie de quoi se désabonner.

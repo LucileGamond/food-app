@@ -27,6 +27,9 @@ export interface Tool {
   input_schema: Record<string, unknown>
 }
 
+/** Clé du modèle absente ou refusée. */
+export const MISCONFIGURED = 'Le service d’analyse est mal configuré.'
+
 export interface ModelOptions {
   apiKey: string
   model?: string
@@ -92,7 +95,7 @@ async function postMessages(
     throw new HttpError('Le service d’analyse ne répond pas. Réessaie dans un instant.', 503)
   }
 
-  if (response.status === 401 || response.status === 403) throw new HttpError('Le service d’analyse est mal configuré.', 500)
+  if (response.status === 401 || response.status === 403) throw new HttpError(MISCONFIGURED, 500)
   if (response.status === 429 || response.status === 529 || response.status >= 500) {
     throw new HttpError('Le service d’analyse est surchargé. Réessaie dans un instant.', 503)
   }

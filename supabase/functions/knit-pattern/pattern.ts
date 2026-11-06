@@ -2,6 +2,7 @@
 // rangs, mailles et déroulé en sections (rangs sans répétition, « 2 diminutions tous les 6 rangs »).
 
 import { callTool, HttpError, type ModelOptions, type ModelUsage, type Tool } from '../_shared/anthropic.ts'
+import { asRecord } from '../_shared/sanitize.ts'
 
 /** PDF de 20 Mo au plus (≈ 27 millions de caractères en base64). */
 export const MAX_PDF_BASE64 = 28_000_000
@@ -49,7 +50,7 @@ function int(value: unknown, min: number, max: number): number | null {
 }
 
 export function parseInput(body: unknown): PatternInput {
-  const data = (typeof body === 'object' && body !== null ? body : {}) as Record<string, unknown>
+  const data = asRecord(body)
   const pdf = typeof data.pdf === 'string' ? data.pdf : ''
   const size = str(data.size, 40)
   if (!pdf) throw new HttpError('PDF manquant.', 400)
@@ -138,7 +139,7 @@ export function systemPrompt(size: string): string {
 }
 
 function section(value: unknown): PatternSection | null {
-  const r = (typeof value === 'object' && value !== null ? value : {}) as Record<string, unknown>
+  const r = asRecord(value)
   const text = str(r.text, 200)
   const pattern = str(r.pattern, 100) || null
   if (r.kind === 'rows') {
@@ -151,7 +152,7 @@ function section(value: unknown): PatternSection | null {
   const raw = Array.isArray(r.actions) ? r.actions : text ? [{ text, rank: null }] : []
   const actions = raw
     .map((value) => {
-      const a = (typeof value === 'object' && value !== null ? value : {}) as Record<string, unknown>
+      const a = asRecord(value)
       const rank = int(a.rank, 1, 500)
       // Rang au-delà de la répétition, ou égal au dernier : « dernier rang ».
       return { text: str(a.text, 200), rank: rank !== null && every !== null && rank >= every ? null : rank }
@@ -164,7 +165,7 @@ function section(value: unknown): PatternSection | null {
 
 /** Valide et borne ce que le modèle a renvoyé. */
 export function sanitizePattern(input: unknown, size: string): ReadPattern {
-  const data = (typeof input === 'object' && input !== null ? input : {}) as Record<string, unknown>
+  const data = asRecord(input)
   const sizes = (Array.isArray(data.sizes) ? data.sizes : []).map((s) => str(s, 40)).filter(Boolean).slice(0, 30)
   if (data.size_found === false) {
     throw new HttpError(
@@ -175,7 +176,7 @@ export function sanitizePattern(input: unknown, size: string): ReadPattern {
   const steps = (Array.isArray(data.steps) ? data.steps : [])
     .slice(0, MAX_STEPS)
     .map((value) => {
-      const s = (typeof value === 'object' && value !== null ? value : {}) as Record<string, unknown>
+      const s = asRecord(value)
       return {
         title: str(s.title, 200),
         instructions: str(s.instructions, 5000),

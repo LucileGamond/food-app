@@ -40,7 +40,7 @@ test('active le suivi d’hydratation dans les réglages, note des verres, puis 
     await login(eric, ERIC.email)
     expect(await navHasPage(eric, 'Eau')).toBe(false)
     await eric.goto('/hydratation')
-    await expect(eric.getByRole('heading', { name: 'Planning' })).toBeVisible()
+    await expect(eric.getByRole('heading', { name: 'Aujourd’hui' })).toBeVisible()
   } finally {
     await ericContext.close()
   }

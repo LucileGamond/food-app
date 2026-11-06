@@ -1,6 +1,7 @@
 import type { PageContent } from './extract.ts'
 import { DEFAULT_MODEL } from '../_shared/anthropic.ts'
-import { buildUserMessage, extractRecipe, ImportError, MAX_PHOTO_RECIPES, sanitizeNutrition, sanitizePhotoArea, sanitizeRecipe, sanitizeRecipes } from './model.ts'
+import { buildUserMessage, extractRecipe, ImportError } from './model.ts'
+import { MAX_PHOTO_RECIPES, sanitizeNutrition, sanitizePhotoArea, sanitizeRecipe, sanitizeRecipes } from './recipe.ts'
 
 const STRUCTURED: PageContent = {
   structured: { name: 'Crêpes', yield: '4', ingredients: ['250 g de farine', '3 œufs'], instructions: ['Mélanger.'] },

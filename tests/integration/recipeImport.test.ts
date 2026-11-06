@@ -1,5 +1,5 @@
 import { AppError, createApi } from '@/api'
-import { createAppClient } from '@/lib/supabase'
+import { createAppClient } from '@/api/client'
 import { LOCAL_ANON_KEY, anonClient, signedInApi } from './helpers'
 
 // Exécute la vraie Edge Function dans le runtime local (sans appel au modèle : les cas testés

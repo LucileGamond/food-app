@@ -1,8 +1,7 @@
 // Résultats de la recherche web d'Anthropic : seules les adresses réellement trouvées sont acceptées.
 
 import type { ContentBlock } from './anthropic.ts'
-
-const str = (v: unknown, max: number): string => (typeof v === 'string' ? v.replace(/\s+/g, ' ').trim().slice(0, max) : '')
+import { str } from './sanitize.ts'
 
 /** Adresse comparable : sans www, sans paramètres ni ancre, sans / final. */
 export function urlKey(raw: string): string | null {

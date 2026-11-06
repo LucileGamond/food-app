@@ -4,6 +4,7 @@
 
 import { callTool, HttpError, type ModelOptions, type ModelUsage } from '../_shared/anthropic.ts'
 import { CIQUAL, type CiqualFood } from './ciqual.ts'
+import { asRecord, str } from '../_shared/sanitize.ts'
 
 export const MAX_INGREDIENTS = 60
 /** Aliments Ciqual proposés au modèle pour chaque ingrédient. */
@@ -40,16 +41,14 @@ export interface NutritionEstimate {
   ingredients: IngredientEstimate[]
 }
 
-const str = (v: unknown, max: number): string => (typeof v === 'string' ? v.replace(/\s+/g, ' ').trim().slice(0, max) : '')
-
 /** Recette reçue du navigateur : validée et bornée. */
 export function parseInput(body: unknown): NutritionInput {
-  const data = (typeof body === 'object' && body !== null ? body : {}) as Record<string, unknown>
+  const data = asRecord(body)
   const raw = Array.isArray(data.ingredients) ? data.ingredients : []
   if (raw.length === 0) throw new HttpError('Aucun ingrédient.', 400)
   if (raw.length > MAX_INGREDIENTS) throw new HttpError(`${MAX_INGREDIENTS} ingrédients au plus.`, 400)
   const ingredients = raw.map((value) => {
-    const item = (typeof value === 'object' && value !== null ? value : {}) as Record<string, unknown>
+    const item = asRecord(value)
     const name = str(item.name, 120)
     if (!name) throw new HttpError('Ingrédient invalide.', 400)
     const quantity = typeof item.quantity === 'number' && Number.isFinite(item.quantity) && item.quantity > 0 ? item.quantity : null
@@ -159,7 +158,7 @@ const round1 = (n: number) => Math.round(n * 10) / 10
  * l'ingrédient, poids positif et borné. Le poids connu (g, kg, ml…) l'emporte sur celui du modèle.
  */
 export function computeEstimate(input: NutritionInput, options: readonly CiqualFood[][], output: unknown): NutritionEstimate {
-  const data = (typeof output === 'object' && output !== null ? output : {}) as Record<string, unknown>
+  const data = asRecord(output)
   const answers = new Map<number, Record<string, unknown>>()
   for (const value of Array.isArray(data.ingredients) ? data.ingredients : []) {
     if (typeof value !== 'object' || value === null) continue

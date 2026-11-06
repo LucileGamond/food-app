@@ -1,5 +1,5 @@
 import { createApi } from '@/api'
-import { createAppClient } from '@/lib/supabase'
+import { createAppClient } from '@/api/client'
 import { LOCAL_ANON_KEY, anonClient, signedInApi } from './helpers'
 
 const INPUT = { today: '2026-10-27', candidates: [], recent: [] }

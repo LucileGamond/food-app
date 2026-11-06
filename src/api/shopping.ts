@@ -1,6 +1,6 @@
 import type { Aisle, ShoppingItem, ShoppingItemInput, ShoppingList } from '@/lib/shopping'
 import type { TidyLine } from '@/lib/shoppingFromPlan'
-import type { AppSupabaseClient } from '@/lib/supabase'
+import type { AppSupabaseClient } from '@/api/client'
 import { AppError, toAppError } from './errors'
 import { subscribeTables } from './realtime'
 

@@ -25,7 +25,7 @@ test('protège les écrans, connecte, garde la session et déconnecte', async ({
   await page.reload()
   await expect(page.getByRole('heading', { name: 'Recettes' })).toBeVisible()
   await page.goto('/login')
-  await expect(page.getByRole('heading', { name: 'Planning' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Aujourd’hui' })).toBeVisible()
 
   await page.getByRole('button', { name: 'Se déconnecter' }).filter({ visible: true }).click()
   await expect(page.getByRole('heading', { name: 'Connexion' })).toBeVisible()

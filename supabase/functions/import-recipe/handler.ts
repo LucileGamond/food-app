@@ -11,11 +11,12 @@
 // La passerelle Supabase vérifie le jeton (verify_jwt), mais accepte aussi la clé publique anonyme :
 // `isSignedIn` vérifie en plus qu'il s'agit d'un utilisateur connecté.
 
-import { CORS_HEADERS, json } from '../_shared/anthropic.ts'
+import { CORS_HEADERS, json, MISCONFIGURED } from '../_shared/anthropic.ts'
 import { extractPage, MIN_TEXT_CHARS, type PageContent } from './extract.ts'
 import { extractRecipe, extractRecipeFromPhotos, ImportError, type ImportedRecipe, type ModelUsage, type PhotoInput } from './model.ts'
 import { checkPublicUrl, resolvesToPublic, type ResolveDns } from './url.ts'
 import { fetchYoutubeVideo, findWrittenRecipe, INSTAGRAM_CAPTION, isInstagram, NOT_WRITTEN, videoText, youtubeId } from './video.ts'
+import { asRecord } from '../_shared/sanitize.ts'
 
 export const MAX_PAGE_BYTES = 3_000_000
 export const MAX_IMAGE_BYTES = 3_000_000
@@ -168,13 +169,13 @@ const addUsage = (a: ModelUsage | null, b: ModelUsage | null): ModelUsage | null
   a && b ? { input_tokens: a.input_tokens + b.input_tokens, output_tokens: a.output_tokens + b.output_tokens } : (a ?? b)
 
 export async function importRecipe(body: unknown, deps: Deps): Promise<Result> {
-  const input = (typeof body === 'object' && body !== null ? body : {}) as Record<string, unknown>
+  const input = asRecord(body)
   const check = checkPublicUrl(input.url)
   if (!check.ok) throw new ImportError(check.reason, 400)
   const knownTags = knownTagsOf(input)
   // Instagram : rien à lire, la légende doit être collée (mode « text »).
   if (isInstagram(check.url)) throw new ImportError(INSTAGRAM_CAPTION, 422)
-  if (!deps.apiKey) throw new ImportError('Le service d’analyse est mal configuré.', 500)
+  if (!deps.apiKey) throw new ImportError(MISCONFIGURED, 500)
   const videoId = youtubeId(check.url)
   if (videoId) return importYoutube(videoId, knownTags, deps)
   return importPage(check.url.href, knownTags, deps)
@@ -259,13 +260,13 @@ export const MAX_PASTED_CHARS = 20_000
 
 /** Recette d'un texte collé (légende Instagram…), avec l'adresse de la publication si elle est connue. */
 export async function importText(body: unknown, deps: Deps): Promise<Result> {
-  const input = (typeof body === 'object' && body !== null ? body : {}) as Record<string, unknown>
+  const input = asRecord(body)
   const text = typeof input.text === 'string' ? input.text.trim() : ''
   if (text.length < MIN_PASTED_CHARS) throw new ImportError('Colle le texte de la recette (la légende complète).', 400)
   if (text.length > MAX_PASTED_CHARS) throw new ImportError('Texte trop long.', 413)
   const check = input.url ? checkPublicUrl(input.url) : null
   if (check && !check.ok) throw new ImportError(check.reason, 400)
-  if (!deps.apiKey) throw new ImportError('Le service d’analyse est mal configuré.', 500)
+  if (!deps.apiKey) throw new ImportError(MISCONFIGURED, 500)
   const content = { structured: null, text, title: null, imageUrl: null }
   try {
     const options = { apiKey: deps.apiKey, model: deps.model, fetch: deps.fetchModel }
@@ -279,7 +280,7 @@ export async function importText(body: unknown, deps: Deps): Promise<Result> {
 
 /** Titre d'une page (liste « À planifier ») : téléchargement et lecture des métadonnées, sans appel au modèle. */
 export async function fetchTitle(body: unknown, deps: Pick<Deps, 'fetchPage' | 'resolveDns'>): Promise<{ title: string | null }> {
-  const input = (typeof body === 'object' && body !== null ? body : {}) as Record<string, unknown>
+  const input = asRecord(body)
   const check = checkPublicUrl(input.url)
   if (!check.ok) throw new ImportError(check.reason, 400)
   const page = await download(check.url.href, 'text/html,application/xhtml+xml', MAX_PAGE_BYTES, deps.fetchPage, deps.resolveDns)
@@ -298,7 +299,7 @@ export function parsePhotos(body: unknown): PhotoInput[] {
   if (!Array.isArray(raw) || raw.length === 0) throw new ImportError('Aucune photo reçue.', 400)
   if (raw.length > MAX_PHOTOS) throw new ImportError(`${MAX_PHOTOS} photos au plus.`, 400)
   return raw.map((value) => {
-    const image = (typeof value === 'object' && value !== null ? value : {}) as Record<string, unknown>
+    const image = asRecord(value)
     const type = IMAGE_TYPES.find((t) => t === image.type)
     if (!type || typeof image.data !== 'string') throw new ImportError('Photo illisible (JPEG, PNG ou WebP).', 400)
     if (image.data.length > MAX_PHOTO_BASE64) throw new ImportError('Photo trop lourde.', 413)
@@ -311,7 +312,7 @@ export async function importPhotos(body: unknown, deps: Deps): Promise<ImportRes
   const photos = parsePhotos(body)
   const input = body as Record<string, unknown>
   const knownTags = knownTagsOf(input)
-  if (!deps.apiKey) throw new ImportError('Le service d’analyse est mal configuré.', 500)
+  if (!deps.apiKey) throw new ImportError(MISCONFIGURED, 500)
   const { recipes, usage } = await extractRecipeFromPhotos(photos, knownTags, { apiKey: deps.apiKey, model: deps.model, fetch: deps.fetchModel })
   return { recipe: recipes[0]!, recipes, source: 'photo', image: null, usage }
 }

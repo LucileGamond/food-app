@@ -1,6 +1,6 @@
 import { createApi } from '@/api'
-import { createAppClient } from '@/lib/supabase'
-import { keepForLater, saveDirectly } from '@/lib/quickImport'
+import { createAppClient } from '@/api/client'
+import { keepForLater, saveDirectly } from '@/services/quickImport'
 import { LOCAL_ANON_KEY, LUCILE, resetData, signedInApi } from './helpers'
 
 beforeEach(async () => {

@@ -1,5 +1,6 @@
 import { listItem } from '@/test/fakes'
 import {
+  toRecipeListItem,
   applyListOptions,
   averageRating,
   collectOrigins,
@@ -136,5 +137,53 @@ describe('affichage', () => {
     expect(formatHistory({ timesCooked: 4, lastCooked: '2026-10-12', nextPlanned: '2026-11-05' })).toBe(
       'Cuisinée 4 fois, la dernière le 12 octobre · prévue le 5 novembre',
     )
+  })
+})
+
+describe('recette de la liste', () => {
+  const row = {
+    id: 'r1',
+    title: 'Curry',
+    tags: ['rapide'],
+    created_at: '2026-10-01T10:00:00Z',
+    source: 'Cuisine du monde',
+    source_page: '12',
+    url: null,
+    prep_minutes: 15,
+    rest_minutes: null,
+    cook_minutes: 20,
+    kcal: 450,
+    nutrition_per: 'portion',
+    recipe_ingredients: [{ name: 'pois chiches' }, { name: 'lait de coco' }],
+    recipe_photos: [
+      { storage_path: 'r1/b.jpg', position: 1 },
+      { storage_path: 'r1/a.jpg', position: 0 },
+    ],
+    recipe_reviews: [{ rating: 4 }, { rating: 5 }, { rating: null }],
+  }
+
+  it('calcule temps total, photo principale, note moyenne et historique', () => {
+    expect(toRecipeListItem(row, { times_cooked: 3, last_cooked: '2026-10-20', next_planned: null })).toMatchObject({
+      id: 'r1',
+      ingredientNames: ['pois chiches', 'lait de coco'],
+      mainPhotoPath: 'r1/a.jpg',
+      totalMinutes: 35,
+      nutritionPer: 'portion',
+      vegetarian: true,
+      timesCooked: 3,
+      lastCooked: '2026-10-20',
+      rating: 4.5,
+    })
+  })
+
+  it('jamais cuisinée, sans photo ni base nutritionnelle connue', () => {
+    expect(toRecipeListItem({ ...row, recipe_photos: [], nutrition_per: 'inconnue', recipe_reviews: [] }, undefined)).toMatchObject({
+      mainPhotoPath: null,
+      nutritionPer: null,
+      timesCooked: 0,
+      lastCooked: null,
+      nextPlanned: null,
+      rating: null,
+    })
   })
 })

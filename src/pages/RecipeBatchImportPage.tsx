@@ -10,7 +10,6 @@ import {
   BATCH_CONCURRENCY,
   fileLabel,
   imageFiles,
-  importOne,
   mergeRetry,
   needsRetry,
   runQueue,
@@ -20,8 +19,9 @@ import {
   type RecipeOutcome,
 } from '@/lib/batchImport'
 import { findSource, recipeKey } from '@/lib/sources'
-import { applyAutoLinks } from '@/lib/autoLinks'
 import { cn } from '@/lib/utils'
+import { applyAutoLinks } from '@/services/autoLinks'
+import { importOne } from '@/services/batchImport'
 
 type Phase = 'setup' | 'running' | 'paused' | 'done'
 

@@ -1,5 +1,5 @@
 import { parseIdeas, type MealIdea, type MealIdeasInput } from '@/lib/mealIdeas'
-import type { AppSupabaseClient } from '@/lib/supabase'
+import type { AppSupabaseClient } from '@/api/client'
 import { AppError, functionError } from './errors'
 
 /** La recherche web peut prendre une minute ; au-delà, la connexion est sans doute bloquée. */

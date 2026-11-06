@@ -5,6 +5,7 @@ import { Checkbox } from '@/components/ui/checkbox'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Skeleton } from '@/components/ui/skeleton'
+import { BuildInfo } from '@/components/BuildInfo'
 import { PageHeader } from '@/components/PageHeader'
 import { LoadError } from '@/components/LoadError'
 import { useSettings } from '@/app/SettingsContext'
@@ -110,7 +111,7 @@ export function SettingsPage() {
 
   return (
     <>
-      <PageHeader title="Réglages" description="Tes choix ne changent rien pour l’autre." />
+      <PageHeader title="Réglages" description="Tes choix ne changent rien pour l’autre." actions={<BuildInfo />} />
       <div className="space-y-4">
         <Section title="Pages" description="Pages affichées dans la navigation.">
           <ul>
@@ -133,7 +134,7 @@ export function SettingsPage() {
               {status === 'on'
                 ? 'Activées sur cet appareil.'
                 : status === 'denied'
-                  ? 'Bloquées par le téléphone : autorise-les pour Food dans ses réglages.'
+                  ? 'Bloquées par le téléphone. Autorise-les pour Life dans les réglages du téléphone (Applications → Life → Notifications), puis rouvre l’application.'
                   : status === 'off'
                     ? 'Désactivées sur cet appareil.'
                     : status === 'loading'

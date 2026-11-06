@@ -35,7 +35,7 @@ import {
   toSaveRecipeInput,
   validateRecipeForm,
   type RecipeFormValues,
-} from './recipes'
+} from '.'
 
 function form(overrides: Partial<RecipeFormValues> = {}): RecipeFormValues {
   return {

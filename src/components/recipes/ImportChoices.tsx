@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button'
 import { useApi } from '@/app/ApiContext'
 import { errorMessage } from '@/api'
 import type { InboxList } from '@/lib/inbox'
-import { keepForLater, saveDirectly, type ImportSource } from '@/lib/quickImport'
+import { keepForLater, saveDirectly, type ImportSource } from '@/services/quickImport'
 import { cn } from '@/lib/utils'
 import { useSettings } from '@/app/SettingsContext'
 

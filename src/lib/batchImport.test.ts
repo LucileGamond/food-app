@@ -1,7 +1,8 @@
 import { AppError } from '@/api'
 import { compressForReading, cropImage } from '@/lib/image'
 import { fakeApi } from '@/test/fakes'
-import { imageFiles, importOne, mergeRetry, needsRetry, runQueue, tally, type BatchContext } from './batchImport'
+import { importOne, type BatchContext } from '@/services/batchImport'
+import { imageFiles, mergeRetry, needsRetry, runQueue, tally } from './batchImport'
 import type { RecipeImport } from './recipes'
 import { recipeKey } from './sources'
 

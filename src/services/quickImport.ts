@@ -2,9 +2,9 @@
 // enregistrement, sans formulaire), ou la garder pour plus tard, sans analyse, dans « De côté » ou « À planifier ».
 
 import type { Api } from '@/api'
-import { compressForReading, compressImage, cropImage } from './image'
-import { MAX_INBOX_PHOTOS, photosTitle, type InboxList } from './inbox'
-import { recipeKey } from './sources'
+import { compressForReading, compressImage, cropImage } from '@/lib/image'
+import { MAX_INBOX_PHOTOS, photosTitle, type InboxList } from '@/lib/inbox'
+import { recipeKey } from '@/lib/sources'
 import {
   hasErrors,
   importedImageToFile,
@@ -14,7 +14,7 @@ import {
   validateRecipeForm,
   type ImportedRecipe,
   type RecipeFormErrors,
-} from './recipes'
+} from '@/lib/recipes'
 
 /** Ce qu'on importe : un lien, ou 1 à 3 photos (pages d'un livre, captures d'écran). */
 export type ImportSource = { kind: 'link'; url: string; title?: string | null } | { kind: 'photos'; files: File[] }

@@ -1,7 +1,7 @@
 import type { IsoDate } from '@/lib/dates'
 import type { InboxItem, InboxList } from '@/lib/inbox'
 import type { MealSlot } from '@/lib/meals'
-import type { AppSupabaseClient } from '@/lib/supabase'
+import type { AppSupabaseClient } from '@/api/client'
 import { AppError, toAppError } from './errors'
 import { PENDING_PHOTO_PREFIX, PHOTO_BUCKET } from './photos'
 import { subscribeTables } from './realtime'

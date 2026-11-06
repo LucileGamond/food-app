@@ -25,6 +25,7 @@ const SharePage = lazy(() => import('@/pages/SharePage').then((m) => ({ default:
 const ShoppingListsPage = lazy(() => import('@/pages/ShoppingListsPage').then((m) => ({ default: m.ShoppingListsPage })))
 const ShoppingListPage = lazy(() => import('@/pages/ShoppingListPage').then((m) => ({ default: m.ShoppingListPage })))
 const HydrationPage = lazy(() => import('@/pages/HydrationPage').then((m) => ({ default: m.HydrationPage })))
+const HomePage = lazy(() => import('@/pages/HomePage').then((m) => ({ default: m.HomePage })))
 const SettingsPage = lazy(() => import('@/pages/SettingsPage').then((m) => ({ default: m.SettingsPage })))
 // Module Tricot (indépendant de la cuisine).
 const KnittingPage = lazy(() => import('@/modules/tricot/pages/KnittingPage').then((m) => ({ default: m.KnittingPage })))
@@ -64,6 +65,7 @@ export function App({ api, auth }: { api: Api; auth: AuthClient }) {
                 }
               />
               <Route element={<Layout />}>
+                <Route path="/" element={<HomePage />} />
                 <Route path="/planning" element={<PlanningPage />} />
                 <Route path="/recettes" element={<RecipesPage />} />
                 <Route path="/recettes/nouvelle" element={<RecipeFormPage />} />
@@ -89,7 +91,7 @@ export function App({ api, auth }: { api: Api; auth: AuthClient }) {
               </Route>
             </Route>
           </Route>
-          <Route path="*" element={<Navigate to="/planning" replace />} />
+          <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
         </Suspense>
         <Toaster position="top-center" closeButton toastOptions={{ className: 'font-sans' }} />

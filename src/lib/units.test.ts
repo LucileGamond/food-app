@@ -1,6 +1,6 @@
 import sql from '../../supabase/migrations/20261027000000_ingredient_units.sql?raw'
 import shoppingSql from '../../supabase/migrations/20261029000000_shopping_lists.sql?raw'
-import { ENGLISH_UNITS as FUNCTION_ENGLISH_UNITS, UNITS as FUNCTION_UNITS } from '../../supabase/functions/import-recipe/model.ts'
+import { ENGLISH_UNITS as FUNCTION_ENGLISH_UNITS, UNITS as FUNCTION_UNITS } from '../../supabase/functions/import-recipe/recipe.ts'
 import { ENGLISH_UNITS, isUnit, metricText, splitUnit, toMetric, UNIT_ALIASES, unitKey, unitLabel, UNITS } from './units'
 
 describe('unités', () => {

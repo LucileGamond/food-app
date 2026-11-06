@@ -2,6 +2,7 @@ import { screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { AppError } from '@/api'
 import { Layout } from '@/components/Layout'
+import { SettingsPage } from '@/pages/SettingsPage'
 import { currentDevicePush, PushPermissionError, pushRegistration, subscribeDevice, unsubscribeDevice } from '@/lib/push'
 import { fakeApi, renderWithApp } from '@/test/fakes'
 
@@ -19,12 +20,19 @@ vi.mock('@/lib/push', () => {
 const DEVICE = { endpoint: 'https://push.exemple/abc', p256dh: 'cle', auth: 'secret' }
 const registration = {} as ServiceWorkerRegistration
 
+// L'application (proposition d'activer, déconnexion) et ses réglages (état et réglage sur cet appareil).
 function renderLayout(api = fakeApi()) {
-  return renderWithApp(<Layout />, { api, route: '/', path: '/' })
+  return renderWithApp(
+    <>
+      <Layout />
+      <SettingsPage />
+    </>,
+    { api, route: '/', path: '/' },
+  )
 }
 
-// La cloche existe dans la barre latérale (ordinateur) et l'en-tête (téléphone) : on prend la première.
-const bell = () => screen.findAllByRole('button', { name: 'Notifications' }).then((buttons) => buttons[0]!)
+/** État des notifications de cet appareil, dans les réglages (une fois vérifié). */
+const deviceStatus = () => screen.findByText(/^(Activées|Désactivées) sur cet appareil|^Bloquées par le téléphone|^Disponibles seulement/)
 
 describe('notifications de l’application', () => {
   beforeEach(() => {
@@ -52,22 +60,18 @@ describe('notifications de l’application', () => {
   })
 
   it('décrit les notifications choisies dans les réglages, et ne propose rien sans aucune', async () => {
-    const user = userEvent.setup()
     const api = fakeApi()
     api.settings.getSettings.mockResolvedValue({ disabledPages: [], mutedNotifications: [], hydrationGoalMl: 1500 })
     const { unmount } = renderLayout(api)
     expect(await screen.findByRole('region', { name: 'Activer les notifications' })).toHaveTextContent(
       'Tu seras prévenu(e) : listes de courses modifiées par l’autre, rappels pour boire et plantes à arroser.',
     )
-    await user.click(await bell())
-    expect(screen.getByRole('dialog')).toHaveTextContent('listes de courses modifiées par l’autre, rappels pour boire et plantes à arroser (au choix dans les réglages)')
     unmount()
 
     const none = fakeApi()
     none.settings.getSettings.mockResolvedValue({ disabledPages: ['hydratation', 'tricot', 'plantes'], mutedNotifications: ['courses'], hydrationGoalMl: 1500 })
     renderLayout(none)
-    await user.click(await bell())
-    expect(screen.getByRole('dialog')).toHaveTextContent('Aucune notification n’est choisie dans les réglages.')
+    await deviceStatus()
     expect(screen.queryByRole('region', { name: 'Activer les notifications' })).not.toBeInTheDocument()
   })
 
@@ -79,27 +83,22 @@ describe('notifications de l’application', () => {
     expect(screen.queryByRole('region', { name: 'Activer les notifications' })).not.toBeInTheDocument()
     unmount()
     renderLayout()
-    await bell()
+    await deviceStatus()
     expect(screen.queryByRole('region', { name: 'Activer les notifications' })).not.toBeInTheDocument()
   })
 
-  it('la cloche permet d’activer puis de désactiver', async () => {
+  it('les réglages permettent d’activer puis de désactiver sur cet appareil', async () => {
     const user = userEvent.setup()
     const { api } = renderLayout()
-    await user.click(await bell())
-    let dialog = await screen.findByRole('dialog', { name: 'Notifications' })
-    expect(dialog).toHaveTextContent('Être prévenu(e) sur cet appareil')
-    await user.click(within(dialog).getByRole('button', { name: 'Activer' }))
+    expect(await deviceStatus()).toHaveTextContent('Désactivées sur cet appareil.')
+    await user.click(screen.getByRole('button', { name: 'Activer sur cet appareil' }))
     expect(api.push.saveSubscription).toHaveBeenCalled()
-    expect(await within(dialog).findByText(/Activées sur cet appareil/)).toBeInTheDocument()
+    expect(await screen.findByText('Activées sur cet appareil.')).toBeInTheDocument()
 
-    await user.click(within(dialog).getByRole('button', { name: 'Désactiver' }))
+    await user.click(screen.getByRole('button', { name: 'Désactiver sur cet appareil' }))
     expect(unsubscribeDevice).toHaveBeenCalledWith(registration)
     expect(api.push.deleteSubscription).toHaveBeenCalledWith(DEVICE.endpoint)
-    dialog = screen.getByRole('dialog')
-    expect(await within(dialog).findByRole('button', { name: 'Activer' })).toBeInTheDocument()
-    await user.click(within(dialog).getByRole('button', { name: 'Fermer' }))
-    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+    expect(await screen.findByRole('button', { name: 'Activer sur cet appareil' })).toBeInTheDocument()
   })
 
   it('reconnaît un appareil déjà abonné (pas de proposition)', async () => {
@@ -107,19 +106,16 @@ describe('notifications de l’application', () => {
     vi.mocked(currentDevicePush).mockResolvedValue(DEVICE)
     api.push.isSubscribed.mockResolvedValue(true)
     renderLayout(api)
-    await bell()
+    expect(await deviceStatus()).toHaveTextContent('Activées sur cet appareil.')
     expect(api.push.isSubscribed).toHaveBeenCalledWith(DEVICE.endpoint)
     expect(screen.queryByRole('region', { name: 'Activer les notifications' })).not.toBeInTheDocument()
   })
 
   it('explique comment débloquer des notifications refusées', async () => {
-    const user = userEvent.setup()
     vi.stubGlobal('Notification', { permission: 'denied' })
     renderLayout()
-    await user.click(await bell())
-    const dialog = await screen.findByRole('dialog')
-    expect(dialog).toHaveTextContent('Bloquées par le téléphone')
-    expect(within(dialog).queryByRole('button', { name: 'Activer' })).not.toBeInTheDocument()
+    expect(await deviceStatus()).toHaveTextContent('Autorise-les pour Life dans les réglages du téléphone (Applications → Life → Notifications)')
+    expect(screen.queryByRole('button', { name: 'Activer sur cet appareil' })).not.toBeInTheDocument()
   })
 
   it('passe à « bloquées » si l’autorisation est refusée au moment d’activer', async () => {
@@ -127,8 +123,7 @@ describe('notifications de l’application', () => {
     vi.mocked(subscribeDevice).mockRejectedValueOnce(new PushPermissionError())
     const { api } = renderLayout()
     await user.click(within(await screen.findByRole('region', { name: 'Activer les notifications' })).getByRole('button', { name: 'Activer' }))
-    await user.click(await bell())
-    expect(await screen.findByRole('dialog')).toHaveTextContent('Bloquées par le téléphone')
+    expect(await screen.findByText(/^Bloquées par le téléphone/)).toBeInTheDocument()
     expect(api.push.saveSubscription).not.toHaveBeenCalled()
   })
 
@@ -145,7 +140,7 @@ describe('notifications de l’application', () => {
     vi.mocked(pushRegistration).mockResolvedValue(null)
     renderLayout()
     await waitFor(() => expect(pushRegistration).toHaveBeenCalled())
-    expect(screen.queryByRole('button', { name: 'Notifications' })).not.toBeInTheDocument()
+    expect(await deviceStatus()).toHaveTextContent('Disponibles seulement dans l’application installée sur le téléphone.')
     expect(screen.queryByRole('region', { name: 'Activer les notifications' })).not.toBeInTheDocument()
   })
 
@@ -155,7 +150,7 @@ describe('notifications de l’application', () => {
     vi.mocked(currentDevicePush).mockResolvedValue(DEVICE)
     api.push.isSubscribed.mockResolvedValue(true)
     const { auth } = renderLayout(api)
-    await bell()
+    await deviceStatus()
     await user.click(screen.getAllByRole('button', { name: 'Se déconnecter' })[0]!)
     await waitFor(() => expect(auth.signOut).toHaveBeenCalled())
     expect(api.push.deleteSubscription).toHaveBeenCalledWith(DEVICE.endpoint)
@@ -167,7 +162,7 @@ describe('notifications de l’application', () => {
     vi.mocked(currentDevicePush).mockResolvedValue(DEVICE)
     api.push.deleteSubscription.mockRejectedValueOnce(new AppError('Hors ligne'))
     const { auth } = renderLayout(api)
-    await bell()
+    await deviceStatus()
     await user.click(screen.getAllByRole('button', { name: 'Se déconnecter' })[0]!)
     await waitFor(() => expect(auth.signOut).toHaveBeenCalled())
   })

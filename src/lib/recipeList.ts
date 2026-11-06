@@ -1,7 +1,7 @@
 import { addDays, formatShortDate, type IsoDate } from './dates'
 import { monthOf, recipeSeason } from './season'
 import { guessAisle } from './shopping'
-import { filterRecipes, siteName, type NutritionBasis, type RecipeHistory, type RecipeListItem } from './recipes'
+import { filterRecipes, isNutritionBasis, siteName, type NutritionBasis, type RecipeHistory, type RecipeListItem } from './recipes'
 import { foldText } from './text'
 
 // ---------------------------------------------------------------------------
@@ -161,6 +161,59 @@ export function writeListOptions(options: RecipeListOptions): URLSearchParams {
   if (options.filters.length > 0) params.set('filtres', options.filters.join(','))
   if (options.sort !== DEFAULT_LIST_OPTIONS.sort) params.set('tri', options.sort)
   return params
+}
+
+// ---------------------------------------------------------------------------
+// Recette de la liste, d'après sa ligne en base et son historique
+
+/** Ligne lue pour la liste (colonnes de `api.recipes.listSavedRecipes`). */
+export interface SavedRecipeRow {
+  id: string
+  title: string
+  tags: string[]
+  created_at: string
+  source: string | null
+  source_page: string | null
+  url: string | null
+  prep_minutes: number | null
+  rest_minutes: number | null
+  cook_minutes: number | null
+  kcal: number | null
+  nutrition_per: string | null
+  recipe_ingredients: { name: string }[]
+  recipe_photos: { storage_path: string; position: number }[]
+  recipe_reviews: { rating: number | null }[]
+}
+
+/** Repas du planning avec la recette (fonction `recipe_history`). */
+export interface CookedRow {
+  times_cooked: number
+  last_cooked: IsoDate | null
+  next_planned: IsoDate | null
+}
+
+/** Temps total, végétarien, photo principale, note moyenne : ce que la liste affiche, trie et filtre. */
+export function toRecipeListItem(r: SavedRecipeRow, cooked: CookedRow | undefined): RecipeListItem {
+  const ingredientNames = r.recipe_ingredients.map((i) => i.name)
+  return {
+    id: r.id,
+    title: r.title,
+    tags: r.tags,
+    ingredientNames,
+    mainPhotoPath: r.recipe_photos.toSorted((a, b) => a.position - b.position)[0]?.storage_path ?? null,
+    createdAt: r.created_at,
+    source: r.source,
+    sourcePage: r.source_page,
+    url: r.url,
+    totalMinutes: totalMinutes({ prep: r.prep_minutes, rest: r.rest_minutes, cook: r.cook_minutes }),
+    kcal: r.kcal,
+    nutritionPer: isNutritionBasis(r.nutrition_per) ? r.nutrition_per : null,
+    vegetarian: isVegetarian({ tags: r.tags, ingredientNames }),
+    timesCooked: cooked?.times_cooked ?? 0,
+    lastCooked: cooked?.last_cooked ?? null,
+    nextPlanned: cooked?.next_planned ?? null,
+    rating: averageRating(r.recipe_reviews.map((v) => v.rating)),
+  }
 }
 
 // ---------------------------------------------------------------------------

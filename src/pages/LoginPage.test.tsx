@@ -12,7 +12,7 @@ function renderLogin(auth = fakeAuth({ signedIn: false })) {
     path: '/login',
     extraRoutes: (
       <Route element={<RequireAuth />}>
-        <Route path="/planning" element={<p>Écran planning</p>} />
+        <Route path="/" element={<p>Écran d’accueil</p>} />
       </Route>
     ),
   })
@@ -36,18 +36,18 @@ describe('LoginPage', () => {
     expect(auth.signInWithPassword).toHaveBeenCalledWith({ email: 'lucile@food.test', password: 'faux' })
   })
 
-  it('connecte puis redirige vers le planning', async () => {
+  it('connecte puis redirige vers l’accueil', async () => {
     const user = userEvent.setup()
     renderLogin()
     await user.type(await screen.findByLabelText('E-mail'), 'lucile@food.test')
     await user.type(screen.getByLabelText('Mot de passe'), 'bon-mot-de-passe')
     await user.click(screen.getByRole('button', { name: 'Se connecter' }))
-    expect(await screen.findByText('Écran planning')).toBeInTheDocument()
+    expect(await screen.findByText('Écran d’accueil')).toBeInTheDocument()
   })
 
   it('redirige directement si déjà connecté', async () => {
     renderLogin(fakeAuth({ signedIn: true }))
-    expect(await screen.findByText('Écran planning')).toBeInTheDocument()
+    expect(await screen.findByText('Écran d’accueil')).toBeInTheDocument()
   })
 
   it('affiche un message générique en cas de panne du serveur ou du réseau', async () => {

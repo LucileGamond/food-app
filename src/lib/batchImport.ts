@@ -1,9 +1,3 @@
-import type { Api } from '@/api'
-import { AppError } from '@/api/errors'
-import { compressForReading, cropImage } from './image'
-import { hasErrors, importedToFormValues, toSaveRecipeInput, validateRecipeForm, type ImportedRecipe, type RecipeFormErrors } from './recipes'
-
-import { recipeKey } from './sources'
 import { foldText } from './text'
 
 /** Images lues en même temps : plus rapide, sans trop solliciter le service d'analyse. */
@@ -67,80 +61,6 @@ export async function runQueue<T>(
     }
   }
   await Promise.all(Array.from({ length: Math.min(concurrency, items.length) }, lane))
-}
-
-export interface BatchContext {
-  api: Pick<Api, 'recipes' | 'photos'>
-  /** Livre saisi pour toute la série. */
-  book: string
-  tags: string[]
-  /** Recettes déjà enregistrées ou importées dans cette série (`recipeKey` : titre et livre) → recette ; complété au fil de l'import. */
-  known: Map<string, string>
-}
-
-const firstError = (errors: RecipeFormErrors) =>
-  errors.title ?? errors.ingredients ?? Object.values(errors.ingredientRows ?? {})[0] ?? Object.values(errors).find((e) => typeof e === 'string')
-
-/** Enregistre une recette lue (sans formulaire ni points à vérifier), sauf doublon ou recette incomplète. */
-async function saveRecipe(recipe: ImportedRecipe, { api, book, known }: BatchContext): Promise<BatchRecipe> {
-  const values = { ...importedToFormValues(recipe, ''), source: book }
-  const title = values.title.trim()
-  // Même titre dans un autre livre : une autre recette.
-  const key = recipeKey(title, book)
-  const existing = known.get(key)
-  if (existing !== undefined) return { status: 'duplicate', title, recipeId: existing || undefined, message: 'Déjà enregistrée' }
-
-  const errors = validateRecipeForm(values)
-  if (hasErrors(errors)) return { status: 'incomplete', title, message: firstError(errors) ?? 'Recette incomplète' }
-
-  // Réservé avant l'enregistrement : une autre recette du même titre, lue en parallèle, sera un doublon.
-  known.set(key, '')
-  try {
-    const recipeId = await api.recipes.saveRecipe(toSaveRecipeInput(null, values))
-    known.set(key, recipeId)
-    return { status: 'saved', title, recipeId }
-  } catch (error) {
-    known.delete(key)
-    return { status: 'error', title, message: error instanceof Error ? error.message : 'L’enregistrement a échoué.' }
-  }
-}
-
-/** Lit une image et enregistre chacune de ses recettes (une page peut en contenir plusieurs). */
-export async function importOne(file: File, context: BatchContext): Promise<BatchResult> {
-  let image: Blob
-  try {
-    image = await compressForReading(file)
-  } catch {
-    return { status: 'error', message: 'Image illisible (essaie en JPEG ou PNG).', recipes: [] }
-  }
-
-  let read
-  try {
-    read = await context.api.recipes.importFromPhotos([image], context.tags)
-  } catch (error) {
-    // 422 : la page n'est pas une recette (couverture, sommaire…).
-    if (error instanceof AppError && error.code === 'import-422') return { status: 'skipped', message: 'Pas une recette', recipes: [] }
-    return { status: 'error', message: error instanceof Error ? error.message : 'La lecture a échoué.', recipes: [] }
-  }
-
-  // Une ancienne version de la fonction ne renvoie que `recipe`.
-  const found = read.recipes?.length ? read.recipes : [read.recipe]
-  const recipes: BatchRecipe[] = []
-  for (const recipe of found) {
-    const saved = await saveRecipe(recipe, context)
-    recipes.push(saved.status === 'saved' && recipe.photo ? { ...saved, photo: await addDishPhoto(file, recipe, saved.recipeId!, context) } : saved)
-  }
-  return { status: 'done', recipes }
-}
-
-/** Photo du plat imprimée sur la page : recadrée et ajoutée à la recette enregistrée. Un échec ne bloque rien. */
-async function addDishPhoto(file: File, recipe: ImportedRecipe, recipeId: string, { api }: BatchContext): Promise<boolean> {
-  try {
-    await api.photos.uploadPhoto(recipeId, await cropImage(file, recipe.photo!))
-    return true
-  } catch {
-    return false
-  }
 }
 
 /** Une image à relire : erreur de lecture, ou une de ses recettes n'a pas pu être enregistrée. */

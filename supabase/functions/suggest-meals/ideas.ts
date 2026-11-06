@@ -3,6 +3,7 @@
 
 import { HttpError, runConversation, type ContentBlock, type ModelOptions, type ModelUsage } from '../_shared/anthropic.ts'
 import { searchResultUrls, urlKey } from '../_shared/search.ts'
+import { asRecord, str } from '../_shared/sanitize.ts'
 
 export const MAX_CANDIDATES = 80
 export const MAX_RECENT = 40
@@ -92,20 +93,19 @@ const SYSTEM = [
   `N’écris pas de texte : après tes recherches, appelle directement l’outil ${TOOL_NAME}.`,
 ].join('\n')
 
-const str = (v: unknown, max: number): string => (typeof v === 'string' ? v.replace(/\s+/g, ' ').trim().slice(0, max) : '')
 const list = (v: unknown, count: number, max: number): string[] =>
   [...new Set((Array.isArray(v) ? v : []).map((x) => str(x, max)).filter(Boolean))].slice(0, count)
 
 /** Entrée reçue du navigateur : validée et bornée. */
 export function parseInput(body: unknown): SuggestInput {
-  const data = (typeof body === 'object' && body !== null ? body : {}) as Record<string, unknown>
+  const data = asRecord(body)
   const today = str(data.today, 10)
   if (!/^\d{4}-\d{2}-\d{2}$/.test(today) || Number.isNaN(Date.parse(today))) throw new HttpError('Date invalide.', 400)
   const rawCandidates = Array.isArray(data.candidates) ? data.candidates : []
   if (rawCandidates.length > MAX_CANDIDATES) throw new HttpError(`${MAX_CANDIDATES} recettes au plus.`, 400)
   const candidates: Candidate[] = []
   for (const value of rawCandidates) {
-    const raw = (typeof value === 'object' && value !== null ? value : {}) as Record<string, unknown>
+    const raw = asRecord(value)
     const id = str(raw.id, 64)
     const title = str(raw.title, 200)
     if (!id || !title) throw new HttpError('Recette invalide.', 400)
@@ -150,13 +150,13 @@ export function retryWithResults(blocks: readonly ContentBlock[]): string {
  * résultats de recherche ; sans doublon ; textes bornés.
  */
 export function sanitizeIdeas(output: unknown, input: SuggestInput, blocks: readonly ContentBlock[]): Idea[] {
-  const data = (typeof output === 'object' && output !== null ? output : {}) as Record<string, unknown>
+  const data = asRecord(output)
   const found = searchResultUrls(blocks)
   const ideas: Idea[] = []
   const seen = new Set<string>()
   for (const value of Array.isArray(data.idees) ? data.idees : []) {
     if (ideas.length >= MAX_IDEAS) break
-    const raw = (typeof value === 'object' && value !== null ? value : {}) as Record<string, unknown>
+    const raw = asRecord(value)
     const base: Omit<IdeaBase, 'title'> = {
       protein: str(raw.protein, 60),
       vegetables: list(raw.vegetables, 3, 60),

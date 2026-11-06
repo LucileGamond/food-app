@@ -3,7 +3,7 @@
 import { AppError, toAppError } from '@/api/errors'
 import { subscribeTables } from '@/api/realtime'
 import type { Json } from '@/lib/database.types'
-import type { AppSupabaseClient } from '@/lib/supabase'
+import type { AppSupabaseClient } from '@/api/client'
 import type { Plant, PlantInput, PlantPhoto, RuleInput, WateringEvent } from './lib/plants'
 
 const PLANT_PHOTO_BUCKET = 'plant-photos'

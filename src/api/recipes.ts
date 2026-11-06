@@ -2,11 +2,11 @@ import type { MealSlot, RecipeSummary } from '@/lib/meals'
 import { todayIso, type IsoDate } from '@/lib/dates'
 import type { LinkableRecipe } from '@/lib/autoLinks'
 import type { CookingProgress, SavedProgress } from '@/lib/cooking'
-import { averageRating, isVegetarian, totalMinutes } from '@/lib/recipeList'
+import { toRecipeListItem } from '@/lib/recipeList'
 import { isNutritionBasis, type Ingredient, type LinkedRecipe, type Recipe, type RecipeHistory, type RecipeImport, type RecipeListItem, type SaveRecipeInput } from '@/lib/recipes'
 import { estimateInput, parseEstimate, type NutritionEstimate } from '@/lib/nutritionEstimate'
 import { groupSources } from '@/lib/sources'
-import type { AppSupabaseClient } from '@/lib/supabase'
+import type { AppSupabaseClient } from '@/api/client'
 import { PENDING_PHOTO_PREFIX, PHOTO_BUCKET } from './photos'
 import { AppError, DuplicateRecipeUrlError, functionError, RecipeInUseError, toAppError } from './errors'
 
@@ -57,29 +57,7 @@ export function createRecipesApi(db: AppSupabaseClient) {
       if (recipes.error) throw toAppError(recipes.error, 'Impossible de charger les recettes.')
       if (history.error) throw toAppError(history.error, 'Impossible de charger les recettes.')
       const cooked = new Map(history.data.map((h) => [h.recipe_id, h]))
-      return recipes.data.map((r) => {
-        const ingredientNames = r.recipe_ingredients.map((i) => i.name)
-        const h = cooked.get(r.id)
-        return {
-          id: r.id,
-          title: r.title,
-          tags: r.tags,
-          ingredientNames,
-          mainPhotoPath: [...r.recipe_photos].sort((a, b) => a.position - b.position)[0]?.storage_path ?? null,
-          createdAt: r.created_at,
-          source: r.source,
-          sourcePage: r.source_page,
-          url: r.url,
-          totalMinutes: totalMinutes({ prep: r.prep_minutes, rest: r.rest_minutes, cook: r.cook_minutes }),
-          kcal: r.kcal,
-          nutritionPer: isNutritionBasis(r.nutrition_per) ? r.nutrition_per : null,
-          vegetarian: isVegetarian({ tags: r.tags, ingredientNames }),
-          timesCooked: h?.times_cooked ?? 0,
-          lastCooked: h?.last_cooked ?? null,
-          nextPlanned: h?.next_planned ?? null,
-          rating: averageRating(r.recipe_reviews.map((v) => v.rating)),
-        }
-      })
+      return recipes.data.map((r) => toRecipeListItem(r, cooked.get(r.id)))
     },
 
     /** Repas du planning avec cette recette : nombre, dernier, prochain. */

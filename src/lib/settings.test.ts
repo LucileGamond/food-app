@@ -1,4 +1,4 @@
-import { activeTopics, DEFAULT_SETTINGS, describeTopics, homePath, isPageEnabled, pageOf, parseGoalLiters, toggleNotification, togglePage } from './settings'
+import { activeTopics, DEFAULT_SETTINGS, describeTopics, isPageEnabled, PAGES, pageOf, parseGoalLiters, SECTIONS, sectionOf, toggleNotification, togglePage, visibleSections } from './settings'
 
 describe('réglages', () => {
   it('désactive le suivi d’hydratation par défaut, le reste est affiché', () => {
@@ -15,10 +15,11 @@ describe('réglages', () => {
     expect(pageOf('/partage')).toBeNull()
   })
 
-  it('choisit la première page affichée comme accueil', () => {
-    expect(homePath(DEFAULT_SETTINGS)).toBe('/planning')
-    expect(homePath({ ...DEFAULT_SETTINGS, disabledPages: ['planning', 'recettes'] })).toBe('/plan')
-    expect(homePath({ ...DEFAULT_SETTINGS, disabledPages: ['planning', 'recettes', 'plan', 'courses', 'poids', 'hydratation', 'tricot', 'plantes'] })).toBe('/reglages')
+  it('regroupe les pages par section, et cache une section sans page affichée', () => {
+    expect(SECTIONS.flatMap((s) => s.pages).toSorted()).toEqual(PAGES.map((p) => p.key).toSorted())
+    expect(sectionOf('hydratation').label).toBe('Santé')
+    const shown = visibleSections((page) => isPageEnabled({ ...DEFAULT_SETTINGS, disabledPages: ['poids', 'plan', 'hydratation', 'courses'] }, page))
+    expect(shown.map(({ section, pages }) => `${section.label}: ${pages.map((p) => p.label).join(', ')}`)).toEqual(['Repas: Planning, Recettes', 'Tricot: Tricot', 'Plantes: Plantes'])
   })
 
   it('active et désactive pages et notifications', () => {

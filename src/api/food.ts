@@ -1,6 +1,6 @@
 import type { IsoDate } from '@/lib/dates'
 import type { Consumption, FoodPeriod, PeriodItem, PlanItem, PlanItemInput } from '@/lib/food'
-import type { AppSupabaseClient } from '@/lib/supabase'
+import type { AppSupabaseClient } from '@/api/client'
 import { AppError, toAppError } from './errors'
 import { subscribeTables } from './realtime'
 

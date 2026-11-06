@@ -76,9 +76,9 @@ describe('pages masquées', () => {
       api,
       route: '/partage?text=Raclette',
       path: '/partage',
-      extraRoutes: <Route path="/recettes" element={<p>Écran recettes</p>} />,
+      extraRoutes: <Route path="/" element={<p>Écran d’accueil</p>} />,
     })
-    expect(await screen.findByText('Écran recettes')).toBeInTheDocument()
+    expect(await screen.findByText('Écran d’accueil')).toBeInTheDocument()
     expect(await screen.findByText('Le Planning est masqué dans tes réglages : l’idée n’a pas été ajoutée')).toBeInTheDocument()
     expect(api.inbox.addItem).not.toHaveBeenCalled()
   })

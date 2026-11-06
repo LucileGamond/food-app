@@ -1,4 +1,4 @@
-import { ArrowLeft, ArrowRightLeft, BookOpen, CopyCheck, Link2, Loader2 } from 'lucide-react'
+import { ArrowLeft, BookOpen, CopyCheck, Link2, Loader2 } from 'lucide-react'
 import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { Link, useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { toast } from 'sonner'
@@ -7,32 +7,29 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Textarea } from '@/components/ui/textarea'
-import { NativeSelect } from '@/components/ui/native-select'
 import { RecipeNotFound } from '@/components/recipes/RecipeNotFound'
 import { IngredientsEditor } from '@/components/recipes/IngredientsEditor'
-import { PhotoUploader, type PhotoDraft } from '@/components/recipes/PhotoUploader'
+import { PhotoUploader } from '@/components/recipes/PhotoUploader'
+import { DuplicateRecipeAlert, DurationFields, NutritionFields, PageRecipesChooser } from '@/components/recipes/form/RecipeFormSections'
 import { CheckNote } from '@/components/recipes/CheckNote'
 import { ImportReview } from '@/components/recipes/ImportReview'
 import { RecipeImportCard } from '@/components/recipes/RecipeImportCard'
 import { SourceInput } from '@/components/recipes/SourceInput'
 import { TagInput } from '@/components/recipes/TagInput'
 import { useApi } from '@/app/ApiContext'
+import { useRecipePhotos } from '@/hooks/useRecipePhotos'
 import { AppError, DuplicateRecipeUrlError, errorMessage } from '@/api'
 import { isValidUrl } from '@/lib/meals'
-import { compressForReading, compressImage, cropImage } from '@/lib/image'
+import { compressForReading, cropImage } from '@/lib/image'
 import { importChecks, pendingChecks, type ImportCheck } from '@/lib/importChecks'
 import { takeSharedPhotos } from '@/lib/sharedPhotos'
 import {
   formHasContent,
-  DURATION_FIELDS,
   hasErrors,
   importedImageToFile,
   importedToFormValues,
   linkedSource,
   linkedTitle,
-  MACRO_FIELDS,
-  NUTRITION_BASES,
-  type NutritionBasis,
   parseLinkedImport,
   recipeToFormValues,
   toSaveRecipeInput,
@@ -41,7 +38,9 @@ import {
   type RecipeFormValues,
 } from '@/lib/recipes'
 import { findSource, recipeKey } from '@/lib/sources'
-import { applyAutoLinks, autoLinkMessage } from '@/lib/autoLinks'
+import { autoLinkMessage } from '@/lib/autoLinks'
+import { applyAutoLinks } from '@/services/autoLinks'
+import { syncRecipePhotos } from '@/services/recipePhotos'
 import { cn } from '@/lib/utils'
 import { navState, type NavState } from '@/lib/navState'
 
@@ -100,8 +99,8 @@ export function RecipeFormPage() {
         ? { ...EMPTY, title: fromList.title, url: fromList.url ?? '' }
         : { ...EMPTY, url: importUrl ?? '' },
   )
-  const [photos, setPhotos] = useState<PhotoDraft[]>([])
-  const [removed, setRemoved] = useState<PhotoDraft[]>([])
+  const photos = useRecipePhotos()
+  const { load: loadPhotos } = photos
   const [tagSuggestions, setTagSuggestions] = useState<string[]>([])
   const [sources, setSources] = useState<string[]>([])
   const [savedTitles, setSavedTitles] = useState<{ id: string; title: string; source?: string | null }[]>([])
@@ -119,7 +118,6 @@ export function RecipeFormPage() {
   const [pageRecipes, setPageRecipes] = useState<ImportedRecipe[] | null>(null)
   const [review, setReview] = useState<{ checks: ImportCheck[]; snapshot: RecipeFormValues } | null>(null)
   const savedId = useRef<string | null>(id ?? null)
-  const keyCounter = useRef(0)
 
   useEffect(() => {
     api.recipes.listTags().then(setTagSuggestions, () => setTagSuggestions([]))
@@ -208,7 +206,7 @@ export function RecipeFormPage() {
         setWasSaved(recipe.is_saved)
         const urls = await api.photos.signedUrls(recipe.photos.map((p) => p.storage_path)).catch(() => ({}) as Record<string, string>)
         if (!active) return
-        setPhotos(recipe.photos.map((p) => ({ kind: 'existing', key: p.id, id: p.id, storage_path: p.storage_path, url: urls[p.storage_path] })))
+        loadPhotos(recipe.photos, urls)
         setStatus('ready')
       },
       (e: unknown) => {
@@ -220,14 +218,8 @@ export function RecipeFormPage() {
     return () => {
       active = false
     }
-  }, [api, id])
+  }, [api, id, loadPhotos])
 
-  // Libère les aperçus locaux des nouvelles photos.
-  const photosRef = useRef(photos)
-  useEffect(() => {
-    photosRef.current = photos
-  }, [photos])
-  useEffect(() => () => photosRef.current.forEach((p) => p.kind === 'new' && URL.revokeObjectURL(p.url)), [])
   const mounted = useRef(true)
   useEffect(() => {
     mounted.current = true
@@ -250,15 +242,6 @@ export function RecipeFormPage() {
   const shown = submitted ? errors : {}
   const set = <K extends keyof RecipeFormValues>(key: K, value: RecipeFormValues[K]) => setValues((v) => ({ ...v, [key]: value }))
 
-  function addPhotos(files: File[]) {
-    // Aperçus créés hors de la mise à jour d'état : rejouée deux fois en mode strict, elle en perdrait.
-    const added = files.map((file) => ({ kind: 'new' as const, key: `new-${++keyCounter.current}`, file, url: URL.createObjectURL(file) }))
-    setPhotos((list) => [...list, ...added])
-  }
-
-  /** Après un import : photos à jour (`photos` date d'avant les `await`, une photo a pu être ajoutée entre-temps). */
-  const hasPhotos = () => photosRef.current.length > 0
-
   /** Tags existants, pour que l'import réutilise les mêmes : à l'ouverture depuis un partage, ils ne sont pas encore chargés. */
   const knownTags = async () => (tagSuggestions.length > 0 ? tagSuggestions : api.recipes.listTags().catch(() => [] as string[]))
 
@@ -275,7 +258,7 @@ export function RecipeFormPage() {
     await assertUrlNotSaved(url)
     const result = await api.recipes.importFromUrl(url, await knownTags())
     applyImport(result.recipe, url)
-    if (result.image && !hasPhotos()) addPhotos([importedImageToFile(result.image)])
+    if (result.image && !photos.hasPhotos()) photos.add([importedImageToFile(result.image)])
     return result.foundUrl
   }
 
@@ -292,14 +275,14 @@ export function RecipeFormPage() {
    */
   async function importFromPhotos(files: File[], url?: string): Promise<boolean> {
     if (url) await assertUrlNotSaved(url)
-    let photos: Blob[]
+    let images: Blob[]
     try {
-      photos = await Promise.all(files.map(compressForReading))
+      images = await Promise.all(files.map(compressForReading))
     } catch {
       // Format que le navigateur ne sait pas lire (HEIC d'iPhone…) ou fichier abîmé.
       throw new AppError('Cette photo ne peut pas être lue. Essaie une photo JPEG ou PNG (ou une capture d’écran).')
     }
-    const result = await api.recipes.importFromPhotos(photos, await knownTags())
+    const result = await api.recipes.importFromPhotos(images, await knownTags())
     if (!mounted.current) return false
     readPagesRef.current.forEach((url) => URL.revokeObjectURL(url))
     setReadPages(files.map((file) => URL.createObjectURL(file)))
@@ -324,10 +307,10 @@ export function RecipeFormPage() {
   /** Photo du plat imprimée sur la page lue : recadrée et ajoutée, si la recette n'a pas encore de photo. */
   async function addDishPhoto(recipe: ImportedRecipe) {
     const file = recipe.photo ? readFiles.current[recipe.photo.image] : undefined
-    if (!recipe.photo || !file || hasPhotos()) return
+    if (!recipe.photo || !file || photos.hasPhotos()) return
     try {
       const photo = await cropImage(file, recipe.photo)
-      if (mounted.current && !hasPhotos()) addPhotos([photo])
+      if (mounted.current && !photos.hasPhotos()) photos.add([photo])
     } catch {
       // Image que le navigateur ne sait pas recadrer : la recette reste sans photo.
     }
@@ -341,21 +324,6 @@ export function RecipeFormPage() {
     setValues(next)
     setSubmitted(false)
     setReview({ checks: importChecks(recipe, next), snapshot: next })
-  }
-
-  function removePhoto(key: string) {
-    const photo = photos.find((p) => p.key === key)
-    if (!photo) return
-    if (photo.kind === 'existing') setRemoved((r) => [...r, photo])
-    else URL.revokeObjectURL(photo.url)
-    setPhotos((list) => list.filter((p) => p.key !== key))
-  }
-
-  function makeMain(key: string) {
-    setPhotos((list) => {
-      const photo = list.find((p) => p.key === key)
-      return photo ? [photo, ...list.filter((p) => p.key !== key)] : list
-    })
   }
 
   async function handleSubmit(event: FormEvent) {
@@ -374,24 +342,7 @@ export function RecipeFormPage() {
       const recipeId = await api.recipes.saveRecipe(toSaveRecipeInput(savedId.current, values))
       savedId.current = recipeId
 
-      for (const photo of removed) if (photo.kind === 'existing') await api.photos.deletePhoto(photo)
-      setRemoved([])
-
-      // Envoie les nouvelles photos une par une ; chaque photo envoyée devient « existante »
-      // pour ne pas être renvoyée si l'enregistrement est relancé après une erreur.
-      const finalIds: string[] = []
-      for (const photo of photos) {
-        if (photo.kind === 'existing') {
-          finalIds.push(photo.id)
-          continue
-        }
-        const uploaded = await api.photos.uploadPhoto(recipeId, await compressImage(photo.file))
-        finalIds.push(uploaded.id)
-        setPhotos((list) =>
-          list.map((p) => (p.key === photo.key ? { kind: 'existing', key: p.key, id: uploaded.id, storage_path: uploaded.storage_path, url: p.url } : p)),
-        )
-      }
-      if (finalIds.length > 1) await api.photos.reorderPhotos(finalIds)
+      await syncRecipePhotos(api, recipeId, photos, { onRemoved: photos.clearRemoved, onUploaded: photos.markUploaded })
 
       // Liens avec les recettes du même livre (renvois « voir p. 208 », dans les deux sens), sans bloquer l'enregistrement.
       const auto = await applyAutoLinks(api, recipeId).catch(() => null)
@@ -460,9 +411,7 @@ export function RecipeFormPage() {
   }
 
   if (status === 'notFound') {
-    return (
-      <RecipeNotFound />
-    )
+    return <RecipeNotFound />
   }
 
   const title = !id ? 'Nouvelle recette' : wasSaved ? 'Modifier la recette' : 'Enregistrer la recette'
@@ -501,48 +450,11 @@ export function RecipeFormPage() {
           />
         )}
 
-        {pageRecipes && (
-          <section aria-labelledby="page-recipes-title" className="rounded-2xl border border-brand/25 bg-brand/5 p-4">
-            <h2 id="page-recipes-title" className="text-sm font-semibold">
-              Cette page contient {pageRecipes.length} recettes : laquelle préremplir ?
-            </h2>
-            <p className="mt-0.5 text-xs text-muted-foreground">Pour les autres, relis la même photo ensuite, ou utilise l’import en série.</p>
-            <div className="mt-3 flex flex-wrap gap-2">
-              {pageRecipes.map((recipe, i) => (
-                <Button key={i} type="button" variant="outline" className="h-10 px-3" onClick={() => choosePageRecipe(recipe)}>
-                  {recipe.title}
-                </Button>
-              ))}
-            </div>
-          </section>
-        )}
+        {pageRecipes && <PageRecipesChooser recipes={pageRecipes} onChoose={choosePageRecipe} />}
 
         {review && <ImportReview messages={fieldChecks(null)} pages={readPages} onDismiss={() => setReview(null)} />}
 
-        {duplicate && (
-          <div role="alert" className="rounded-2xl border border-destructive/30 bg-destructive/5 p-5 text-sm">
-            <p className="flex items-center gap-2 font-medium">
-              <CopyCheck className="size-4 shrink-0 text-destructive" aria-hidden />
-              Cette recette est déjà enregistrée : « {duplicate.title} »
-            </p>
-            <p className="mt-1 text-muted-foreground">
-              {id && !wasSaved
-                ? 'Le planning peut utiliser cette recette à la place de la recette ponctuelle.'
-                : 'Un même lien ne peut être utilisé que par une seule recette.'}
-            </p>
-            <div className="mt-3 flex flex-wrap gap-2">
-              {id && !wasSaved && (
-                <Button type="button" className="h-10 px-4" disabled={switching} onClick={() => void switchToExisting()}>
-                  {switching ? <Loader2 className="animate-spin" aria-hidden /> : <ArrowRightLeft aria-hidden />}
-                  Utiliser « {duplicate.title} » dans le planning
-                </Button>
-              )}
-              <Link to={`/recettes/${duplicate.id}`} className={cn(buttonVariants({ variant: 'outline' }), 'h-10 px-4')}>
-                Ouvrir « {duplicate.title} »
-              </Link>
-            </div>
-          </div>
-        )}
+        {duplicate && <DuplicateRecipeAlert duplicate={duplicate} canSwitch={Boolean(id && !wasSaved)} switching={switching} onSwitch={() => void switchToExisting()} />}
 
         <section className="space-y-5 rounded-2xl border bg-background p-5 shadow-xs">
           <Field id="recipe-title" label="Titre" error={shown.title}>
@@ -617,77 +529,8 @@ export function RecipeFormPage() {
               />
             </Field>
           </div>
-          <fieldset className="grid grid-cols-3 gap-3">
-            <legend className="mb-2 text-sm font-medium">Temps</legend>
-            {DURATION_FIELDS.map(({ field, label, example }) => (
-              <div key={field} className="space-y-1">
-                <Label htmlFor={`recipe-${field}`} className="text-xs font-normal text-muted-foreground">
-                  {label}
-                </Label>
-                <Input
-                  id={`recipe-${field}`}
-                  placeholder={example}
-                  value={values[field]}
-                  onChange={(e) => set(field, e.target.value)}
-                  aria-invalid={Boolean(shown[field]) || undefined}
-                  className="h-10 placeholder:text-muted-foreground/40"
-                />
-              </div>
-            ))}
-            {DURATION_FIELDS.some(({ field }) => shown[field]) && (
-              <p className="col-span-3 text-sm text-destructive">{DURATION_FIELDS.map(({ field }) => shown[field]).find(Boolean)}</p>
-            )}
-          </fieldset>
-          <fieldset className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-            <legend className="mb-2 text-sm font-medium">Valeurs nutritionnelles</legend>
-            <div className="space-y-1">
-              <Label htmlFor="recipe-kcal" className="text-xs font-normal text-muted-foreground">
-                Calories (kcal)
-              </Label>
-              <Input
-                id="recipe-kcal"
-                inputMode="numeric"
-                placeholder="450"
-                value={values.kcal}
-                onChange={(e) => set('kcal', e.target.value)}
-                aria-invalid={Boolean(shown.nutrition) || undefined}
-                className="h-10 placeholder:text-muted-foreground/40"
-              />
-            </div>
-            {MACRO_FIELDS.map(({ field, label }) => (
-              <div key={field} className="space-y-1">
-                <Label htmlFor={`recipe-${field}`} className="text-xs font-normal text-muted-foreground">
-                  {label} (g)
-                </Label>
-                <Input
-                  id={`recipe-${field}`}
-                  inputMode="decimal"
-                  value={values[field]}
-                  onChange={(e) => set(field, e.target.value)}
-                  aria-invalid={Boolean(shown.nutrition) || undefined}
-                  className="h-10"
-                />
-              </div>
-            ))}
-            <div className="col-span-2 flex items-center gap-2 sm:col-span-4">
-              <Label htmlFor="recipe-nutrition-per" className="text-xs font-normal text-muted-foreground">
-                Valeurs
-              </Label>
-              <NativeSelect
-                id="recipe-nutrition-per"
-                value={values.nutritionPer}
-                onChange={(e) => set('nutritionPer', e.target.value as NutritionBasis)}
-                className="h-9 px-2"
-              >
-                {NUTRITION_BASES.map((b) => (
-                  <option key={b.value} value={b.value}>
-                    {b.label}
-                  </option>
-                ))}
-              </NativeSelect>
-            </div>
-            {shown.nutrition && <p className="col-span-2 text-sm text-destructive sm:col-span-4">{shown.nutrition}</p>}
-          </fieldset>
+          <DurationFields values={values} errors={shown} set={set} />
+          <NutritionFields values={values} errors={shown} set={set} />
           <Field id="recipe-tags" label="Tags" hint="Ex. végé, rapide, dessert">
             <TagInput id="recipe-tags" value={values.tags} suggestions={tagSuggestions} onChange={(tags) => set('tags', tags)} />
           </Field>
@@ -707,7 +550,7 @@ export function RecipeFormPage() {
 
         <section className="space-y-3 rounded-2xl border bg-background p-5 shadow-xs" aria-labelledby="photos-heading">
           <h2 id="photos-heading" className="font-semibold tracking-tight">Photos</h2>
-          <PhotoUploader photos={photos} onAdd={addPhotos} onRemove={removePhoto} onMakeMain={makeMain} />
+          <PhotoUploader photos={photos.photos} onAdd={photos.add} onRemove={photos.remove} onMakeMain={photos.makeMain} />
         </section>
       </div>
 

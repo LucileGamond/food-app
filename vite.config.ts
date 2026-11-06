@@ -30,15 +30,15 @@ export default defineConfig({
       registerType: 'autoUpdate',
       includeAssets: ['icons/favicon-64.png', 'icons/apple-touch-icon.png'],
       manifest: {
-        name: 'Food App',
-        short_name: 'Food',
-        description: 'Planning des repas et recettes',
+        name: 'Life',
+        short_name: 'Life',
+        description: 'Repas, recettes, courses et petits outils du quotidien',
         lang: 'fr',
         theme_color: '#18181b',
         background_color: '#fafafa',
         display: 'standalone',
         start_url: '/',
-        // Partage Android (menu « Partager » → Food) : le lien arrive dans la liste « À planifier ».
+        // Partage Android (menu « Partager » → Life) : le lien arrive dans la liste « À planifier ».
         // Liens (liste « À planifier ») et photos de recettes : POST multipart, trié par public/share-sw.js.
         share_target: {
           action: '/partage',
@@ -79,8 +79,8 @@ export default defineConfig({
     css: false,
     coverage: {
       provider: 'v8',
-      include: ['src/lib/**', 'src/api/errors.ts', 'src/hooks/**', 'src/components/**', 'src/pages/**', 'src/auth/**', 'src/app/**', 'src/App.tsx', 'src/modules/**', 'supabase/functions/**/*.ts'],
-      exclude: ['src/**/*.test.*', 'src/test/**', 'src/lib/supabase.ts', 'src/lib/database.types.ts', 'src/lib/image.ts', 'src/main.tsx', 'src/components/ui/**', 'supabase/functions/**/index.ts', 'src/modules/**/api.ts'],
+      include: ['src/lib/**', 'src/services/**', 'src/api/errors.ts', 'src/hooks/**', 'src/components/**', 'src/pages/**', 'src/auth/**', 'src/app/**', 'src/App.tsx', 'src/modules/**', 'supabase/functions/**/*.ts'],
+      exclude: ['src/**/*.test.*', 'src/test/**', 'src/api/client.ts', 'src/lib/database.types.ts', 'src/lib/image.ts', 'src/main.tsx', 'src/components/ui/**', 'supabase/functions/**/index.ts', 'src/modules/**/api.ts'],
       thresholds: { lines: 85, branches: 85, functions: 85, statements: 85 },
     },
   },

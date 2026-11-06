@@ -1,8 +1,8 @@
-import { dayLabel, expect, login, test } from './fixtures'
+import { dayLabel, expect, login, openNavPage, test } from './fixtures'
 
 test('crée un plan et une période, puis note des consommations', async ({ page }) => {
   await login(page)
-  await page.getByRole('link', { name: 'Plan', exact: true }).filter({ visible: true }).click()
+  await openNavPage(page, 'Plan')
   await expect(page.getByText('Aucune période', { exact: true })).toBeVisible()
 
   // Plan : deux aliments
@@ -30,7 +30,8 @@ test('crée un plan et une période, puis note des consommations', async ({ page
   await expect(page.getByRole('button', { name: /^Modifier Moutarde/ })).toContainText('× 3')
 
   // Période de 14 jours à partir d'aujourd'hui
-  await page.getByRole('main').getByRole('link', { name: 'Plan', exact: true }).click()
+  // Lien de retour de la page (sur téléphone, « Plan » est aussi dans les pages de la section).
+  await page.getByRole('main').getByRole('link', { name: 'Plan', exact: true }).last().click()
   await page.getByRole('button', { name: 'Nouvelle période' }).first().click()
   dialog = page.getByRole('dialog', { name: 'Nouvelle période' })
   await expect(dialog.getByText('14 jours')).toBeVisible()
