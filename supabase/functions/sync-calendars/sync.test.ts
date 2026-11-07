@@ -4,7 +4,7 @@ import { createHandler, CRON_STALE_MS, MANUAL_STALE_MS, type HandlerDeps } from 
 import { syncCalendars } from './sync.ts'
 
 const NOW = new Date('2026-11-10T12:00:00Z')
-const rdv: CalendarOccurrence = { uid: 'a', title: 'Dentiste', location: null, allDay: false, startsAt: '2026-11-10T08:00:00Z', endsAt: '2026-11-10T09:00:00Z' }
+const rdv: CalendarOccurrence = { uid: 'a', title: 'Dentiste', location: null, description: null, allDay: false, startsAt: '2026-11-10T08:00:00Z', endsAt: '2026-11-10T09:00:00Z' }
 const urlOf = (id: string) => `https://calendar.google.com/calendar/ical/${id}/private-x/basic.ics`
 
 function setup(fetchOccurrences: CalendarProvider<IcalCredentials>['fetchOccurrences'] = async () => [rdv]) {

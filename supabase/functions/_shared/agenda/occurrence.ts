@@ -17,6 +17,8 @@ export type CalendarOccurrence = OccurrenceTime & {
   uid: string
   title: string
   location: string | null
+  /** Description, en texte simple (sans HTML). */
+  description: string | null
 }
 
 /** Premier et dernier jour (inclus) couverts par une occurrence. */

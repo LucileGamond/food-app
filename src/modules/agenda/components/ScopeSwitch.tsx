@@ -15,7 +15,7 @@ export function ScopeSwitch({ value, otherName, onChange, disabled, className }:
           disabled={disabled}
           onClick={() => onChange(option.value)}
           className={cn(
-            'h-9 min-w-0 flex-1 truncate rounded-md px-3 text-sm font-medium text-muted-foreground transition-colors focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none disabled:opacity-60',
+            'h-9 min-w-0 flex-auto truncate rounded-md px-3 text-sm font-medium text-muted-foreground transition-colors focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none disabled:opacity-60',
             value === option.value && 'bg-background text-foreground shadow-sm',
           )}
         >

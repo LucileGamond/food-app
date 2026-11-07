@@ -2,7 +2,8 @@ import { eventFixture } from '@/test/agenda'
 import { mealFixture } from '@/test/fakes'
 import { plantFixture } from '@/test/plants'
 import type { PlantStatus, UpcomingWatering } from '@/modules/plantes/lib/status'
-import { eventsByDay, eventsInScope, scopeOptions, sourceStatus } from './agenda'
+import { eventsByDay, eventsInScope, mapsUrl, scopeOptions, sourceStatus } from './agenda'
+import { formatMonth, periodOf, sameMonth, shift, startOfWeek, weekdayIndex } from './calendar'
 import { mealExtras, wateringExtras } from './extras'
 
 describe('agenda', () => {
@@ -53,5 +54,35 @@ describe('repas et arrosages de la semaine', () => {
     expect(wateringExtras(waterings, '2026-11-12', '2026-11-10').map((e) => e.text)).toEqual(['Ficus · 1,5 L'])
     expect(wateringExtras(waterings, '2026-11-11', '2026-11-10')).toEqual([])
     expect(wateringExtras(waterings, '2026-11-09', '2026-11-10')).toEqual([])
+  })
+})
+
+describe('périodes', () => {
+  it('semaine du lundi au dimanche', () => {
+    expect([weekdayIndex('2026-11-09'), weekdayIndex('2026-11-15')]).toEqual([0, 6])
+    expect(startOfWeek('2026-11-15')).toBe('2026-11-09')
+    const week = periodOf('semaine', '2026-11-10')
+    expect([week.from, week.to, week.days.length]).toEqual(['2026-11-09', '2026-11-15', 7])
+  })
+
+  it('mois en semaines complètes', () => {
+    // Novembre 2026 : du dimanche 1er au lundi 30 → du lundi 26 octobre au dimanche 6 décembre
+    const month = periodOf('mois', '2026-11-10')
+    expect([month.from, month.to, month.days.length]).toEqual(['2026-10-26', '2026-12-06', 42])
+    // Février 2027 : commence un lundi, finit un dimanche → 4 semaines
+    expect(periodOf('mois', '2027-02-14').days).toHaveLength(28)
+  })
+
+  it('période précédente ou suivante, libellés', () => {
+    expect([shift('semaine', '2026-11-10', 1), shift('semaine', '2026-11-10', -1)]).toEqual(['2026-11-17', '2026-11-03'])
+    expect([shift('mois', '2026-01-31', 1), shift('mois', '2026-11-10', -1)]).toEqual(['2026-02-28', '2026-10-10'])
+    expect([sameMonth('2026-11-01', '2026-11-30'), sameMonth('2026-11-30', '2026-12-01')]).toEqual([true, false])
+    expect(formatMonth('2026-11-10')).toBe('Novembre 2026')
+  })
+})
+
+describe('lieu', () => {
+  it('recherche Google Maps', () => {
+    expect(mapsUrl('12 rue des Lilas, Lyon')).toBe('https://www.google.com/maps/search/?api=1&query=12%20rue%20des%20Lilas%2C%20Lyon')
   })
 })

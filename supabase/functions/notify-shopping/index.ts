@@ -214,6 +214,7 @@ const agendaDeps: AgendaNotifyDeps = {
       uid: row.uid,
       title: row.title,
       location: row.location,
+      description: null,
       ownerId: row.source?.owner_id ?? '',
       ownerName: row.source?.owner?.display_name ?? 'Quelqu’un',
       ...(row.all_day ? { allDay: true as const, startDate: row.start_date!, endDate: row.end_date! } : { allDay: false as const, startsAt: row.starts_at!, endsAt: row.ends_at! }),

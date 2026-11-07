@@ -8,7 +8,8 @@ import { addDays, type IsoDate } from '@/lib/dates'
 import type { AgendaEvent, CalendarSource } from './lib/agenda'
 
 const SOURCE_COLUMNS = 'id, owner_id, provider, name, last_synced_at, last_error, created_at, owner:profiles(display_name)'
-const EVENT_COLUMNS = 'id, source_id, uid, title, location, all_day, starts_at, ends_at, start_date, end_date, source:calendar_sources!inner(owner_id, owner:profiles(display_name))'
+const EVENT_COLUMNS =
+  'id, source_id, uid, title, location, description, all_day, starts_at, ends_at, start_date, end_date, source:calendar_sources!inner(name, owner_id, owner:profiles(display_name))'
 
 interface EventRow {
   id: string
@@ -16,12 +17,13 @@ interface EventRow {
   uid: string
   title: string
   location: string | null
+  description: string | null
   all_day: boolean
   starts_at: string | null
   ends_at: string | null
   start_date: string | null
   end_date: string | null
-  source: { owner_id: string; owner: { display_name: string } | null }
+  source: { name: string; owner_id: string; owner: { display_name: string } | null }
 }
 
 function toEvent(row: EventRow): AgendaEvent {
@@ -31,6 +33,8 @@ function toEvent(row: EventRow): AgendaEvent {
     uid: row.uid,
     title: row.title,
     location: row.location,
+    description: row.description,
+    sourceName: row.source.name,
     ownerId: row.source.owner_id,
     ownerName: row.source.owner?.display_name ?? 'Quelqu’un',
   }

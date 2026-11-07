@@ -34,7 +34,7 @@ describe('Accueil — carte Rendez-vous', () => {
       ],
     })
     const list = await within(await card()).findByRole('list', { name: 'Rendez-vous du jour' })
-    expect(within(list).getAllByRole('listitem').map((li) => li.textContent)).toEqual(['9 h – 10 hDentiste', '15 h – 16 hRéunionEric'])
+    expect(within(list).getAllByRole('listitem').map((li) => li.textContent)).toEqual(['9 h – 10 h : Dentiste — voir le détail', '15 h – 16 h : RéunionEric — voir le détail'])
     expect(api.agenda.listEvents).toHaveBeenCalledWith(TODAY, TODAY)
 
     await waitFor(() => expect(screen.getByRole('radio', { name: 'Moi' })).toBeEnabled())

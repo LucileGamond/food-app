@@ -12,6 +12,7 @@ import { CalendarSyncError, type SyncWindow } from './provider.ts'
 /** Répétitions parcourues au plus par événement (un événement quotidien depuis 50 ans reste lisible). */
 const MAX_ITERATIONS = 20_000
 const MAX_TITLE = 500
+const MAX_DESCRIPTION = 4000
 const MAX_UID = 1000
 const UNTITLED = 'Sans titre'
 
@@ -89,7 +90,7 @@ function expand(event: IcalEvent, window: SyncWindow): CalendarOccurrence[] {
 }
 
 function toOccurrence(uid: string, event: IcalEvent, start: IcalTime, end: IcalTime | null): CalendarOccurrence {
-  const base = { uid: uid.slice(0, MAX_UID), title: text(event.summary) ?? UNTITLED, location: text(event.location) }
+  const base = { uid: uid.slice(0, MAX_UID), title: text(event.summary) ?? UNTITLED, location: text(event.location), description: plainText(event.description) }
   if (start.isDate) {
     const startDate = civilDate(start)
     const endDate = end?.isDate ? civilDate(end) : addDays(startDate, 1)
@@ -103,6 +104,22 @@ function toOccurrence(uid: string, event: IcalEvent, start: IcalTime, end: IcalT
 function text(value: string | null | undefined): string | null {
   const trimmed = value?.trim()
   return trimmed ? trimmed.slice(0, MAX_TITLE) : null
+}
+
+const ENTITIES: Record<string, string> = { amp: '&', lt: '<', gt: '>', quot: '"', apos: "'", nbsp: ' ' }
+
+/** Description en texte simple : Google y met parfois du HTML (<br>, liens) ; les liens gardent leur adresse. */
+export function plainText(value: string | null | undefined): string | null {
+  if (!value) return null
+  const text = value
+    .replace(/<a\s[^>]*href="([^"]*)"[^>]*>(.*?)<\/a>/gis, (_, href: string, label: string) => (label.trim() && label.trim() !== href ? `${label} (${href})` : href))
+    .replace(/<br\s*\/?>|<\/p>|<\/div>|<\/li>/gi, '\n')
+    .replace(/<[^>]+>/g, '')
+    .replace(/&(#\d+|[a-z]+);/gi, (entity: string, code: string) => (code.startsWith('#') ? String.fromCharCode(Number(code.slice(1))) : (ENTITIES[code.toLowerCase()] ?? entity)))
+    .replace(/[ \t]+\n/g, '\n')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim()
+  return text ? text.slice(0, MAX_DESCRIPTION) : null
 }
 
 function civilDate(time: IcalTime): CivilDate {

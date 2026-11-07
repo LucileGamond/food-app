@@ -40,7 +40,7 @@ describe('agenda api', () => {
     const mine = await lucile.api.agenda.addIcalSource('Perso', SECRET_URL)
     const his = await eric.api.agenda.addIcalSource('Travail', SECRET_URL.replace('lucile', 'eric'))
     await replaceEvents(mine, [
-      { uid: 'dentiste', title: 'Dentiste', location: 'Lyon', allDay: false, startsAt: '2026-11-10T08:00:00Z', endsAt: '2026-11-10T09:00:00Z' },
+      { uid: 'dentiste', title: 'Dentiste', location: 'Lyon', description: 'Carte Vitale', allDay: false, startsAt: '2026-11-10T08:00:00Z', endsAt: '2026-11-10T09:00:00Z' },
       { uid: 'vacances', title: 'Vacances', location: null, allDay: true, startDate: '2026-11-08', endDate: '2026-11-11' },
       { uid: 'loin', title: 'Plus tard', location: null, allDay: false, startsAt: '2026-12-10T08:00:00Z', endsAt: '2026-12-10T09:00:00Z' },
     ])
@@ -48,9 +48,9 @@ describe('agenda api', () => {
 
     const events = await lucile.api.agenda.listEvents('2026-11-10', '2026-11-16')
     expect(events.map((e) => e.title).sort()).toEqual(['Dentiste', 'Réunion', 'Vacances'])
-    expect(events.find((e) => e.title === 'Dentiste')).toMatchObject({ sourceId: mine, ownerId: LUCILE.id, ownerName: 'Lucile', location: 'Lyon', allDay: false, startsAt: '2026-11-10T08:00:00+00:00' })
+    expect(events.find((e) => e.title === 'Dentiste')).toMatchObject({ sourceId: mine, sourceName: 'Perso', ownerId: LUCILE.id, ownerName: 'Lucile', location: 'Lyon', description: 'Carte Vitale', allDay: false, startsAt: '2026-11-10T08:00:00+00:00' })
     expect(events.find((e) => e.title === 'Vacances')).toMatchObject({ allDay: true, startDate: '2026-11-08', endDate: '2026-11-11' })
-    expect(events.find((e) => e.title === 'Réunion')).toMatchObject({ ownerId: ERIC.id, ownerName: 'Eric' })
+    expect(events.find((e) => e.title === 'Réunion')).toMatchObject({ ownerId: ERIC.id, ownerName: 'Eric', sourceName: 'Travail', description: null })
     expect(await lucile.api.agenda.listEvents('2026-11-25', '2026-11-26')).toEqual([])
   })
 

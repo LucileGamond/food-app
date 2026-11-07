@@ -1,10 +1,10 @@
-import { formatOccurrenceTime, formatTime } from './format.ts'
+import { formatOccurrenceTime, formatOccurrenceWhen, formatTime } from './format.ts'
 import { isGoogleHost, normalizeIcalUrl } from './ical-url.ts'
 import { compareOccurrences, occurrenceDays, occurrencesOn, occursOn, type CalendarOccurrence } from './occurrence.ts'
 import { inScope, isAgendaScope } from './scope.ts'
 
-const timed = (title: string, startsAt: string, endsAt: string): CalendarOccurrence => ({ uid: title, title, location: null, allDay: false, startsAt, endsAt })
-const allDay = (title: string, startDate: string, endDate: string): CalendarOccurrence => ({ uid: title, title, location: null, allDay: true, startDate, endDate })
+const timed = (title: string, startsAt: string, endsAt: string): CalendarOccurrence => ({ uid: title, title, location: null, description: null, allDay: false, startsAt, endsAt })
+const allDay = (title: string, startDate: string, endDate: string): CalendarOccurrence => ({ uid: title, title, location: null, description: null, allDay: true, startDate, endDate })
 
 describe('jours d’une occurrence (heure de Paris)', () => {
   it('rendez-vous : le jour où il tombe à Paris, pas en UTC', () => {
@@ -56,6 +56,15 @@ describe('horaires', () => {
     expect(formatOccurrenceTime(timed('Rappel', '2026-11-10T08:00:00Z', '2026-11-10T08:00:00Z'), '2026-11-10')).toBe('9 h')
     const weekend = timed('Week-end', '2026-11-13T17:00:00Z', '2026-11-15T11:00:00Z')
     expect(['2026-11-13', '2026-11-14', '2026-11-15'].map((d) => formatOccurrenceTime(weekend, d))).toEqual(['dès 18 h', 'Journée', 'jusqu’à 12 h'])
+  })
+})
+
+describe('date complète (détail d’un rendez-vous)', () => {
+  it('un jour, plusieurs jours, journée entière ou à heure fixe', () => {
+    expect(formatOccurrenceWhen(timed('Dentiste', '2026-11-10T08:00:00Z', '2026-11-10T09:30:00Z'))).toBe('Mardi 10 novembre, 9 h – 10 h 30')
+    expect(formatOccurrenceWhen(allDay('Férié', '2026-11-11', '2026-11-12'))).toBe('Mercredi 11 novembre, toute la journée')
+    expect(formatOccurrenceWhen(allDay('Vacances', '2026-11-20', '2026-11-23'))).toBe('Du vendredi 20 novembre au dimanche 22 novembre')
+    expect(formatOccurrenceWhen(timed('Week-end', '2026-11-13T17:00:00Z', '2026-11-15T11:00:00Z'))).toBe('Du vendredi 13 novembre, 18 h au dimanche 15 novembre, 12 h')
   })
 })
 

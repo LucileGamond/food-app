@@ -5,7 +5,7 @@ const NOW = Date.parse('2026-11-10T06:30:00Z') // 7 h 30 à Paris
 const DAY = '2026-11-10'
 
 const entry = (title: string, ownerId: string, time: Partial<AgendaEntry> = {}): AgendaEntry =>
-  ({ uid: title, title, location: null, ownerId, ownerName: ownerId === 'eric' ? 'Eric' : 'Lucile', allDay: false, startsAt: '2026-11-10T08:00:00Z', endsAt: '2026-11-10T09:00:00Z', ...time }) as AgendaEntry
+  ({ uid: title, title, location: null, description: null, ownerId, ownerName: ownerId === 'eric' ? 'Eric' : 'Lucile', allDay: false, startsAt: '2026-11-10T08:00:00Z', endsAt: '2026-11-10T09:00:00Z', ...time }) as AgendaEntry
 
 const ENTRIES = [
   entry('Dentiste', 'lucile', { startsAt: '2026-11-10T13:00:00Z', endsAt: '2026-11-10T14:00:00Z' }),

@@ -17,7 +17,7 @@ export interface CalendarSource {
 }
 
 /** Occurrence d'un agenda, avec sa source et son propriétaire. */
-export type AgendaEvent = CalendarOccurrence & { id: string; sourceId: string; ownerId: string; ownerName: string }
+export type AgendaEvent = CalendarOccurrence & { id: string; sourceId: string; sourceName: string; ownerId: string; ownerName: string }
 
 export type SourceStatus = 'pending' | 'ok' | 'error'
 
@@ -43,4 +43,9 @@ export function scopeOptions(otherName: string): { value: AgendaScope; label: st
     { value: 'other', label: otherName },
     { value: 'all', label: 'Les deux' },
   ]
+}
+
+/** Recherche du lieu dans Google Maps (adresse, ou nom d'un endroit). */
+export function mapsUrl(location: string): string {
+  return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(location)}`
 }

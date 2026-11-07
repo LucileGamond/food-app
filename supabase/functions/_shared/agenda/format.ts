@@ -25,3 +25,23 @@ export function formatOccurrenceTime(time: OccurrenceTime, day: CivilDate, timeZ
   if (endsToday) return `jusqu’à ${formatTime(time.endsAt, timeZone)}`
   return 'Journée'
 }
+
+const dayFormatter = new Intl.DateTimeFormat('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', timeZone: 'UTC' })
+
+/** « mardi 10 novembre » */
+function longDay(day: CivilDate): string {
+  return dayFormatter.format(new Date(`${day}T12:00:00Z`))
+}
+
+const capitalize = (text: string) => text.charAt(0).toUpperCase() + text.slice(1)
+
+/**
+ * Quand a lieu une occurrence, en entier : « Mardi 10 novembre, 9 h – 10 h », « Mardi 10 novembre, toute la journée »,
+ * « Du vendredi 20 novembre au dimanche 22 novembre », « Du vendredi 13 novembre, 18 h au dimanche 15 novembre, 12 h ».
+ */
+export function formatOccurrenceWhen(time: OccurrenceTime, timeZone = AGENDA_TIME_ZONE): string {
+  const { first, last } = occurrenceDays(time, timeZone)
+  if (time.allDay) return first === last ? `${capitalize(longDay(first))}, toute la journée` : `Du ${longDay(first)} au ${longDay(last)}`
+  if (first === last) return `${capitalize(longDay(first))}, ${formatOccurrenceTime(time, first, timeZone)}`
+  return `Du ${longDay(first)}, ${formatTime(time.startsAt, timeZone)} au ${longDay(last)}, ${formatTime(time.endsAt, timeZone)}`
+}

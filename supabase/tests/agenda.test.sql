@@ -1,6 +1,6 @@
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(42);
+select plan(43);
 
 -- Tests indépendants des données locales (annulés en fin de transaction)
 delete from public.calendar_sources;
@@ -59,13 +59,14 @@ reset role;
 -- ---------------------------------------------------------------------------
 select lives_ok(
   format($$select public.replace_calendar_events(%L, %L)$$, (select v from ids where k = 'perso'), '[
-    {"uid": "dentiste", "title": "Dentiste", "location": "Lyon", "allDay": false, "startsAt": "2026-11-10T08:00:00Z", "endsAt": "2026-11-10T09:00:00Z"},
+    {"uid": "dentiste", "title": "Dentiste", "location": "Lyon", "description": "Carte Vitale", "allDay": false, "startsAt": "2026-11-10T08:00:00Z", "endsAt": "2026-11-10T09:00:00Z"},
     {"uid": "vacances", "title": "Vacances", "location": null, "allDay": true, "startDate": "2026-11-20", "endDate": "2026-11-23"},
     {"uid": "vacances", "title": "Doublon", "location": null, "allDay": true, "startDate": "2026-11-20", "endDate": "2026-11-23"}
   ]'),
   'occurrences enregistrées'
 );
 select is((select count(*)::int from public.calendar_events), 2, 'doublon d''uid ignoré');
+select is((select description from public.calendar_events where uid = 'dentiste'), 'Carte Vitale', 'description enregistrée');
 select ok((select last_synced_at is not null and last_error is null from public.calendar_sources where id = (select v from ids where k = 'perso')), 'synchronisation notée');
 
 update public.calendar_sources set last_error = 'Agenda introuvable.' where id = (select v from ids where k = 'perso');

@@ -25,14 +25,14 @@ export type Database = {
           Tables: {
             "calendar_events": {
                   Row: {
-                    "all_day": boolean,"end_date": string | null,"ends_at": string | null,"id": string,"location": string | null,"source_id": string,"start_date": string | null,"starts_at": string | null,"title": string,"uid": string
+                    "all_day": boolean,"description": string | null,"end_date": string | null,"ends_at": string | null,"id": string,"location": string | null,"source_id": string,"start_date": string | null,"starts_at": string | null,"title": string,"uid": string
                   }
                   ComputedFields: never
                   Insert: {
-                    "all_day": boolean,"end_date"?: string | null,"ends_at"?: string | null,"id"?: string,"location"?: string | null,"source_id": string,"start_date"?: string | null,"starts_at"?: string | null,"title": string,"uid": string
+                    "all_day": boolean,"description"?: string | null,"end_date"?: string | null,"ends_at"?: string | null,"id"?: string,"location"?: string | null,"source_id": string,"start_date"?: string | null,"starts_at"?: string | null,"title": string,"uid": string
                   }
                   Update: {
-                    "all_day"?: boolean,"end_date"?: string | null,"ends_at"?: string | null,"id"?: string,"location"?: string | null,"source_id"?: string,"start_date"?: string | null,"starts_at"?: string | null,"title"?: string,"uid"?: string
+                    "all_day"?: boolean,"description"?: string | null,"end_date"?: string | null,"ends_at"?: string | null,"id"?: string,"location"?: string | null,"source_id"?: string,"start_date"?: string | null,"starts_at"?: string | null,"title"?: string,"uid"?: string
                   }
                   Relationships: [
                     {

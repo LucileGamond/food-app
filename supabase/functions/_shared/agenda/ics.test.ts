@@ -1,5 +1,5 @@
 import { createIcalProvider, MAX_ICS_CHARS } from './ical-provider.ts'
-import { parseIcs } from './ics.ts'
+import { parseIcs, plainText } from './ics.ts'
 import { CalendarSyncError, syncWindow } from './provider.ts'
 
 const PARIS = `BEGIN:VTIMEZONE
@@ -45,9 +45,9 @@ describe('lecture iCal', () => {
         SUMMARY:Yoga`),
     )
     expect(parseIcs(ics, WINDOW)).toEqual([
-      { uid: 'dentiste@google.com', title: 'Dentiste', location: '12 rue des Lilas, Lyon', allDay: false, startsAt: '2026-11-10T08:00:00.000Z', endsAt: '2026-11-10T09:00:00.000Z' },
-      { uid: 'visio@google.com', title: 'Visio', location: null, allDay: false, startsAt: '2026-11-12T13:00:00.000Z', endsAt: '2026-11-12T13:45:00.000Z' },
-      { uid: 'flottant@google.com', title: 'Yoga', location: null, allDay: false, startsAt: '2026-11-13T17:00:00.000Z', endsAt: '2026-11-13T18:00:00.000Z' },
+      { uid: 'dentiste@google.com', title: 'Dentiste', location: '12 rue des Lilas, Lyon', description: null, allDay: false, startsAt: '2026-11-10T08:00:00.000Z', endsAt: '2026-11-10T09:00:00.000Z' },
+      { uid: 'visio@google.com', title: 'Visio', location: null, description: null, allDay: false, startsAt: '2026-11-12T13:00:00.000Z', endsAt: '2026-11-12T13:45:00.000Z' },
+      { uid: 'flottant@google.com', title: 'Yoga', location: null, description: null, allDay: false, startsAt: '2026-11-13T17:00:00.000Z', endsAt: '2026-11-13T18:00:00.000Z' },
     ])
   })
 
@@ -65,9 +65,9 @@ describe('lecture iCal', () => {
         DTSTART;VALUE=DATE:20261105`),
     )
     expect(parseIcs(ics, WINDOW)).toEqual([
-      { uid: 'vacances', title: 'Vacances', location: null, allDay: true, startDate: '2026-11-20', endDate: '2026-11-23' },
-      { uid: 'anniv#2026-11-08', title: 'Anniversaire de Léa', location: null, allDay: true, startDate: '2026-11-08', endDate: '2026-11-09' },
-      { uid: 'sans-titre', title: 'Sans titre', location: null, allDay: true, startDate: '2026-11-05', endDate: '2026-11-06' },
+      { uid: 'vacances', title: 'Vacances', location: null, description: null, allDay: true, startDate: '2026-11-20', endDate: '2026-11-23' },
+      { uid: 'anniv#2026-11-08', title: 'Anniversaire de Léa', location: null, description: null, allDay: true, startDate: '2026-11-08', endDate: '2026-11-09' },
+      { uid: 'sans-titre', title: 'Sans titre', location: null, description: null, allDay: true, startDate: '2026-11-05', endDate: '2026-11-06' },
     ])
   })
 
@@ -129,6 +129,19 @@ describe('lecture iCal', () => {
         SUMMARY:Seule`),
     )
     expect(parseIcs(ics, WINDOW).map((o) => o.title)).toEqual(['Seule'])
+  })
+
+  it('description en texte simple, même quand Google y met du HTML', () => {
+    const ics = calendar(
+      vevent(`UID:visio
+        DTSTART:20261110T080000Z
+        SUMMARY:Visio
+        DESCRIPTION:Ordre du jour :<br>1. Budget<br/><b>2. Vacances</b><br><a href="https://meet.google.com/abc">Rejoindre</a> &amp\; merci`),
+    )
+    expect(parseIcs(ics, WINDOW)[0]!.description).toBe('Ordre du jour :\n1. Budget\n2. Vacances\nRejoindre (https://meet.google.com/abc) & merci')
+    expect(plainText('<a href="https://x.test">https://x.test</a>')).toBe('https://x.test')
+    expect(plainText('A&#233;  \n\n\n\nB')).toBe('Aé\n\nB')
+    expect([plainText(''), plainText('  <br> '), plainText(undefined)]).toEqual([null, null, null])
   })
 
   it('refuse un contenu qui n’est pas un agenda', () => {

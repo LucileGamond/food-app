@@ -11,7 +11,7 @@ const SECRET_URL = 'https://calendar.google.com/calendar/ical/lucile%40gmail.com
 const parisToday = () => new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Paris', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date())
 
 /** Rendez-vous d'aujourd'hui, en milieu de journée (même jour à Paris quelle que soit l'heure d'été). */
-const midday = (title: string, hourUtc: number) => ({ uid: title, title, location: null, allDay: false, startsAt: `${parisToday()}T${String(hourUtc).padStart(2, '0')}:00:00Z`, endsAt: `${parisToday()}T${String(hourUtc + 1).padStart(2, '0')}:00:00Z` })
+const midday = (title: string, hourUtc: number, description: string | null = null) => ({ uid: title, title, location: null, description, allDay: false, startsAt: `${parisToday()}T${String(hourUtc).padStart(2, '0')}:00:00Z`, endsAt: `${parisToday()}T${String(hourUtc + 1).padStart(2, '0')}:00:00Z` })
 
 async function replaceEvents(sourceId: string, events: unknown[]) {
   const { error } = await admin.rpc('replace_calendar_events', { p_source_id: sourceId, p_events: events as never })
@@ -44,7 +44,7 @@ async function openAgenda(page: Page) {
 
 test('suivre son agenda Google, voir aussi celui d’Eric, choisir les agendas affichés', async ({ page }) => {
   await seedEricCalendar()
-  await fakeSync(page, [midday('Dentiste', 9), { uid: 'conge', title: 'Congé', location: null, allDay: true, startDate: parisToday(), endDate: '2999-01-01' }])
+  await fakeSync(page, [midday('Dentiste', 9, 'Pense à la carte Vitale'), { uid: 'conge', title: 'Congé', location: null, allDay: true, startDate: parisToday(), endDate: '2999-01-01' }])
   await login(page)
   await openAgenda(page)
 
@@ -72,6 +72,23 @@ test('suivre son agenda Google, voir aussi celui d’Eric, choisir les agendas a
   await page.getByRole('radio', { name: 'Moi' }).click()
   await expect(today.getByText('Réunion d’équipe')).toBeHidden()
   await expect(today.getByText('Dentiste')).toBeVisible()
+
+  // Détail d'un rendez-vous
+  await today.getByRole('button', { name: /Dentiste/ }).click()
+  const details = page.getByRole('dialog', { name: 'Dentiste' })
+  await expect(details).toContainText('Perso · moi')
+  await expect(details).toContainText('Pense à la carte Vitale')
+  await page.keyboard.press('Escape')
+  await expect(details).toBeHidden()
+
+  // Vue du mois : la grille, puis le jour choisi
+  await page.getByRole('tab', { name: 'Mois' }).click()
+  const grid = page.getByRole('group', { name: /\d{4}$/ })
+  await expect(grid.getByRole('button', { pressed: true })).toHaveAccessibleName(/2 rendez-vous/)
+  await expect(page.getByRole('region', { name: /aujourd’hui/ }).getByText('Dentiste')).toBeVisible()
+  await page.reload()
+  await expect(page.getByRole('tab', { name: 'Mois', selected: true })).toBeVisible()
+  await page.getByRole('tab', { name: 'Semaine' }).click()
 
   // Accueil : les rendez-vous du jour, avec le même choix
   await page.goto('/')

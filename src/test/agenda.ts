@@ -12,6 +12,8 @@ export function eventFixture(overrides: Partial<AgendaEvent> = {}): AgendaEvent 
   return {
     id: `e-${Math.random()}`,
     sourceId: 's-lucile',
+    sourceName: 'Perso',
+    description: null,
     uid: 'uid',
     title: 'Dentiste',
     location: null,
