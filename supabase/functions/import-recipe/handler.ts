@@ -6,7 +6,7 @@
 //   Vidéo YouTube : description de la vidéo, sinon recette écrite trouvée en ligne → source 'video', foundUrl
 // POST { mode: 'text', text, url?, knownTags? } → 200 { recipe, source: 'text', image: null } (légende Instagram collée)
 // POST { mode: 'photos', images: [{ data, type }], knownTags? } → 200 { recipe, source: 'photo', image: null }
-//   (1 à 3 photos : pages d'un livre, scan, ou captures d'écran de la légende d'une publication)
+//   (1 à 4 photos : pages d'un livre, scan, ou captures d'écran de la légende d'une publication)
 //   → 4xx/5xx { error: message lisible }
 // La passerelle Supabase vérifie le jeton (verify_jwt), mais accepte aussi la clé publique anonyme :
 // `isSignedIn` vérifie en plus qu'il s'agit d'un utilisateur connecté.
@@ -289,11 +289,11 @@ export async function fetchTitle(body: unknown, deps: Pick<Deps, 'fetchPage' | '
   return { title: title ? title.replace(/\s+/g, ' ').trim().slice(0, 200) : null }
 }
 
-export const MAX_PHOTOS = 3
+export const MAX_PHOTOS = 4
 /** Taille maximale d'une photo en base64 (≈ 3 Mo d'image ; le navigateur les réduit à quelques centaines de Ko). */
 export const MAX_PHOTO_BASE64 = 4_000_000
 
-/** Photos reçues du navigateur : 1 à 3 images de type connu, de taille bornée. */
+/** Photos reçues du navigateur : 1 à 4 images de type connu, de taille bornée. */
 export function parsePhotos(body: unknown): PhotoInput[] {
   const raw = (typeof body === 'object' && body !== null ? (body as Record<string, unknown>).images : null) as unknown
   if (!Array.isArray(raw) || raw.length === 0) throw new ImportError('Aucune photo reçue.', 400)

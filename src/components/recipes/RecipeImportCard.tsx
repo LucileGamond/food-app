@@ -10,7 +10,7 @@ import { isValidUrl } from '@/lib/meals'
 import { isInstagramUrl, isYoutubeUrl, siteName } from '@/lib/recipes'
 
 /** Images lues au plus (une recette sur une double page, une longue légende sur plusieurs captures). */
-const MAX_RECIPE_PHOTOS = 3
+const MAX_RECIPE_PHOTOS = 4
 
 interface Props {
   /** Lien déjà connu (ex. recette ponctuelle du planning). */

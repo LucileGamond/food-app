@@ -51,10 +51,18 @@ export async function importOne(file: File, context: BatchContext): Promise<Batc
   } catch {
     return { status: 'error', message: 'Image illisible (essaie en JPEG ou PNG).', recipes: [] }
   }
+  // Photo du plat recadrée dans l'image d'origine (plus grande que l'image lue).
+  return importPages([image], context, [file])
+}
 
+/**
+ * Lit des pages déjà prêtes pour la lecture (une recette sur 1 à 4 photos, ou une page) et enregistre chacune de leurs
+ * recettes. `originals` : images où recadrer la photo du plat (par défaut, les pages lues).
+ */
+export async function importPages(pages: Blob[], context: BatchContext, originals: Blob[] = pages): Promise<BatchResult> {
   let read
   try {
-    read = await context.api.recipes.importFromPhotos([image], context.tags)
+    read = await context.api.recipes.importFromPhotos(pages, context.tags)
   } catch (error) {
     // 422 : la page n'est pas une recette (couverture, sommaire…).
     if (error instanceof AppError && error.code === 'import-422') return { status: 'skipped', message: 'Pas une recette', recipes: [] }
@@ -66,13 +74,14 @@ export async function importOne(file: File, context: BatchContext): Promise<Batc
   const recipes: BatchRecipe[] = []
   for (const recipe of found) {
     const saved = await saveRecipe(recipe, context)
-    recipes.push(saved.status === 'saved' && recipe.photo ? { ...saved, photo: await addDishPhoto(file, recipe, saved.recipeId!, context) } : saved)
+    const source = recipe.photo ? (originals[recipe.photo.image] ?? originals[0]!) : null
+    recipes.push(saved.status === 'saved' && source ? { ...saved, photo: await addDishPhoto(source, recipe, saved.recipeId!, context) } : saved)
   }
   return { status: 'done', recipes }
 }
 
 /** Photo du plat imprimée sur la page : recadrée et ajoutée à la recette enregistrée. Un échec ne bloque rien. */
-async function addDishPhoto(file: File, recipe: ImportedRecipe, recipeId: string, { api }: BatchContext): Promise<boolean> {
+async function addDishPhoto(file: Blob, recipe: ImportedRecipe, recipeId: string, { api }: BatchContext): Promise<boolean> {
   try {
     await api.photos.uploadPhoto(recipeId, await cropImage(file, recipe.photo!))
     return true

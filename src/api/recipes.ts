@@ -284,7 +284,7 @@ export function createRecipesApi(db: AppSupabaseClient) {
       return [...tags.values()].sort((a, b) => a.localeCompare(b, 'fr'))
     },
 
-    /** Lit une recette sur 1 à 3 photos (pages de livre, scan, captures d'une légende), déjà réduites, pour préremplir le formulaire. */
+    /** Lit une recette sur 1 à 4 photos (pages de livre, scan, captures d'une légende), déjà réduites, pour préremplir le formulaire. */
     async importFromPhotos(photos: Blob[], knownTags: string[] = []): Promise<RecipeImport> {
       const images = await Promise.all(photos.map(async (photo) => ({ type: photo.type || 'image/jpeg', data: await toBase64(photo) })))
       const { data, error } = await db.functions.invoke<RecipeImport>('import-recipe', { body: { mode: 'photos', images, knownTags }, timeout: IMPORT_TIMEOUT_MS })

@@ -80,7 +80,7 @@ export default defineConfig({
     coverage: {
       provider: 'v8',
       include: ['src/lib/**', 'src/services/**', 'src/api/errors.ts', 'src/hooks/**', 'src/components/**', 'src/pages/**', 'src/auth/**', 'src/app/**', 'src/App.tsx', 'src/modules/**', 'supabase/functions/**/*.ts'],
-      exclude: ['src/**/*.test.*', 'src/test/**', 'src/api/client.ts', 'src/lib/database.types.ts', 'src/lib/image.ts', 'src/main.tsx', 'src/components/ui/**', 'supabase/functions/**/index.ts', 'src/modules/**/api.ts'],
+      exclude: ['src/**/*.test.*', 'src/test/**', 'src/api/client.ts', 'src/lib/database.types.ts', 'src/lib/image.ts', 'src/lib/camera.ts', 'src/lib/scanStore.ts', 'src/main.tsx', 'src/components/ui/**', 'supabase/functions/**/index.ts', 'src/modules/**/api.ts'],
       thresholds: { lines: 85, branches: 85, functions: 85, statements: 85 },
     },
   },

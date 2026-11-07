@@ -270,7 +270,7 @@ export function RecipeFormPage() {
   }
 
   /**
-   * Préremplit le formulaire en lisant la recette sur 1 à 3 photos (pages de livre, scan, captures d'une légende). Les
+   * Préremplit le formulaire en lisant la recette sur 1 à 4 photos (pages de livre, scan, captures d'une légende). Les
    * photos ne sont pas gardées ; `url` : la publication dont ce sont les captures, gardée comme lien de la recette.
    */
   async function importFromPhotos(files: File[], url?: string): Promise<boolean> {

@@ -1,7 +1,7 @@
 import { AppError } from '@/api'
 import { compressForReading, cropImage } from '@/lib/image'
 import { fakeApi } from '@/test/fakes'
-import { importOne, type BatchContext } from '@/services/batchImport'
+import { importOne, importPages, type BatchContext } from '@/services/batchImport'
 import { imageFiles, mergeRetry, needsRetry, runQueue, tally } from './batchImport'
 import type { RecipeImport } from './recipes'
 import { recipeKey } from './sources'
@@ -138,6 +138,22 @@ describe('import en série', () => {
       // Recadrée dans l'image d'origine (pas celle réduite pour la lecture).
       expect(cropImage).toHaveBeenCalledWith(page, photo)
       expect(ctx.api.photos.uploadPhoto).toHaveBeenCalledWith('r9', expect.any(File))
+    })
+
+    it('lit une recette sur plusieurs pages et recadre la photo du plat dans la bonne page', async () => {
+      const ctx = context()
+      const photo = { image: 1, left: 0, top: 0, right: 1, bottom: 0.5 }
+      ctx.api.recipes.importFromPhotos.mockResolvedValue(read('Tarte au citron', { photo }))
+      ctx.api.recipes.saveRecipe.mockResolvedValue('r9')
+      const pages = [new Blob(['gauche'], { type: 'image/jpeg' }), new Blob(['droite'], { type: 'image/jpeg' })]
+      expect(await importPages(pages, ctx)).toEqual({ status: 'done', recipes: [{ status: 'saved', title: 'Tarte au citron', recipeId: 'r9', photo: true }] })
+      expect(ctx.api.recipes.importFromPhotos).toHaveBeenCalledWith(pages, ['dessert'])
+      expect(compressForReading).not.toHaveBeenCalled()
+      expect(cropImage).toHaveBeenCalledWith(pages[1], photo)
+      // Numéro d'image inconnu : la première page.
+      ctx.api.recipes.importFromPhotos.mockResolvedValue(read('Clafoutis', { photo: { ...photo, image: 5 } }))
+      await importPages(pages, ctx)
+      expect(cropImage).toHaveBeenLastCalledWith(pages[0], { ...photo, image: 5 })
     })
 
     it('photo du plat : un échec ne bloque pas la recette ; pas de photo pour un doublon', async () => {

@@ -238,7 +238,7 @@ describe('import-recipe — photos', () => {
   it.each([
     [{ mode: 'photos' }, 400, 'Aucune photo reçue.'],
     [{ mode: 'photos', images: [] }, 400, 'Aucune photo reçue.'],
-    [{ mode: 'photos', images: [PHOTO, PHOTO, PHOTO, PHOTO] }, 400, '3 photos au plus.'],
+    [{ mode: 'photos', images: [PHOTO, PHOTO, PHOTO, PHOTO, PHOTO] }, 400, '4 photos au plus.'],
     [{ mode: 'photos', images: [{ ...PHOTO, type: 'image/gif' }] }, 400, 'Photo illisible (JPEG, PNG ou WebP).'],
     [{ mode: 'photos', images: [{ ...PHOTO, data: 'pas du base64 !' }] }, 400, 'Photo illisible (JPEG, PNG ou WebP).'],
     [{ mode: 'photos', images: ['texte'] }, 400, 'Photo illisible (JPEG, PNG ou WebP).'],

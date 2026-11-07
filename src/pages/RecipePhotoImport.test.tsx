@@ -79,10 +79,11 @@ describe('RecipeFormPage — recette depuis une photo', () => {
     await user.click(within(pages).getByRole('button', { name: 'Ajouter une page' }))
     await user.upload(pageInput(), photo('page-147.jpg'))
     expect(within(pages).getAllByRole('img')).toHaveLength(2)
-    // 3 images au plus : encore une possible, puis plus aucune.
-    await user.upload(pageInput(), photo('page-148.jpg'))
-    expect(within(pages).getAllByRole('img')).toHaveLength(3)
+    // 4 images au plus : encore deux possibles, puis plus aucune.
+    await user.upload(pageInput(), [photo('page-148.jpg'), photo('page-149.jpg')])
+    expect(within(pages).getAllByRole('img')).toHaveLength(4)
     expect(within(pages).queryByRole('button', { name: 'Ajouter une page' })).not.toBeInTheDocument()
+    await user.click(within(pages).getByRole('button', { name: 'Retirer la page 4' }))
     await user.click(within(pages).getByRole('button', { name: 'Retirer la page 3' }))
 
     await user.click(screen.getByRole('button', { name: 'Lire la recette' }))
@@ -190,19 +191,20 @@ describe('RecipeFormPage — recette depuis une photo', () => {
     expect(screen.queryByText(/À vérifier/)).not.toBeInTheDocument()
   })
 
-  it('garde 3 images au plus, ignore ce qui n’est pas une image, et permet de retirer une page', async () => {
+  it('garde 4 images au plus, ignore ce qui n’est pas une image, et permet de retirer une page', async () => {
     const user = userEvent.setup({ applyAccept: false })
     const api = fakeApi()
     const { pageInput } = renderForm(api)
     await screen.findByRole('button', { name: "Photo d'un livre ou scan" })
-    await user.upload(pageInput(), [photo('a.jpg'), new File(['%PDF'], 'b.pdf', { type: 'application/pdf' }), photo('c.png', 'image/png'), photo('d.jpg'), photo('e.jpg')])
+    await user.upload(pageInput(), [photo('a.jpg'), new File(['%PDF'], 'b.pdf', { type: 'application/pdf' }), photo('c.png', 'image/png'), photo('d.jpg'), photo('e.jpg'), photo('f.jpg')])
     const pages = screen.getByRole('list', { name: 'Pages à lire' })
-    expect(within(pages).getAllByRole('img').map((i) => i.getAttribute('src'))).toEqual(['blob:a.jpg', 'blob:c.png', 'blob:d.jpg'])
-    expect(screen.getByText('3 images au plus : seules les premières sont gardées.')).toBeInTheDocument()
+    expect(within(pages).getAllByRole('img').map((i) => i.getAttribute('src'))).toEqual(['blob:a.jpg', 'blob:c.png', 'blob:d.jpg', 'blob:e.jpg'])
+    expect(screen.getByText('4 images au plus : seules les premières sont gardées.')).toBeInTheDocument()
 
     await user.click(within(pages).getByRole('button', { name: 'Retirer la page 1' }))
-    expect(within(pages).getAllByRole('img').map((i) => i.getAttribute('src'))).toEqual(['blob:c.png', 'blob:d.jpg'])
+    expect(within(pages).getAllByRole('img').map((i) => i.getAttribute('src'))).toEqual(['blob:c.png', 'blob:d.jpg', 'blob:e.jpg'])
     expect(URL.revokeObjectURL).toHaveBeenCalledWith('blob:a.jpg')
+    await user.click(within(pages).getByRole('button', { name: 'Retirer la page 1' }))
     await user.click(within(pages).getByRole('button', { name: 'Retirer la page 1' }))
     await user.click(within(pages).getByRole('button', { name: 'Retirer la page 1' }))
     expect(screen.getByRole('button', { name: "Photo d'un livre ou scan" })).toBeInTheDocument()
@@ -215,7 +217,7 @@ describe('RecipeFormPage — recette depuis une photo', () => {
     const { pageInput } = renderForm(api)
     const reel = 'https://www.instagram.com/reel/DfIBDEIIwic/'
     await user.type(await screen.findByLabelText('Lien de la recette à importer'), reel)
-    expect(screen.getByText(/fais 1 à 3 captures d’écran/)).toBeInTheDocument()
+    expect(screen.getByText(/fais 1 à 4 captures d’écran/)).toBeInTheDocument()
     await user.upload(pageInput(), [photo('capture1.png', 'image/png'), photo('capture2.png', 'image/png')])
     const shots = screen.getByRole('list', { name: 'Captures à lire' })
     expect(within(shots).getAllByRole('img')).toHaveLength(2)
