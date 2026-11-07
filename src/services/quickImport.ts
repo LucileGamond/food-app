@@ -5,6 +5,7 @@ import type { Api } from '@/api'
 import { compressForReading, compressImage, cropImage } from '@/lib/image'
 import { MAX_INBOX_PHOTOS, photosTitle, type InboxList } from '@/lib/inbox'
 import { recipeKey } from '@/lib/sources'
+import { uprightPhoto } from './uprightPhoto'
 import {
   hasErrors,
   importedImageToFile,
@@ -78,7 +79,7 @@ export async function saveDirectly(api: QuickApi, source: ImportSource, tags: st
     }
     saved.push(outcome)
     const page = recipe.photo ? files[recipe.photo.image] : undefined
-    if (page) await addPhoto(api, outcome.id, () => cropImage(page, recipe.photo!))
+    if (page) await addPhoto(api, outcome.id, async () => uprightPhoto(api, await cropImage(page, recipe.photo!)))
   }
   if (saved.length > 0) return { kind: 'saved', recipes: saved }
   if (duplicates.length > 0) return { kind: 'duplicate', recipe: duplicates[0]! }

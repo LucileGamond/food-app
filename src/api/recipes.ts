@@ -297,6 +297,17 @@ export function createRecipesApi(db: AppSupabaseClient) {
       return data
     },
 
+    /**
+     * Sens d'une photo de plat : `candidates` = la photo tournée de 0, 90, 180 et 270° (sens horaire), réduite ; renvoie
+     * la rotation qui la remet à l'endroit (0 en cas de doute).
+     */
+    async detectPhotoRotation(candidates: Blob[]): Promise<number> {
+      const images = await Promise.all(candidates.map(async (photo) => ({ type: photo.type || 'image/jpeg', data: await toBase64(photo) })))
+      const { data, error } = await db.functions.invoke<{ rotation: number }>('import-recipe', { body: { mode: 'orient', images }, timeout: IMPORT_TIMEOUT_MS })
+      if (error) throw await functionError(error, 'La détection du sens de la photo a échoué.', 'import')
+      return [90, 180, 270].includes(data?.rotation ?? 0) ? data!.rotation : 0
+    },
+
     /** Calories et macros d'après la table Ciqual (Edge Function estimate-nutrition), non enregistrées. */
     async estimateNutrition(recipe: Pick<Recipe, 'title' | 'servings' | 'ingredients'>): Promise<NutritionEstimate> {
       const { data, error } = await db.functions.invoke<unknown>('estimate-nutrition', { body: estimateInput(recipe), timeout: ESTIMATE_TIMEOUT_MS })

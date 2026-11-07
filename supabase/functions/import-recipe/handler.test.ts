@@ -236,6 +236,23 @@ describe('import-recipe — photos', () => {
     expect(deps.log).toHaveBeenCalledWith('import réussi', expect.objectContaining({ source: 'photo', input_tokens: 300 }))
   })
 
+  it('sens de la photo : le modèle choisit parmi 4 versions tournées ; en cas de doute, rien ne bouge', async () => {
+    const reply = (droite: string, sur: boolean) =>
+      new Response(JSON.stringify({ content: [{ type: 'tool_use', name: 'choisir_sens', input: { droite, sur } }], usage: { input_tokens: 800, output_tokens: 20 } }))
+    const four = [PHOTO, PHOTO, PHOTO, PHOTO]
+    const { deps, handle } = setup({}, reply('C', true))
+    expect(await call(handle, { mode: 'orient', images: four })).toMatchObject({ status: 200, body: { rotation: 180 } })
+    const body = JSON.parse(String(deps.fetchModel.mock.calls[0]![1]!.body))
+    expect(body.tool_choice).toEqual({ type: 'tool', name: 'choisir_sens' })
+    expect(body.messages[0].content.filter((b: { type: string }) => b.type === 'image')).toHaveLength(4)
+    expect(deps.log).toHaveBeenCalledWith('sens détecté', expect.objectContaining({ rotation: 180, input_tokens: 800 }))
+
+    expect(await call(setup({}, reply('B', false)).handle, { mode: 'orient', images: four })).toMatchObject({ status: 200, body: { rotation: 0 } })
+    expect(await call(setup({}, reply('Z', true)).handle, { mode: 'orient', images: four })).toMatchObject({ status: 200, body: { rotation: 0 } })
+    expect(await call(handle, { mode: 'orient', images: [PHOTO] })).toMatchObject({ status: 400, body: { error: '4 versions de la photo attendues.' } })
+    expect(await call(handle, { mode: 'orient', images: [...four, PHOTO] })).toMatchObject({ status: 400 })
+  })
+
   it('« c’est une recette » : la relecture demande au modèle de ne pas répondre « pas de recette »', async () => {
     const { deps, handle } = setup({}, new Response(JSON.stringify(PHOTO_REPLY)))
     expect(await call(handle, { mode: 'photos', images: [PHOTO], insist: true })).toMatchObject({ status: 200 })

@@ -7,6 +7,7 @@
 // POST { mode: 'text', text, url?, knownTags? } → 200 { recipe, source: 'text', image: null } (légende Instagram collée)
 // POST { mode: 'photos', images: [{ data, type }], knownTags?, insist? } → 200 { recipe, source: 'photo', image: null }
 //   (1 à 4 photos : pages d'un livre, scan, ou captures d'écran de la légende d'une publication)
+// POST { mode: 'orient', images: [4 versions tournées de 0, 90, 180, 270°] } → 200 { rotation } (photo à l'endroit)
 //   → 4xx/5xx { error: message lisible }
 // La passerelle Supabase vérifie le jeton (verify_jwt), mais accepte aussi la clé publique anonyme :
 // `isSignedIn` vérifie en plus qu'il s'agit d'un utilisateur connecté.
@@ -14,6 +15,7 @@
 import { CORS_HEADERS, json, MISCONFIGURED } from '../_shared/anthropic.ts'
 import { extractPage, MIN_TEXT_CHARS, type PageContent } from './extract.ts'
 import { extractRecipe, extractRecipeFromPhotos, ImportError, type ImportedRecipe, type ModelUsage, type PhotoInput } from './model.ts'
+import { detectRotation, ROTATIONS } from './orient.ts'
 import { checkPublicUrl, resolvesToPublic, type ResolveDns } from './url.ts'
 import { fetchYoutubeVideo, findWrittenRecipe, INSTAGRAM_CAPTION, isInstagram, NOT_WRITTEN, videoText, youtubeId } from './video.ts'
 import { asRecord } from '../_shared/sanitize.ts'
@@ -293,11 +295,11 @@ export const MAX_PHOTOS = 4
 /** Taille maximale d'une photo en base64 (≈ 3 Mo d'image ; le navigateur les réduit à quelques centaines de Ko). */
 export const MAX_PHOTO_BASE64 = 4_000_000
 
-/** Photos reçues du navigateur : 1 à 4 images de type connu, de taille bornée. */
-export function parsePhotos(body: unknown): PhotoInput[] {
+/** Photos reçues du navigateur : 1 à `max` images de type connu, de taille bornée. */
+export function parsePhotos(body: unknown, max = MAX_PHOTOS): PhotoInput[] {
   const raw = (typeof body === 'object' && body !== null ? (body as Record<string, unknown>).images : null) as unknown
   if (!Array.isArray(raw) || raw.length === 0) throw new ImportError('Aucune photo reçue.', 400)
-  if (raw.length > MAX_PHOTOS) throw new ImportError(`${MAX_PHOTOS} photos au plus.`, 400)
+  if (raw.length > max) throw new ImportError(`${max} photos au plus.`, 400)
   return raw.map((value) => {
     const image = asRecord(value)
     const type = IMAGE_TYPES.find((t) => t === image.type)
@@ -319,6 +321,14 @@ export async function importPhotos(body: unknown, deps: Deps): Promise<ImportRes
   return { recipe: recipes[0]!, recipes, source: 'photo', image: null, usage }
 }
 
+/** Sens d'une photo de plat : 4 versions tournées (0°, 90°, 180°, 270°) → rotation qui la remet à l'endroit. */
+export async function orientPhoto(body: unknown, deps: Deps): Promise<{ rotation: number; usage: ModelUsage | null }> {
+  const candidates = parsePhotos(body, ROTATIONS.length)
+  if (candidates.length !== ROTATIONS.length) throw new ImportError(`${ROTATIONS.length} versions de la photo attendues.`, 400)
+  if (!deps.apiKey) throw new ImportError(MISCONFIGURED, 500)
+  return detectRotation(candidates, { apiKey: deps.apiKey, model: deps.model, fetch: deps.fetchModel })
+}
+
 export function createHandler(deps: Deps) {
   return async (request: Request): Promise<Response> => {
     if (request.method === 'OPTIONS') return new Response('ok', { headers: CORS_HEADERS })
@@ -334,6 +344,11 @@ export function createHandler(deps: Deps) {
     try {
       const mode = (body as { mode?: unknown } | null)?.mode
       if (mode === 'title') return json(await fetchTitle(body, deps))
+      if (mode === 'orient') {
+        const { usage, rotation } = await orientPhoto(body, deps)
+        deps.log?.('sens détecté', { rotation, ms: Date.now() - started, ...usage })
+        return json({ rotation })
+      }
       const { usage, ...result } =
         mode === 'photos' ? await importPhotos(body, deps) : mode === 'text' ? await importText(body, deps) : await importRecipe(body, deps)
       deps.log?.('import réussi', { source: result.source, ms: Date.now() - started, ...usage })

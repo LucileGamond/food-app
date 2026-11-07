@@ -248,6 +248,10 @@ describe('RecipeFormPage — modification', () => {
       await user.click(await screen.findByRole('button', { name: 'Retoucher la photo 1' }))
       const dialog = await screen.findByRole('dialog', { name: 'Retoucher la photo' })
       expect(within(dialog).getByRole('button', { name: 'Appliquer' })).toBeDisabled()
+      // « Redresser » : le modèle choisit parmi les 4 versions (ici à l'envers), puis un quart de tour à la main.
+      api.recipes.detectPhotoRotation.mockResolvedValueOnce(180)
+      await user.click(await within(dialog).findByRole('button', { name: 'Redresser' }))
+      await waitFor(() => expect(api.recipes.detectPhotoRotation).toHaveBeenCalledWith(expect.arrayContaining([expect.any(Blob)])))
       await user.click(await within(dialog).findByRole('button', { name: 'Tourner à droite' }))
       // Cadre tracé du doigt sur l'aperçu (100 × 100 px).
       const area = await within(dialog).findByTestId('photo-crop-area')
@@ -258,7 +262,7 @@ describe('RecipeFormPage — modification', () => {
       await user.click(within(dialog).getByRole('button', { name: 'Appliquer' }))
       await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
       const { editImage } = await import('@/lib/image')
-      expect(editImage).toHaveBeenLastCalledWith(expect.any(Blob), { rotation: 90, crop: { left: 0.1, top: 0.2, right: 0.9, bottom: 0.8 } })
+      expect(editImage).toHaveBeenLastCalledWith(expect.any(Blob), { rotation: 270, crop: { left: 0.1, top: 0.2, right: 0.9, bottom: 0.8 } })
       expect(fetch).toHaveBeenCalledWith('https://cdn.test/r1/1.jpg')
       expect(screen.getAllByTestId('photo-item')).toHaveLength(2)
 

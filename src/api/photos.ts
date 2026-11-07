@@ -7,6 +7,9 @@ export const PHOTO_BUCKET = 'recipe-photos'
 export const PENDING_PHOTO_PREFIX = 'pending/'
 const SIGNED_URL_TTL_SECONDS = 60 * 60
 
+/** Photo enregistrée, avec sa recette (le dossier de son fichier). */
+export type StoredPhoto = Pick<RecipePhoto, 'id' | 'storage_path'> & { recipe_id: string }
+
 const EXTENSIONS: Record<string, string> = { 'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp' }
 
 export function createPhotosApi(db: AppSupabaseClient) {
@@ -54,6 +57,29 @@ export function createPhotosApi(db: AppSupabaseClient) {
       )
       const failed = results.find((r) => r.error)
       if (failed?.error) throw toAppError(failed.error, "Impossible de changer l'ordre des photos.")
+    },
+
+    /** Toutes les photos de recettes (pour les redresser d'un coup), dans l'ordre des recettes. */
+    async listAllPhotos(): Promise<StoredPhoto[]> {
+      const { data, error } = await db.from('recipe_photos').select('id, storage_path, recipe_id').order('recipe_id').order('position')
+      if (error) throw toAppError(error, 'Impossible de charger les photos.')
+      return data
+    },
+
+    /** Remplace le fichier d'une photo (retouchée), à la même place : nouveau fichier, puis l'ancien supprimé. */
+    async replacePhoto(photo: StoredPhoto, file: Blob): Promise<RecipePhoto> {
+      const extension = EXTENSIONS[file.type]
+      if (!extension) throw toAppError(null, 'Format de photo non pris en charge (JPEG, PNG ou WebP).')
+      const path = photoPath(photo.recipe_id, crypto.randomUUID(), extension)
+      const { error: uploadError } = await db.storage.from(PHOTO_BUCKET).upload(path, file, { contentType: file.type })
+      if (uploadError) throw toAppError(null, "Impossible d'envoyer la photo.")
+      const { data, error } = await db.from('recipe_photos').update({ storage_path: path }).eq('id', photo.id).select('id, storage_path, position').single()
+      if (error) {
+        await db.storage.from(PHOTO_BUCKET).remove([path])
+        throw toAppError(error, "Impossible d'enregistrer la photo.")
+      }
+      if (!photo.storage_path.startsWith(PENDING_PHOTO_PREFIX)) await db.storage.from(PHOTO_BUCKET).remove([photo.storage_path])
+      return data
     },
 
     /** URL temporaires pour afficher des photos du bucket privé. */

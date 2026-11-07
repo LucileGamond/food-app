@@ -31,6 +31,21 @@ function setup(api: FakeApi = fakeApi()) {
 }
 
 describe('RecipeBatchImportPage', () => {
+  it('redresse les photos des recettes enregistrées, avec l’avancement', async () => {
+    const { user, api } = setup()
+    api.photos.listAllPhotos.mockResolvedValue([{ id: 'p1', storage_path: 'r1/1.jpg', recipe_id: 'r1' }])
+    vi.stubGlobal('fetch', vi.fn(async () => new Response(new Blob(['photo']))))
+    try {
+      await user.click(await screen.findByRole('button', { name: 'Redresser les photos' }))
+      // Photo illisible dans jsdom (pas de canvas) : comptée « non vérifiée », sans rien remplacer.
+      expect(await screen.findByText(/Terminé · 1 \/ 1/)).toBeInTheDocument()
+      expect(screen.getByText(/1 photo non vérifiée/)).toBeInTheDocument()
+      expect(api.photos.replacePhoto).not.toHaveBeenCalled()
+    } finally {
+      vi.unstubAllGlobals()
+    }
+  })
+
   it('exige un livre et au moins une image', async () => {
     const { user, api } = setup()
     await user.click(await screen.findByRole('button', { name: 'Lancer l’import' }))

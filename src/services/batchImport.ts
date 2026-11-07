@@ -6,6 +6,7 @@ import type { BatchRecipe, BatchResult } from '@/lib/batchImport'
 import { compressForReading, cropImage } from '@/lib/image'
 import { hasErrors, importedToFormValues, toSaveRecipeInput, validateRecipeForm, type ImportedRecipe, type RecipeFormErrors } from '@/lib/recipes'
 import { recipeKey } from '@/lib/sources'
+import { uprightPhoto } from './uprightPhoto'
 
 export interface BatchContext {
   api: Pick<Api, 'recipes' | 'photos'>
@@ -89,7 +90,7 @@ export async function importPages(pages: Blob[], context: BatchContext, original
 /** Photo du plat imprimée sur la page : recadrée et ajoutée à la recette enregistrée. Un échec ne bloque rien. */
 async function addDishPhoto(file: Blob, recipe: ImportedRecipe, recipeId: string, { api }: BatchContext): Promise<boolean> {
   try {
-    await api.photos.uploadPhoto(recipeId, await cropImage(file, recipe.photo!))
+    await api.photos.uploadPhoto(recipeId, await uprightPhoto(api, await cropImage(file, recipe.photo!)))
     return true
   } catch {
     return false

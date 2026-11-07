@@ -88,6 +88,7 @@ export function fakeApi(): FakeApi {
       linkIngredient: vi.fn(async () => undefined),
       getIngredients: vi.fn(async () => [] as { id: string; servings: number | null; ingredients: Ingredient[] }[]),
       importFromPhotos: vi.fn(async (): Promise<RecipeImport> => ({ recipe: { title: 'Recette lue', servings: null, ingredients: [], steps: '', tags: [] }, source: 'photo', image: null })),
+      detectPhotoRotation: vi.fn(async (_candidates: Blob[]) => 0),
       estimateNutrition: vi.fn(async (): Promise<NutritionEstimate> => ({ per: 'portion', kcal: 0, protein: 0, carbs: 0, fat: 0, ingredients: [] })),
       saveNutrition: vi.fn(async () => undefined),
       importFromText: vi.fn(async (): Promise<RecipeImport> => ({ recipe: { title: 'Recette de la légende', servings: null, ingredients: [], steps: '', tags: [] }, source: 'text', image: null })),
@@ -98,6 +99,8 @@ export function fakeApi(): FakeApi {
       deletePhoto: vi.fn(async () => undefined),
       reorderPhotos: vi.fn(async () => undefined),
       signedUrls: vi.fn(async (paths: string[]) => Object.fromEntries(paths.map((p) => [p, `https://cdn.test/${p}`]))),
+      listAllPhotos: vi.fn(async () => [] as { id: string; storage_path: string; recipe_id: string }[]),
+      replacePhoto: vi.fn(async (photo: { id: string; storage_path: string }) => ({ id: photo.id, storage_path: `${photo.storage_path}.droite`, position: 0 })),
     },
     weights: {
       listEntries: vi.fn(async () => [] as WeightEntry[]),

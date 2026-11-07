@@ -41,6 +41,7 @@ import { findSource, recipeKey } from '@/lib/sources'
 import { autoLinkMessage } from '@/lib/autoLinks'
 import { applyAutoLinks } from '@/services/autoLinks'
 import { syncRecipePhotos } from '@/services/recipePhotos'
+import { uprightPhoto } from '@/services/uprightPhoto'
 import { cn } from '@/lib/utils'
 import { navState, type NavState } from '@/lib/navState'
 
@@ -309,7 +310,7 @@ export function RecipeFormPage() {
     const file = recipe.photo ? readFiles.current[recipe.photo.image] : undefined
     if (!recipe.photo || !file || photos.hasPhotos()) return
     try {
-      const photo = await cropImage(file, recipe.photo)
+      const photo = await uprightPhoto(api, await cropImage(file, recipe.photo))
       if (mounted.current && !photos.hasPhotos()) photos.add([photo])
     } catch {
       // Image que le navigateur ne sait pas recadrer : la recette reste sans photo.

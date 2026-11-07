@@ -1,9 +1,12 @@
-import { Loader2, RotateCcw, RotateCw, Undo2 } from 'lucide-react'
+import { Loader2, RotateCcw, RotateCw, Undo2, Wand2 } from 'lucide-react'
 import { useEffect, useRef, useState, type PointerEvent } from 'react'
+import { toast } from 'sonner'
+import { useApi } from '@/app/ApiContext'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { editImage } from '@/lib/image'
 import { cropFromDrag, FULL_CROP, isFullCrop, isUnchanged, rotateCrop, turn, type Crop, type Rotation } from '@/lib/photoEdit'
+import { detectRotation } from '@/services/uprightPhoto'
 import type { PhotoDraft } from './PhotoUploader'
 
 /** Taille de l'aperçu (côté long) : assez pour viser, léger à redessiner à chaque quart de tour. */
@@ -34,6 +37,8 @@ export function PhotoEditor({ photo, onClose, onSave }: Props) {
   const [drawing, setDrawing] = useState<Crop | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
+  const [detecting, setDetecting] = useState(false)
+  const api = useApi()
   const frame = useRef<HTMLDivElement>(null)
   const start = useRef<{ x: number; y: number } | null>(null)
 
@@ -68,6 +73,22 @@ export function PhotoEditor({ photo, onClose, onSave }: Props) {
       if (url) URL.revokeObjectURL(url)
     }
   }, [source, rotation])
+
+  /** Sens trouvé par le modèle (4 versions comparées) ; le cadre repart de la photo entière. */
+  async function straighten() {
+    if (!source) return
+    setDetecting(true)
+    try {
+      const found = await detectRotation(api, source)
+      setRotation(found)
+      setCrop(FULL_CROP)
+      if (found === 0) toast.info('La photo semble déjà à l’endroit.')
+    } catch {
+      toast.error('Le sens n’a pas pu être détecté : tourne-la à la main.')
+    } finally {
+      setDetecting(false)
+    }
+  }
 
   function rotate(direction: 1 | -1) {
     setRotation((r) => turn(r, direction))
@@ -152,6 +173,9 @@ export function PhotoEditor({ photo, onClose, onSave }: Props) {
         </div>
 
         <div className="flex flex-wrap justify-center gap-2">
+          <Button type="button" variant="outline" className="h-10" onClick={() => void straighten()} disabled={!preview || detecting}>
+            {detecting ? <Loader2 className="animate-spin" aria-hidden /> : <Wand2 />} Redresser
+          </Button>
           <Button type="button" variant="outline" className="h-10" onClick={() => rotate(-1)} disabled={!preview}>
             <RotateCcw /> Tourner à gauche
           </Button>

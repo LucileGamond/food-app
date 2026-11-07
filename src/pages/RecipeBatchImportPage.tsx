@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { BatchResults } from '@/components/recipes/BatchResults'
 import { SourceInput } from '@/components/recipes/SourceInput'
+import { StraightenPhotosCard } from '@/components/recipes/StraightenPhotosCard'
 import { Button, buttonVariants } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
 import { PageHeader } from '@/components/PageHeader'
@@ -201,6 +202,9 @@ export function RecipeBatchImportPage() {
             <Play /> Lancer l’import{items.length > 0 && ` (${items.length})`}
           </Button>
         </section>
+      ) : null}
+      {phase === 'setup' ? (
+        <StraightenPhotosCard />
       ) : (
         <section className="mx-auto max-w-2xl space-y-4" aria-labelledby="batch-progress">
           <div className="space-y-3 rounded-2xl border bg-background p-5 shadow-xs">
