@@ -5,7 +5,7 @@
 // POST { label: base64, media_type }   (photo de l'étiquette d'une pelote)
 //   → 200 { brand, name, color, dye_lot, composition, weight_g, length_m, needle_mm }
 // POST { ideas: { yarn: description, meters, needle_mm } }   (idées de modèles pour une laine du stock)
-//   → 200 { ideas: [{ title, why, meters, needleMm, search }] }
+//   → 200 { ideas: [{ title, why, meters, needleMm, search, patterns: [{ title, url }] }], weight }   (recherche web)
 //   → 4xx/5xx { error: message lisible }
 // Comme estimate-nutrition : verify_jwt, plus `isSignedIn` pour refuser la clé publique anonyme.
 
@@ -30,8 +30,8 @@ export function createHandler(deps: Deps) {
     parse,
     async run(input, options) {
       if (input.kind === 'ideas') {
-        const { ideas, usage } = await suggestIdeas(input.ideas, options)
-        return { body: { ideas }, log: { ideas: ideas.length, ...usage } }
+        const { ideas, weight, searches, usage } = await suggestIdeas(input.ideas, options)
+        return { body: { ideas, weight }, log: { ideas: ideas.length, patterns: ideas.reduce((n, i) => n + i.patterns.length, 0), searches, ...usage } }
       }
       if (input.kind === 'label') {
         const { yarn, usage } = await readYarnLabel(input.label, options)

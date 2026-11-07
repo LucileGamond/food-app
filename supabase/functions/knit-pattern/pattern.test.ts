@@ -120,6 +120,20 @@ describe('résultat du modèle', () => {
     ])
   })
 
+  it('garde le texte du patron tel quel et la position de la taille choisie', () => {
+    const text = 'Monter 60 (64-68) m. et tricoter 6 (6-7) cm en côtes 1/1.'
+    const steps = [{ title: 'Dos', instructions: text, total_rows: 18, stitches: 64, sections: [] }]
+    const read = sanitizePattern({ ...PATTERN, steps, size_number: 2 }, 'M')
+    expect(read.steps[0]!.instructions).toBe(text)
+    expect(read.sizeIndex).toBe(1)
+    // Sans position donnée : retrouvée dans la liste ; taille absente ou position hors liste : rien
+    expect(sanitizePattern({ ...PATTERN, steps }, ' l ').sizeIndex).toBe(2)
+    expect(sanitizePattern({ ...PATTERN, steps, size_number: 9 }, 'XL').sizeIndex).toBeNull()
+    expect(sanitizePattern({ ...PATTERN, steps, instructions: undefined }, 'M').steps[0]!.instructions.length).toBe(text.length)
+    expect(sanitizePattern({ ...PATTERN, steps: [{ ...steps[0], instructions: 'x'.repeat(30_000) }] }, 'M').steps[0]!.instructions).toHaveLength(20_000)
+    expect(systemPrompt('M')).toContain('mot pour mot')
+  })
+
   it('repère les diagrammes : page, lignes de la grille, étape et sens de lecture', () => {
     const charts = [
       { page: 4, title: 'Torsade', last_row: 24, odd_only: false, flat: true, step: 2 },
@@ -159,7 +173,7 @@ describe('résultat du modèle', () => {
     expect(body.messages[0].content[0]).toEqual({ type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: PDF } })
     expect(body.system).toContain('Taille choisie : « M »')
     expect(body.tool_choice).toEqual({ type: 'tool', name: 'enregistrer_patron' })
-    expect(systemPrompt('4 ans')).toContain('garde uniquement le nombre de la taille choisie')
+    expect(systemPrompt('4 ans')).toContain('recopie mot pour mot')
   })
 })
 

@@ -17,6 +17,7 @@ import { LoadError } from '@/components/LoadError'
 import { useWakeLock } from '@/hooks/useWakeLock'
 import { cn } from '@/lib/utils'
 import { openInNewTab } from '@/lib/openInNewTab'
+import { SizePicker, StepText } from '../components/SizedText'
 import { StepCharts } from '../components/StepCharts'
 import { StepSections } from '../components/StepSections'
 import { YarnPanel, type ProjectInfo } from '../components/YarnPanel'
@@ -168,6 +169,15 @@ export function KnittingProjectPage() {
     }
   }
 
+  async function changeSize(sizeIndex: number | null) {
+    try {
+      await api.knitting.setSizeIndex(project!.id, sizeIndex)
+      await reload()
+    } catch (error) {
+      toast.error(errorMessage(error))
+    }
+  }
+
   async function finishStep() {
     if (await saveStep(step.id, { done: true })) setSelected(steps[index + 1]?.id ?? step.id)
   }
@@ -272,7 +282,16 @@ export function KnittingProjectPage() {
               {step.title}
             </h2>
           </header>
-          {step.instructions && <p className="text-sm whitespace-pre-line">{step.instructions}</p>}
+          <SizePicker id="knit-size-index" sizes={project.sizes} sizeIndex={project.sizeIndex} onChange={(i) => void changeSize(i)} />
+          {step.instructions && (
+            <StepText
+              text={step.instructions}
+              sizes={project.sizes}
+              sizeIndex={project.sizeIndex}
+              highlights={step.highlights}
+              onChange={(highlights) => void saveStep(step.id, { highlights })}
+            />
+          )}
           <RowCounter step={step} gauges={gauges} onCount={(delta) => void countRows(step.id, delta)} />
           <StepCharts projectId={project.id} pdfPath={project.pdfPath} step={step} steps={steps} charts={project.charts} hints={project.chartHints} onCount={(delta) => void countRows(step.id, delta)} onChanged={reload} />
           <StepSections step={step} onChange={(sections) => saveStep(step.id, { sections })} onCount={(delta) => void countRows(step.id, delta)} />

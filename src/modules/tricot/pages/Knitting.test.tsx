@@ -21,12 +21,15 @@ const step = (overrides: Partial<KnitStep>): KnitStep => ({
   rowCount: 0,
   notes: '',
   done: false,
+  highlights: {},
   ...overrides,
 })
 
 const PROJECT: KnitProject = {
   charts: [],
   chartHints: [],
+  sizes: [],
+  sizeIndex: null,
   yarns: [],
   patternGauge: { stitches: null, rows: null },
   myGauge: { stitches: null, rows: null },
@@ -133,7 +136,7 @@ describe('KnittingImportPage', () => {
     await user.clear(screen.getByLabelText('Nom du projet'))
     await user.type(screen.getByLabelText('Nom du projet'), 'Pull de Noël')
     await user.click(screen.getByRole('button', { name: 'Enregistrer le projet' }))
-    expect(api.knitting.createProject).toHaveBeenCalledWith({ title: 'Pull de Noël', size: 'M', pdf: file, steps: PATTERN.steps, gauge: { stitches: 22, rows: 30 }, queued: null, chartHints: charts })
+    expect(api.knitting.createProject).toHaveBeenCalledWith({ title: 'Pull de Noël', size: 'M', pdf: file, steps: PATTERN.steps, gauge: { stitches: 22, rows: 30 }, queued: null, chartHints: charts, sizes: ['S', 'M', 'L'], sizeIndex: 1 })
     expect(await screen.findByText('Projet ouvert')).toBeInTheDocument()
   })
 
@@ -703,7 +706,17 @@ describe('stock de laine', () => {
     api.knitting.listStash.mockResolvedValue(STASH)
     // 840 m, aiguilles 4 mm
     api.knitting.listQueue.mockResolvedValue([pattern('Gilet', 600, 4, 'u-lucile/gilet.pdf'), pattern('Pull', 1200, 4), pattern('Bonnet', null, null)])
-    api.knitting.yarnIdeas.mockResolvedValue([{ title: 'Snood torsadé', why: 'Mérinos doux.', meters: 300, needleMm: 4.5, search: 'cabled cowl' }])
+    api.knitting.yarnIdeas.mockResolvedValue([
+      {
+        title: 'Snood torsadé',
+        why: 'Mérinos doux.',
+        meters: 300,
+        needleMm: 4.5,
+        search: 'cabled cowl',
+        patterns: [{ title: 'Cabled Cowl par Jane', url: 'https://www.ravelry.com/patterns/library/cabled-cowl' }],
+        weight: 'worsted',
+      },
+    ])
     renderWithApp(<KnittingPage />, { api })
     await user.click(await screen.findByRole('button', { name: 'Quel patron pour DROPS Merino ?' }))
     const dialog = await screen.findByRole('dialog', { name: 'Quel patron pour cette laine ?' })
@@ -719,7 +732,12 @@ describe('stock de laine', () => {
     const ideas = await within(dialog).findByRole('list', { name: 'Idées de modèles' })
     expect(ideas).toHaveTextContent('Snood torsadé')
     expect(ideas).toHaveTextContent('Mérinos doux. · ≈ 300 m · aiguilles 4,5 mm')
-    expect(within(ideas).getByRole('link', { name: 'Chercher un patron' })).toHaveAttribute('href', 'https://www.ravelry.com/patterns/search#query=cabled%20cowl')
+    // Vrai patron trouvé sur internet, puis recherche Ravelry filtrée (tricot, grosseur)
+    expect(within(ideas).getByRole('link', { name: 'Cabled Cowl par Jane · ravelry.com' })).toHaveAttribute('href', 'https://www.ravelry.com/patterns/library/cabled-cowl')
+    expect(within(ideas).getByRole('link', { name: 'Plus de patrons sur Ravelry' })).toHaveAttribute(
+      'href',
+      'https://www.ravelry.com/patterns/search#craft=knitting&weight=worsted&query=cabled%20cowl',
+    )
   })
 
   it('aucun patron ne convient : les idées sont mises en avant ; erreur lisible', async () => {
@@ -749,3 +767,80 @@ describe('stock de laine', () => {
     await waitFor(() => expect(api.knitting.saveProjectInfo).toHaveBeenCalledWith('p1', expect.objectContaining({ yarns: [MERINO] })))
   })
 })
+
+describe('texte du patron et taille mise en valeur', () => {
+  const TEXT = 'Monter 60 (64-68) m. et tricoter 6 (6-7) cm.'
+
+  it('à l’import : texte tel quel, nombres de la taille choisie mis en valeur, taille modifiable', async () => {
+    const user = userEvent.setup()
+    const api = fakeApi()
+    const steps = [{ ...PATTERN.steps[0]!, instructions: TEXT }]
+    api.knitting.readPattern.mockResolvedValue({ ...PATTERN, steps, sizeIndex: 1 })
+    renderWithApp(<KnittingImportPage />, { api, route: '/tricot/nouveau', path: '/tricot/nouveau', extraRoutes: <Route path="/tricot/:id" element={<p>Projet ouvert</p>} /> })
+    await user.upload(screen.getByLabelText('Patron (PDF)'), new File(['%PDF-1.4'], 'p.pdf', { type: 'application/pdf' }))
+    await user.type(screen.getByLabelText('Taille choisie'), 'M')
+    await user.click(screen.getByRole('button', { name: 'Lire le patron' }))
+
+    const list = await screen.findByRole('list', { name: 'Étapes lues' })
+    expect(within(list).getByText(/^Monter/)).toHaveTextContent(TEXT)
+    expect(within(list).getAllByText((_, el) => el?.tagName === 'MARK').map((m) => m.textContent)).toEqual(['64', '6'])
+    await user.selectOptions(screen.getByLabelText('Nombres de la taille'), 'L')
+    expect(within(list).getAllByText((_, el) => el?.tagName === 'MARK').map((m) => m.textContent)).toEqual(['68', '7'])
+
+    await user.click(screen.getByRole('button', { name: 'Enregistrer le projet' }))
+    expect(api.knitting.createProject).toHaveBeenCalledWith(expect.objectContaining({ sizes: ['S', 'M', 'L'], sizeIndex: 2 }))
+  })
+
+  it('dans le projet : change la taille mise en valeur', async () => {
+    const user = userEvent.setup()
+    const api = fakeApi()
+    const project = structuredClone(PROJECT)
+    project.sizes = ['S', 'M', 'L']
+    project.sizeIndex = 1
+    project.steps[1]!.instructions = TEXT
+    api.knitting.getProject.mockResolvedValue(project)
+    renderWithApp(<KnittingProjectPage />, { api, route: '/tricot/p1', path: '/tricot/:id' })
+    const article = (await screen.findByRole('heading', { name: 'Emmanchures' })).closest('article')!
+    expect(within(article).getAllByText((_, el) => el?.tagName === 'MARK').map((m) => m.textContent)).toEqual(['64', '6'])
+
+    api.knitting.getProject.mockResolvedValue({ ...project, sizeIndex: 0 })
+    await user.selectOptions(within(article).getByLabelText('Nombres de la taille'), 'S')
+    expect(api.knitting.setSizeIndex).toHaveBeenCalledWith('p1', 0)
+    await waitFor(() => expect(within(article).getAllByText((_, el) => el?.tagName === 'MARK').map((m) => m.textContent)).toEqual(['60', '6']))
+
+    // Aucune : texte sans mise en valeur ; échec : message
+    api.knitting.setSizeIndex.mockRejectedValueOnce(new AppError('Impossible de changer la taille mise en valeur.'))
+    await user.selectOptions(within(article).getByLabelText('Nombres de la taille'), 'Aucune')
+    expect(await screen.findByText('Impossible de changer la taille mise en valeur.')).toBeInTheDocument()
+  })
+
+  it('corrige le surlignage nombre par nombre, pour la taille mise en valeur', async () => {
+    const user = userEvent.setup()
+    const api = fakeApi()
+    const project = structuredClone(PROJECT)
+    project.sizes = ['S', 'M', 'L']
+    project.sizeIndex = 1
+    project.steps[1]!.instructions = TEXT
+    renderWithApp(<KnittingProjectPage />, { api: (api.knitting.getProject.mockResolvedValue(project), api), route: '/tricot/p1', path: '/tricot/:id' })
+    const article = (await screen.findByRole('heading', { name: 'Emmanchures' })).closest('article')!
+    // Nombres surlignés (boutons enfoncés du texte en mode correction)
+    const marks = () => within(article).getAllByRole('button', { pressed: true }).map((m) => m.textContent).filter((t) => /^\d/.test(t ?? ''))
+
+    await user.click(within(article).getByRole('button', { name: 'Corriger le surlignage' }))
+    expect(within(article).getByText('Touche un nombre pour le surligner ou retirer son surlignage.')).toBeInTheDocument()
+    // « 68 » surligné en plus, « 64 » retiré
+    await user.click(within(article).getByRole('button', { name: '68' }))
+    expect(api.knitting.saveProgress).toHaveBeenLastCalledWith('s2', { highlights: { '1': { '14': true } } })
+    await user.click(within(article).getByRole('button', { name: '64, surligné' }))
+    expect(api.knitting.saveProgress).toHaveBeenLastCalledWith('s2', { highlights: { '1': { '14': true, '11': false } } })
+    expect(marks()).toEqual(['68', '6'])
+
+    await user.click(within(article).getByRole('button', { name: 'Annuler mes corrections' }))
+    expect(api.knitting.saveProgress).toHaveBeenLastCalledWith('s2', { highlights: {} })
+    expect(marks()).toEqual(['64', '6'])
+    await user.click(within(article).getByRole('button', { name: 'Terminé' }))
+    expect(within(article).queryByRole('button', { name: '64, surligné' })).not.toBeInTheDocument()
+    expect(within(article).getAllByText((_, el) => el?.tagName === 'MARK').map((m) => m.textContent)).toEqual(['64', '6'])
+  })
+})
+

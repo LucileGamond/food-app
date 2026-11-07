@@ -161,7 +161,21 @@ test('stock de laine : quel patron pour ma laine (mes patrons d’abord, puis de
   await page.route('**/functions/v1/knit-pattern', async (route) => {
     const body = route.request().postDataJSON()
     expect(body.ideas).toMatchObject({ meters: 840, needle_mm: 4 })
-    await route.fulfill({ json: { ideas: [{ title: 'Snood torsadé', why: 'Mérinos doux.', meters: 300, needleMm: 4.5, search: 'cabled cowl' }] } })
+    await route.fulfill({
+      json: {
+        weight: 'worsted',
+        ideas: [
+          {
+            title: 'Snood torsadé',
+            why: 'Mérinos doux.',
+            meters: 300,
+            needleMm: 4.5,
+            search: 'cabled cowl',
+            patterns: [{ title: 'Cabled Cowl', url: 'https://www.ravelry.com/patterns/library/cabled-cowl' }],
+          },
+        ],
+      },
+    })
   })
   const { api } = await signedInApi()
   await api.settings.saveSettings({ ...DEFAULT_SETTINGS, disabledPages: [] })
@@ -194,7 +208,8 @@ test('stock de laine : quel patron pour ma laine (mes patrons d’abord, puis de
   // Puis des idées avec l'IA
   await match.getByRole('button', { name: 'Des idées avec l’IA' }).click()
   await expect(match.getByRole('list', { name: 'Idées de modèles' })).toContainText('Snood torsadé')
-  await expect(match.getByRole('link', { name: 'Chercher un patron' })).toHaveAttribute('href', 'https://www.ravelry.com/patterns/search#query=cabled%20cowl')
+  await expect(match.getByRole('link', { name: 'Cabled Cowl · ravelry.com' })).toHaveAttribute('href', 'https://www.ravelry.com/patterns/library/cabled-cowl')
+  await expect(match.getByRole('link', { name: 'Plus de patrons sur Ravelry' })).toHaveAttribute('href', 'https://www.ravelry.com/patterns/search#craft=knitting&weight=worsted&query=cabled%20cowl')
 })
 
 test('suit un diagramme ajouté depuis une image, rang par rang', async ({ page }) => {

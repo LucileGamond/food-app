@@ -7,6 +7,8 @@ import { asRecord } from '../_shared/sanitize.ts'
 /** PDF de 20 Mo au plus (≈ 27 millions de caractères en base64). */
 export const MAX_PDF_BASE64 = 28_000_000
 export const MAX_STEPS = 200
+/** Texte d'une étape recopié du patron (comme en base). */
+export const MAX_INSTRUCTIONS = 20_000
 
 export interface PatternInput {
   pdf: string
@@ -64,6 +66,8 @@ export const MAX_CHARTS = 30
 export interface ReadPattern {
   title: string
   sizes: string[]
+  /** Position de la taille choisie dans `sizes` (0 = première), pour mettre ses nombres en valeur. */
+  sizeIndex: number | null
   steps: PatternStep[]
   gauge: Gauge | null
   charts: ChartHint[]
@@ -97,6 +101,7 @@ export const TOOL: Tool = {
       title: { type: 'string', description: 'Nom du modèle.' },
       sizes: { type: 'array', items: { type: 'string' }, description: 'Toutes les tailles proposées par le patron, dans l’ordre.' },
       size_found: { type: 'boolean', description: 'La taille demandée fait partie des tailles du patron.' },
+      size_number: { type: ['integer', 'null'], description: 'Position de la taille demandée dans sizes (1 = première).' },
       gauge: {
         type: ['object', 'null'],
         description: 'Échantillon du patron ramené à 10 cm × 10 cm (null s’il n’est pas indiqué).',
@@ -115,7 +120,7 @@ export const TOOL: Tool = {
             title: { type: 'string', description: 'Ex. « Dos – côtes », « Manches – augmentations ».' },
             instructions: {
               type: 'string',
-              description: 'Consignes de l’étape en français, avec seulement les nombres de la taille choisie.',
+              description: 'Texte du patron pour cette étape, recopié mot pour mot avec les nombres de toutes les tailles : ni résumé, ni coupé, ni traduit.',
             },
             total_rows: { type: ['integer', 'null'], description: 'Nombre de rangs (ou tours) de l’étape si on peut le connaître.' },
             stitches: { type: ['integer', 'null'], description: 'Nombre de mailles sur l’aiguille à la fin de l’étape, s’il est indiqué.' },
@@ -179,10 +184,12 @@ export function systemPrompt(size: string): string {
   return [
     'Tu lis un patron de tricot (PDF) pour une tricoteuse qui a choisi une taille.',
     `Taille choisie : « ${size} ». Retrouve-la parmi les tailles du patron (même écrite autrement : « M » = « taille 2 » si le patron l’indique, « 4 ans » = « 4A »…).`,
-    'Les patrons donnent les nombres de toutes les tailles à la suite, par exemple « monter 60 (64-68-72) m. » ou « 60/64/68/72 m. » :',
-    'garde uniquement le nombre de la taille choisie, et réécris la consigne sans les autres (« monter 64 m. »).',
-    'Découpe le patron en étapes de tricot dans l’ordre (dos, devant, manches, finitions…), en gardant les consignes utiles, en français.',
-    'Pour chaque étape : le nombre total de rangs si tu peux le déduire (hauteur donnée seulement en cm : null), et les mailles à la fin.',
+    'Les patrons donnent les nombres de toutes les tailles à la suite, par exemple « monter 60 (64-68-72) m. » ou « 60/64/68/72 m. ».',
+    'Découpe le patron en étapes de tricot dans l’ordre (dos, devant, manches, finitions…).',
+    'Dans instructions, recopie mot pour mot le texte du patron pour l’étape, avec les nombres de toutes les tailles tels qu’écrits :',
+    'ne résume rien, ne coupe rien, ne traduis pas ; garde les retours à la ligne utiles. L’application mettra en valeur les nombres de la taille choisie.',
+    'Donne dans size_number la position de la taille choisie parmi sizes (1 = première).',
+    'Pour chaque étape, avec les nombres de la taille choisie : le nombre total de rangs si tu peux le déduire (hauteur donnée seulement en cm : null), et les mailles à la fin.',
     'Décris le déroulé de chaque étape en sections successives (sections) : rangs sans action particulière (« tricoter 4 rangs »)',
     'et actions répétées (« diminuer 1 m. de chaque côté tous les 6 rangs 4 fois »), dans l’ordre du patron, avec la mesure telle qu’écrite dans pattern.',
     'Mesure en centimètres (« 5 cm », « tous les 5 cm ») : rows ou every à null, la tricoteuse la convertira en rangs selon sa laine.',
@@ -254,6 +261,15 @@ export function sanitizeGauge(value: unknown): Gauge | null {
   return gauge.stitches === null && gauge.rows === null ? null : gauge
 }
 
+/** Position de la taille choisie : celle donnée par le modèle, sinon la même écriture dans la liste (« m » = « M »). */
+function sizeIndex(value: unknown, sizes: string[], size: string): number | null {
+  const number = int(value, 1, sizes.length)
+  if (number !== null) return number - 1
+  const key = (s: string) => s.trim().toLowerCase().replace(/\s+/g, ' ')
+  const index = sizes.findIndex((s) => key(s) === key(size))
+  return index === -1 ? null : index
+}
+
 /** Valide et borne ce que le modèle a renvoyé. */
 export function sanitizePattern(input: unknown, size: string): ReadPattern {
   const data = asRecord(input)
@@ -270,7 +286,7 @@ export function sanitizePattern(input: unknown, size: string): ReadPattern {
       const s = asRecord(value)
       return {
         title: str(s.title, 200),
-        instructions: str(s.instructions, 5000),
+        instructions: str(s.instructions, MAX_INSTRUCTIONS),
         totalRows: int(s.total_rows, 1, 2000),
         stitches: int(s.stitches, 1, 5000),
         sections: (Array.isArray(s.sections) ? s.sections : []).map(section).filter((r): r is PatternSection => r !== null).slice(0, 30),
@@ -281,6 +297,7 @@ export function sanitizePattern(input: unknown, size: string): ReadPattern {
   return {
     title: str(data.title, 200) || 'Patron sans titre',
     sizes,
+    sizeIndex: sizeIndex(data.size_number, sizes, size),
     steps,
     gauge: sanitizeGauge(data.gauge),
     charts: sanitizeCharts(data.charts, steps.length),
@@ -296,7 +313,8 @@ export async function readPattern(input: PatternInput, options: ModelOptions): P
         { type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: input.pdf } },
         { type: 'text', text: `Découpe ce patron en étapes pour la taille « ${input.size} ».` },
       ],
-      maxTokens: 16_000,
+      // Texte recopié tel quel : plus long qu'un résumé.
+      maxTokens: 32_000,
       failure: 'La lecture du patron a échoué',
       missing: 'réponse sans étapes',
       timeoutMs: 120_000,

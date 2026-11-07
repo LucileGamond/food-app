@@ -217,14 +217,14 @@ isOneToOne: false
                   ]
                 },"knit_projects": {
                   Row: {
-                    "chart_hints": NonNullable<Json>,"created_at": string,"id": string,"my_gauge_rows": number | null,"my_gauge_stitches": number | null,"pattern_gauge_rows": number | null,"pattern_gauge_stitches": number | null,"pdf_path": string | null,"profile_id": string,"size": string,"title": string,"updated_at": string,"yarns": NonNullable<Json>
+                    "chart_hints": NonNullable<Json>,"created_at": string,"id": string,"my_gauge_rows": number | null,"my_gauge_stitches": number | null,"pattern_gauge_rows": number | null,"pattern_gauge_stitches": number | null,"pdf_path": string | null,"profile_id": string,"size": string,"size_index": number | null,"sizes": (string)[],"title": string,"updated_at": string,"yarns": NonNullable<Json>
                   }
                   ComputedFields: never
                   Insert: {
-                    "chart_hints"?: NonNullable<Json>,"created_at"?: string,"id"?: string,"my_gauge_rows"?: number | null,"my_gauge_stitches"?: number | null,"pattern_gauge_rows"?: number | null,"pattern_gauge_stitches"?: number | null,"pdf_path"?: string | null,"profile_id"?: string,"size": string,"title": string,"updated_at"?: string,"yarns"?: NonNullable<Json>
+                    "chart_hints"?: NonNullable<Json>,"created_at"?: string,"id"?: string,"my_gauge_rows"?: number | null,"my_gauge_stitches"?: number | null,"pattern_gauge_rows"?: number | null,"pattern_gauge_stitches"?: number | null,"pdf_path"?: string | null,"profile_id"?: string,"size": string,"size_index"?: number | null,"sizes"?: (string)[],"title": string,"updated_at"?: string,"yarns"?: NonNullable<Json>
                   }
                   Update: {
-                    "chart_hints"?: NonNullable<Json>,"created_at"?: string,"id"?: string,"my_gauge_rows"?: number | null,"my_gauge_stitches"?: number | null,"pattern_gauge_rows"?: number | null,"pattern_gauge_stitches"?: number | null,"pdf_path"?: string | null,"profile_id"?: string,"size"?: string,"title"?: string,"updated_at"?: string,"yarns"?: NonNullable<Json>
+                    "chart_hints"?: NonNullable<Json>,"created_at"?: string,"id"?: string,"my_gauge_rows"?: number | null,"my_gauge_stitches"?: number | null,"pattern_gauge_rows"?: number | null,"pattern_gauge_stitches"?: number | null,"pdf_path"?: string | null,"profile_id"?: string,"size"?: string,"size_index"?: number | null,"sizes"?: (string)[],"title"?: string,"updated_at"?: string,"yarns"?: NonNullable<Json>
                   }
                   Relationships: [
                     {
@@ -277,14 +277,14 @@ isOneToOne: false
                   ]
                 },"knit_steps": {
                   Row: {
-                    "done": boolean,"id": string,"instructions": string,"notes": string,"position": number,"project_id": string,"row_count": number,"sections": NonNullable<Json>,"stitches": number | null,"title": string,"total_rows": number | null
+                    "done": boolean,"highlights": NonNullable<Json>,"id": string,"instructions": string,"notes": string,"position": number,"project_id": string,"row_count": number,"sections": NonNullable<Json>,"stitches": number | null,"title": string,"total_rows": number | null
                   }
                   ComputedFields: never
                   Insert: {
-                    "done"?: boolean,"id"?: string,"instructions"?: string,"notes"?: string,"position": number,"project_id": string,"row_count"?: number,"sections"?: NonNullable<Json>,"stitches"?: number | null,"title": string,"total_rows"?: number | null
+                    "done"?: boolean,"highlights"?: NonNullable<Json>,"id"?: string,"instructions"?: string,"notes"?: string,"position": number,"project_id": string,"row_count"?: number,"sections"?: NonNullable<Json>,"stitches"?: number | null,"title": string,"total_rows"?: number | null
                   }
                   Update: {
-                    "done"?: boolean,"id"?: string,"instructions"?: string,"notes"?: string,"position"?: number,"project_id"?: string,"row_count"?: number,"sections"?: NonNullable<Json>,"stitches"?: number | null,"title"?: string,"total_rows"?: number | null
+                    "done"?: boolean,"highlights"?: NonNullable<Json>,"id"?: string,"instructions"?: string,"notes"?: string,"position"?: number,"project_id"?: string,"row_count"?: number,"sections"?: NonNullable<Json>,"stitches"?: number | null,"title"?: string,"total_rows"?: number | null
                   }
                   Relationships: [
                     {

@@ -14,7 +14,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { LoadError } from '@/components/LoadError'
 import { useAsync } from '@/hooks/useAsync'
 import { cn } from '@/lib/utils'
-import { matchPatterns, patternSearchUrl, yarnDetails, yarnMeters, yarnTitle, type QueuedPattern, type StashItem, type Yarn, type YarnIdea } from '../lib/yarn'
+import { matchPatterns, patternSearchUrl, siteOf, yarnDetails, yarnMeters, yarnTitle, type QueuedPattern, type StashItem, type Yarn, type YarnIdea } from '../lib/yarn'
 import { YarnDialog } from './YarnPanel'
 
 function PatternLink({ item }: { item: QueuedPattern }) {
@@ -117,9 +117,28 @@ function MatchDialog({ item, queue, onOpenChange }: { item: StashItem | null; qu
                   <p className="text-muted-foreground">
                     {[idea.why, idea.meters !== null && `≈ ${idea.meters} m`, idea.needleMm !== null && `aiguilles ${String(idea.needleMm).replace('.', ',')} mm`].filter(Boolean).join(' · ')}
                   </p>
+                  {idea.patterns.length > 0 && (
+                    <ul aria-label={`Patrons trouvés : ${idea.title}`} className="mt-2 space-y-1">
+                      {idea.patterns.map((p) => (
+                        <li key={p.url}>
+                          <a href={p.url} target="_blank" rel="noreferrer" className="inline-flex items-start gap-1 font-medium text-brand underline-offset-4 hover:underline">
+                            <ExternalLink className="mt-0.5 size-3.5 shrink-0" aria-hidden />
+                            <span>
+                              {p.title} <span className="font-normal text-muted-foreground">· {siteOf(p.url)}</span>
+                            </span>
+                          </a>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
                   {idea.search && (
-                    <a href={patternSearchUrl(idea.search)} target="_blank" rel="noreferrer" className="mt-1 inline-flex items-center gap-1 font-medium text-brand underline-offset-4 hover:underline">
-                      <ExternalLink className="size-3.5" aria-hidden /> Chercher un patron
+                    <a
+                      href={patternSearchUrl(idea.search, idea.weight)}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="mt-1 inline-flex items-center gap-1 text-muted-foreground underline-offset-4 hover:underline"
+                    >
+                      <ExternalLink className="size-3.5" aria-hidden /> Plus de patrons sur Ravelry
                     </a>
                   )}
                 </li>

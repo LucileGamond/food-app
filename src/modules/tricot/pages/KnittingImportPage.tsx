@@ -8,7 +8,9 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { PageHeader } from '@/components/PageHeader'
+import { SizedText, SizePicker } from '../components/SizedText'
 import { describeHint } from '../lib/chart'
+import { sizeIndexOf } from '../lib/sizes'
 import { describeSection, MAX_PDF_BYTES, type ReadPattern } from '../lib/pattern'
 import { formatGauge, type QueuedPattern } from '../lib/yarn'
 
@@ -27,6 +29,7 @@ export function KnittingImportPage() {
   const [reading, setReading] = useState(false)
   const [pattern, setPattern] = useState<ReadPattern | null>(null)
   const [title, setTitle] = useState('')
+  const [sizeIndex, setSizeIndex] = useState<number | null>(null)
   const [saving, setSaving] = useState(false)
 
   useEffect(() => {
@@ -62,6 +65,7 @@ export function KnittingImportPage() {
       const read = await api.knitting.readPattern(pdf, size.trim())
       setPattern(read)
       setTitle(read.title)
+      setSizeIndex(read.sizeIndex ?? sizeIndexOf(read.sizes, size))
     } catch (e) {
       setError(errorMessage(e))
     } finally {
@@ -73,7 +77,7 @@ export function KnittingImportPage() {
     if (!pattern) return
     setSaving(true)
     try {
-      const id = await api.knitting.createProject({ title: title.trim() || pattern.title, size: size.trim(), pdf, steps: pattern.steps, gauge: pattern.gauge ?? null, queued, chartHints: pattern.charts ?? [] })
+      const id = await api.knitting.createProject({ title: title.trim() || pattern.title, size: size.trim(), pdf, steps: pattern.steps, gauge: pattern.gauge ?? null, queued, chartHints: pattern.charts ?? [], sizes: pattern.sizes, sizeIndex })
       toast.success('Projet enregistré')
       navigate(`/tricot/${id}`)
     } catch (e) {
@@ -95,13 +99,14 @@ export function KnittingImportPage() {
             <Label htmlFor="knit-title">Nom du projet</Label>
             <Input id="knit-title" className="h-10" value={title} onChange={(e) => setTitle(e.target.value)} maxLength={200} />
           </div>
+          <SizePicker id="knit-size-index" sizes={pattern.sizes} sizeIndex={sizeIndex} onChange={setSizeIndex} />
           <ol aria-label="Étapes lues" className="space-y-2">
             {pattern.steps.map((step, index) => (
               <li key={index} className="rounded-2xl border bg-background p-4 shadow-xs">
                 <p className="font-medium">
                   {index + 1}. {step.title}
                 </p>
-                {step.instructions && <p className="mt-1 text-sm whitespace-pre-line text-muted-foreground">{step.instructions}</p>}
+                {step.instructions && <SizedText text={step.instructions} sizes={pattern.sizes} sizeIndex={sizeIndex} className="mt-1" />}
                 {(step.totalRows || step.stitches) && (
                   <p className="mt-2 text-xs text-muted-foreground">
                     {[step.totalRows && `${step.totalRows} rangs`, step.stitches && `${step.stitches} mailles`].filter(Boolean).join(' · ')}

@@ -4,6 +4,7 @@ import {
   matchPatterns,
   parseMeters,
   patternSearchUrl,
+  siteOf,
   yarnMeters,
   EMPTY_YARN,
   formatGauge,
@@ -136,7 +137,10 @@ describe('quel patron pour ma laine', () => {
     expect(yarnMeters(PARTNER)).toBe(750)
     expect(yarnMeters({ ...PARTNER, length_m: null })).toBeNull()
     expect(describeYarn(PARTNER)).toBe('Phildar Partner 3.5, coloris 0012 Ciel · bain 4471 · 50 % laine · 50 g / 125 m · aiguilles 3,5 mm')
-    expect(patternSearchUrl('ribbed beanie')).toBe('https://www.ravelry.com/patterns/search#query=ribbed%20beanie')
+    expect(patternSearchUrl('ribbed beanie')).toBe('https://www.ravelry.com/patterns/search#craft=knitting&query=ribbed%20beanie')
+    expect(patternSearchUrl('cabled cowl', 'dk')).toBe('https://www.ravelry.com/patterns/search#craft=knitting&weight=dk&query=cabled%20cowl')
+    expect(siteOf('https://www.garnstudio.com/pattern.php?id=1')).toBe('garnstudio.com')
+    expect(siteOf('pas une adresse')).toBe('pas une adresse')
     expect(parseMeters('350')).toBe(350)
     expect(parseMeters('')).toBeNull()
     expect(parseMeters('0')).toBeUndefined()

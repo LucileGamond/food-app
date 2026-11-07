@@ -307,9 +307,22 @@ export function describeYarn(yarn: Yarn): string {
   return [yarnTitle(yarn), yarnDetails({ ...yarn, skeins: null })].filter(Boolean).join(', ')
 }
 
-/** Recherche de patrons sur Ravelry (mots-clés proposés par le modèle). */
-export function patternSearchUrl(search: string): string {
-  return `https://www.ravelry.com/patterns/search#query=${encodeURIComponent(search)}`
+/**
+ * Recherche de patrons sur Ravelry : tricot seulement, grosseur de la laine (catégorie Ravelry, si connue) et
+ * mots-clés proposés par le modèle.
+ */
+export function patternSearchUrl(search: string, weight: string | null = null): string {
+  const filters = ['craft=knitting', weight && `weight=${encodeURIComponent(weight)}`, `query=${encodeURIComponent(search)}`]
+  return `https://www.ravelry.com/patterns/search#${filters.filter(Boolean).join('&')}`
+}
+
+/** « ravelry.com », « garnstudio.com » : le site d'un patron trouvé. */
+export function siteOf(url: string): string {
+  try {
+    return new URL(url).hostname.replace(/^www\./, '')
+  } catch {
+    return url
+  }
 }
 
 /** Idée de modèle proposée par le modèle pour une laine. */
@@ -319,6 +332,10 @@ export interface YarnIdea {
   meters: number | null
   needleMm: number | null
   search: string
+  /** Vrais patrons trouvés sur internet (adresses vérifiées dans les résultats de recherche). */
+  patterns: { title: string; url: string }[]
+  /** Grosseur de la laine (catégorie Ravelry), pour filtrer la recherche. */
+  weight: string | null
 }
 
 /** « 350 » → 350 ; '' → null ; undefined si invalide (1 à 20 000 m). */

@@ -5,6 +5,7 @@ import type { Json } from '@/lib/database.types'
 import type { AppSupabaseClient } from '@/api/client'
 import { compressForReading } from '@/lib/image'
 import { describeYarn, yarnFromJson, yarnMeters, yarnsFromJson, type Gauge, type QueueInput, type QueuedPattern, type QueuePriority, type StashItem, type Yarn, type YarnIdea } from './lib/yarn'
+import { sanitizeHighlights } from './lib/sizes'
 import { sanitizeHints, sanitizeSetup, type ChartHint, type ChartSetup, type KnitChart } from './lib/chart'
 import { MAX_PDF_BYTES, type KnitProject, type KnitProjectSummary, type KnitStep, type PatternStep, type ReadPattern, sanitizeSections } from './lib/pattern'
 
@@ -14,7 +15,7 @@ const CHART_BUCKET = 'knit-charts'
 const READ_TIMEOUT_MS = 150_000
 const SIGNED_URL_TTL_SECONDS = 60 * 60
 
-export type StepProgress = Partial<Pick<KnitStep, 'rowCount' | 'notes' | 'done' | 'sections'>>
+export type StepProgress = Partial<Pick<KnitStep, 'rowCount' | 'notes' | 'done' | 'sections' | 'highlights'>>
 
 /** Contenu du fichier en base64. */
 export async function fileToBase64(file: Blob): Promise<string> {
@@ -71,6 +72,7 @@ interface StepRow {
   row_count: number
   notes: string
   done: boolean
+  highlights: unknown
 }
 
 function toStep(row: StepRow): KnitStep {
@@ -85,6 +87,7 @@ function toStep(row: StepRow): KnitStep {
     rowCount: row.row_count,
     notes: row.notes,
     done: row.done,
+    highlights: sanitizeHighlights(row.highlights),
   }
 }
 
@@ -180,7 +183,7 @@ export function createKnittingApi(db: AppSupabaseClient) {
       const { data, error } = await db
         .from('knit_projects')
         .select(
-          `id, title, size, pdf_path, chart_hints, yarns, pattern_gauge_stitches, pattern_gauge_rows, my_gauge_stitches, my_gauge_rows, knit_steps(id, position, title, instructions, total_rows, stitches, sections, row_count, notes, done), knit_charts(${CHART_COLUMNS})`,
+          `id, title, size, sizes, size_index, pdf_path, chart_hints, yarns, pattern_gauge_stitches, pattern_gauge_rows, my_gauge_stitches, my_gauge_rows, knit_steps(id, position, title, instructions, total_rows, stitches, sections, row_count, notes, done, highlights), knit_charts(${CHART_COLUMNS})`,
         )
         .eq('id', id)
         .order('position', { referencedTable: 'knit_steps' })
@@ -192,6 +195,9 @@ export function createKnittingApi(db: AppSupabaseClient) {
         id: data.id,
         title: data.title,
         size: data.size,
+        sizes: data.sizes,
+        // Une donnée abîmée ne fait que retirer la mise en valeur.
+        sizeIndex: data.size_index !== null && data.size_index < data.sizes.length ? data.size_index : null,
         pdfPath: data.pdf_path,
         steps: data.knit_steps.map(toStep),
         charts: await signCharts(data.knit_charts),
@@ -221,6 +227,9 @@ export function createKnittingApi(db: AppSupabaseClient) {
       queued?: Pick<QueuedPattern, 'id' | 'pdfPath'> | null
       /** Diagrammes repérés à la lecture, gardés pour les proposer plus tard. */
       chartHints?: ChartHint[]
+      /** Tailles du patron et celle à mettre en valeur dans le texte des étapes. */
+      sizes?: string[]
+      sizeIndex?: number | null
     }): Promise<string> {
       // PDF du patron en attente déjà envoyé ; sinon celui choisi, envoyé maintenant.
       const reused = input.queued?.pdfPath ?? null
@@ -247,17 +256,39 @@ export function createKnittingApi(db: AppSupabaseClient) {
         if (uploaded) await db.storage.from(PATTERN_BUCKET).remove([uploaded])
         throw toAppError(error, 'Impossible d’enregistrer le projet.')
       }
-      // Simple confort : un échec ici n'empêche pas de tricoter (les diagrammes s'ajoutent quand même à la main).
-      if (input.chartHints?.length) await db.from('knit_projects').update({ chart_hints: input.chartHints as unknown as Json[] }).eq('id', data)
+      // Simple confort : un échec ici n'empêche pas de tricoter (diagrammes ajoutés à la main, texte sans mise en valeur).
+      const sizes = input.sizes ?? []
+      if (input.chartHints?.length || sizes.length) {
+        await db
+          .from('knit_projects')
+          .update({
+            chart_hints: (input.chartHints ?? []) as unknown as Json[],
+            sizes,
+            size_index: input.sizeIndex !== undefined && input.sizeIndex !== null && input.sizeIndex < sizes.length ? input.sizeIndex : null,
+          })
+          .eq('id', data)
+      }
       return data
     },
 
     async saveProgress(stepId: string, progress: StepProgress): Promise<void> {
       const { error } = await db
         .from('knit_steps')
-        .update({ row_count: progress.rowCount, notes: progress.notes, done: progress.done, sections: progress.sections as unknown as NonNullable<Json> | undefined })
+        .update({
+          row_count: progress.rowCount,
+          notes: progress.notes,
+          done: progress.done,
+          sections: progress.sections as unknown as NonNullable<Json> | undefined,
+          highlights: progress.highlights as unknown as NonNullable<Json> | undefined,
+        })
         .eq('id', stepId)
       if (error) throw toAppError(error, 'Impossible d’enregistrer l’avancée.')
+    },
+
+    /** Taille dont les nombres sont mis en valeur dans le texte des étapes (null : aucune). */
+    async setSizeIndex(id: string, sizeIndex: number | null): Promise<void> {
+      const { error } = await db.from('knit_projects').update({ size_index: sizeIndex }).eq('id', id)
+      if (error) throw toAppError(error, 'Impossible de changer la taille mise en valeur.')
     },
 
     /** Laines et échantillons du projet. */
@@ -349,14 +380,16 @@ export function createKnittingApi(db: AppSupabaseClient) {
       if (error) throw toAppError(error, 'Impossible de retirer la laine.')
     },
 
-    /** Idées de modèles pour une laine (aucun patron mis de côté ne convient). */
+    /** Idées de modèles pour une laine, avec de vrais patrons trouvés sur internet (aucun patron mis de côté ne convient). */
     async yarnIdeas(yarn: Yarn): Promise<YarnIdea[]> {
-      const { ideas } = await invokeKnit<{ ideas: YarnIdea[] }>(
+      const { ideas, weight } = await invokeKnit<{ ideas: Omit<YarnIdea, 'weight'>[]; weight?: string | null }>(
         { ideas: { yarn: describeYarn(yarn), meters: yarnMeters(yarn), needle_mm: yarn.needle_mm } },
         'La recherche d’idées a échoué.',
         (d) => Array.isArray(d.ideas),
+        // Recherche web comprise : jusqu'à 2 minutes côté modèle.
+        READ_TIMEOUT_MS,
       )
-      return ideas
+      return ideas.map((idea) => ({ ...idea, patterns: Array.isArray(idea.patterns) ? idea.patterns : [], weight: weight ?? null }))
     },
 
     /** PDF d'un patron en attente, pour le lire au moment de commencer. */

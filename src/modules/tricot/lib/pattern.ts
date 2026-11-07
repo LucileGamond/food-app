@@ -7,6 +7,7 @@
 // Le compteur compte les rangs terminés : ce qui est annoncé concerne le rang à tricoter (rangs faits + 1).
 
 import type { ChartHint, KnitChart } from './chart'
+import type { Highlights } from './sizes'
 import type { Gauge, Yarn } from './yarn'
 
 export type SectionKind = 'rows' | 'repeat'
@@ -49,6 +50,8 @@ export interface KnitStep {
   rowCount: number
   notes: string
   done: boolean
+  /** Surlignage des nombres corrigé à la main, par taille. */
+  highlights: Highlights
 }
 
 export interface KnitProjectSummary {
@@ -64,6 +67,9 @@ export interface KnitProject {
   id: string
   title: string
   size: string
+  /** Tailles du patron, dans l'ordre, et celle dont les nombres sont mis en valeur dans le texte des étapes. */
+  sizes: string[]
+  sizeIndex: number | null
   pdfPath: string | null
   steps: KnitStep[]
   /** Diagrammes du patron, chacun rattaché (ou non) à une étape. */
@@ -82,6 +88,8 @@ export type PatternStep = Pick<KnitStep, 'title' | 'instructions' | 'totalRows' 
 export interface ReadPattern {
   title: string
   sizes: string[]
+  /** Position de la taille choisie dans `sizes` (0 = première). */
+  sizeIndex?: number | null
   steps: PatternStep[]
   /** Échantillon indiqué dans le patron, s'il y en a un. */
   gauge?: Gauge | null

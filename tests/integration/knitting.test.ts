@@ -260,3 +260,35 @@ describe('diagrammes', () => {
     await expect(anon.deleteChart(chart)).rejects.toThrow()
   })
 })
+
+describe('taille mise en valeur', () => {
+  it('garde les tailles du patron et la taille mise en valeur, réglable', async () => {
+    const { api } = await signedInApi()
+    const steps = [{ ...STEPS[0]!, instructions: 'Monter 60 (64-68) m. '.repeat(400) }]
+    const id = await api.knitting.createProject({ title: 'Pull', size: 'M', pdf: null, steps, sizes: ['S', 'M', 'L'], sizeIndex: 1 })
+    let project = (await api.knitting.getProject(id))!
+    expect(project).toMatchObject({ sizes: ['S', 'M', 'L'], sizeIndex: 1, chartHints: [] })
+    // Texte recopié tel quel, plus long qu'avant (5 000 caractères)
+    expect(project.steps[0]!.instructions).toHaveLength(steps[0]!.instructions.length)
+
+    await api.knitting.setSizeIndex(id, 2)
+    expect((await api.knitting.getProject(id))!.sizeIndex).toBe(2)
+    await api.knitting.setSizeIndex(id, null)
+    expect((await api.knitting.getProject(id))!.sizeIndex).toBeNull()
+    await expect(api.knitting.setSizeIndex(id, 3)).rejects.toThrow('Certaines valeurs sont invalides.')
+
+    // Surlignage corrigé à la main, par taille
+    const stepId = project.steps[0]!.id
+    await api.knitting.saveProgress(stepId, { highlights: { '1': { '11': false, '14': true } } })
+    expect((await api.knitting.getProject(id))!.steps[0]!.highlights).toEqual({ '1': { '11': false, '14': true } })
+    await expect(api.knitting.saveProgress(stepId, { highlights: [] as never })).rejects.toThrow('Certaines valeurs sont invalides.')
+
+    // Taille hors de la liste à la création : pas de mise en valeur ; sans tailles : rien à enregistrer
+    const other = await api.knitting.createProject({ title: 'Bonnet', size: 'M', pdf: null, steps: STEPS, sizes: ['S', 'M'], sizeIndex: 5 })
+    project = (await api.knitting.getProject(other))!
+    expect(project).toMatchObject({ sizes: ['S', 'M'], sizeIndex: null })
+    const plain = await api.knitting.createProject({ title: 'Écharpe', size: 'Unique', pdf: null, steps: STEPS, sizeIndex: 0 })
+    expect((await api.knitting.getProject(plain))!).toMatchObject({ sizes: [], sizeIndex: null })
+  })
+})
+
