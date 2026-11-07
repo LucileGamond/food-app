@@ -40,7 +40,15 @@ export function QueueList({ items, onChange }: { items: QueuedPattern[]; onChang
               <div className="min-w-0 flex-1">
                 <p className="font-medium break-words">{item.title}</p>
                 <p className="text-sm text-muted-foreground">
-                  {[PRIORITIES.find((p) => p.value === item.priority)?.label, item.size && `taille ${item.size}`, item.yarnIdea].filter(Boolean).join(' · ')}
+                  {[
+                    PRIORITIES.find((p) => p.value === item.priority)?.label,
+                    item.size && `taille ${item.size}`,
+                    item.metersNeeded !== null && `${item.metersNeeded} m`,
+                    item.needleMm !== null && `aiguilles ${String(item.needleMm).replace('.', ',')} mm`,
+                    item.yarnIdea,
+                  ]
+                    .filter(Boolean)
+                    .join(' · ')}
                 </p>
                 {item.notes && <p className="mt-1 text-sm whitespace-pre-line">{item.notes}</p>}
               </div>

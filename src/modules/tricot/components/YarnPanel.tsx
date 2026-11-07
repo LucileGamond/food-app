@@ -10,6 +10,8 @@ import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { NativeSelect } from '@/components/ui/native-select'
+import { useAsync } from '@/hooks/useAsync'
 import { useOnOpen } from '@/hooks/useOnOpen'
 import { ACCEPTED_IMAGE_TYPES } from '@/lib/image'
 import {
@@ -23,6 +25,7 @@ import {
   yarnDetails,
   yarnTitle,
   type Gauge,
+  type StashItem,
   type Yarn,
   type YarnDraft,
 } from '../lib/yarn'
@@ -45,7 +48,25 @@ const FIELDS: { key: keyof YarnDraft; label: string; placeholder?: string; numer
   { key: 'needle_mm', label: 'Aiguilles', numeric: true, unit: 'mm' },
 ]
 
-function YarnDialog({ yarn, open, onOpenChange, onSave }: { yarn: Yarn | null; open: boolean; onOpenChange: (open: boolean) => void; onSave: (yarn: Yarn) => Promise<boolean> }) {
+/**
+ * Saisie d'une laine (projet ou stock), remplissable d'après la photo de l'étiquette. `stash` : laines du stock
+ * proposées pour préremplir (laine d'un projet prise dans le stock).
+ */
+export function YarnDialog({
+  yarn,
+  open,
+  onOpenChange,
+  onSave,
+  title,
+  stash = [],
+}: {
+  yarn: Yarn | null
+  open: boolean
+  onOpenChange: (open: boolean) => void
+  onSave: (yarn: Yarn) => Promise<boolean>
+  title?: string
+  stash?: StashItem[]
+}) {
   const api = useApi()
   const [draft, setDraft] = useState<YarnDraft>(() => toYarnDraft(yarn ?? EMPTY_YARN))
   const [error, setError] = useState<string | null>(null)
@@ -91,9 +112,30 @@ function YarnDialog({ yarn, open, onOpenChange, onSave }: { yarn: Yarn | null; o
       <DialogContent className="max-h-[90dvh] overflow-y-auto sm:max-w-md">
         <form onSubmit={(e) => void submit(e)} noValidate className="grid grid-cols-[minmax(0,1fr)] gap-4">
           <DialogHeader>
-            <DialogTitle>{yarn ? 'Modifier la laine' : 'Ajouter une laine'}</DialogTitle>
+            <DialogTitle>{title ?? (yarn ? 'Modifier la laine' : 'Ajouter une laine')}</DialogTitle>
             <DialogDescription>Tous les champs sont facultatifs. La photo de l’étiquette les remplit pour toi.</DialogDescription>
           </DialogHeader>
+
+          {!yarn && stash.length > 0 && (
+            <div className="grid gap-1.5">
+              <Label htmlFor="yarn-from-stash">Prendre dans mon stock</Label>
+              <NativeSelect
+                id="yarn-from-stash"
+                defaultValue=""
+                onChange={(e) => {
+                  const picked = stash.find((s) => s.id === e.target.value)
+                  if (picked) setDraft(toYarnDraft(picked.yarn))
+                }}
+              >
+                <option value="">Choisir une laine…</option>
+                {stash.map((s) => (
+                  <option key={s.id} value={s.id}>
+                    {[yarnTitle(s.yarn), s.yarn.color].filter(Boolean).join(' · ')}
+                  </option>
+                ))}
+              </NativeSelect>
+            </div>
+          )}
 
           <div>
             <Label htmlFor="yarn-label-photo" className="sr-only">
@@ -226,7 +268,10 @@ function GaugeForm({ info, onSave }: { info: ProjectInfo; onSave: (patternGauge:
 
 /** Laine et échantillon du projet, enregistrés ensemble. */
 export function YarnPanel({ info, onSave }: { info: ProjectInfo; onSave: (info: ProjectInfo) => Promise<boolean> }) {
+  const api = useApi()
   const [editing, setEditing] = useState<number | 'new' | null>(null)
+  // Stock de laine, pour prendre une laine du stock (sans erreur bloquante : le stock est un plus).
+  const stash = useAsync(() => api.knitting.listStash(), [api])
   const total = totalLength(info.yarns)
 
   const saveYarn = (yarn: Yarn) =>
@@ -278,6 +323,7 @@ export function YarnPanel({ info, onSave }: { info: ProjectInfo; onSave: (info: 
         open={editing !== null}
         onOpenChange={(open) => !open && setEditing(null)}
         onSave={saveYarn}
+        stash={stash.data ?? []}
       />
     </section>
   )

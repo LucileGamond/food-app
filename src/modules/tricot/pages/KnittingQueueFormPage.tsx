@@ -17,7 +17,7 @@ import { parseQueueDraft, PRIORITIES, type QueueDraft, type QueuePriority } from
 export function KnittingQueueFormPage() {
   const api = useApi()
   const navigate = useNavigate()
-  const [draft, setDraft] = useState<QueueDraft>({ title: '', url: '', size: '', yarnIdea: '', notes: '', priority: 2 })
+  const [draft, setDraft] = useState<QueueDraft>({ title: '', url: '', size: '', yarnIdea: '', notes: '', priority: 2, metersNeeded: '', needleMm: '' })
   const [pdf, setPdf] = useState<File | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
@@ -91,6 +91,17 @@ export function KnittingQueueFormPage() {
             </NativeSelect>
           </div>
         </div>
+        <div className="grid grid-cols-2 gap-3">
+          <div className="grid gap-1.5">
+            <Label htmlFor="queue-meters">Métrage nécessaire (m)</Label>
+            <Input id="queue-meters" inputMode="numeric" className="h-10" value={draft.metersNeeded} onChange={(e) => change({ metersNeeded: e.target.value })} placeholder="600" />
+          </div>
+          <div className="grid gap-1.5">
+            <Label htmlFor="queue-needle">Aiguilles (mm)</Label>
+            <Input id="queue-needle" inputMode="decimal" className="h-10" value={draft.needleMm} onChange={(e) => change({ needleMm: e.target.value })} placeholder="4" />
+          </div>
+        </div>
+        <p className="-mt-2 text-xs text-muted-foreground">Facultatif : sert à retrouver ce patron depuis une laine de ton stock.</p>
         <div className="grid gap-1.5">
           <Label htmlFor="queue-yarn">Laine envisagée</Label>
           <Input id="queue-yarn" className="h-10" maxLength={200} value={draft.yarnIdea} onChange={(e) => change({ yarnIdea: e.target.value })} placeholder="Restes de mérinos bleu" />

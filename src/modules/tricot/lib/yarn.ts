@@ -81,28 +81,28 @@ export function parseYarn(draft: YarnDraft): { yarn: Yarn } | { error: string } 
   return { yarn }
 }
 
+/** Une laine lue en base (jsonb) : les champs inattendus sont ignorés. */
+export function yarnFromJson(value: unknown): Yarn {
+  const r = typeof value === 'object' && value !== null ? (value as Record<string, unknown>) : {}
+  const text = (v: unknown) => (typeof v === 'string' && v ? v : null)
+  const num = (v: unknown) => (typeof v === 'number' && Number.isFinite(v) ? v : null)
+  return {
+    brand: text(r.brand),
+    name: text(r.name),
+    color: text(r.color),
+    dye_lot: text(r.dye_lot),
+    composition: text(r.composition),
+    weight_g: num(r.weight_g),
+    length_m: num(r.length_m),
+    skeins: num(r.skeins),
+    needle_mm: num(r.needle_mm),
+  }
+}
+
 /** Laines lues en base : seules celles bien formées sont gardées. */
 export function yarnsFromJson(raw: unknown): Yarn[] {
   if (!Array.isArray(raw)) return []
-  return raw.flatMap((value) => {
-    if (typeof value !== 'object' || value === null) return []
-    const r = value as Record<string, unknown>
-    const text = (v: unknown) => (typeof v === 'string' && v ? v : null)
-    const num = (v: unknown) => (typeof v === 'number' && Number.isFinite(v) ? v : null)
-    return [
-      {
-        brand: text(r.brand),
-        name: text(r.name),
-        color: text(r.color),
-        dye_lot: text(r.dye_lot),
-        composition: text(r.composition),
-        weight_g: num(r.weight_g),
-        length_m: num(r.length_m),
-        skeins: num(r.skeins),
-        needle_mm: num(r.needle_mm),
-      },
-    ]
-  })
+  return raw.filter((value) => typeof value === 'object' && value !== null).map(yarnFromJson)
 }
 
 /** « Phildar Partner 3.5 », ou « Laine » sans marque ni nom. */
@@ -185,6 +185,9 @@ export interface QueuedPattern {
   notes: string
   priority: QueuePriority
   createdAt: string
+  /** Besoins du patron (taille visée), s'ils sont connus. */
+  metersNeeded: number | null
+  needleMm: number | null
 }
 
 export interface QueueInput {
@@ -195,6 +198,8 @@ export interface QueueInput {
   yarnIdea: string
   notes: string
   priority: QueuePriority
+  metersNeeded: number | null
+  needleMm: number | null
 }
 
 export interface QueueDraft {
@@ -204,6 +209,8 @@ export interface QueueDraft {
   yarnIdea: string
   notes: string
   priority: QueuePriority
+  metersNeeded: string
+  needleMm: string
 }
 
 /** Patron saisi → patron enregistrable (PDF à part), ou le premier problème. */
@@ -217,12 +224,106 @@ export function parseQueueDraft(draft: QueueDraft, pdf: File | null): { input: Q
   if (draft.size.trim().length > 40) return { error: 'Taille : 40 caractères au plus.' }
   if (draft.yarnIdea.trim().length > 200) return { error: 'Laine envisagée : 200 caractères au plus.' }
   if (draft.notes.trim().length > 2000) return { error: 'Notes : 2000 caractères au plus.' }
+  const metersNeeded = parseMeters(draft.metersNeeded)
+  if (metersNeeded === undefined) return { error: 'Métrage : un nombre entier de mètres (1 à 20 000).' }
+  const needle = parseDecimal(draft.needleMm)
+  if (needle !== null && (!Number.isFinite(needle) || needle < 1 || needle > 30)) return { error: 'Aiguilles : entre 1 et 30 mm.' }
   return {
-    input: { title, pdf, url: url || null, size: draft.size.trim() || null, yarnIdea: draft.yarnIdea.trim(), notes: draft.notes.trim(), priority: draft.priority },
+    input: {
+      title,
+      pdf,
+      url: url || null,
+      size: draft.size.trim() || null,
+      yarnIdea: draft.yarnIdea.trim(),
+      notes: draft.notes.trim(),
+      priority: draft.priority,
+      metersNeeded,
+      needleMm: needle === null ? null : Math.round(needle * 100) / 100,
+    },
   }
 }
 
 /** Les plus pressés d'abord, puis les plus anciens. */
 export function sortQueue(items: QueuedPattern[]): QueuedPattern[] {
   return items.toSorted((a, b) => a.priority - b.priority || a.createdAt.localeCompare(b.createdAt))
+}
+
+// ---------------------------------------------------------------------------
+// Stock de laine et « Quel patron pour ma laine ? »
+// ---------------------------------------------------------------------------
+
+/** Laine du stock : `skeins` = pelotes à la maison. */
+export interface StashItem {
+  id: string
+  yarn: Yarn
+  notes: string
+  createdAt: string
+}
+
+/** Métrage disponible (pelotes × métrage), si connu. */
+export function yarnMeters(yarn: Yarn): number | null {
+  return yarn.skeins !== null && yarn.length_m !== null ? Math.round(yarn.skeins * yarn.length_m) : null
+}
+
+/** Écart d'aiguilles toléré entre la laine et le patron. */
+export const NEEDLE_TOLERANCE_MM = 0.5
+
+export interface PatternMatch {
+  item: QueuedPattern
+  /** « 350 m nécessaires, 750 m en stock », « aiguilles 4 mm (laine : 3,5 mm) ». */
+  reasons: string[]
+}
+
+/**
+ * Patrons mis de côté comparés à une laine : ceux qui conviennent (métrage suffisant, aiguilles proches) et ceux qu'on
+ * ne peut pas juger (besoins du patron ou de la laine inconnus). Les patrons qui ne conviennent pas sont écartés.
+ */
+export function matchPatterns(yarn: Yarn, queue: QueuedPattern[]): { fits: PatternMatch[]; unknown: QueuedPattern[] } {
+  const available = yarnMeters(yarn)
+  const fits: PatternMatch[] = []
+  const unknown: QueuedPattern[] = []
+  for (const item of sortQueue(queue)) {
+    const reasons: string[] = []
+    let judged = false
+    let fails = false
+    if (item.metersNeeded !== null && available !== null) {
+      judged = true
+      if (item.metersNeeded > available) fails = true
+      else reasons.push(`${item.metersNeeded} m nécessaires, ${available} m en stock`)
+    }
+    if (item.needleMm !== null && yarn.needle_mm !== null) {
+      judged = true
+      if (Math.abs(item.needleMm - yarn.needle_mm) > NEEDLE_TOLERANCE_MM) fails = true
+      else reasons.push(`aiguilles ${decimal(item.needleMm)} mm (laine : ${decimal(yarn.needle_mm)} mm)`)
+    }
+    if (!judged) unknown.push(item)
+    else if (!fails) fits.push({ item, reasons })
+  }
+  return { fits, unknown }
+}
+
+/** Description d'une laine pour le modèle (idées de modèles). */
+export function describeYarn(yarn: Yarn): string {
+  return [yarnTitle(yarn), yarnDetails({ ...yarn, skeins: null })].filter(Boolean).join(', ')
+}
+
+/** Recherche de patrons sur Ravelry (mots-clés proposés par le modèle). */
+export function patternSearchUrl(search: string): string {
+  return `https://www.ravelry.com/patterns/search#query=${encodeURIComponent(search)}`
+}
+
+/** Idée de modèle proposée par le modèle pour une laine. */
+export interface YarnIdea {
+  title: string
+  why: string
+  meters: number | null
+  needleMm: number | null
+  search: string
+}
+
+/** « 350 » → 350 ; '' → null ; undefined si invalide (1 à 20 000 m). */
+export function parseMeters(value: string): number | null | undefined {
+  const n = parseDecimal(value)
+  if (n === null) return null
+  return Number.isInteger(n) && n >= 1 && n <= 20_000 ? n : undefined
 }

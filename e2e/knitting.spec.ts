@@ -156,3 +156,43 @@ test('met un patron de côté, le commence, puis note la laine (étiquette) et s
   await page.getByRole('link', { name: 'Projets' }).click()
   await expect(page.getByText('Aucun patron en attente', { exact: false })).toBeVisible()
 })
+
+test('stock de laine : quel patron pour ma laine (mes patrons d’abord, puis des idées)', async ({ page }) => {
+  await page.route('**/functions/v1/knit-pattern', async (route) => {
+    const body = route.request().postDataJSON()
+    expect(body.ideas).toMatchObject({ meters: 840, needle_mm: 4 })
+    await route.fulfill({ json: { ideas: [{ title: 'Snood torsadé', why: 'Mérinos doux.', meters: 300, needleMm: 4.5, search: 'cabled cowl' }] } })
+  })
+  const { api } = await signedInApi()
+  await api.settings.saveSettings({ ...DEFAULT_SETTINGS, disabledPages: [] })
+  await api.knitting.addToQueue({ title: 'Gilet Rosée', pdf: null, url: 'https://patrons.exemple/gilet', size: 'M', yarnIdea: '', notes: '', priority: 1, metersNeeded: 600, needleMm: 4 })
+  await api.knitting.addToQueue({ title: 'Pull Bergamote', pdf: null, url: 'https://patrons.exemple/pull', size: 'M', yarnIdea: '', notes: '', priority: 2, metersNeeded: 1200, needleMm: 4 })
+  await login(page)
+  await openNavPage(page, 'Tricot')
+
+  // Laine ajoutée au stock
+  const stash = page.getByRole('region', { name: 'Stock de laine' })
+  await stash.getByRole('button', { name: 'Ajouter au stock' }).click()
+  const dialog = page.getByRole('dialog', { name: 'Ajouter au stock' })
+  await dialog.getByLabel('Marque').fill('DROPS')
+  await dialog.getByLabel('Nom de la laine').fill('Merino')
+  await dialog.getByLabel(/Métrage d’une pelote/).fill('105')
+  await dialog.getByLabel(/Nombre de pelotes/).fill('8')
+  await dialog.getByLabel(/Aiguilles/).fill('4')
+  await dialog.getByRole('button', { name: 'Enregistrer' }).click()
+  await expect(stash.getByRole('list', { name: 'Stock de laine' })).toContainText('DROPS Merino')
+
+  // Mes patrons d'abord : le gilet convient, pas le pull (pas assez de laine)
+  await stash.getByRole('button', { name: 'Quel patron pour DROPS Merino ?' }).click()
+  const match = page.getByRole('dialog', { name: 'Quel patron pour cette laine ?' })
+  await expect(match).toContainText('840 m en stock')
+  const fits = match.getByRole('list', { name: 'Patrons qui conviennent' })
+  await expect(fits).toContainText('Gilet Rosée')
+  await expect(fits).not.toContainText('Pull Bergamote')
+  await expectNoA11yViolations(page)
+
+  // Puis des idées avec l'IA
+  await match.getByRole('button', { name: 'Des idées avec l’IA' }).click()
+  await expect(match.getByRole('list', { name: 'Idées de modèles' })).toContainText('Snood torsadé')
+  await expect(match.getByRole('link', { name: 'Chercher un patron' })).toHaveAttribute('href', 'https://www.ravelry.com/patterns/search#query=cabled%20cowl')
+})

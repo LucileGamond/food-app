@@ -151,18 +151,38 @@ isOneToOne: false
                   ]
                 },"knit_queue": {
                   Row: {
-                    "created_at": string,"id": string,"notes": string,"pdf_path": string | null,"priority": number,"profile_id": string,"size": string | null,"title": string,"url": string | null,"yarn_idea": string
+                    "created_at": string,"id": string,"meters_needed": number | null,"needle_mm": number | null,"notes": string,"pdf_path": string | null,"priority": number,"profile_id": string,"size": string | null,"title": string,"url": string | null,"yarn_idea": string
                   }
                   ComputedFields: never
                   Insert: {
-                    "created_at"?: string,"id"?: string,"notes"?: string,"pdf_path"?: string | null,"priority"?: number,"profile_id"?: string,"size"?: string | null,"title": string,"url"?: string | null,"yarn_idea"?: string
+                    "created_at"?: string,"id"?: string,"meters_needed"?: number | null,"needle_mm"?: number | null,"notes"?: string,"pdf_path"?: string | null,"priority"?: number,"profile_id"?: string,"size"?: string | null,"title": string,"url"?: string | null,"yarn_idea"?: string
                   }
                   Update: {
-                    "created_at"?: string,"id"?: string,"notes"?: string,"pdf_path"?: string | null,"priority"?: number,"profile_id"?: string,"size"?: string | null,"title"?: string,"url"?: string | null,"yarn_idea"?: string
+                    "created_at"?: string,"id"?: string,"meters_needed"?: number | null,"needle_mm"?: number | null,"notes"?: string,"pdf_path"?: string | null,"priority"?: number,"profile_id"?: string,"size"?: string | null,"title"?: string,"url"?: string | null,"yarn_idea"?: string
                   }
                   Relationships: [
                     {
       foreignKeyName: "knit_queue_profile_id_fkey"
+      columns: ["profile_id"]
+isOneToOne: false
+      referencedRelation: "profiles"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"knit_stash": {
+                  Row: {
+                    "created_at": string,"id": string,"notes": string,"profile_id": string,"updated_at": string,"yarn": NonNullable<Json>
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "created_at"?: string,"id"?: string,"notes"?: string,"profile_id"?: string,"updated_at"?: string,"yarn": NonNullable<Json>
+                  }
+                  Update: {
+                    "created_at"?: string,"id"?: string,"notes"?: string,"profile_id"?: string,"updated_at"?: string,"yarn"?: NonNullable<Json>
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "knit_stash_profile_id_fkey"
       columns: ["profile_id"]
 isOneToOne: false
       referencedRelation: "profiles"

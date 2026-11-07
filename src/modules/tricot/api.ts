@@ -4,7 +4,7 @@ import { AppError, functionError, toAppError } from '@/api/errors'
 import type { Json } from '@/lib/database.types'
 import type { AppSupabaseClient } from '@/api/client'
 import { compressForReading } from '@/lib/image'
-import { yarnsFromJson, type Gauge, type QueueInput, type QueuedPattern, type QueuePriority, type Yarn } from './lib/yarn'
+import { describeYarn, yarnFromJson, yarnMeters, yarnsFromJson, type Gauge, type QueueInput, type QueuedPattern, type QueuePriority, type StashItem, type Yarn, type YarnIdea } from './lib/yarn'
 import { MAX_PDF_BYTES, type KnitProject, type KnitProjectSummary, type KnitStep, type PatternStep, type ReadPattern, sanitizeSections } from './lib/pattern'
 
 const PATTERN_BUCKET = 'knit-patterns'
@@ -56,7 +56,7 @@ function toStep(row: StepRow): KnitStep {
   }
 }
 
-const QUEUE_COLUMNS = 'id, title, pdf_path, url, size, yarn_idea, notes, priority, created_at'
+const QUEUE_COLUMNS = 'id, title, pdf_path, url, size, yarn_idea, notes, priority, created_at, meters_needed, needle_mm'
 
 interface QueueRow {
   id: string
@@ -68,6 +68,8 @@ interface QueueRow {
   notes: string
   priority: number
   created_at: string
+  meters_needed: number | null
+  needle_mm: number | null
 }
 
 function toQueued(r: QueueRow): QueuedPattern {
@@ -81,10 +83,20 @@ function toQueued(r: QueueRow): QueuedPattern {
     notes: r.notes,
     priority: r.priority as QueuePriority,
     createdAt: r.created_at,
+    metersNeeded: r.meters_needed,
+    needleMm: r.needle_mm,
   }
 }
 
 export function createKnittingApi(db: AppSupabaseClient) {
+  /** Appelle la fonction knit-pattern (lecture par le modèle) ; `valid` vérifie la forme de la réponse. */
+  async function invokeKnit<T>(body: Record<string, unknown>, failure: string, valid: (data: T) => boolean, timeout = 60_000): Promise<T> {
+    const { data, error } = await db.functions.invoke<T>('knit-pattern', { body, timeout })
+    if (error) throw await functionError(error, failure, 'tricot')
+    if (!data || !valid(data)) throw new AppError(failure)
+    return data
+  }
+
   /** Envoie le PDF d'un patron dans le dossier de la personne connectée ; renvoie son chemin. */
   async function uploadPdf(pdf: File): Promise<string> {
     checkPdf(pdf)
@@ -137,10 +149,7 @@ export function createKnittingApi(db: AppSupabaseClient) {
     /** Lit le patron (PDF) pour la taille choisie, sans rien enregistrer. */
     async readPattern(pdf: File, size: string): Promise<ReadPattern> {
       checkPdf(pdf)
-      const { data, error } = await db.functions.invoke<ReadPattern>('knit-pattern', { body: { pdf: await fileToBase64(pdf), size }, timeout: READ_TIMEOUT_MS })
-      if (error) throw await functionError(error, 'La lecture du patron a échoué.', 'tricot')
-      if (!data || !Array.isArray(data.steps)) throw new AppError('La lecture du patron a échoué.')
-      return data
+      return invokeKnit<ReadPattern>({ pdf: await fileToBase64(pdf), size }, 'La lecture du patron a échoué.', (d) => Array.isArray(d.steps), READ_TIMEOUT_MS)
     },
 
     /**
@@ -209,13 +218,12 @@ export function createKnittingApi(db: AppSupabaseClient) {
     /** Lit l'étiquette d'une pelote en photo, sans rien enregistrer. */
     async readYarnLabel(photo: File): Promise<Yarn> {
       const image = await compressForReading(photo)
-      const { data, error } = await db.functions.invoke<Omit<Yarn, 'skeins'>>('knit-pattern', {
-        body: { label: await fileToBase64(image), media_type: image.type || 'image/jpeg' },
-        timeout: 60_000,
-      })
-      if (error) throw await functionError(error, 'La lecture de l’étiquette a échoué.', 'tricot')
-      if (!data) throw new AppError('La lecture de l’étiquette a échoué.')
-      return { ...data, skeins: null }
+      const read = await invokeKnit<Omit<Yarn, 'skeins'>>(
+        { label: await fileToBase64(image), media_type: image.type || 'image/jpeg' },
+        'La lecture de l’étiquette a échoué.',
+        (d) => typeof d === 'object',
+      )
+      return { ...read, skeins: null }
     },
 
     async listQueue(): Promise<QueuedPattern[]> {
@@ -235,7 +243,17 @@ export function createKnittingApi(db: AppSupabaseClient) {
       const path = input.pdf ? await uploadPdf(input.pdf) : null
       const { data, error } = await db
         .from('knit_queue')
-        .insert({ title: input.title, pdf_path: path, url: input.url, size: input.size, yarn_idea: input.yarnIdea, notes: input.notes, priority: input.priority })
+        .insert({
+          title: input.title,
+          pdf_path: path,
+          url: input.url,
+          size: input.size,
+          yarn_idea: input.yarnIdea,
+          notes: input.notes,
+          priority: input.priority,
+          meters_needed: input.metersNeeded,
+          needle_mm: input.needleMm,
+        })
         .select('id')
         .single()
       if (error) {
@@ -249,6 +267,36 @@ export function createKnittingApi(db: AppSupabaseClient) {
       const { error } = await db.from('knit_queue').delete().eq('id', item.id)
       if (error) throw toAppError(error, 'Impossible de retirer le patron.')
       if (item.pdfPath) await db.storage.from(PATTERN_BUCKET).remove([item.pdfPath])
+    },
+
+    async listStash(): Promise<StashItem[]> {
+      const { data, error } = await db.from('knit_stash').select('id, yarn, notes, created_at').order('created_at')
+      if (error) throw toAppError(error, 'Impossible de charger le stock de laine.')
+      return data.map((r) => ({ id: r.id, yarn: yarnFromJson(r.yarn), notes: r.notes, createdAt: r.created_at }))
+    },
+
+    /** Ajoute (sans `id`) ou modifie une laine du stock. */
+    async saveStashItem(input: { id: string | null; yarn: Yarn; notes: string }): Promise<void> {
+      const yarn = Object.fromEntries(Object.entries(input.yarn).filter(([, v]) => v !== null)) as unknown as NonNullable<Json>
+      const { error } = input.id
+        ? await db.from('knit_stash').update({ yarn, notes: input.notes, updated_at: new Date().toISOString() }).eq('id', input.id)
+        : await db.from('knit_stash').insert({ yarn, notes: input.notes })
+      if (error) throw toAppError(error, 'Impossible d’enregistrer la laine.')
+    },
+
+    async deleteStashItem(id: string): Promise<void> {
+      const { error } = await db.from('knit_stash').delete().eq('id', id)
+      if (error) throw toAppError(error, 'Impossible de retirer la laine.')
+    },
+
+    /** Idées de modèles pour une laine (aucun patron mis de côté ne convient). */
+    async yarnIdeas(yarn: Yarn): Promise<YarnIdea[]> {
+      const { ideas } = await invokeKnit<{ ideas: YarnIdea[] }>(
+        { ideas: { yarn: describeYarn(yarn), meters: yarnMeters(yarn), needle_mm: yarn.needle_mm } },
+        'La recherche d’idées a échoué.',
+        (d) => Array.isArray(d.ideas),
+      )
+      return ideas
     },
 
     /** PDF d'un patron en attente, pour le lire au moment de commencer. */

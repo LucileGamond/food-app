@@ -24,7 +24,7 @@ import type { ActivityEvent } from '@/lib/activity'
 import type { WaterInput } from '@/modules/plantes/api'
 import type { Plant, PlantPhoto, WateringEvent } from '@/modules/plantes/lib/plants'
 import type { KnitProject, KnitProjectSummary, ReadPattern } from '@/modules/tricot/lib/pattern'
-import { EMPTY_YARN, type QueuedPattern, type Yarn } from '@/modules/tricot/lib/yarn'
+import { EMPTY_YARN, type QueuedPattern, type StashItem, type Yarn, type YarnIdea } from '@/modules/tricot/lib/yarn'
 import { DEFAULT_SETTINGS, type UserSettings } from '@/lib/settings'
 
 export const LUCILE: Profile = { id: 'u-lucile', display_name: 'Lucile' }
@@ -174,6 +174,10 @@ export function fakeApi(): FakeApi {
       getQueued: vi.fn(async () => null as QueuedPattern | null),
       addToQueue: vi.fn(async () => 'new-queued'),
       deleteQueued: vi.fn(async () => undefined),
+      listStash: vi.fn(async () => [] as StashItem[]),
+      saveStashItem: vi.fn(async () => undefined),
+      deleteStashItem: vi.fn(async () => undefined),
+      yarnIdeas: vi.fn(async () => [] as YarnIdea[]),
       downloadPdf: vi.fn(async (_path: string, name: string) => new File(['%PDF'], `${name}.pdf`, { type: 'application/pdf' })),
     },
     plants: {

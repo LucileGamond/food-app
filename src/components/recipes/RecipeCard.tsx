@@ -4,7 +4,10 @@ import { formatHistory, formatKcal, formatRating } from '@/lib/recipeList'
 import { formatDuration, formatSource, type RecipeListItem } from '@/lib/recipes'
 import { recipeSeason } from '@/lib/season'
 
-/** Carte d'une recette dans une liste : photo, note, temps, calories, végé, de saison, livre, tags, historique. */
+/**
+ * Recette dans une liste : photo, note, temps, calories, végé, de saison, livre, tags, historique.
+ * Téléphone : ligne compacte (miniature à gauche, nom et infos à droite) ; écran plus large : carte avec grande photo.
+ */
 export function RecipeCard({ recipe, month, photoUrl }: { recipe: RecipeListItem; month: number; photoUrl: string | undefined }) {
   const source = formatSource(recipe.source, recipe.sourcePage)
   const seasonal = recipeSeason(recipe.ingredientNames, month).status === 'in'
@@ -12,21 +15,21 @@ export function RecipeCard({ recipe, month, photoUrl }: { recipe: RecipeListItem
   return (
     <Link
       to={`/recettes/${recipe.id}`}
-      className="group flex h-full flex-col overflow-hidden rounded-2xl border bg-background shadow-xs transition-shadow hover:shadow-md focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none"
+      className="group flex h-full overflow-hidden rounded-2xl border bg-background shadow-xs transition-shadow hover:shadow-md focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none max-sm:items-center max-sm:gap-3 max-sm:p-2 sm:flex-col"
     >
-      <div className="aspect-[4/3] bg-muted">
+      <div className="shrink-0 overflow-hidden bg-muted max-sm:size-16 max-sm:rounded-xl sm:aspect-[4/3]">
         {photoUrl ? (
           <img src={photoUrl} alt="" className="size-full object-cover transition-transform duration-300 group-hover:scale-[1.02]" />
         ) : (
           <div className="flex size-full items-center justify-center">
-            <ImageIcon className="size-6 text-muted-foreground/50" aria-hidden />
+            <ImageIcon className="size-6 text-muted-foreground/50 max-sm:size-5" aria-hidden />
           </div>
         )}
       </div>
-      <div className="flex flex-1 flex-col gap-2 p-4">
-        <h2 className="font-medium tracking-tight">{recipe.title}</h2>
+      <div className="flex min-w-0 flex-1 flex-col gap-2 max-sm:gap-0.5 max-sm:pr-1 sm:p-4">
+        <h2 className="font-medium tracking-tight max-sm:line-clamp-2 max-sm:text-[0.95rem] max-sm:leading-snug">{recipe.title}</h2>
         {(recipe.totalMinutes !== null || kcal || recipe.rating !== null || recipe.vegetarian || seasonal) && (
-          <p className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted-foreground [&_svg]:size-3.5 [&_svg]:shrink-0">
+          <p className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted-foreground max-sm:gap-x-2.5 max-sm:text-xs [&_svg]:size-3.5 [&_svg]:shrink-0">
             {recipe.rating !== null && (
               <span className="inline-flex items-center gap-1" aria-label={`Note ${formatRating(recipe.rating)} sur 5`}>
                 <Star className="fill-amber-400 text-amber-400" aria-hidden /> {formatRating(recipe.rating)}
@@ -55,12 +58,13 @@ export function RecipeCard({ recipe, month, photoUrl }: { recipe: RecipeListItem
           </p>
         )}
         {source && (
-          <p className="flex items-center gap-1 truncate text-sm text-muted-foreground">
+          <p className="flex items-center gap-1 truncate text-sm text-muted-foreground max-sm:text-xs">
             <BookOpen className="size-3.5 shrink-0" aria-hidden /> <span className="truncate">{source}</span>
           </p>
         )}
-        {recipe.tags.length > 0 && <p className="truncate text-sm text-muted-foreground">{recipe.tags.join(' · ')}</p>}
-        <p className="mt-auto pt-1 text-xs text-muted-foreground">{formatHistory(recipe)}</p>
+        {/* Téléphone : ligne compacte, sans les tags ni l'historique. */}
+        {recipe.tags.length > 0 && <p className="truncate text-sm text-muted-foreground max-sm:hidden">{recipe.tags.join(' · ')}</p>}
+        <p className="mt-auto pt-1 text-xs text-muted-foreground max-sm:hidden">{formatHistory(recipe)}</p>
       </div>
     </Link>
   )

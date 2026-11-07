@@ -4,7 +4,7 @@ import { Route } from 'react-router-dom'
 import { fakeApi, renderWithApp } from '@/test/fakes'
 import { AppError } from '@/api'
 import type { KnitProject, KnitStep, ReadPattern } from '../lib/pattern'
-import { EMPTY_YARN, type QueuedPattern } from '../lib/yarn'
+import { EMPTY_YARN, type QueuedPattern, type StashItem } from '../lib/yarn'
 import { KnittingQueueFormPage } from './KnittingQueueFormPage'
 import { KnittingImportPage } from './KnittingImportPage'
 import { KnittingPage } from './KnittingPage'
@@ -545,6 +545,8 @@ describe('patrons à faire plus tard', () => {
     notes: 'Pour l’hiver',
     priority: 1,
     createdAt: '2026-11-01T10:00:00Z',
+    metersNeeded: null,
+    needleMm: null,
   }
 
   it('liste les patrons en attente, les ouvre et les retire', async () => {
@@ -590,8 +592,10 @@ describe('patrons à faire plus tard', () => {
     await user.type(screen.getByLabelText('Taille visée'), 'M')
     await user.selectOptions(screen.getByLabelText('Quand'), 'Bientôt')
     await user.type(screen.getByLabelText('Laine envisagée'), 'Mérinos')
+    await user.type(screen.getByLabelText('Métrage nécessaire (m)'), '600')
+    await user.type(screen.getByLabelText('Aiguilles (mm)'), '4')
     await user.click(screen.getByRole('button', { name: 'Mettre de côté' }))
-    expect(api.knitting.addToQueue).toHaveBeenCalledWith({ title: 'Gilet Rosée', pdf, url: null, size: 'M', yarnIdea: 'Mérinos', notes: '', priority: 1 })
+    expect(api.knitting.addToQueue).toHaveBeenCalledWith({ title: 'Gilet Rosée', pdf, url: null, size: 'M', yarnIdea: 'Mérinos', notes: '', priority: 1, metersNeeded: 600, needleMm: 4 })
     expect(await screen.findByText('Tricot')).toBeInTheDocument()
   })
 
@@ -631,5 +635,108 @@ describe('patrons à faire plus tard', () => {
     const api = fakeApi()
     renderWithApp(<KnittingImportPage />, { api, route: '/tricot/nouveau?patron=perdu', path: '/tricot/nouveau' })
     expect(await screen.findByRole('alert')).toHaveTextContent('Patron introuvable, ou sans PDF.')
+  })
+})
+
+describe('stock de laine', () => {
+  const MERINO = { ...EMPTY_YARN, brand: 'DROPS', name: 'Merino', length_m: 105, skeins: 8, needle_mm: 4 }
+  const STASH: StashItem[] = [{ id: 'st1', yarn: MERINO, notes: '', createdAt: '2026-11-01' }]
+  const pattern = (id: string, metersNeeded: number | null, needleMm: number | null, pdfPath: string | null = null): QueuedPattern => ({
+    id,
+    title: id,
+    pdfPath,
+    url: pdfPath ? null : 'https://patrons.exemple/' + id,
+    size: null,
+    yarnIdea: '',
+    notes: '',
+    priority: 2,
+    createdAt: '2026-11-01',
+    metersNeeded,
+    needleMm,
+  })
+
+  it('ajoute, modifie et retire une laine du stock', async () => {
+    const user = userEvent.setup()
+    const api = fakeApi()
+    renderWithApp(<KnittingPage />, { api })
+    const section = await screen.findByRole('region', { name: 'Stock de laine' })
+    expect(await within(section).findByText(/Aucune laine en stock/)).toBeInTheDocument()
+    await user.click(within(section).getByRole('button', { name: 'Ajouter au stock' }))
+    let dialog = await screen.findByRole('dialog', { name: 'Ajouter au stock' })
+    await user.type(within(dialog).getByLabelText('Marque'), 'DROPS')
+    await user.type(within(dialog).getByLabelText(/Nombre de pelotes/), '8')
+    await user.click(within(dialog).getByRole('button', { name: 'Enregistrer' }))
+    await waitFor(() => expect(api.knitting.saveStashItem).toHaveBeenCalledWith({ id: null, yarn: { ...EMPTY_YARN, brand: 'DROPS', skeins: 8 }, notes: '' }))
+    expect(api.knitting.listStash).toHaveBeenCalledTimes(2)
+
+    api.knitting.listStash.mockResolvedValue(STASH)
+    await user.click(within(section).getByRole('button', { name: 'Ajouter au stock' }))
+    await user.click(within(await screen.findByRole('dialog')).getByRole('button', { name: 'Annuler' }))
+    // Recharge avec la laine
+    api.knitting.saveStashItem.mockClear()
+    renderWithApp(<KnittingPage />, { api })
+    const list = (await screen.findAllByRole('list', { name: 'Stock de laine' }))[0]!
+    await user.click(within(list).getByRole('button', { name: 'Modifier DROPS Merino' }))
+    dialog = await screen.findByRole('dialog', { name: 'Modifier la laine' })
+    await user.clear(within(dialog).getByLabelText(/Nombre de pelotes/))
+    await user.type(within(dialog).getByLabelText(/Nombre de pelotes/), '5')
+    await user.click(within(dialog).getByRole('button', { name: 'Enregistrer' }))
+    await waitFor(() => expect(api.knitting.saveStashItem).toHaveBeenCalledWith({ id: 'st1', yarn: { ...MERINO, skeins: 5 }, notes: '' }))
+
+    await user.click(within(list).getByRole('button', { name: 'Retirer DROPS Merino du stock' }))
+    await user.click(within(await screen.findByRole('alertdialog')).getByRole('button', { name: 'Retirer' }))
+    await waitFor(() => expect(api.knitting.deleteStashItem).toHaveBeenCalledWith('st1'))
+  })
+
+  it('cherche d’abord dans les patrons mis de côté, puis des idées avec l’IA', async () => {
+    const user = userEvent.setup()
+    const api = fakeApi()
+    api.knitting.listStash.mockResolvedValue(STASH)
+    // 840 m, aiguilles 4 mm
+    api.knitting.listQueue.mockResolvedValue([pattern('Gilet', 600, 4, 'u-lucile/gilet.pdf'), pattern('Pull', 1200, 4), pattern('Bonnet', null, null)])
+    api.knitting.yarnIdeas.mockResolvedValue([{ title: 'Snood torsadé', why: 'Mérinos doux.', meters: 300, needleMm: 4.5, search: 'cabled cowl' }])
+    renderWithApp(<KnittingPage />, { api })
+    await user.click(await screen.findByRole('button', { name: 'Quel patron pour DROPS Merino ?' }))
+    const dialog = await screen.findByRole('dialog', { name: 'Quel patron pour cette laine ?' })
+    expect(dialog).toHaveTextContent('DROPS Merino · 840 m en stock')
+    const fits = within(dialog).getByRole('list', { name: 'Patrons qui conviennent' })
+    expect(within(fits).getAllByRole('listitem')).toHaveLength(1)
+    expect(fits).toHaveTextContent('600 m nécessaires, 840 m en stock')
+    expect(within(fits).getByRole('link', { name: 'Commencer Gilet' })).toHaveAttribute('href', '/tricot/nouveau?patron=Gilet')
+    expect(dialog).toHaveTextContent('À vérifier (métrage ou aiguilles non notés) : Bonnet.')
+
+    await user.click(within(dialog).getByRole('button', { name: 'Des idées avec l’IA' }))
+    expect(api.knitting.yarnIdeas).toHaveBeenCalledWith(MERINO)
+    const ideas = await within(dialog).findByRole('list', { name: 'Idées de modèles' })
+    expect(ideas).toHaveTextContent('Snood torsadé')
+    expect(ideas).toHaveTextContent('Mérinos doux. · ≈ 300 m · aiguilles 4,5 mm')
+    expect(within(ideas).getByRole('link', { name: 'Chercher un patron' })).toHaveAttribute('href', 'https://www.ravelry.com/patterns/search#query=cabled%20cowl')
+  })
+
+  it('aucun patron ne convient : les idées sont mises en avant ; erreur lisible', async () => {
+    const user = userEvent.setup()
+    const api = fakeApi()
+    api.knitting.listStash.mockResolvedValue(STASH)
+    api.knitting.yarnIdeas.mockRejectedValue(new AppError('La recherche d’idées a échoué.'))
+    renderWithApp(<KnittingPage />, { api })
+    await user.click(await screen.findByRole('button', { name: 'Quel patron pour DROPS Merino ?' }))
+    const dialog = await screen.findByRole('dialog')
+    expect(dialog).toHaveTextContent('Aucun patron mis de côté.')
+    await user.click(within(dialog).getByRole('button', { name: 'Des idées avec l’IA' }))
+    expect(await within(dialog).findByRole('alert')).toHaveTextContent('La recherche d’idées a échoué.')
+  })
+
+  it('prend une laine du stock pour un projet', async () => {
+    const user = userEvent.setup()
+    const api = fakeApi()
+    api.knitting.listStash.mockResolvedValue(STASH)
+    api.knitting.getProject.mockResolvedValue(structuredClone(PROJECT))
+    renderWithApp(<KnittingProjectPage />, { api, route: '/tricot/p1', path: '/tricot/:id' })
+    await user.click(await screen.findByRole('button', { name: 'Ajouter une laine' }))
+    const dialog = await screen.findByRole('dialog', { name: 'Ajouter une laine' })
+    await user.selectOptions(await within(dialog).findByLabelText('Prendre dans mon stock'), 'st1')
+    expect(within(dialog).getByLabelText('Marque')).toHaveValue('DROPS')
+    await user.click(within(dialog).getByRole('button', { name: 'Enregistrer' }))
+    await waitFor(() => expect(api.knitting.saveProjectInfo).toHaveBeenCalledWith('p1', expect.objectContaining({ yarns: [MERINO] })))
   })
 })

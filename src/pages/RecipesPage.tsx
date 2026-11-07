@@ -1,4 +1,4 @@
-import { BookOpen, History, ImageOff, Images, Leaf, Link2, Loader2, Plus, Search, Sprout, Timer, X } from 'lucide-react'
+import { BookOpen, ChevronDown, History, ImageOff, Images, Leaf, Link2, Loader2, Plus, Search, Sprout, Tag, Timer, X } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { toast } from 'sonner'
@@ -6,6 +6,7 @@ import { Button, buttonVariants } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Skeleton } from '@/components/ui/skeleton'
 import { NativeSelect } from '@/components/ui/native-select'
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { EmptyState } from '@/components/EmptyState'
 import { RecipeCard } from '@/components/recipes/RecipeCard'
 import { SetAsideList } from '@/components/recipes/SetAsideList'
@@ -59,6 +60,44 @@ function Chip({ active, onClick, children }: { active: boolean; onClick: () => v
     >
       {children}
     </button>
+  )
+}
+
+/** Choix d'un tag dans un sous-menu : la liste des tags ne prend pas la moitié de l'écran du téléphone. */
+function TagMenu({ tags, selected, onSelect }: { tags: string[]; selected: string | null; onSelect: (tag: string | null) => void }) {
+  const [open, setOpen] = useState(false)
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger
+        render={
+          <Button
+            variant="outline"
+            className={cn('h-10 max-w-full flex-[1_1_8rem] justify-between gap-1.5 px-3 font-normal sm:flex-none', selected ? 'border-foreground' : 'text-muted-foreground')}
+            aria-label={selected ? `Tag : ${selected}` : 'Choisir un tag'}
+          />
+        }
+      >
+        <Tag aria-hidden />
+        <span className="min-w-0 truncate">{selected ?? 'Tags'}</span>
+        <ChevronDown className="ml-auto" aria-hidden />
+      </PopoverTrigger>
+      <PopoverContent align="start" className="max-h-[60dvh] w-[min(22rem,calc(100vw-2rem))] overflow-y-auto">
+        <div className="flex flex-wrap gap-2" role="group" aria-label="Filtrer par tag">
+          {tags.map((t) => (
+            <Chip
+              key={t}
+              active={selected === t}
+              onClick={() => {
+                onSelect(selected === t ? null : t)
+                setOpen(false)
+              }}
+            >
+              {t}
+            </Chip>
+          ))}
+        </div>
+      </PopoverContent>
+    </Popover>
   )
 }
 
@@ -215,6 +254,7 @@ export function RecipesPage({ today: fixedToday }: { today?: IsoDate }) {
                 {/* Source choisie absente de la liste (adresse ancienne) : affichée pour pouvoir la retirer. */}
                 {options.origin && !optionValues(origins).includes(options.origin) && <option value={options.origin}>{options.origin}</option>}
               </NativeSelect>
+              {(tags.length > 0 || options.tag) && <TagMenu tags={tags} selected={options.tag} onSelect={(tag) => setOptions({ tag })} />}
             </div>
 
             <div className="flex flex-wrap gap-2" role="group" aria-label="Filtres rapides">
@@ -227,15 +267,6 @@ export function RecipesPage({ today: fixedToday }: { today?: IsoDate }) {
                 )
               })}
             </div>
-            {tags.length > 0 && (
-              <div className="flex flex-wrap gap-2" role="group" aria-label="Filtrer par tag">
-                {tags.map((t) => (
-                  <Chip key={t} active={options.tag === t} onClick={() => setOptions({ tag: options.tag === t ? null : t })}>
-                    {t}
-                  </Chip>
-                ))}
-              </div>
-            )}
 
             {filtered && (
               <div className="flex items-center gap-2 text-sm text-muted-foreground" aria-live="polite">
@@ -250,7 +281,7 @@ export function RecipesPage({ today: fixedToday }: { today?: IsoDate }) {
           {visible.length === 0 ? (
             <EmptyState icon={Search} title="Aucune recette ne correspond" description="Essaie un autre mot-clé ou retire un filtre." />
           ) : (
-            <ul className="grid grid-cols-[minmax(0,1fr)] gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            <ul className="grid grid-cols-[minmax(0,1fr)] gap-2 sm:grid-cols-2 sm:gap-4 lg:grid-cols-3">
               {visible.map((recipe) => (
                 <li key={recipe.id}>
                   <RecipeCard recipe={recipe} month={monthOf(today)} photoUrl={recipe.mainPhotoPath ? urls[recipe.mainPhotoPath] : undefined} />

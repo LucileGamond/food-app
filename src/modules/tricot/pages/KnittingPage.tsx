@@ -9,8 +9,9 @@ import { LoadError } from '@/components/LoadError'
 import { useAsync } from '@/hooks/useAsync'
 import { cn } from '@/lib/utils'
 import { QueueList } from '../components/QueueList'
+import { StashSection } from '../components/StashSection'
 
-/** Module Tricot : projets en cours (un patron suivi pour une taille) et patrons à faire plus tard. */
+/** Module Tricot : projets en cours (un patron suivi pour une taille), stock de laine et patrons à faire plus tard. */
 export function KnittingPage() {
   const api = useApi()
   const list = useAsync(() => api.knitting.listProjects(), [api])
@@ -52,6 +53,8 @@ export function KnittingPage() {
           ))}
         </ul>
       )}
+
+      <StashSection queue={queue.data ?? []} />
 
       <section aria-labelledby="knit-queue" className="mt-8 space-y-3">
         <div className="flex flex-wrap items-center justify-between gap-2">

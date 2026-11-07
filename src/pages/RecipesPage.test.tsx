@@ -1,4 +1,4 @@
-import { act, fireEvent, screen, within } from '@testing-library/react'
+import { act, fireEvent, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { AppError } from '@/api'
 import { Link, Route, useLocation } from 'react-router-dom'
@@ -91,11 +91,15 @@ describe('RecipesPage', () => {
     expect(screen.getByRole('link', { name: /Curry/ })).toBeInTheDocument()
     await user.clear(screen.getByRole('searchbox'))
 
-    const tags = screen.getByRole('group', { name: 'Filtrer par tag' })
-    // Le tag « végé » est remplacé par le filtre rapide.
+    // Tags dans un sous-menu ; le tag « végé » est remplacé par le filtre rapide.
+    expect(screen.queryByRole('group', { name: 'Filtrer par tag' })).not.toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'Choisir un tag' }))
+    let tags = await screen.findByRole('group', { name: 'Filtrer par tag' })
     expect(within(tags).getAllByRole('button').map((b) => b.textContent)).toEqual(['dessert', 'rapide'])
     await user.click(within(tags).getByRole('button', { name: 'rapide' }))
-    expect(within(tags).getByRole('button', { name: 'rapide' })).toHaveAttribute('aria-pressed', 'true')
+    // Le menu se referme ; le bouton montre le tag choisi.
+    await waitFor(() => expect(screen.queryByRole('group', { name: 'Filtrer par tag' })).not.toBeInTheDocument())
+    expect(screen.getByRole('button', { name: 'Tag : rapide' })).toBeInTheDocument()
     expect(screen.getAllByRole('listitem').map((li) => li.textContent)).toEqual([
       expect.stringContaining('Curry'),
       expect.stringContaining('Pâtes'),
@@ -105,6 +109,9 @@ describe('RecipesPage', () => {
     expect(screen.getByText('Aucune recette ne correspond')).toBeInTheDocument()
 
     await user.clear(screen.getByRole('searchbox'))
+    await user.click(screen.getByRole('button', { name: 'Tag : rapide' }))
+    tags = await screen.findByRole('group', { name: 'Filtrer par tag' })
+    expect(within(tags).getByRole('button', { name: 'rapide' })).toHaveAttribute('aria-pressed', 'true')
     await user.click(within(tags).getByRole('button', { name: 'rapide' }))
     expect(screen.getAllByRole('listitem')).toHaveLength(3)
   })

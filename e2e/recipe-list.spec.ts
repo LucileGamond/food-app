@@ -60,7 +60,9 @@ test('trie et filtre les recettes, montre l’historique et enregistre un avis',
 
   // Fiche : historique, avis ; au retour, la liste est comme on l'a laissée.
   await curryCard.click()
-  await expect(page.getByText(/^Cuisinée le/)).toBeVisible()
+  // Fiche ouverte (sur téléphone, la ligne de la liste ne montre pas l'historique : on attend la fiche).
+  await expect(page.getByRole('heading', { name: 'Curry de lentilles', level: 1 })).toBeVisible()
+  await expect(page.getByRole('main').getByText(/Cuisinée le/)).toBeVisible()
   const reviews = page.getByRole('region', { name: 'Avis' })
   await reviews.getByRole('button', { name: '4 sur 5' }).click()
   await reviews.getByRole('textbox', { name: 'Mon commentaire' }).fill('Eric adore')

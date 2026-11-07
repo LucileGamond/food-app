@@ -111,8 +111,8 @@ describe('laine, échantillon et patrons en attente', () => {
   it('met un patron de côté, le commence (PDF repris) et le retire de la liste', async () => {
     const { api } = await signedInApi()
     const eric = await signedInApi(ERIC.email)
-    const queuedId = await api.knitting.addToQueue({ title: 'Gilet', pdf: pdf(), url: null, size: 'M', yarnIdea: 'Mérinos', notes: '', priority: 1 })
-    await api.knitting.addToQueue({ title: 'Bonnet', pdf: null, url: 'https://patrons.exemple/bonnet', size: null, yarnIdea: '', notes: 'Pour Eric', priority: 3 })
+    const queuedId = await api.knitting.addToQueue({ title: 'Gilet', pdf: pdf(), url: null, size: 'M', yarnIdea: 'Mérinos', notes: '', priority: 1, metersNeeded: 600, needleMm: 4 })
+    await api.knitting.addToQueue({ title: 'Bonnet', pdf: null, url: 'https://patrons.exemple/bonnet', size: null, yarnIdea: '', notes: 'Pour Eric', priority: 3, metersNeeded: null, needleMm: null })
 
     const queue = await api.knitting.listQueue()
     expect(queue.map((q) => [q.title, q.size, q.priority, q.url])).toEqual([
@@ -141,20 +141,43 @@ describe('patrons en attente : erreurs', () => {
     const anon = createKnittingApi(anonClient())
     await expect(anon.listQueue()).rejects.toThrow()
     await expect(anon.getQueued(crypto.randomUUID())).rejects.toThrow()
-    await expect(anon.addToQueue({ title: 'Gilet', pdf: pdf(), url: null, size: null, yarnIdea: '', notes: '', priority: 2 })).rejects.toThrow('Reconnecte-toi')
+    await expect(anon.addToQueue({ title: 'Gilet', pdf: pdf(), url: null, size: null, yarnIdea: '', notes: '', priority: 2, metersNeeded: null, needleMm: null })).rejects.toThrow('Reconnecte-toi')
     await expect(anon.deleteQueued({ id: crypto.randomUUID(), pdfPath: null })).rejects.toThrow()
     await expect(anon.downloadPdf('perdu/perdu.pdf', 'Perdu')).rejects.toThrow('Impossible de récupérer le PDF du patron.')
     await expect(anon.saveProjectInfo(crypto.randomUUID(), { yarns: [], patternGauge: { stitches: null, rows: null }, myGauge: { stitches: null, rows: null } })).rejects.toThrow()
 
     const { api } = await signedInApi()
     // Priorité hors bornes : refusé, et le PDF déjà envoyé est retiré.
-    await expect(api.knitting.addToQueue({ title: 'Gilet', pdf: pdf(), url: null, size: null, yarnIdea: '', notes: '', priority: 9 as 1 })).rejects.toThrow()
+    await expect(api.knitting.addToQueue({ title: 'Gilet', pdf: pdf(), url: null, size: null, yarnIdea: '', notes: '', priority: 9 as 1, metersNeeded: null, needleMm: null })).rejects.toThrow()
     expect(await api.knitting.listQueue()).toEqual([])
     // Lien invalide, sans PDF : refusé.
-    await expect(api.knitting.addToQueue({ title: 'Gilet', pdf: null, url: 'ftp://patrons', size: null, yarnIdea: '', notes: '', priority: 2 })).rejects.toThrow()
+    await expect(api.knitting.addToQueue({ title: 'Gilet', pdf: null, url: 'ftp://patrons', size: null, yarnIdea: '', notes: '', priority: 2, metersNeeded: null, needleMm: null })).rejects.toThrow()
     // Lecture par le modèle impossible ici (pas de clé) : erreur lisible.
     await expect(api.knitting.readPattern(pdf(), 'M')).rejects.toThrow()
     // Projet refusé (aucune étape) : le PDF envoyé est retiré aussi.
     await expect(api.knitting.createProject({ title: 'Pull', size: 'M', pdf: pdf(), steps: [] })).rejects.toThrow()
+  })
+})
+
+describe('stock de laine', () => {
+  it('ajoute, modifie et retire des laines du stock, chacun les siennes', async () => {
+    const { api } = await signedInApi()
+    const eric = await signedInApi(ERIC.email)
+    const yarn = { brand: 'DROPS', name: 'Merino', color: null, dye_lot: null, composition: null, weight_g: 50, length_m: 105, skeins: 8, needle_mm: 4 }
+    await api.knitting.saveStashItem({ id: null, yarn, notes: 'Bleu' })
+    let stash = await api.knitting.listStash()
+    expect(stash).toEqual([expect.objectContaining({ yarn, notes: 'Bleu' })])
+    expect(await eric.api.knitting.listStash()).toEqual([])
+
+    await api.knitting.saveStashItem({ id: stash[0]!.id, yarn: { ...yarn, skeins: 3.5 }, notes: 'Bleu' })
+    stash = await api.knitting.listStash()
+    expect(stash[0]!.yarn.skeins).toBe(3.5)
+    await expect(api.knitting.saveStashItem({ id: null, yarn: { ...yarn, skeins: -1 }, notes: '' })).rejects.toThrow()
+
+    await api.knitting.deleteStashItem(stash[0]!.id)
+    expect(await api.knitting.listStash()).toEqual([])
+    await expect(createKnittingApi(anonClient()).listStash()).rejects.toThrow()
+    // Idées : le modèle n'est pas disponible ici, l'erreur est lisible.
+    await expect(api.knitting.yarnIdeas(yarn)).rejects.toThrow()
   })
 })
