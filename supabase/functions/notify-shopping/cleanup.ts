@@ -3,7 +3,7 @@
 // échoué ; PDF d'un projet de tricot ; photos d'une plante supprimée ; envois interrompus.
 
 /** Buckets nettoyés. */
-export const CLEANED_BUCKETS = ['recipe-photos', 'knit-patterns', 'plant-photos'] as const
+export const CLEANED_BUCKETS = ['recipe-photos', 'knit-patterns', 'knit-charts', 'plant-photos'] as const
 export type CleanedBucket = (typeof CLEANED_BUCKETS)[number]
 
 export interface StoredFile {

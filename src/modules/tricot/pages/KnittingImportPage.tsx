@@ -1,4 +1,4 @@
-import { FileText, Loader2, RotateCcw, Save } from 'lucide-react'
+import { FileText, Grid3x3, Loader2, RotateCcw, Save } from 'lucide-react'
 import { useEffect, useState, type FormEvent } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { toast } from 'sonner'
@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { PageHeader } from '@/components/PageHeader'
+import { describeHint } from '../lib/chart'
 import { describeSection, MAX_PDF_BYTES, type ReadPattern } from '../lib/pattern'
 import { formatGauge, type QueuedPattern } from '../lib/yarn'
 
@@ -72,7 +73,7 @@ export function KnittingImportPage() {
     if (!pattern) return
     setSaving(true)
     try {
-      const id = await api.knitting.createProject({ title: title.trim() || pattern.title, size: size.trim(), pdf, steps: pattern.steps, gauge: pattern.gauge ?? null, queued })
+      const id = await api.knitting.createProject({ title: title.trim() || pattern.title, size: size.trim(), pdf, steps: pattern.steps, gauge: pattern.gauge ?? null, queued, chartHints: pattern.charts ?? [] })
       toast.success('Projet enregistré')
       navigate(`/tricot/${id}`)
     } catch (e) {
@@ -82,6 +83,7 @@ export function KnittingImportPage() {
   }
 
   if (pattern) {
+    const hints = pattern.charts ?? []
     return (
       <>
         <PageHeader
@@ -112,9 +114,21 @@ export function KnittingImportPage() {
                     ))}
                   </ol>
                 )}
+                {hints.some((h) => h.step === index) && (
+                  <p className="mt-2 flex items-start gap-1.5 text-xs text-muted-foreground">
+                    <Grid3x3 className="mt-0.5 size-3.5 shrink-0" aria-hidden />
+                    Diagramme : {hints.filter((h) => h.step === index).map(describeHint).join(' ; ')}
+                  </p>
+                )}
               </li>
             ))}
           </ol>
+          {hints.some((h) => h.step === null) && (
+            <p className="flex items-start gap-1.5 text-sm text-muted-foreground">
+              <Grid3x3 className="mt-0.5 size-4 shrink-0" aria-hidden />
+              Autres diagrammes repérés : {hints.filter((h) => h.step === null).map(describeHint).join(' ; ')}
+            </p>
+          )}
           <div className="flex flex-wrap gap-2">
             <Button variant="outline" className="h-10" onClick={() => setPattern(null)} disabled={saving}>
               <RotateCcw /> Recommencer

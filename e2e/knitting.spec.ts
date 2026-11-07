@@ -196,3 +196,47 @@ test('stock de laine : quel patron pour ma laine (mes patrons d’abord, puis de
   await expect(match.getByRole('list', { name: 'Idées de modèles' })).toContainText('Snood torsadé')
   await expect(match.getByRole('link', { name: 'Chercher un patron' })).toHaveAttribute('href', 'https://www.ravelry.com/patterns/search#query=cabled%20cowl')
 })
+
+test('suit un diagramme ajouté depuis une image, rang par rang', async ({ page }) => {
+  const { api } = await signedInApi()
+  await api.settings.saveSettings({ ...DEFAULT_SETTINGS, disabledPages: [] })
+  await api.knitting.createProject({ title: 'Pull Torsadé', size: 'M', pdf: null, steps: PATTERN.steps as never })
+  await login(page)
+  await openNavPage(page, 'Tricot')
+  await page.getByRole('link', { name: /Pull Torsadé/ }).click()
+  await expect(page.getByRole('heading', { name: 'Dos – côtes' })).toBeVisible()
+
+  // Image du diagramme (PNG d'un pixel), calée sur 6 lignes
+  const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==', 'base64')
+  await page.getByLabel('Image du diagramme').setInputFiles({ name: 'torsade.png', mimeType: 'image/png', buffer: png })
+  const setup = page.getByRole('dialog', { name: 'Caler le diagramme' })
+  await setup.getByLabel('Lignes de la grille').fill('6')
+  await setup.getByLabel('Nom (facultatif)').fill('Torsade')
+  await expectNoA11yViolations(page)
+  await setup.getByRole('button', { name: 'Enregistrer' }).click()
+
+  // Image enregistrée (bucket privé) et bande sur le rang à tricoter
+  const chart = page.getByRole('region', { name: 'Torsade' })
+  await expect(chart.getByRole('status')).toHaveText('Rang 1 sur 6Endroit, de droite à gauche')
+  await expect(chart.getByRole('img', { name: 'Torsade du patron' })).toHaveJSProperty('complete', true)
+  expect(await chart.getByRole('img', { name: 'Torsade du patron' }).evaluate((img: HTMLImageElement) => img.naturalWidth)).toBe(1)
+  await page.getByRole('button', { name: 'Ajouter 1 rang' }).click()
+  await expect(chart.getByRole('status')).toHaveText('Rang 2 sur 6Envers, de gauche à droite')
+
+  // Plein écran : le compteur avance aussi
+  await chart.getByRole('button', { name: 'Plein écran : Torsade' }).click()
+  const full = page.getByRole('dialog', { name: 'Torsade' })
+  await full.getByRole('button', { name: 'Ajouter 1 rang' }).click()
+  await expect(full.getByRole('status')).toContainText('Rang 3 sur 6')
+  await expectNoA11yViolations(page)
+  await full.getByRole('button', { name: 'Fermer le plein écran' }).click()
+
+  // Avancée et diagramme retrouvés après rechargement
+  await page.reload()
+  await expect(page.getByRole('region', { name: 'Torsade' }).getByRole('status')).toContainText('Rang 3 sur 6')
+
+  // Suppression du diagramme
+  await page.getByRole('button', { name: 'Supprimer Torsade' }).click()
+  await page.getByRole('button', { name: 'Supprimer', exact: true }).click()
+  await expect(page.getByRole('region', { name: 'Torsade' })).toHaveCount(0)
+})

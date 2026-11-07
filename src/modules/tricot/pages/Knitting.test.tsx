@@ -25,6 +25,8 @@ const step = (overrides: Partial<KnitStep>): KnitStep => ({
 })
 
 const PROJECT: KnitProject = {
+  charts: [],
+  chartHints: [],
   yarns: [],
   patternGauge: { stitches: null, rows: null },
   myGauge: { stitches: null, rows: null },
@@ -99,7 +101,11 @@ describe('KnittingImportPage', () => {
   it('lit le patron pour la taille choisie, montre les étapes puis enregistre le projet', async () => {
     const user = userEvent.setup()
     const api = fakeApi()
-    api.knitting.readPattern.mockResolvedValue(PATTERN)
+    const charts = [
+      { page: 4, title: 'Torsade', rows: 24, step: 1, flat: true, oddOnly: false },
+      { page: 6, title: '', rows: null, step: null, flat: null, oddOnly: false },
+    ]
+    api.knitting.readPattern.mockResolvedValue({ ...PATTERN, charts })
     api.knitting.createProject.mockResolvedValue('p9')
     renderImport(api)
 
@@ -120,11 +126,14 @@ describe('KnittingImportPage', () => {
     expect(within(steps).getByText('4 rangs : jersey')).toBeInTheDocument()
     expect(within(steps).getByText('1 diminution de chaque côté — tous les 6 rangs (4 fois)')).toBeInTheDocument()
     expect(screen.getByText('Taille M · 3 étapes · échantillon 22 m. × 30 rangs pour 10 cm')).toBeInTheDocument()
+    // Diagrammes repérés : sous leur étape, ou à part
+    expect(within(steps).getAllByRole('listitem')[1]).toHaveTextContent('Diagramme : Torsade, page 4')
+    expect(screen.getByText(/Autres diagrammes repérés/)).toHaveTextContent('Autres diagrammes repérés : Diagramme, page 6')
 
     await user.clear(screen.getByLabelText('Nom du projet'))
     await user.type(screen.getByLabelText('Nom du projet'), 'Pull de Noël')
     await user.click(screen.getByRole('button', { name: 'Enregistrer le projet' }))
-    expect(api.knitting.createProject).toHaveBeenCalledWith({ title: 'Pull de Noël', size: 'M', pdf: file, steps: PATTERN.steps, gauge: { stitches: 22, rows: 30 }, queued: null })
+    expect(api.knitting.createProject).toHaveBeenCalledWith({ title: 'Pull de Noël', size: 'M', pdf: file, steps: PATTERN.steps, gauge: { stitches: 22, rows: 30 }, queued: null, chartHints: charts })
     expect(await screen.findByText('Projet ouvert')).toBeInTheDocument()
   })
 

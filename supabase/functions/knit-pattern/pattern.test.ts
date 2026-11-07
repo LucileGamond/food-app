@@ -120,6 +120,25 @@ describe('résultat du modèle', () => {
     ])
   })
 
+  it('repère les diagrammes : page, lignes de la grille, étape et sens de lecture', () => {
+    const charts = [
+      { page: 4, title: 'Torsade', last_row: 24, odd_only: false, flat: true, step: 2 },
+      // Rangs endroit seuls, numérotés 1 à 23 : 12 lignes
+      { page: 5, title: 'Jacquard', last_row: 23, odd_only: true, flat: null, step: null },
+      // En rond, l'option rangs endroit seuls n'a pas de sens ; étape hors patron ignorée
+      { page: 6, title: '  Bordure ', last_row: null, odd_only: true, flat: false, step: 9 },
+      { page: 0, title: 'Sans page', last_row: 8, odd_only: false, flat: null, step: null },
+      'n’importe quoi',
+    ]
+    expect(sanitizePattern({ ...PATTERN, charts }, 'M').charts).toEqual([
+      { page: 4, title: 'Torsade', rows: 24, step: 1, flat: true, oddOnly: false },
+      { page: 5, title: 'Jacquard', rows: 12, step: null, flat: null, oddOnly: true },
+      { page: 6, title: 'Bordure', rows: null, step: null, flat: false, oddOnly: false },
+    ])
+    expect(sanitizePattern(PATTERN, 'M').charts).toEqual([])
+    expect(systemPrompt('M')).toContain('diagrammes')
+  })
+
   it('signale une taille introuvable avec les tailles du patron', () => {
     expect(() => sanitizePattern({ ...PATTERN, size_found: false, steps: [] }, 'XXL')).toThrow('Taille « XXL » introuvable. Tailles du patron : S, M, L.')
     expect(() => sanitizePattern({ size_found: false }, 'XXL')).toThrow('Taille « XXL » introuvable dans ce patron.')

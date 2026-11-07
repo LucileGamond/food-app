@@ -129,16 +129,42 @@ isOneToOne: false
       referencedColumns: ["id"]
     }
                   ]
-                },"knit_projects": {
+                },"knit_charts": {
                   Row: {
-                    "created_at": string,"id": string,"my_gauge_rows": number | null,"my_gauge_stitches": number | null,"pattern_gauge_rows": number | null,"pattern_gauge_stitches": number | null,"pdf_path": string | null,"profile_id": string,"size": string,"title": string,"updated_at": string,"yarns": NonNullable<Json>
+                    "created_at": string,"flat": boolean,"grid_bottom": number,"grid_top": number,"id": string,"image_path": string,"odd_only": boolean,"project_id": string,"repeats": boolean,"rows": number,"start_row": number,"step_id": string | null,"title": string
                   }
                   ComputedFields: never
                   Insert: {
-                    "created_at"?: string,"id"?: string,"my_gauge_rows"?: number | null,"my_gauge_stitches"?: number | null,"pattern_gauge_rows"?: number | null,"pattern_gauge_stitches"?: number | null,"pdf_path"?: string | null,"profile_id"?: string,"size": string,"title": string,"updated_at"?: string,"yarns"?: NonNullable<Json>
+                    "created_at"?: string,"flat"?: boolean,"grid_bottom": number,"grid_top": number,"id"?: string,"image_path": string,"odd_only"?: boolean,"project_id": string,"repeats"?: boolean,"rows": number,"start_row"?: number,"step_id"?: string | null,"title"?: string
                   }
                   Update: {
-                    "created_at"?: string,"id"?: string,"my_gauge_rows"?: number | null,"my_gauge_stitches"?: number | null,"pattern_gauge_rows"?: number | null,"pattern_gauge_stitches"?: number | null,"pdf_path"?: string | null,"profile_id"?: string,"size"?: string,"title"?: string,"updated_at"?: string,"yarns"?: NonNullable<Json>
+                    "created_at"?: string,"flat"?: boolean,"grid_bottom"?: number,"grid_top"?: number,"id"?: string,"image_path"?: string,"odd_only"?: boolean,"project_id"?: string,"repeats"?: boolean,"rows"?: number,"start_row"?: number,"step_id"?: string | null,"title"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "knit_charts_project_id_fkey"
+      columns: ["project_id"]
+isOneToOne: false
+      referencedRelation: "knit_projects"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "knit_charts_step_id_fkey"
+      columns: ["step_id"]
+isOneToOne: false
+      referencedRelation: "knit_steps"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"knit_projects": {
+                  Row: {
+                    "chart_hints": NonNullable<Json>,"created_at": string,"id": string,"my_gauge_rows": number | null,"my_gauge_stitches": number | null,"pattern_gauge_rows": number | null,"pattern_gauge_stitches": number | null,"pdf_path": string | null,"profile_id": string,"size": string,"title": string,"updated_at": string,"yarns": NonNullable<Json>
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "chart_hints"?: NonNullable<Json>,"created_at"?: string,"id"?: string,"my_gauge_rows"?: number | null,"my_gauge_stitches"?: number | null,"pattern_gauge_rows"?: number | null,"pattern_gauge_stitches"?: number | null,"pdf_path"?: string | null,"profile_id"?: string,"size": string,"title": string,"updated_at"?: string,"yarns"?: NonNullable<Json>
+                  }
+                  Update: {
+                    "chart_hints"?: NonNullable<Json>,"created_at"?: string,"id"?: string,"my_gauge_rows"?: number | null,"my_gauge_stitches"?: number | null,"pattern_gauge_rows"?: number | null,"pattern_gauge_stitches"?: number | null,"pdf_path"?: string | null,"profile_id"?: string,"size"?: string,"title"?: string,"updated_at"?: string,"yarns"?: NonNullable<Json>
                   }
                   Relationships: [
                     {

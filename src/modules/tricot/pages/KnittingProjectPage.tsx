@@ -17,6 +17,7 @@ import { LoadError } from '@/components/LoadError'
 import { useWakeLock } from '@/hooks/useWakeLock'
 import { cn } from '@/lib/utils'
 import { openInNewTab } from '@/lib/openInNewTab'
+import { StepCharts } from '../components/StepCharts'
 import { StepSections } from '../components/StepSections'
 import { YarnPanel, type ProjectInfo } from '../components/YarnPanel'
 import { adjustCount, type Gauge } from '../lib/yarn'
@@ -273,6 +274,7 @@ export function KnittingProjectPage() {
           </header>
           {step.instructions && <p className="text-sm whitespace-pre-line">{step.instructions}</p>}
           <RowCounter step={step} gauges={gauges} onCount={(delta) => void countRows(step.id, delta)} />
+          <StepCharts projectId={project.id} pdfPath={project.pdfPath} step={step} steps={steps} charts={project.charts} hints={project.chartHints} onCount={(delta) => void countRows(step.id, delta)} onChanged={reload} />
           <StepSections step={step} onChange={(sections) => saveStep(step.id, { sections })} onCount={(delta) => void countRows(step.id, delta)} />
           <Notes step={step} onSave={(notes) => void saveStep(step.id, { notes })} />
           <div className="flex flex-wrap gap-2">

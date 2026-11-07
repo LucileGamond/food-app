@@ -311,22 +311,25 @@ describe('ménage des fichiers inutilisés', () => {
     const files: Record<CleanedBucket, StoredFile[]> = {
       'recipe-photos': Array.from({ length: 150 }, (_, i) => file(i < 100 ? `pending/${i}.jpg` : `r1/${i}.jpg`, 48)),
       'knit-patterns': [file('u1/a.pdf', 48), file('u1/b.pdf', 48)],
+      'knit-charts': [file('u1/c.jpg', 48), file('u1/d.jpg', 48)],
       'plant-photos': [file('p1/a.jpg', 48), file('p2/b.jpg', 48)],
     }
-    const used: Record<CleanedBucket, string[]> = { 'recipe-photos': ['pending/0.jpg', 'r1/100.jpg'], 'knit-patterns': ['u1/a.pdf'], 'plant-photos': ['p1/a.jpg'] }
+    const used: Record<CleanedBucket, string[]> = { 'recipe-photos': ['pending/0.jpg', 'r1/100.jpg'], 'knit-patterns': ['u1/a.pdf'], 'knit-charts': ['u1/c.jpg'], 'plant-photos': ['p1/a.jpg'] }
     deps.listFiles.mockImplementation(async (bucket) => files[bucket])
     deps.referencedFiles.mockImplementation(async (bucket) => used[bucket])
     const response = await createHandler(deps)(post('secret-cron', { job: 'cleanup' }))
-    expect(await response.json()).toEqual({ removed: 150 })
+    expect(await response.json()).toEqual({ removed: 151 })
     expect(deps.removeFiles.mock.calls.map(([bucket, paths]) => [bucket, paths.length])).toEqual([
       ['recipe-photos', 100],
       ['recipe-photos', 48],
       ['knit-patterns', 1],
+      ['knit-charts', 1],
       ['plant-photos', 1],
     ])
     expect(deps.removeFiles).toHaveBeenCalledWith('knit-patterns', ['u1/b.pdf'])
+    expect(deps.removeFiles).toHaveBeenCalledWith('knit-charts', ['u1/d.jpg'])
     expect(deps.removeFiles).toHaveBeenLastCalledWith('plant-photos', ['p2/b.jpg'])
-    expect(deps.log).toHaveBeenCalledWith('fichiers inutilisés supprimés', { removed: 150 })
+    expect(deps.log).toHaveBeenCalledWith('fichiers inutilisés supprimés', { removed: 151 })
     expect(deps.loadPendingEvents).not.toHaveBeenCalled()
 
     const nothing = setup([])

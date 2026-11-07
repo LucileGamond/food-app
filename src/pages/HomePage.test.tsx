@@ -23,6 +23,8 @@ const step = (overrides: Partial<KnitStep>): KnitStep => ({
 })
 
 const PROJECT: KnitProject = {
+  charts: [],
+  chartHints: [],
   yarns: [],
   patternGauge: { stitches: null, rows: null },
   myGauge: { stitches: null, rows: null },

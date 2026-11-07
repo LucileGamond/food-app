@@ -41,11 +41,32 @@ export interface Gauge {
   rows: number | null
 }
 
+/**
+ * Diagramme (grille) repéré dans le patron : sa page et ce qu'il faut pour le caler, proposés à la tricoteuse quand
+ * elle l'ajoute à une étape (elle recadre et ajuste elle-même : le cadre exact n'est pas demandé au modèle).
+ */
+export interface ChartHint {
+  /** Page du PDF (1 = première). */
+  page: number
+  title: string
+  /** Lignes de la grille (rangs dessinés). */
+  rows: number | null
+  /** Étape où il sert (0 = première), si on le sait. */
+  step: number | null
+  /** À plat (allers-retours) ou en rond, si le patron le dit. */
+  flat: boolean | null
+  /** À plat : seuls les rangs endroit sont dessinés. */
+  oddOnly: boolean
+}
+
+export const MAX_CHARTS = 30
+
 export interface ReadPattern {
   title: string
   sizes: string[]
   steps: PatternStep[]
   gauge: Gauge | null
+  charts: ChartHint[]
 }
 
 function str(value: unknown, max: number): string {
@@ -133,8 +154,24 @@ export const TOOL: Tool = {
           required: ['title', 'instructions', 'total_rows', 'stitches', 'sections'],
         },
       },
+      charts: {
+        type: 'array',
+        description: 'Diagrammes (grilles de symboles ou de couleurs) du patron utiles à la taille choisie ; vide s’il n’y en a pas.',
+        items: {
+          type: 'object',
+          properties: {
+            page: { type: 'integer', description: 'Page du PDF où se trouve la grille (1 = première page du fichier).' },
+            title: { type: 'string', description: 'Nom du diagramme tel qu’écrit (« Diagramme A », « Torsade », « Jacquard du devant »).' },
+            last_row: { type: ['integer', 'null'], description: 'Plus grand numéro de rang écrit le long de la grille (null s’il n’est pas lisible).' },
+            odd_only: { type: 'boolean', description: 'Seuls les rangs impairs (endroit) sont dessinés ou numérotés (1, 3, 5…).' },
+            flat: { type: ['boolean', 'null'], description: 'true : tricot à plat (allers-retours) ; false : en rond ; null si le patron ne le dit pas.' },
+            step: { type: ['integer', 'null'], description: 'Numéro de l’étape (dans steps, 1 = première) où le diagramme se tricote, s’il y en a une.' },
+          },
+          required: ['page', 'title', 'last_row', 'odd_only', 'flat', 'step'],
+        },
+      },
     },
-    required: ['title', 'sizes', 'size_found', 'steps'],
+    required: ['title', 'sizes', 'size_found', 'steps', 'charts'],
   },
 }
 
@@ -149,6 +186,8 @@ export function systemPrompt(size: string): string {
     'Décris le déroulé de chaque étape en sections successives (sections) : rangs sans action particulière (« tricoter 4 rangs »)',
     'et actions répétées (« diminuer 1 m. de chaque côté tous les 6 rangs 4 fois »), dans l’ordre du patron, avec la mesure telle qu’écrite dans pattern.',
     'Mesure en centimètres (« 5 cm », « tous les 5 cm ») : rows ou every à null, la tricoteuse la convertira en rangs selon sa laine.',
+    'Repère les diagrammes (grilles de symboles ou de couleurs) dans charts : page du PDF, nom, plus grand numéro de rang de la grille,',
+    'rangs endroit seuls ou non, à plat ou en rond, et l’étape où il se tricote ; un diagramme propre à une autre taille est ignoré.',
     'Relève l’échantillon du patron (mailles et rangs pour 10 cm) dans gauge ; ignore la liste du matériel et les abréviations, sauf s’ils servent à une étape.',
     'Si la taille choisie ne fait pas partie du patron, mets size_found à false et steps vide.',
   ].join('\n')
@@ -177,6 +216,31 @@ function section(value: unknown): PatternSection | null {
     .slice(0, 10)
   if (actions.length === 0 || (!every && !pattern)) return null
   return { kind: 'repeat', rows: null, every, times: int(r.times, 1, 500), actions, text: '', pattern }
+}
+
+/** Diagrammes repérés, bornés : page dans le PDF, étape parmi celles lues. */
+export function sanitizeCharts(value: unknown, stepCount: number): ChartHint[] {
+  return (Array.isArray(value) ? value : [])
+    .map((v): ChartHint | null => {
+      const c = asRecord(v)
+      const page = int(c.page, 1, 2000)
+      if (page === null) return null
+      const flat = typeof c.flat === 'boolean' ? c.flat : null
+      // Rangs endroit seuls : seulement à plat ; une ligne de la grille pour deux rangs.
+      const oddOnly = c.odd_only === true && flat !== false
+      const lastRow = int(c.last_row, 1, 1000)
+      const step = int(c.step, 1, stepCount)
+      return {
+        page,
+        title: str(c.title, 100),
+        rows: lastRow === null ? null : Math.min(oddOnly ? Math.ceil(lastRow / 2) : lastRow, 500),
+        step: step === null ? null : step - 1,
+        flat,
+        oddOnly,
+      }
+    })
+    .filter((c): c is ChartHint => c !== null)
+    .slice(0, MAX_CHARTS)
 }
 
 function gaugeValue(value: unknown): number | null {
@@ -214,7 +278,13 @@ export function sanitizePattern(input: unknown, size: string): ReadPattern {
     })
     .filter((s) => s.title)
   if (steps.length === 0) throw new HttpError('Aucune étape de tricot trouvée dans ce PDF.', 422)
-  return { title: str(data.title, 200) || 'Patron sans titre', sizes, steps, gauge: sanitizeGauge(data.gauge) }
+  return {
+    title: str(data.title, 200) || 'Patron sans titre',
+    sizes,
+    steps,
+    gauge: sanitizeGauge(data.gauge),
+    charts: sanitizeCharts(data.charts, steps.length),
+  }
 }
 
 export async function readPattern(input: PatternInput, options: ModelOptions): Promise<{ pattern: ReadPattern; usage: ModelUsage | null }> {

@@ -5,9 +5,11 @@ import type { Json } from '@/lib/database.types'
 import type { AppSupabaseClient } from '@/api/client'
 import { compressForReading } from '@/lib/image'
 import { describeYarn, yarnFromJson, yarnMeters, yarnsFromJson, type Gauge, type QueueInput, type QueuedPattern, type QueuePriority, type StashItem, type Yarn, type YarnIdea } from './lib/yarn'
+import { sanitizeHints, sanitizeSetup, type ChartHint, type ChartSetup, type KnitChart } from './lib/chart'
 import { MAX_PDF_BYTES, type KnitProject, type KnitProjectSummary, type KnitStep, type PatternStep, type ReadPattern, sanitizeSections } from './lib/pattern'
 
 const PATTERN_BUCKET = 'knit-patterns'
+const CHART_BUCKET = 'knit-charts'
 /** Lecture d'un long patron : jusqu'à 2 minutes côté modèle. */
 const READ_TIMEOUT_MS = 150_000
 const SIGNED_URL_TTL_SECONDS = 60 * 60
@@ -21,6 +23,36 @@ export async function fileToBase64(file: Blob): Promise<string> {
   // Par morceaux : String.fromCharCode refuse des dizaines de millions d'arguments.
   for (let i = 0; i < bytes.length; i += 0x8000) binary += String.fromCharCode(...bytes.subarray(i, i + 0x8000))
   return btoa(binary)
+}
+
+interface ChartRow {
+  id: string
+  step_id: string | null
+  title: string
+  image_path: string
+  grid_top: number
+  grid_bottom: number
+  rows: number
+  start_row: number
+  repeats: boolean
+  flat: boolean
+  odd_only: boolean
+}
+
+const CHART_COLUMNS = 'id, step_id, title, image_path, grid_top, grid_bottom, rows, start_row, repeats, flat, odd_only, created_at'
+
+function chartColumns(setup: ChartSetup) {
+  return {
+    step_id: setup.stepId,
+    title: setup.title,
+    grid_top: setup.gridTop,
+    grid_bottom: setup.gridBottom,
+    rows: setup.rows,
+    start_row: setup.startRow,
+    repeats: setup.repeats,
+    flat: setup.flat,
+    odd_only: setup.flat && setup.oddOnly,
+  }
 }
 
 function checkPdf(file: File): void {
@@ -109,6 +141,27 @@ export function createKnittingApi(db: AppSupabaseClient) {
     return path
   }
 
+  /** Diagrammes lus en base, avec l'adresse temporaire de leur image (null si elle n'a pas pu être obtenue). */
+  async function signCharts(rows: ChartRow[]): Promise<KnitChart[]> {
+    if (rows.length === 0) return []
+    const { data } = await db.storage.from(CHART_BUCKET).createSignedUrls(
+      rows.map((r) => r.image_path),
+      SIGNED_URL_TTL_SECONDS,
+    )
+    const urls = new Map((data ?? []).flatMap((d) => (d.path && d.signedUrl ? [[d.path, d.signedUrl] as const] : [])))
+    return rows.map((r) => ({
+      id: r.id,
+      stepId: r.step_id,
+      title: r.title,
+      imagePath: r.image_path,
+      imageUrl: urls.get(r.image_path) ?? null,
+      repeats: r.repeats,
+      flat: r.flat,
+      oddOnly: r.flat && r.odd_only,
+      ...sanitizeSetup(r),
+    }))
+  }
+
   return {
     async listProjects(): Promise<KnitProjectSummary[]> {
       const { data, error } = await db.from('knit_projects').select('id, title, size, updated_at, knit_steps(done)').order('updated_at', { ascending: false })
@@ -127,10 +180,11 @@ export function createKnittingApi(db: AppSupabaseClient) {
       const { data, error } = await db
         .from('knit_projects')
         .select(
-          'id, title, size, pdf_path, yarns, pattern_gauge_stitches, pattern_gauge_rows, my_gauge_stitches, my_gauge_rows, knit_steps(id, position, title, instructions, total_rows, stitches, sections, row_count, notes, done)',
+          `id, title, size, pdf_path, chart_hints, yarns, pattern_gauge_stitches, pattern_gauge_rows, my_gauge_stitches, my_gauge_rows, knit_steps(id, position, title, instructions, total_rows, stitches, sections, row_count, notes, done), knit_charts(${CHART_COLUMNS})`,
         )
         .eq('id', id)
         .order('position', { referencedTable: 'knit_steps' })
+        .order('created_at', { referencedTable: 'knit_charts' })
         .maybeSingle()
       if (error) throw toAppError(error, 'Impossible de charger le projet.')
       if (!data) return null
@@ -140,6 +194,8 @@ export function createKnittingApi(db: AppSupabaseClient) {
         size: data.size,
         pdfPath: data.pdf_path,
         steps: data.knit_steps.map(toStep),
+        charts: await signCharts(data.knit_charts),
+        chartHints: sanitizeHints(data.chart_hints),
         yarns: yarnsFromJson(data.yarns),
         patternGauge: { stitches: data.pattern_gauge_stitches, rows: data.pattern_gauge_rows },
         myGauge: { stitches: data.my_gauge_stitches, rows: data.my_gauge_rows },
@@ -163,6 +219,8 @@ export function createKnittingApi(db: AppSupabaseClient) {
       steps: PatternStep[]
       gauge?: Gauge | null
       queued?: Pick<QueuedPattern, 'id' | 'pdfPath'> | null
+      /** Diagrammes repérés à la lecture, gardés pour les proposer plus tard. */
+      chartHints?: ChartHint[]
     }): Promise<string> {
       // PDF du patron en attente déjà envoyé ; sinon celui choisi, envoyé maintenant.
       const reused = input.queued?.pdfPath ?? null
@@ -189,6 +247,8 @@ export function createKnittingApi(db: AppSupabaseClient) {
         if (uploaded) await db.storage.from(PATTERN_BUCKET).remove([uploaded])
         throw toAppError(error, 'Impossible d’enregistrer le projet.')
       }
+      // Simple confort : un échec ici n'empêche pas de tricoter (les diagrammes s'ajoutent quand même à la main).
+      if (input.chartHints?.length) await db.from('knit_projects').update({ chart_hints: input.chartHints as unknown as Json[] }).eq('id', data)
       return data
     },
 
@@ -306,10 +366,38 @@ export function createKnittingApi(db: AppSupabaseClient) {
       return new File([data], `${name}.pdf`, { type: 'application/pdf' })
     },
 
-    async deleteProject(project: Pick<KnitProject, 'id' | 'pdfPath'>): Promise<void> {
+    async deleteProject(project: Pick<KnitProject, 'id' | 'pdfPath'> & { charts?: Pick<KnitChart, 'imagePath'>[] }): Promise<void> {
       const { error } = await db.from('knit_projects').delete().eq('id', project.id)
       if (error) throw toAppError(error, 'Impossible de supprimer le projet.')
       if (project.pdfPath) await db.storage.from(PATTERN_BUCKET).remove([project.pdfPath])
+      if (project.charts?.length) await db.storage.from(CHART_BUCKET).remove(project.charts.map((c) => c.imagePath))
+    },
+
+    /** Ajoute un diagramme (image JPEG déjà préparée) au projet. */
+    async addChart(projectId: string, image: Blob, setup: ChartSetup): Promise<void> {
+      const { data: session } = await db.auth.getSession()
+      const userId = session.session?.user.id
+      if (!userId) throw toAppError({ code: '42501' })
+      const path = `${userId}/${crypto.randomUUID()}.jpg`
+      const { error: uploadError } = await db.storage.from(CHART_BUCKET).upload(path, image, { contentType: 'image/jpeg' })
+      if (uploadError) throw new AppError('Impossible d’envoyer l’image du diagramme.')
+      const { error } = await db.from('knit_charts').insert({ project_id: projectId, image_path: path, ...chartColumns(setup) })
+      if (error) {
+        await db.storage.from(CHART_BUCKET).remove([path])
+        throw toAppError(error, 'Impossible d’enregistrer le diagramme.')
+      }
+    },
+
+    /** Calage, étape et titre d'un diagramme. */
+    async updateChart(id: string, setup: ChartSetup): Promise<void> {
+      const { error } = await db.from('knit_charts').update(chartColumns(setup)).eq('id', id)
+      if (error) throw toAppError(error, 'Impossible d’enregistrer le diagramme.')
+    },
+
+    async deleteChart(chart: Pick<KnitChart, 'id' | 'imagePath'>): Promise<void> {
+      const { error } = await db.from('knit_charts').delete().eq('id', chart.id)
+      if (error) throw toAppError(error, 'Impossible de supprimer le diagramme.')
+      await db.storage.from(CHART_BUCKET).remove([chart.imagePath])
     },
 
     /** Adresse temporaire du PDF d'origine. */

@@ -182,6 +182,9 @@ export function fakeApi(): FakeApi {
       deleteStashItem: vi.fn(async () => undefined),
       yarnIdeas: vi.fn(async () => [] as YarnIdea[]),
       downloadPdf: vi.fn(async (_path: string, name: string) => new File(['%PDF'], `${name}.pdf`, { type: 'application/pdf' })),
+      addChart: vi.fn(async () => undefined),
+      updateChart: vi.fn(async () => undefined),
+      deleteChart: vi.fn(async () => undefined),
     },
     plants: {
       listPlants: vi.fn(async () => [] as Plant[]),
