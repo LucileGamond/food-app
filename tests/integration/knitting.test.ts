@@ -1,6 +1,6 @@
 import { createKnittingApi, fileToBase64 } from '@/modules/tricot/api'
 import type { PatternStep } from '@/modules/tricot/lib/pattern'
-import { ERIC, anonClient, resetData, signedInApi } from './helpers'
+import { ERIC, LUCILE, anonClient, resetData, signedInApi } from './helpers'
 
 beforeEach(async () => {
   await resetData()
@@ -179,5 +179,84 @@ describe('stock de laine', () => {
     await expect(createKnittingApi(anonClient()).listStash()).rejects.toThrow()
     // Idées : le modèle n'est pas disponible ici, l'erreur est lisible.
     await expect(api.knitting.yarnIdeas(yarn)).rejects.toThrow()
+  })
+})
+
+describe('diagrammes', () => {
+  const SETUP = { stepId: null, title: 'Torsade', gridTop: 0.1, gridBottom: 0.9, rows: 24, startRow: 1, repeats: true, flat: true, oddOnly: true }
+  const image = () => new Blob([new Uint8Array([0xff, 0xd8, 0xff, 0xd9])], { type: 'image/jpeg' })
+  /** Images du dossier d'une personne (le stockage local garde celles d'autres essais). */
+  const images = async (db: Awaited<ReturnType<typeof signedInApi>>['db'], folder: string) =>
+    ((await db.storage.from('knit-charts').list(folder, { limit: 1000 })).data ?? []).map((f) => `${folder}/${f.name}`)
+
+  it('ajoute un diagramme à une étape, le règle, le supprime avec son image', async () => {
+    const { api, db } = await signedInApi()
+    const hints = [{ page: 4, title: 'Torsade', rows: 24, step: 1, flat: true, oddOnly: false }]
+    const id = await api.knitting.createProject({ title: 'Pull', size: 'M', pdf: null, steps: STEPS, chartHints: hints })
+    let project = (await api.knitting.getProject(id))!
+    expect(project.chartHints).toEqual(hints)
+    expect(project.charts).toEqual([])
+    const stepId = project.steps[1]!.id
+
+    await api.knitting.addChart(id, image(), { ...SETUP, stepId })
+    project = (await api.knitting.getProject(id))!
+    const [chart] = project.charts
+    expect(chart).toMatchObject({ ...SETUP, stepId, imagePath: expect.stringMatching(/^[0-9a-f-]+\/[0-9a-f-]+\.jpg$/) })
+    // Image dans le bucket privé, lisible par l'adresse temporaire
+    expect((await (await fetch(chart!.imageUrl!)).arrayBuffer()).byteLength).toBe(4)
+
+    // En rond : les rangs endroit seuls ne s'appliquent pas
+    await api.knitting.updateChart(chart!.id, { ...SETUP, stepId, rows: 12, startRow: 5, repeats: false, flat: false })
+    expect((await api.knitting.getProject(id))!.charts[0]).toMatchObject({ rows: 12, startRow: 5, repeats: false, flat: false, oddOnly: false })
+
+    await api.knitting.deleteChart(chart!)
+    expect((await api.knitting.getProject(id))!.charts).toEqual([])
+    expect(await images(db, chart!.imagePath.split('/')[0]!)).not.toContain(chart!.imagePath)
+  })
+
+  it('supprime les images des diagrammes avec le projet ; chacun ses diagrammes', async () => {
+    const lucile = await signedInApi()
+    const eric = await signedInApi(ERIC.email)
+    const id = await lucile.api.knitting.createProject({ title: 'Pull', size: 'M', pdf: null, steps: STEPS })
+    await lucile.api.knitting.addChart(id, image(), SETUP)
+    const project = (await lucile.api.knitting.getProject(id))!
+    expect(project.charts).toHaveLength(1)
+
+    // Pas de diagramme dans le projet d'une autre (son image envoyée est retirée)
+    const ericBefore = await images(eric.db, ERIC.id)
+    await expect(eric.api.knitting.addChart(id, image(), SETUP)).rejects.toThrow()
+    expect(await images(eric.db, ERIC.id)).toEqual(ericBefore)
+    // Ni réglage ni suppression du diagramme d'une autre (rien ne change)
+    await eric.api.knitting.updateChart(project.charts[0]!.id, { ...SETUP, rows: 2 })
+    expect((await lucile.api.knitting.getProject(id))!.charts[0]!.rows).toBe(24)
+
+    await lucile.api.knitting.deleteProject(project)
+    expect(await images(lucile.db, LUCILE.id)).not.toContain(project.charts[0]!.imagePath)
+  })
+
+  it('refuse un calage invalide (image retirée) et l’accès sans connexion', async () => {
+    const { api, db } = await signedInApi()
+    const id = await api.knitting.createProject({ title: 'Pull', size: 'M', pdf: null, steps: STEPS })
+    const before = await images(db, LUCILE.id)
+    await expect(api.knitting.addChart(id, image(), { ...SETUP, gridTop: 0.9, gridBottom: 0.1 })).rejects.toThrow('Certaines valeurs sont invalides.')
+    expect(await images(db, LUCILE.id)).toEqual(before)
+
+    await api.knitting.addChart(id, image(), SETUP)
+    const chart = (await api.knitting.getProject(id))!.charts[0]!
+    await expect(api.knitting.updateChart(chart.id, { ...SETUP, rows: 0 })).rejects.toThrow('Certaines valeurs sont invalides.')
+
+    // Image trop lourde pour le bucket (10 Mo) : rien n'est enregistré
+    const heavy = new Blob([new Uint8Array(11 * 1024 * 1024)], { type: 'image/jpeg' })
+    await expect(api.knitting.addChart(id, heavy, SETUP)).rejects.toThrow('Impossible d’envoyer l’image du diagramme.')
+    expect((await api.knitting.getProject(id))!.charts).toHaveLength(1)
+
+    // Image disparue du stockage : le diagramme reste, sans image
+    await db.storage.from('knit-charts').remove([chart.imagePath])
+    expect((await api.knitting.getProject(id))!.charts[0]!.imageUrl).toBeNull()
+
+    const anon = createKnittingApi(anonClient())
+    await expect(anon.addChart(id, image(), SETUP)).rejects.toThrow('Reconnecte-toi')
+    await expect(anon.updateChart(chart.id, SETUP)).rejects.toThrow()
+    await expect(anon.deleteChart(chart)).rejects.toThrow()
   })
 })
