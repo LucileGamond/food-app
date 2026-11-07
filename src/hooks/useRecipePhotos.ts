@@ -43,6 +43,19 @@ export function useRecipePhotos() {
     })
   }, [])
 
+  /**
+   * Photo retouchée (tournée, recadrée) : remplace l'ancienne à la même place. Une photo déjà enregistrée sera supprimée
+   * et la nouvelle envoyée à l'enregistrement de la recette.
+   */
+  const replace = useCallback((key: string, file: File) => {
+    const photo = latest.current.find((p) => p.key === key)
+    if (!photo) return
+    if (photo.kind === 'existing') setRemoved((r) => [...r, photo])
+    else URL.revokeObjectURL(photo.url)
+    const edited = { kind: 'new' as const, key: `new-${++keyCounter.current}`, file, url: URL.createObjectURL(file) }
+    setPhotos((list) => list.map((p) => (p.key === key ? edited : p)))
+  }, [])
+
   /** Photos à jour, même après des `await` (une photo a pu être ajoutée entre-temps). */
   const hasPhotos = useCallback(() => latest.current.length > 0, [])
 
@@ -53,5 +66,5 @@ export function useRecipePhotos() {
 
   const clearRemoved = useCallback(() => setRemoved([]), [])
 
-  return { photos, removed, load, add, remove, makeMain, hasPhotos, markUploaded, clearRemoved }
+  return { photos, removed, load, add, remove, replace, makeMain, hasPhotos, markUploaded, clearRemoved }
 }

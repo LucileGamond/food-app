@@ -1,4 +1,4 @@
-import { screen, waitFor, within } from '@testing-library/react'
+import { fireEvent, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { render } from '@testing-library/react'
@@ -17,6 +17,7 @@ vi.mock('@/lib/image', () => ({
   compressImage: vi.fn(async (file: File) => new Blob([file.name], { type: 'image/jpeg' })),
   compressForReading: vi.fn(async (file: File) => new Blob([file.name], { type: 'image/jpeg' })),
   cropImage: vi.fn(async (file: File) => new File([file.name], 'plat.jpg', { type: 'image/jpeg' })),
+  editImage: vi.fn(async () => new File(['retouchée'], 'photo.jpg', { type: 'image/jpeg' })),
 }))
 
 function renderForm(api: FakeApi, entry: string | { pathname: string; state: unknown }) {
@@ -233,6 +234,43 @@ describe('RecipeFormPage — modification', () => {
     expect(api.photos.uploadPhoto).not.toHaveBeenCalled()
     expect(api.photos.reorderPhotos).not.toHaveBeenCalled()
     expect(api.recipes.saveRecipe).toHaveBeenCalledWith(expect.objectContaining({ id: 'r1', title: 'Curry', servings: 2, tags: ['végé'] }))
+  })
+
+  it('retouche une photo enregistrée : tournée et recadrée, elle remplace l’ancienne à la même place', async () => {
+    const user = userEvent.setup()
+    const api = fakeApi()
+    api.recipes.getRecipe.mockResolvedValue(EXISTING)
+    api.recipes.saveRecipe.mockResolvedValue('r1')
+    api.photos.uploadPhoto.mockResolvedValue({ id: 'p3', storage_path: 'r1/3.jpg', position: 0 })
+    vi.stubGlobal('fetch', vi.fn(async () => new Response(new Blob(['photo enregistrée']))))
+    try {
+      renderForm(api, '/recettes/r1/modifier')
+      await user.click(await screen.findByRole('button', { name: 'Retoucher la photo 1' }))
+      const dialog = await screen.findByRole('dialog', { name: 'Retoucher la photo' })
+      expect(within(dialog).getByRole('button', { name: 'Appliquer' })).toBeDisabled()
+      await user.click(await within(dialog).findByRole('button', { name: 'Tourner à droite' }))
+      // Cadre tracé du doigt sur l'aperçu (100 × 100 px).
+      const area = await within(dialog).findByTestId('photo-crop-area')
+      area.getBoundingClientRect = () => ({ left: 0, top: 0, width: 100, height: 100, right: 100, bottom: 100, x: 0, y: 0, toJSON: () => ({}) })
+      fireEvent.pointerDown(area, { clientX: 10, clientY: 20, pointerId: 1 })
+      fireEvent.pointerMove(area, { clientX: 60, clientY: 70, pointerId: 1 })
+      fireEvent.pointerUp(area, { clientX: 90, clientY: 80, pointerId: 1 })
+      await user.click(within(dialog).getByRole('button', { name: 'Appliquer' }))
+      await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+      const { editImage } = await import('@/lib/image')
+      expect(editImage).toHaveBeenLastCalledWith(expect.any(Blob), { rotation: 90, crop: { left: 0.1, top: 0.2, right: 0.9, bottom: 0.8 } })
+      expect(fetch).toHaveBeenCalledWith('https://cdn.test/r1/1.jpg')
+      expect(screen.getAllByTestId('photo-item')).toHaveLength(2)
+
+      await user.click(screen.getByRole('button', { name: 'Enregistrer' }))
+      expect(await screen.findByText('Fiche recette')).toBeInTheDocument()
+      expect(api.photos.deletePhoto).toHaveBeenCalledWith(expect.objectContaining({ id: 'p1' }))
+      expect(api.photos.uploadPhoto).toHaveBeenCalledTimes(1)
+      // La retouchée garde la place de l'ancienne : principale.
+      expect(api.photos.reorderPhotos).toHaveBeenCalledWith(['p3', 'p2'])
+    } finally {
+      vi.unstubAllGlobals()
+    }
   })
 
   it('sauvegarde une recette ponctuelle depuis le planning puis y revient', async () => {

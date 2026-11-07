@@ -1,5 +1,5 @@
 import imageCompression from 'browser-image-compression'
-import { cropImage } from './image'
+import { cropImage, editImage } from './image'
 
 vi.mock('browser-image-compression', () => ({ default: vi.fn(async (file: File) => new Blob([`réduite ${file.name}`], { type: 'image/jpeg' })) }))
 
@@ -49,6 +49,29 @@ describe('recadrage de la photo du plat', () => {
     drawImage.mockClear()
     await cropImage(new Blob(['page']), { left: 0.1, top: 0.25, right: 0.9, bottom: 0.75, rotation: 45 })
     expect(drawImage).toHaveBeenCalledWith(expect.anything(), 100, 500, 800, 1000, 0, 0, 800, 1000)
+  })
+
+  it('retouche : tourne l’image entière, puis découpe le cadre (fractions de l’image tournée), réduite pour l’aperçu', async () => {
+    const translate = vi.fn()
+    const rotate = vi.fn()
+    const sizes: [number, number][] = []
+    vi.mocked(HTMLCanvasElement.prototype.getContext).mockImplementation(function (this: HTMLCanvasElement) {
+      sizes.push([this.width, this.height])
+      return { drawImage, translate, rotate } as unknown as CanvasRenderingContext2D
+    } as unknown as HTMLCanvasElement['getContext'])
+    const photo = await editImage(new Blob(['photo']), { rotation: 270, crop: { left: 0, top: 0.5, right: 0.5, bottom: 1 }, maxSide: 500 })
+    // 1000 × 2000 couchée → 2000 × 1000 ; cadre de 1000 × 500 réduit à 500 × 250.
+    expect(sizes).toEqual([
+      [2000, 1000],
+      [500, 250],
+    ])
+    expect(rotate).toHaveBeenCalledWith((3 * Math.PI) / 2)
+    expect(drawImage).toHaveBeenLastCalledWith(expect.anything(), 0, 500, 1000, 500, 0, 0, 500, 250)
+    expect(photo.type).toBe('image/jpeg')
+    toBlob = (cb) => cb(null)
+    await expect(editImage(new Blob(['photo']), { rotation: 0, crop: { left: 0, top: 0, right: 1, bottom: 1 } })).rejects.toThrow('Retouche impossible.')
+    vi.mocked(HTMLCanvasElement.prototype.getContext).mockReturnValue(null)
+    await expect(editImage(new Blob(['photo']), { rotation: 0, crop: { left: 0, top: 0, right: 1, bottom: 1 } })).rejects.toThrow('Retouche impossible.')
   })
 
   it('échoue si le navigateur ne sait pas produire l’image', async () => {

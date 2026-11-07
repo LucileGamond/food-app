@@ -1,8 +1,9 @@
-import { Camera, ImagePlus, Star, X } from 'lucide-react'
-import { useRef } from 'react'
+import { Camera, Crop, ImagePlus, Star, X } from 'lucide-react'
+import { useRef, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { ACCEPTED_IMAGE_TYPES } from '@/lib/image'
 import { cn } from '@/lib/utils'
+import { PhotoEditor } from './PhotoEditor'
 
 /** Photo affichée dans le formulaire : déjà enregistrée, ou nouvelle (pas encore envoyée). */
 export type PhotoDraft =
@@ -14,6 +15,8 @@ interface Props {
   onAdd: (files: File[]) => void
   onRemove: (key: string) => void
   onMakeMain: (key: string) => void
+  /** Photo retouchée (tournée, recadrée) : remplace l'ancienne. Absent : pas de retouche proposée. */
+  onEdit?: (key: string, file: File) => void
 }
 
 /** Écran tactile (téléphone, tablette) : un appareil photo à ouvrir directement. Sur ordinateur, le bouton ferait doublon. */
@@ -21,8 +24,9 @@ function hasCamera(): boolean {
   return window.matchMedia?.('(pointer: coarse)').matches === true
 }
 
-export function PhotoUploader({ photos, onAdd, onRemove, onMakeMain }: Props) {
+export function PhotoUploader({ photos, onAdd, onRemove, onMakeMain, onEdit }: Props) {
   const input = useRef<HTMLInputElement>(null)
+  const [editing, setEditing] = useState<PhotoDraft | null>(null)
   const camera = useRef<HTMLInputElement>(null)
   const add = (list: FileList | null) => {
     const files = [...(list ?? [])].filter((f) => ACCEPTED_IMAGE_TYPES.includes(f.type))
@@ -49,6 +53,11 @@ export function PhotoUploader({ photos, onAdd, onRemove, onMakeMain }: Props) {
                     onClick={() => onMakeMain(photo.key)}
                   >
                     <Star />
+                  </Button>
+                )}
+                {onEdit && photo.url && (
+                  <Button type="button" size="icon-sm" variant="secondary" aria-label={`Retoucher la photo ${i + 1}`} onClick={() => setEditing(photo)}>
+                    <Crop />
                   </Button>
                 )}
                 <Button type="button" size="icon-sm" variant="secondary" aria-label={`Retirer la photo ${i + 1}`} onClick={() => onRemove(photo.key)}>
@@ -96,6 +105,7 @@ export function PhotoUploader({ photos, onAdd, onRemove, onMakeMain }: Props) {
           </Button>
         )}
       </div>
+      {onEdit && <PhotoEditor key={editing?.key ?? 'aucune'} photo={editing} onClose={() => setEditing(null)} onSave={(file) => editing && onEdit(editing.key, file)} />}
     </div>
   )
 }

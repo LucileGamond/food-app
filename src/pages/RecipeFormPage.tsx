@@ -550,7 +550,7 @@ export function RecipeFormPage() {
 
         <section className="space-y-3 rounded-2xl border bg-background p-5 shadow-xs" aria-labelledby="photos-heading">
           <h2 id="photos-heading" className="font-semibold tracking-tight">Photos</h2>
-          <PhotoUploader photos={photos.photos} onAdd={photos.add} onRemove={photos.remove} onMakeMain={photos.makeMain} />
+          <PhotoUploader photos={photos.photos} onAdd={photos.add} onRemove={photos.remove} onMakeMain={photos.makeMain} onEdit={photos.replace} />
         </section>
       </div>
 

@@ -15,6 +15,44 @@ export async function compressImage(file: File): Promise<Blob> {
 }
 
 /**
+ * Photo retouchée : tournée d'un quart de tour (sens horaire) puis recadrée (cadre en fractions de l'image tournée).
+ * `maxSide` réduit le résultat (aperçu). Rejette si le navigateur ne sait pas lire ou produire l'image.
+ */
+export async function editImage(
+  file: Blob,
+  { rotation, crop, maxSide = Infinity }: { rotation: 0 | 90 | 180 | 270; crop: { left: number; top: number; right: number; bottom: number }; maxSide?: number },
+): Promise<File> {
+  const bitmap = await createImageBitmap(file)
+  const sideways = rotation === 90 || rotation === 270
+  const [width, height] = sideways ? [bitmap.height, bitmap.width] : [bitmap.width, bitmap.height]
+  // Image tournée en entier, puis le cadre découpé dedans.
+  const turned = document.createElement('canvas')
+  turned.width = width
+  turned.height = height
+  const turnedContext = turned.getContext('2d')
+  if (!turnedContext) throw new Error('Retouche impossible.')
+  turnedContext.translate(width / 2, height / 2)
+  turnedContext.rotate((rotation * Math.PI) / 180)
+  turnedContext.drawImage(bitmap, -bitmap.width / 2, -bitmap.height / 2)
+  bitmap.close()
+
+  const sx = Math.round(crop.left * width)
+  const sy = Math.round(crop.top * height)
+  const sw = Math.max(1, Math.round((crop.right - crop.left) * width))
+  const sh = Math.max(1, Math.round((crop.bottom - crop.top) * height))
+  const scale = Math.min(1, maxSide / Math.max(sw, sh))
+  const out = document.createElement('canvas')
+  out.width = Math.max(1, Math.round(sw * scale))
+  out.height = Math.max(1, Math.round(sh * scale))
+  const context = out.getContext('2d')
+  if (!context) throw new Error('Retouche impossible.')
+  context.drawImage(turned, sx, sy, sw, sh, 0, 0, out.width, out.height)
+  const blob = await new Promise<Blob | null>((resolve) => out.toBlob(resolve, 'image/jpeg', 0.92))
+  if (!blob) throw new Error('Retouche impossible.')
+  return new File([blob], 'photo.jpg', { type: 'image/jpeg' })
+}
+
+/**
  * Photo du plat recadrée dans une page de livre photographiée (cadre en fractions de l'image, donné par la lecture),
  * puis réduite comme une photo de recette. Rejette si le navigateur ne sait pas lire l'image.
  */
