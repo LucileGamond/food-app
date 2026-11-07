@@ -20,9 +20,11 @@ import type { ShoppingItem, ShoppingItemInput, ShoppingList } from '@/lib/shoppi
 import type { TidyLine } from '@/lib/shoppingFromPlan'
 import type { WeightEntry } from '@/lib/weights'
 import type { WaterIntake } from '@/lib/hydration'
+import type { ActivityEvent } from '@/lib/activity'
 import type { WaterInput } from '@/modules/plantes/api'
 import type { Plant, PlantPhoto, WateringEvent } from '@/modules/plantes/lib/plants'
 import type { KnitProject, KnitProjectSummary, ReadPattern } from '@/modules/tricot/lib/pattern'
+import { EMPTY_YARN, type QueuedPattern, type Yarn } from '@/modules/tricot/lib/yarn'
 import { DEFAULT_SETTINGS, type UserSettings } from '@/lib/settings'
 
 export const LUCILE: Profile = { id: 'u-lucile', display_name: 'Lucile' }
@@ -166,6 +168,13 @@ export function fakeApi(): FakeApi {
       saveProgress: vi.fn(async () => undefined),
       deleteProject: vi.fn(async () => undefined),
       pdfUrl: vi.fn(async (path: string) => `https://cdn.test/${path}`),
+      saveProjectInfo: vi.fn(async () => undefined),
+      readYarnLabel: vi.fn(async (): Promise<Yarn> => ({ ...EMPTY_YARN, brand: 'Phildar' })),
+      listQueue: vi.fn(async () => [] as QueuedPattern[]),
+      getQueued: vi.fn(async () => null as QueuedPattern | null),
+      addToQueue: vi.fn(async () => 'new-queued'),
+      deleteQueued: vi.fn(async () => undefined),
+      downloadPdf: vi.fn(async (_path: string, name: string) => new File(['%PDF'], `${name}.pdf`, { type: 'application/pdf' })),
     },
     plants: {
       listPlants: vi.fn(async () => [] as Plant[]),
@@ -189,6 +198,10 @@ export function fakeApi(): FakeApi {
       deletePhoto: vi.fn(async () => undefined),
       reorderPhotos: vi.fn(async () => undefined),
       signedUrls: vi.fn(async (paths: string[]) => Object.fromEntries(paths.map((p) => [p, `https://cdn.test/${p}`]))),
+      subscribe: vi.fn(() => () => undefined),
+    },
+    activity: {
+      listRecent: vi.fn(async () => [] as ActivityEvent[]),
       subscribe: vi.fn(() => () => undefined),
     },
     food: {

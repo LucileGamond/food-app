@@ -1,4 +1,4 @@
-import { screen } from '@testing-library/react'
+import { screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { SettingsProvider } from '@/app/SettingsContext'
 import { DEFAULT_SETTINGS } from '@/lib/settings'
@@ -67,6 +67,46 @@ describe('SettingsPage', () => {
     await user.click(screen.getByRole('button', { name: 'Enregistrer' }))
     expect(api.settings.saveSettings).toHaveBeenCalledWith({ ...DEFAULT_SETTINGS, disabledPages: [], hydrationGoalMl: 2000 })
     expect(await screen.findByRole('textbox', { name: 'Objectif par jour (litres)' })).toHaveValue('2')
+  })
+
+  it('règle les contenants d’eau (nom et volume en cl, 4 au plus)', async () => {
+    const user = userEvent.setup()
+    const api = fakeApi()
+    api.settings.getSettings.mockResolvedValue({ ...DEFAULT_SETTINGS, disabledPages: [] })
+    renderPage(api)
+    const form = await screen.findByRole('form', { name: 'Contenants' })
+    const save = within(form).getByRole('button', { name: 'Enregistrer les contenants' })
+    expect(within(form).getByRole('textbox', { name: 'Nom du contenant 1' })).toHaveValue('Petit verre')
+    expect(within(form).getByRole('textbox', { name: 'Volume du contenant 2 (cl)' })).toHaveValue('33')
+    expect(save).toBeDisabled()
+
+    await user.click(within(form).getByRole('button', { name: 'Ajouter un contenant' }))
+    await user.click(save)
+    expect(within(form).getByRole('alert')).toHaveTextContent('Contenant 3 : donne-lui un nom.')
+    await user.type(within(form).getByRole('textbox', { name: 'Nom du contenant 3' }), 'Gourde')
+    await user.type(within(form).getByRole('textbox', { name: 'Volume du contenant 3 (cl)' }), '500')
+    await user.click(save)
+    expect(within(form).getByRole('alert')).toHaveTextContent('Gourde : volume entre 5 et 200 cl.')
+    expect(api.settings.saveSettings).not.toHaveBeenCalled()
+
+    await user.clear(within(form).getByRole('textbox', { name: 'Volume du contenant 3 (cl)' }))
+    await user.type(within(form).getByRole('textbox', { name: 'Volume du contenant 3 (cl)' }), '75')
+    await user.click(within(form).getByRole('button', { name: 'Retirer Petit verre' }))
+    await user.click(within(form).getByRole('button', { name: 'Ajouter un contenant' }))
+    await user.click(within(form).getByRole('button', { name: 'Ajouter un contenant' }))
+    // Quatre contenants : plus de bouton d'ajout.
+    expect(within(form).queryByRole('button', { name: 'Ajouter un contenant' })).not.toBeInTheDocument()
+    await user.click(within(form).getByRole('button', { name: 'Retirer le contenant 4' }))
+    await user.click(within(form).getByRole('button', { name: 'Retirer le contenant 3' }))
+    await user.click(save)
+    expect(api.settings.saveSettings).toHaveBeenCalledWith({
+      ...DEFAULT_SETTINGS,
+      disabledPages: [],
+      hydrationContainers: [
+        { name: 'Grand verre', volumeMl: 330 },
+        { name: 'Gourde', volumeMl: 750 },
+      ],
+    })
   })
 
   it('rétablit le réglage si l’enregistrement échoue', async () => {

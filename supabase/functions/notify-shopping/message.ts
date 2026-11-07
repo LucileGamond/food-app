@@ -26,6 +26,14 @@ export interface PushPayload {
   body: string
   url: string
   tag: string
+  /** Boutons de la notification (2 au plus sur Android) et jeton qui autorise leur geste (run_notification_action). */
+  actions?: NotificationButton[]
+  token?: string
+}
+
+export interface NotificationButton {
+  action: string
+  title: string
 }
 
 /** Délai sans nouvelle modification avant d'envoyer la notification groupée. */

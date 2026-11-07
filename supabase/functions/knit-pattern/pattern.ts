@@ -35,10 +35,17 @@ export interface PatternStep {
   sections: PatternSection[]
 }
 
+/** Échantillon du patron : mailles et rangs pour 10 cm. */
+export interface Gauge {
+  stitches: number | null
+  rows: number | null
+}
+
 export interface ReadPattern {
   title: string
   sizes: string[]
   steps: PatternStep[]
+  gauge: Gauge | null
 }
 
 function str(value: unknown, max: number): string {
@@ -69,6 +76,15 @@ export const TOOL: Tool = {
       title: { type: 'string', description: 'Nom du modèle.' },
       sizes: { type: 'array', items: { type: 'string' }, description: 'Toutes les tailles proposées par le patron, dans l’ordre.' },
       size_found: { type: 'boolean', description: 'La taille demandée fait partie des tailles du patron.' },
+      gauge: {
+        type: ['object', 'null'],
+        description: 'Échantillon du patron ramené à 10 cm × 10 cm (null s’il n’est pas indiqué).',
+        properties: {
+          stitches: { type: ['number', 'null'], description: 'Mailles pour 10 cm de large.' },
+          rows: { type: ['number', 'null'], description: 'Rangs pour 10 cm de haut.' },
+        },
+        required: ['stitches', 'rows'],
+      },
       steps: {
         type: 'array',
         description: 'Étapes à tricoter, dans l’ordre du patron (vide si la taille est introuvable).',
@@ -133,7 +149,7 @@ export function systemPrompt(size: string): string {
     'Décris le déroulé de chaque étape en sections successives (sections) : rangs sans action particulière (« tricoter 4 rangs »)',
     'et actions répétées (« diminuer 1 m. de chaque côté tous les 6 rangs 4 fois »), dans l’ordre du patron, avec la mesure telle qu’écrite dans pattern.',
     'Mesure en centimètres (« 5 cm », « tous les 5 cm ») : rows ou every à null, la tricoteuse la convertira en rangs selon sa laine.',
-    'Ignore la liste du matériel, les abréviations et les échantillons, sauf s’ils servent à une étape.',
+    'Relève l’échantillon du patron (mailles et rangs pour 10 cm) dans gauge ; ignore la liste du matériel et les abréviations, sauf s’ils servent à une étape.',
     'Si la taille choisie ne fait pas partie du patron, mets size_found à false et steps vide.',
   ].join('\n')
 }
@@ -163,6 +179,17 @@ function section(value: unknown): PatternSection | null {
   return { kind: 'repeat', rows: null, every, times: int(r.times, 1, 500), actions, text: '', pattern }
 }
 
+function gaugeValue(value: unknown): number | null {
+  return typeof value === 'number' && value >= 1 && value <= 100 ? Math.round(value * 10) / 10 : null
+}
+
+/** Échantillon lu, ou null s'il n'y en a pas. */
+export function sanitizeGauge(value: unknown): Gauge | null {
+  const g = asRecord(value)
+  const gauge = { stitches: gaugeValue(g.stitches), rows: gaugeValue(g.rows) }
+  return gauge.stitches === null && gauge.rows === null ? null : gauge
+}
+
 /** Valide et borne ce que le modèle a renvoyé. */
 export function sanitizePattern(input: unknown, size: string): ReadPattern {
   const data = asRecord(input)
@@ -187,7 +214,7 @@ export function sanitizePattern(input: unknown, size: string): ReadPattern {
     })
     .filter((s) => s.title)
   if (steps.length === 0) throw new HttpError('Aucune étape de tricot trouvée dans ce PDF.', 422)
-  return { title: str(data.title, 200) || 'Patron sans titre', sizes, steps }
+  return { title: str(data.title, 200) || 'Patron sans titre', sizes, steps, gauge: sanitizeGauge(data.gauge) }
 }
 
 export async function readPattern(input: PatternInput, options: ModelOptions): Promise<{ pattern: ReadPattern; usage: ModelUsage | null }> {

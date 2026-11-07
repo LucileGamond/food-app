@@ -62,3 +62,24 @@ export async function unsubscribeDevice(registration: ServiceWorkerRegistration)
   await subscription.unsubscribe()
   return subscription.endpoint
 }
+
+/** Cache où le service worker lit l'adresse et la clé publique de la base (boutons des notifications, public/push-sw.js). */
+export const PUSH_CONFIG_CACHE = 'life-push-config'
+export const PUSH_CONFIG_KEY = '/push-config.json'
+
+/**
+ * Range l'adresse et la clé publique de la base pour le service worker : les boutons des notifications (« C’est
+ * arrosé ») agissent sans ouvrir l'application. Rien de secret : la clé publique est déjà dans l'application.
+ */
+export async function rememberPushConfig(
+  url: string | undefined = import.meta.env.VITE_SUPABASE_URL,
+  key: string | undefined = import.meta.env.VITE_SUPABASE_ANON_KEY,
+): Promise<void> {
+  if (!url || !key || typeof caches === 'undefined') return
+  try {
+    const cache = await caches.open(PUSH_CONFIG_CACHE)
+    await cache.put(PUSH_CONFIG_KEY, new Response(JSON.stringify({ url, key }), { headers: { 'content-type': 'application/json' } }))
+  } catch {
+    // Stockage indisponible : les boutons ouvriront l'application.
+  }
+}

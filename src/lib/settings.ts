@@ -1,4 +1,6 @@
-// Réglages de chacun : pages affichées, notifications reçues, objectif d'hydratation.
+// Réglages de chacun : pages affichées, notifications reçues, objectif et contenants d'hydratation.
+
+import { DEFAULT_CONTAINERS, type WaterContainer } from './hydration'
 
 export type PageKey = 'planning' | 'recettes' | 'plan' | 'courses' | 'poids' | 'hydratation' | 'tricot' | 'plantes'
 export type NotificationTopic = 'courses' | 'hydratation' | 'plantes'
@@ -45,10 +47,11 @@ export interface UserSettings {
   disabledPages: PageKey[]
   mutedNotifications: NotificationTopic[]
   hydrationGoalMl: number
+  hydrationContainers: WaterContainer[]
 }
 
 /** Valeurs tant que la personne n'a rien enregistré (identiques à celles de la base). */
-export const DEFAULT_SETTINGS: UserSettings = { disabledPages: ['hydratation', 'tricot', 'plantes'], mutedNotifications: [], hydrationGoalMl: 1500 }
+export const DEFAULT_SETTINGS: UserSettings = { disabledPages: ['hydratation', 'tricot', 'plantes'], mutedNotifications: [], hydrationGoalMl: 1500, hydrationContainers: DEFAULT_CONTAINERS }
 
 export const MIN_GOAL_ML = 500
 export const MAX_GOAL_ML = 5000

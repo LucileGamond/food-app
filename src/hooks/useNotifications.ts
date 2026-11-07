@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { toast } from 'sonner'
 import { errorMessage, type Api } from '@/api'
-import { currentDevicePush, PushPermissionError, pushRegistration, subscribeDevice, unsubscribeDevice, type PushStatus } from '@/lib/push'
+import { currentDevicePush, PushPermissionError, pushRegistration, rememberPushConfig, subscribeDevice, unsubscribeDevice, type PushStatus } from '@/lib/push'
 
 export interface NotificationsState {
   status: PushStatus | 'loading'
@@ -29,6 +29,7 @@ export function useNotifications(api: Api): NotificationsState {
           const device = await currentDevicePush(registration)
           next = device && (await api.push.isSubscribed(device.endpoint)) ? 'on' : 'off'
         }
+        if (next === 'on') void rememberPushConfig()
         if (active) setStatus(next)
       } catch {
         if (active) setStatus('off')
@@ -46,6 +47,7 @@ export function useNotifications(api: Api): NotificationsState {
       if (!registration) return setStatus('unsupported')
       const device = await subscribeDevice(registration)
       await api.push.saveSubscription({ ...device, userAgent: navigator.userAgent })
+      void rememberPushConfig()
       setStatus('on')
       toast.success('Notifications activées sur cet appareil')
     } catch (error) {

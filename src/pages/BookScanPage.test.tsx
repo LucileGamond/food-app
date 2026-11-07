@@ -52,7 +52,10 @@ async function open(user: ReturnType<typeof userEvent.setup>, { multi = false } 
   await user.type(await screen.findByLabelText('Livre'), 'Pâtisserie maison')
   if (multi) await user.click(screen.getByRole('checkbox', { name: 'Recettes sur plusieurs photos' }))
   await user.click(screen.getByRole('button', { name: 'Ouvrir la caméra' }))
-  await user.click(await screen.findByRole('button', { name: 'Lancer le scan' }))
+  // Le bouton reste désactivé tant que la caméra s'ouvre : un clic trop tôt ne lancerait rien (machine chargée).
+  const launch = await screen.findByRole('button', { name: 'Lancer le scan' })
+  await waitFor(() => expect(launch).toBeEnabled())
+  await user.click(launch)
   await screen.findByText('Tiens le téléphone immobile au-dessus de la page')
 }
 
@@ -66,7 +69,8 @@ beforeEach(async () => {
 })
 afterEach(() => vi.useRealTimers())
 
-describe('BookScanPage', () => {
+// Parcours longs (caméra, délai d'annulation, lecture) : les 5 s par défaut ne suffisent pas sous couverture et en parallèle.
+describe('BookScanPage', { timeout: 20_000 }, () => {
   it('exige le livre avant d’ouvrir la caméra', async () => {
     const { user } = setup()
     await user.click(await screen.findByRole('button', { name: 'Ouvrir la caméra' }))

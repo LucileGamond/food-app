@@ -13,7 +13,15 @@ describe('settings api', () => {
     const eric = await signedInApi(ERIC.email)
     expect(await lucile.api.settings.getSettings()).toEqual(DEFAULT_SETTINGS)
 
-    const mine = { disabledPages: ['poids' as const], mutedNotifications: ['courses' as const], hydrationGoalMl: 2000 }
+    const mine = {
+      disabledPages: ['poids' as const],
+      mutedNotifications: ['courses' as const],
+      hydrationGoalMl: 2000,
+      hydrationContainers: [
+        { name: 'Gourde', volumeMl: 750 },
+        { name: 'Tasse', volumeMl: 250 },
+      ],
+    }
     await lucile.api.settings.saveSettings(mine)
     expect(await lucile.api.settings.getSettings()).toEqual(mine)
     // Deuxième enregistrement : mise à jour de la même ligne
@@ -26,6 +34,8 @@ describe('settings api', () => {
   it('refuse des valeurs invalides et l’accès sans connexion', async () => {
     const { api } = await signedInApi()
     await expect(api.settings.saveSettings({ ...DEFAULT_SETTINGS, hydrationGoalMl: 10 })).rejects.toThrow('Certaines valeurs sont invalides.')
+    await expect(api.settings.saveSettings({ ...DEFAULT_SETTINGS, hydrationContainers: [{ name: 'Seau', volumeMl: 10_000 }] })).rejects.toThrow('Certaines valeurs sont invalides.')
+    await expect(api.settings.saveSettings({ ...DEFAULT_SETTINGS, hydrationContainers: [] })).rejects.toThrow('Certaines valeurs sont invalides.')
     await expect(createSettingsApi(anonClient()).getSettings()).rejects.toThrow()
   })
 })

@@ -1,4 +1,5 @@
 import type { AppSupabaseClient } from '@/api/client'
+import { createActivityApi } from './activity'
 import { createFoodApi } from './food'
 import { createHydrationApi } from './hydration'
 import { createIdeasApi } from './ideas'
@@ -28,6 +29,7 @@ export function createApi(db: AppSupabaseClient) {
     hydration: createHydrationApi(db),
     knitting: createKnittingApi(db),
     plants: createPlantsApi(db),
+    activity: createActivityApi(db),
   }
 }
 

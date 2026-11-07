@@ -1,7 +1,7 @@
 import { createHandler, notifyHydration, notifyPending, notifyPlants, parisHour, sameSecret, type Deps, type DeviceSubscription } from './handler.ts'
 import { CLEANUP_MIN_AGE_MS, orphanFiles, type CleanedBucket, type StoredFile } from './cleanup.ts'
-import { buildHydrationMessage, liters, type HydrationReminder } from './hydration.ts'
-import { buildPlantsMessage, duePlants, type PlantData } from './plants.ts'
+import { buildHydrationMessage, drinkButtons, liters, type HydrationReminder } from './hydration.ts'
+import { buildPlantsMessage, duePlants, wateredButton, wateringsOf, type PlantData } from './plants.ts'
 import { buildShoppingMessage, joinFr, QUIET_MS, readyGroups, shorten, type ShoppingEvent, type ShoppingEventKind } from './message.ts'
 
 const NOW = Date.parse('2026-10-25T12:00:00Z')
@@ -91,6 +91,7 @@ function setup(
     claimHydrationReminders: vi.fn(async () => reminders),
     loadActivePlants: vi.fn(async () => plants),
     claimPlantReminders: vi.fn(async () => plantRecipients),
+    createActionToken: vi.fn<Deps['createActionToken']>(async (profileId) => `jeton-${profileId}`),
     listFiles: vi.fn(async (_bucket: CleanedBucket): Promise<StoredFile[]> => []),
     referencedFiles: vi.fn(async (_bucket: CleanedBucket) => [] as string[]),
     removeFiles: vi.fn(async (_bucket: CleanedBucket, _paths: string[]) => undefined),
@@ -182,6 +183,37 @@ describe('rappels d’hydratation', () => {
     expect(deps.loadPendingEvents).not.toHaveBeenCalled()
   })
 
+  it('propose les deux premiers contenants en boutons, avec un jeton', async () => {
+    const reminder = {
+      profile_id: 'lucile',
+      drunk_ml: 0,
+      goal_ml: 1500,
+      containers: [
+        { name: 'Gourde', ml: 750 },
+        { name: 'Verre', ml: 750 },
+        { name: 'Tasse', ml: 250 },
+      ],
+    }
+    expect(drinkButtons(reminder)).toEqual([
+      { action: 'drink:750', title: 'Gourde · 75 cl' },
+      { action: 'drink:250', title: 'Tasse · 25 cl' },
+    ])
+    expect(drinkButtons({ profile_id: 'lucile', drunk_ml: 0, goal_ml: 1500 })).toEqual([])
+
+    const deps = setup([], { lucile: [device('tel')] }, new Set(), [reminder])
+    await notifyHydration(deps)
+    expect(deps.createActionToken).toHaveBeenCalledWith('lucile', 'water', { volumes: [750, 250] })
+    expect(deps.send.mock.calls[0]![1]).toMatchObject({ token: 'jeton-lucile', actions: drinkButtons(reminder) })
+  })
+
+  it('envoie la notification sans boutons si le jeton ne peut pas être créé', async () => {
+    const deps = setup([], { lucile: [device('tel')] }, new Set(), [{ profile_id: 'lucile', drunk_ml: 0, goal_ml: 1500, containers: [{ name: 'Verre', ml: 200 }] }])
+    deps.createActionToken.mockRejectedValueOnce(new Error('base indisponible'))
+    expect(await notifyHydration(deps)).toEqual({ groups: 1, sent: 1, failed: 0, removed: 0 })
+    expect(deps.send.mock.calls[0]![1].actions).toBeUndefined()
+    expect(deps.log).toHaveBeenCalledWith('jeton de notification impossible', expect.anything())
+  })
+
   it('compte les échecs et ne fait rien sans rappel dû', async () => {
     const deps = setup([], { lucile: [device('tel')] }, new Set(), [{ profile_id: 'lucile', drunk_ml: 0, goal_ml: 1500 }])
     deps.send.mockResolvedValueOnce('failed')
@@ -193,17 +225,17 @@ describe('rappels d’hydratation', () => {
 // Samedi 24 octobre ; la règle hebdomadaire tombe les jeudis (22, 29 oct.).
 const weekly = { id: 'r', months: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12], firstWateringOn: '2026-10-01', intervalCount: 1, intervalUnit: 'week' as const, amountMl: 250 }
 const PLANTS: PlantData[] = [
-  { name: 'Monstera', rules: [weekly], events: [] }, // en retard depuis le 22
-  { name: 'Basilic', rules: [{ ...weekly, firstWateringOn: '2026-10-24', intervalUnit: 'day', amountMl: 1500 }], events: [] },
-  { name: 'Cactus', rules: [weekly], events: [{ id: 'e', scheduledOn: '2026-10-22', wateredOn: '2026-10-22' }] },
+  { id: 'p-monstera', name: 'Monstera', rules: [weekly], events: [] }, // en retard depuis le 22
+  { id: 'p-basilic', name: 'Basilic', rules: [{ ...weekly, id: 'r2', firstWateringOn: '2026-10-24', intervalUnit: 'day', amountMl: 1500 }], events: [] },
+  { id: 'p-cactus', name: 'Cactus', rules: [weekly], events: [{ id: 'e', scheduledOn: '2026-10-22', wateredOn: '2026-10-22' }] },
 ]
 const MORNING = Date.parse('2026-10-24T06:30:00Z') // 8 h 30 à Paris
 
 describe('rappels d’arrosage', () => {
   it('plantes à arroser, les plus en retard d’abord', () => {
     expect(duePlants(PLANTS, '2026-10-24')).toEqual([
-      { name: 'Monstera', amountMl: 250, overdueDays: 2 },
-      { name: 'Basilic', amountMl: 1500, overdueDays: 0 },
+      { plantId: 'p-monstera', name: 'Monstera', ruleId: 'r', scheduledOn: '2026-10-22', amountMl: 250, overdueDays: 2 },
+      { plantId: 'p-basilic', name: 'Basilic', ruleId: 'r2', scheduledOn: '2026-10-24', amountMl: 1500, overdueDays: 0 },
     ])
   })
 
@@ -214,7 +246,7 @@ describe('rappels d’arrosage', () => {
       url: '/plantes',
       tag: 'plants-2026-10-24',
     })
-    const many = ['A', 'B', 'C', 'D', 'E', 'F'].map((name) => ({ name, amountMl: 100, overdueDays: 0 }))
+    const many = ['A', 'B', 'C', 'D', 'E', 'F'].map((name) => ({ plantId: name, name, ruleId: 'r', scheduledOn: '2026-10-24', amountMl: 100, overdueDays: 0 }))
     expect(buildPlantsMessage(many, '2026-10-24').body).toBe('A (100 ml), B (100 ml), C (100 ml), D (100 ml) et 2 autres')
     expect(buildPlantsMessage(many.slice(0, 5), '2026-10-24').body).toMatch(/ et 1 autre$/)
     expect(buildPlantsMessage(many.slice(0, 1), '2026-10-24').title).toBe('1 plante à arroser 🪴')
@@ -224,6 +256,18 @@ describe('rappels d’arrosage', () => {
     const deps = { ...setup([], { lucile: [device('tel'), device('pc')], eric: [device('tel-eric')] }, new Set(), [], PLANTS, ['lucile', 'eric']), now: () => MORNING }
     expect(await notifyPlants(deps)).toEqual({ groups: 2, sent: 3, failed: 0, removed: 0 })
     expect(deps.send.mock.calls.map(([sub, payload]) => `${sub.id} ${payload.tag}`)).toEqual(['tel plants-2026-10-24', 'pc plants-2026-10-24', 'tel-eric plants-2026-10-24'])
+  })
+
+  it('ajoute à chaque personne le bouton « C’est arrosé » et son propre jeton', async () => {
+    const due = duePlants(PLANTS, '2026-10-24')
+    expect(wateredButton(due)).toEqual({ action: 'watered', title: 'Tout est arrosé' })
+    expect(wateredButton(due.slice(0, 1)).title).toBe('C’est arrosé')
+    const deps = { ...setup([], { lucile: [device('tel')], eric: [device('tel-eric')] }, new Set(), [], PLANTS, ['lucile', 'eric']), now: () => MORNING }
+    await notifyPlants(deps)
+    expect(deps.createActionToken).toHaveBeenCalledWith('lucile', 'plants', { waterings: wateringsOf(due) })
+    expect(wateringsOf(due)[0]).toEqual({ plant_id: 'p-monstera', rule_id: 'r', scheduled_on: '2026-10-22', amount_ml: 250 })
+    expect(deps.send.mock.calls.map(([, payload]) => payload.token)).toEqual(['jeton-lucile', 'jeton-eric'])
+    expect(deps.send.mock.calls[0]![1].actions).toEqual([{ action: 'watered', title: 'Tout est arrosé' }])
   })
 
   it('rien à arroser : personne n’est réservé (une plante à arroser plus tard dans la journée sera rappelée)', async () => {

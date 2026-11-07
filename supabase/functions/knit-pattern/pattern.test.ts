@@ -186,6 +186,6 @@ describe('handler', () => {
     const crash = setup({ fetchModel: vi.fn(async () => new Response('{"content": 42}', { status: 200 })) })
     const crashed = await crash.handle(post({ pdf: PDF, size: 'M' }))
     expect(crashed.status).toBe(500)
-    expect(await crashed.json()).toEqual({ error: 'La lecture du patron a échoué.' })
+    expect(await crashed.json()).toEqual({ error: 'La lecture a échoué.' })
   })
 })

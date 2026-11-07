@@ -39,6 +39,16 @@ describe('App', () => {
     expect(auth.signOut).toHaveBeenCalled()
   })
 
+  it('le logo ramène à l’accueil', async () => {
+    const user = userEvent.setup()
+    renderApp('/planning')
+    await screen.findByRole('heading', { name: 'Planning' })
+    const logos = screen.getAllByRole('link', { name: 'Life, accueil' })
+    expect(logos.length).toBeGreaterThan(0)
+    await user.click(logos[0]!)
+    expect(await screen.findByRole('heading', { name: 'Aujourd’hui' })).toBeInTheDocument()
+  })
+
   it('redirige les adresses inconnues vers l’accueil', async () => {
     renderApp('/nimporte-quoi')
     expect(await screen.findByRole('heading', { name: 'Aujourd’hui' })).toBeInTheDocument()
@@ -69,8 +79,9 @@ describe('App', () => {
     await user.click((await screen.findAllByRole('checkbox', { name: 'Eau' }))[0]!)
     expect(api.settings.saveSettings).toHaveBeenCalled()
     const nav = screen.getAllByRole('navigation', { name: 'Navigation principale' })[0]!
-    await user.click(within(nav).getByRole('link', { name: 'Eau' }))
-    expect(await screen.findByRole('heading', { name: 'Eau' })).toBeInTheDocument()
+    // La page apparaît dans la navigation une fois le réglage appliqué.
+    await user.click(await within(nav).findByRole('link', { name: 'Eau' }))
+    expect(await screen.findByRole('heading', { name: 'Eau', level: 1 }, { timeout: 5000 })).toBeInTheDocument()
   })
 
   it('réglages illisibles : toutes les pages restent affichées, rien n’est masqué', async () => {

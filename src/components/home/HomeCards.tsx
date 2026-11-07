@@ -11,7 +11,7 @@ import { useAsync } from '@/hooks/useAsync'
 import { useHydration } from '@/hooks/useHydration'
 import { usePlanning } from '@/hooks/usePlanning'
 import type { IsoDate } from '@/lib/dates'
-import { formatLiters, GLASSES, totalMl } from '@/lib/hydration'
+import { formatCl, formatLiters, totalMl } from '@/lib/hydration'
 import { SLOTS, slotLabel } from '@/lib/meals'
 import { capitalize } from '@/lib/text'
 import { formatRelativeDay } from '@/modules/plantes/lib/dates'
@@ -21,7 +21,7 @@ import { useKnitProject } from '@/modules/tricot/hooks/useKnitProject'
 import { currentStepIndex, MAX_ROW_COUNT, type KnitProjectSummary } from '@/modules/tricot/lib/pattern'
 
 /** Carte d'une section : titre, lien vers la page, contenu. */
-function HomeCard({ id, title, aside, to, linkLabel, children }: { id: string; title: string; aside?: ReactNode; to: string; linkLabel: string; children: ReactNode }) {
+export function HomeCard({ id, title, aside, to, linkLabel, children }: { id: string; title: string; aside?: ReactNode; to?: string; linkLabel?: string; children: ReactNode }) {
   return (
     <section aria-labelledby={id} className="space-y-3 rounded-2xl border bg-background p-4 shadow-xs">
       <div className="flex items-center justify-between gap-3">
@@ -30,9 +30,11 @@ function HomeCard({ id, title, aside, to, linkLabel, children }: { id: string; t
         </h2>
         <div className="flex items-center gap-3 text-sm">
           {aside}
-          <Link to={to} className="font-medium text-brand underline-offset-4 hover:underline">
-            {linkLabel}
-          </Link>
+          {to && (
+            <Link to={to} className="font-medium text-brand underline-offset-4 hover:underline">
+              {linkLabel}
+            </Link>
+          )}
         </div>
       </div>
       {children}
@@ -40,7 +42,7 @@ function HomeCard({ id, title, aside, to, linkLabel, children }: { id: string; t
   )
 }
 
-const Loading = ({ label }: { label: string }) => <Skeleton className="h-12 rounded-lg" aria-busy="true" aria-label={label} />
+export const Loading = ({ label }: { label: string }) => <Skeleton className="h-12 rounded-lg" aria-busy="true" aria-label={label} />
 
 /** Repas du jour (midi, soir). */
 export function MealsTodayCard({ today }: { today: IsoDate }) {
@@ -82,9 +84,16 @@ export function WaterCard({ today }: { today: IsoDate }) {
         <div className="h-full rounded-full bg-water" style={{ width: `${Math.min(100, Math.round((total / goal) * 100))}%` }} />
       </div>
       <div className="grid grid-cols-2 gap-2">
-        {GLASSES.map((glass) => (
-          <Button key={glass.volumeMl} variant="outline" className="h-11" disabled={hydration.loading} onClick={() => void hydration.add(glass.volumeMl)}>
-            {glass.label}
+        {settings.hydrationContainers.map((container, index) => (
+          <Button
+            key={index}
+            variant="outline"
+            className="h-auto min-h-11 min-w-0 flex-col gap-0 py-1.5"
+            disabled={hydration.loading}
+            onClick={() => void hydration.add(container.volumeMl)}
+          >
+            <span className="max-w-full truncate">{container.name}</span>
+            <span className="text-xs font-normal text-muted-foreground">{formatCl(container.volumeMl)}</span>
           </Button>
         ))}
       </div>

@@ -7,9 +7,9 @@
 
 import { CLEANED_BUCKETS, orphanFiles, type CleanedBucket, type StoredFile } from './cleanup.ts'
 import { toCivilDate } from '../_shared/watering/civil-date.ts'
-import { buildHydrationMessage, type HydrationReminder } from './hydration.ts'
-import { buildPlantsMessage, duePlants, type PlantData } from './plants.ts'
-import { buildShoppingMessage, QUIET_MS, readyGroups, type PushPayload, type ShoppingEvent } from './message.ts'
+import { buildHydrationMessage, drinkButtons, type HydrationReminder } from './hydration.ts'
+import { buildPlantsMessage, duePlants, wateredButton, wateringsOf, type PlantData } from './plants.ts'
+import { buildShoppingMessage, QUIET_MS, readyGroups, type NotificationButton, type PushPayload, type ShoppingEvent } from './message.ts'
 
 export interface DeviceSubscription {
   id: string
@@ -19,6 +19,8 @@ export interface DeviceSubscription {
 }
 
 export type SendResult = 'sent' | 'gone' | 'failed'
+
+export type ActionKind = 'water' | 'plants'
 
 export interface Deps {
   secret: string | undefined
@@ -34,6 +36,8 @@ export interface Deps {
   loadActivePlants: () => Promise<PlantData[]>
   /** Personnes à qui envoyer le rappel d'arrosage du jour, réservées (une seule exécution les envoie). */
   claimPlantReminders: () => Promise<string[]>
+  /** Jeton des boutons d'une notification (geste de cette personne, à usage unique). */
+  createActionToken: (profileId: string, kind: ActionKind, payload: Record<string, unknown>) => Promise<string>
   /** Fichiers d'un bucket du stockage, et ceux encore utilisés. */
   listFiles: (bucket: CleanedBucket) => Promise<StoredFile[]>
   referencedFiles: (bucket: CleanedBucket) => Promise<string[]>
@@ -121,9 +125,36 @@ async function sendToProfiles(deps: Deps, messages: { profileId: string; payload
   return report
 }
 
+/**
+ * Ajoute les boutons et leur jeton à la notification d'une personne. Sans jeton (erreur), la notification part
+ * quand même, sans boutons : un clic ouvre l'application.
+ */
+async function withButtons(
+  deps: Deps,
+  profileId: string,
+  payload: PushPayload,
+  buttons: NotificationButton[],
+  kind: ActionKind,
+  data: Record<string, unknown>,
+): Promise<PushPayload> {
+  if (buttons.length === 0) return payload
+  try {
+    return { ...payload, actions: buttons, token: await deps.createActionToken(profileId, kind, data) }
+  } catch (error) {
+    deps.log?.('jeton de notification impossible', { error: String(error) })
+    return payload
+  }
+}
+
 export async function notifyHydration(deps: Deps): Promise<RunReport> {
-  const reminders = await deps.claimHydrationReminders()
-  return sendToProfiles(deps, reminders.map((reminder) => ({ profileId: reminder.profile_id, payload: buildHydrationMessage(reminder) })))
+  const messages = []
+  for (const reminder of await deps.claimHydrationReminders()) {
+    const buttons = drinkButtons(reminder)
+    const volumes = buttons.map((b) => Number(b.action.slice('drink:'.length)))
+    const payload = await withButtons(deps, reminder.profile_id, buildHydrationMessage(reminder), buttons, 'water', { volumes })
+    messages.push({ profileId: reminder.profile_id, payload })
+  }
+  return sendToProfiles(deps, messages)
 }
 
 export async function notifyPlants(deps: Deps): Promise<RunReport> {
@@ -132,7 +163,11 @@ export async function notifyPlants(deps: Deps): Promise<RunReport> {
   // Rien à arroser : personne n'est réservé, une plante qui le devient dans la journée sera rappelée au passage suivant.
   if (due.length === 0) return { groups: 0, sent: 0, failed: 0, removed: 0 }
   const payload = buildPlantsMessage(due, today)
-  return sendToProfiles(deps, (await deps.claimPlantReminders()).map((profileId) => ({ profileId, payload })))
+  const messages = []
+  for (const profileId of await deps.claimPlantReminders()) {
+    messages.push({ profileId, payload: await withButtons(deps, profileId, payload, [wateredButton(due)], 'plants', { waterings: wateringsOf(due) }) })
+  }
+  return sendToProfiles(deps, messages)
 }
 
 export async function cleanupFiles(deps: Deps): Promise<{ removed: number }> {

@@ -3,6 +3,8 @@
 import { AppError, functionError, toAppError } from '@/api/errors'
 import type { Json } from '@/lib/database.types'
 import type { AppSupabaseClient } from '@/api/client'
+import { compressForReading } from '@/lib/image'
+import { yarnsFromJson, type Gauge, type QueueInput, type QueuedPattern, type QueuePriority, type Yarn } from './lib/yarn'
 import { MAX_PDF_BYTES, type KnitProject, type KnitProjectSummary, type KnitStep, type PatternStep, type ReadPattern, sanitizeSections } from './lib/pattern'
 
 const PATTERN_BUCKET = 'knit-patterns'
@@ -54,7 +56,47 @@ function toStep(row: StepRow): KnitStep {
   }
 }
 
+const QUEUE_COLUMNS = 'id, title, pdf_path, url, size, yarn_idea, notes, priority, created_at'
+
+interface QueueRow {
+  id: string
+  title: string
+  pdf_path: string | null
+  url: string | null
+  size: string | null
+  yarn_idea: string
+  notes: string
+  priority: number
+  created_at: string
+}
+
+function toQueued(r: QueueRow): QueuedPattern {
+  return {
+    id: r.id,
+    title: r.title,
+    pdfPath: r.pdf_path,
+    url: r.url,
+    size: r.size,
+    yarnIdea: r.yarn_idea,
+    notes: r.notes,
+    priority: r.priority as QueuePriority,
+    createdAt: r.created_at,
+  }
+}
+
 export function createKnittingApi(db: AppSupabaseClient) {
+  /** Envoie le PDF d'un patron dans le dossier de la personne connectée ; renvoie son chemin. */
+  async function uploadPdf(pdf: File): Promise<string> {
+    checkPdf(pdf)
+    const { data: session } = await db.auth.getSession()
+    const userId = session.session?.user.id
+    if (!userId) throw toAppError({ code: '42501' })
+    const path = `${userId}/${crypto.randomUUID()}.pdf`
+    const { error } = await db.storage.from(PATTERN_BUCKET).upload(path, pdf, { contentType: 'application/pdf' })
+    if (error) throw new AppError('Impossible d’envoyer le PDF.')
+    return path
+  }
+
   return {
     async listProjects(): Promise<KnitProjectSummary[]> {
       const { data, error } = await db.from('knit_projects').select('id, title, size, updated_at, knit_steps(done)').order('updated_at', { ascending: false })
@@ -72,13 +114,24 @@ export function createKnittingApi(db: AppSupabaseClient) {
     async getProject(id: string): Promise<KnitProject | null> {
       const { data, error } = await db
         .from('knit_projects')
-        .select('id, title, size, pdf_path, knit_steps(id, position, title, instructions, total_rows, stitches, sections, row_count, notes, done)')
+        .select(
+          'id, title, size, pdf_path, yarns, pattern_gauge_stitches, pattern_gauge_rows, my_gauge_stitches, my_gauge_rows, knit_steps(id, position, title, instructions, total_rows, stitches, sections, row_count, notes, done)',
+        )
         .eq('id', id)
         .order('position', { referencedTable: 'knit_steps' })
         .maybeSingle()
       if (error) throw toAppError(error, 'Impossible de charger le projet.')
       if (!data) return null
-      return { id: data.id, title: data.title, size: data.size, pdfPath: data.pdf_path, steps: data.knit_steps.map(toStep) }
+      return {
+        id: data.id,
+        title: data.title,
+        size: data.size,
+        pdfPath: data.pdf_path,
+        steps: data.knit_steps.map(toStep),
+        yarns: yarnsFromJson(data.yarns),
+        patternGauge: { stitches: data.pattern_gauge_stitches, rows: data.pattern_gauge_rows },
+        myGauge: { stitches: data.my_gauge_stitches, rows: data.my_gauge_rows },
+      }
     },
 
     /** Lit le patron (PDF) pour la taille choisie, sans rien enregistrer. */
@@ -90,18 +143,22 @@ export function createKnittingApi(db: AppSupabaseClient) {
       return data
     },
 
-    /** Enregistre le projet, ses étapes et le PDF d'origine. */
-    async createProject(input: { title: string; size: string; pdf: File | null; steps: PatternStep[] }): Promise<string> {
-      let path: string | null = null
-      if (input.pdf) {
-        checkPdf(input.pdf)
-        const { data: session } = await db.auth.getSession()
-        const userId = session.session?.user.id
-        if (!userId) throw toAppError({ code: '42501' })
-        path = `${userId}/${crypto.randomUUID()}.pdf`
-        const { error } = await db.storage.from(PATTERN_BUCKET).upload(path, input.pdf, { contentType: 'application/pdf' })
-        if (error) throw new AppError('Impossible d’envoyer le PDF.')
-      }
+    /**
+     * Enregistre le projet, ses étapes, l'échantillon du patron et le PDF d'origine. Depuis un patron en attente
+     * (`queued`) : son PDF déjà envoyé est repris, et il quitte la liste.
+     */
+    async createProject(input: {
+      title: string
+      size: string
+      pdf: File | null
+      steps: PatternStep[]
+      gauge?: Gauge | null
+      queued?: Pick<QueuedPattern, 'id' | 'pdfPath'> | null
+    }): Promise<string> {
+      // PDF du patron en attente déjà envoyé ; sinon celui choisi, envoyé maintenant.
+      const reused = input.queued?.pdfPath ?? null
+      const uploaded = !reused && input.pdf ? await uploadPdf(input.pdf) : null
+      const path = reused ?? uploaded
       const { data, error } = await db.rpc('create_knit_project', {
         p_title: input.title,
         p_size: input.size,
@@ -114,9 +171,13 @@ export function createKnittingApi(db: AppSupabaseClient) {
           stitches: s.stitches,
           sections: s.sections as unknown as Json,
         })),
+        // Facultatifs : null (voir p_pdf_path).
+        p_pattern_gauge_stitches: (input.gauge?.stitches ?? null) as number,
+        p_pattern_gauge_rows: (input.gauge?.rows ?? null) as number,
+        p_queue_id: (input.queued?.id ?? null) as string,
       })
       if (error) {
-        if (path) await db.storage.from(PATTERN_BUCKET).remove([path])
+        if (uploaded) await db.storage.from(PATTERN_BUCKET).remove([uploaded])
         throw toAppError(error, 'Impossible d’enregistrer le projet.')
       }
       return data
@@ -128,6 +189,73 @@ export function createKnittingApi(db: AppSupabaseClient) {
         .update({ row_count: progress.rowCount, notes: progress.notes, done: progress.done, sections: progress.sections as unknown as NonNullable<Json> | undefined })
         .eq('id', stepId)
       if (error) throw toAppError(error, 'Impossible d’enregistrer l’avancée.')
+    },
+
+    /** Laines et échantillons du projet. */
+    async saveProjectInfo(id: string, info: { yarns: Yarn[]; patternGauge: Gauge; myGauge: Gauge }): Promise<void> {
+      const { error } = await db
+        .from('knit_projects')
+        .update({
+          yarns: info.yarns as unknown as Json[],
+          pattern_gauge_stitches: info.patternGauge.stitches,
+          pattern_gauge_rows: info.patternGauge.rows,
+          my_gauge_stitches: info.myGauge.stitches,
+          my_gauge_rows: info.myGauge.rows,
+        })
+        .eq('id', id)
+      if (error) throw toAppError(error, 'Impossible d’enregistrer la laine et l’échantillon.')
+    },
+
+    /** Lit l'étiquette d'une pelote en photo, sans rien enregistrer. */
+    async readYarnLabel(photo: File): Promise<Yarn> {
+      const image = await compressForReading(photo)
+      const { data, error } = await db.functions.invoke<Omit<Yarn, 'skeins'>>('knit-pattern', {
+        body: { label: await fileToBase64(image), media_type: image.type || 'image/jpeg' },
+        timeout: 60_000,
+      })
+      if (error) throw await functionError(error, 'La lecture de l’étiquette a échoué.', 'tricot')
+      if (!data) throw new AppError('La lecture de l’étiquette a échoué.')
+      return { ...data, skeins: null }
+    },
+
+    async listQueue(): Promise<QueuedPattern[]> {
+      const { data, error } = await db.from('knit_queue').select(QUEUE_COLUMNS).order('created_at')
+      if (error) throw toAppError(error, 'Impossible de charger les patrons en attente.')
+      return data.map(toQueued)
+    },
+
+    async getQueued(id: string): Promise<QueuedPattern | null> {
+      const { data, error } = await db.from('knit_queue').select(QUEUE_COLUMNS).eq('id', id).maybeSingle()
+      if (error) throw toAppError(error, 'Impossible de charger le patron.')
+      return data && toQueued(data)
+    },
+
+    /** Met un patron de côté (PDF envoyé dans le dossier de la personne). */
+    async addToQueue(input: QueueInput): Promise<string> {
+      const path = input.pdf ? await uploadPdf(input.pdf) : null
+      const { data, error } = await db
+        .from('knit_queue')
+        .insert({ title: input.title, pdf_path: path, url: input.url, size: input.size, yarn_idea: input.yarnIdea, notes: input.notes, priority: input.priority })
+        .select('id')
+        .single()
+      if (error) {
+        if (path) await db.storage.from(PATTERN_BUCKET).remove([path])
+        throw toAppError(error, 'Impossible d’enregistrer le patron.')
+      }
+      return data.id
+    },
+
+    async deleteQueued(item: Pick<QueuedPattern, 'id' | 'pdfPath'>): Promise<void> {
+      const { error } = await db.from('knit_queue').delete().eq('id', item.id)
+      if (error) throw toAppError(error, 'Impossible de retirer le patron.')
+      if (item.pdfPath) await db.storage.from(PATTERN_BUCKET).remove([item.pdfPath])
+    },
+
+    /** PDF d'un patron en attente, pour le lire au moment de commencer. */
+    async downloadPdf(path: string, name: string): Promise<File> {
+      const { data, error } = await db.storage.from(PATTERN_BUCKET).download(path)
+      if (error) throw new AppError('Impossible de récupérer le PDF du patron.')
+      return new File([data], `${name}.pdf`, { type: 'application/pdf' })
     },
 
     async deleteProject(project: Pick<KnitProject, 'id' | 'pdfPath'>): Promise<void> {

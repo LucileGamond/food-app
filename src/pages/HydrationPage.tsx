@@ -1,5 +1,5 @@
-import { BellRing, GlassWater, Trash2 } from 'lucide-react'
-import { useEffect, useState } from 'react'
+import { BellRing, GlassWater, Milk, Trash2 } from 'lucide-react'
+import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -8,20 +8,10 @@ import { LoadError } from '@/components/LoadError'
 import { useApi } from '@/app/ApiContext'
 import { useSettings } from '@/app/SettingsContext'
 import { useHydration } from '@/hooks/useHydration'
+import { useNow } from '@/hooks/useNow'
 import { useToday } from '@/hooks/useToday'
 import type { IsoDate } from '@/lib/dates'
-import { formatCl, formatElapsed, formatLiters, formatTime, GLASSES, lastDrink, nextReminder, totalMl } from '@/lib/hydration'
-
-/** Heure courante, rafraîchie chaque minute (« il y a 2 h 10 »). `fixed` (tests) l'impose. */
-function useNow(fixed?: Date): Date {
-  const [now, setNow] = useState(() => fixed ?? new Date())
-  useEffect(() => {
-    if (fixed) return
-    const timer = setInterval(() => setNow(new Date()), 60_000)
-    return () => clearInterval(timer)
-  }, [fixed])
-  return fixed ?? now
-}
+import { formatCl, formatElapsed, formatLiters, formatTime, lastDrink, nextReminder, totalMl } from '@/lib/hydration'
 
 export function HydrationPage({ today: fixedToday, now: fixedNow }: { today?: IsoDate; now?: Date }) {
   const today = useToday(fixedToday)
@@ -32,6 +22,8 @@ export function HydrationPage({ today: fixedToday, now: fixedNow }: { today?: Is
   const [adding, setAdding] = useState(false)
 
   const goal = settings.hydrationGoalMl
+  const containers = settings.hydrationContainers
+  const smallest = Math.min(...containers.map((c) => c.volumeMl))
   const total = totalMl(hydration.intakes)
   const percent = Math.min(100, Math.round((total / goal) * 100))
   const last = lastDrink(hydration.intakes)
@@ -78,22 +70,32 @@ export function HydrationPage({ today: fixedToday, now: fixedNow }: { today?: Is
           </section>
 
           <div className="grid grid-cols-2 gap-3">
-            {GLASSES.map((glass, index) => (
+            {containers.map((container, index) => (
               <Button
-                key={glass.volumeMl}
+                key={index}
                 variant="outline"
                 className="h-auto flex-col gap-1 rounded-2xl py-4"
                 disabled={adding}
-                onClick={() => void drink(glass.volumeMl)}
+                onClick={() => void drink(container.volumeMl)}
               >
                 <span className="flex h-7 items-end">
-                  <GlassWater className={index === 0 ? 'size-5' : 'size-7'} aria-hidden />
+                  {/* Gourde, bouteille : une bouteille ; verres : le plus petit en plus petit. */}
+                  {container.volumeMl >= 500 ? (
+                    <Milk className="size-7" aria-hidden />
+                  ) : (
+                    <GlassWater className={container.volumeMl <= smallest ? 'size-5' : 'size-7'} aria-hidden />
+                  )}
                 </span>
-                <span className="font-medium">{glass.label}</span>
-                <span className="text-xs text-muted-foreground">{formatCl(glass.volumeMl)}</span>
+                <span className="max-w-full truncate font-medium">{container.name}</span>
+                <span className="text-xs text-muted-foreground">{formatCl(container.volumeMl)}</span>
               </Button>
             ))}
           </div>
+          <p className="-mt-2 text-xs text-muted-foreground">
+            <Link to="/reglages" className="underline underline-offset-4">
+              Changer les contenants
+            </Link>
+          </p>
 
           <div className="space-y-1 text-sm text-muted-foreground">
             <p>{last ? `Dernier verre à ${formatTime(last)} (il y a ${formatElapsed(now.getTime() - last.getTime())}).` : 'Rien bu aujourd’hui pour l’instant.'}</p>

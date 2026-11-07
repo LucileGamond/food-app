@@ -1,5 +1,7 @@
 import AxeBuilder from '@axe-core/playwright'
 import type { Page } from '@playwright/test'
+import { DEFAULT_SETTINGS } from '../src/lib/settings'
+import { signedInApi } from '../tests/integration/helpers'
 import { ERIC, expect, login, openNavPage, test } from './fixtures'
 
 /** Jour du foyer (Paris), au format de la saisie de date. */
@@ -152,4 +154,20 @@ test('accessibilité des écrans des plantes', async ({ page }) => {
   await expect(page.getByRole('heading', { name: 'Cactus', level: 1 })).toBeVisible()
   const results = await new AxeBuilder({ page }).exclude('[data-sonner-toaster]').withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa']).analyze()
   expect(results.violations.map((v) => v.id)).toEqual([])
+})
+
+test('l’accueil d’Eric montre en direct ce que Lucile a fait', async ({ page }) => {
+  const lucile = await signedInApi()
+  const eric = await signedInApi(ERIC.email)
+  await eric.api.settings.saveSettings({ ...DEFAULT_SETTINGS, disabledPages: [] })
+  const plantId = await lucile.api.plants.savePlant({ name: 'Ficus', species: null, location: null, planted_on: null, planted_height_cm: null, pot_diameter_cm: null, notes: null }, [])
+
+  await login(page, ERIC.email)
+  await page.goto('/')
+  const card = page.getByRole('region', { name: 'Ce que l’autre a fait' })
+  await expect(card.getByRole('link', { name: 'Lucile a ajouté la plante Ficus' })).toBeVisible()
+
+  await lucile.api.plants.water({ plantId, scheduledOn: null, ruleId: null, amountMl: 200 })
+  await card.getByRole('link', { name: 'Lucile a arrosé Ficus' }).click({ timeout: 15_000 })
+  await expect(page.getByRole('heading', { name: 'Ficus', level: 1 })).toBeVisible()
 })

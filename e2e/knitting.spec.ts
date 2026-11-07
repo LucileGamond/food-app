@@ -1,5 +1,7 @@
 import AxeBuilder from '@axe-core/playwright'
 import type { Page } from '@playwright/test'
+import { DEFAULT_SETTINGS } from '../src/lib/settings'
+import { signedInApi } from '../tests/integration/helpers'
 import { expect, login, openNavPage, test } from './fixtures'
 
 async function expectNoA11yViolations(page: Page) {
@@ -88,4 +90,69 @@ test('charge un patron PDF pour une taille, compte les rangs et retrouve son ava
   await page.getByRole('menuitem', { name: 'Supprimer le projet' }).click()
   await page.getByRole('button', { name: 'Supprimer', exact: true }).click()
   await expect(page.getByText('Aucun projet')).toBeVisible()
+})
+
+test('met un patron de côté, le commence, puis note la laine (étiquette) et son échantillon', async ({ page }) => {
+  // Lecture par le modèle simulée : patron (avec son échantillon) ou étiquette de laine.
+  await page.route('**/functions/v1/knit-pattern', async (route) => {
+    const body = route.request().postDataJSON()
+    if ('label' in body) {
+      await route.fulfill({ json: { brand: 'Phildar', name: 'Partner 3.5', color: '0012 Ciel', dye_lot: '4471', composition: null, weight_g: 50, length_m: 125, needle_mm: 3.5 } })
+    } else {
+      await route.fulfill({ json: { ...PATTERN, gauge: { stitches: 22, rows: 30 } } })
+    }
+  })
+  const { api } = await signedInApi()
+  await api.settings.saveSettings({ ...DEFAULT_SETTINGS, disabledPages: [] })
+  await login(page)
+  await openNavPage(page, 'Tricot')
+
+  // Patron mis de côté
+  await page.getByRole('link', { name: 'Mettre un patron de côté' }).click()
+  await page.getByLabel('Patron (PDF)').setInputFiles({ name: 'Gilet Rosée.pdf', mimeType: 'application/pdf', buffer: Buffer.from('%PDF-1.4\n%gilet') })
+  await page.getByLabel('Taille visée').fill('M')
+  await page.getByLabel('Quand').selectOption('Bientôt')
+  await expectNoA11yViolations(page)
+  await page.getByRole('button', { name: 'Mettre de côté' }).click()
+  const queue = page.getByRole('list', { name: 'Patrons à faire plus tard' })
+  await expect(queue).toContainText('Gilet Rosée')
+  await expect(queue).toContainText('Bientôt · taille M')
+
+  // Commencé : PDF et taille repris, le patron quitte la liste
+  await queue.getByRole('link', { name: 'Commencer Gilet Rosée' }).click()
+  await expect(page.getByRole('heading', { name: 'Commencer « Gilet Rosée »' })).toBeVisible()
+  await expect(page.getByLabel('Taille choisie')).toHaveValue('M')
+  await page.getByRole('button', { name: 'Lire le patron' }).click()
+  await expect(page.getByText(/échantillon 22 m\. × 30 rangs pour 10 cm/)).toBeVisible()
+  await page.getByRole('button', { name: 'Enregistrer le projet' }).click()
+  await expect(page.getByRole('heading', { name: 'Dos – côtes' })).toBeVisible()
+
+  // Laine lue sur l'étiquette
+  const panel = page.getByRole('region', { name: 'Laine et échantillon' })
+  await panel.getByRole('button', { name: 'Ajouter une laine' }).click()
+  const dialog = page.getByRole('dialog', { name: 'Ajouter une laine' })
+  await dialog.getByLabel('Photo de l’étiquette').setInputFiles({
+    name: 'etiquette.png',
+    mimeType: 'image/png',
+    buffer: Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=', 'base64'),
+  })
+  await expect(dialog.getByLabel('Marque')).toHaveValue('Phildar')
+  await dialog.getByLabel(/Nombre de pelotes/).fill('6')
+  await expectNoA11yViolations(page)
+  await dialog.getByRole('button', { name: 'Enregistrer' }).click()
+  await expect(panel).toContainText('Phildar Partner 3.5')
+  await expect(panel).toContainText('Environ 750 m de laine en tout.')
+
+  // Échantillon plus serré : mailles recalculées (64 → 70)
+  const gauge = panel.getByRole('form', { name: 'Échantillon' })
+  await expect(gauge.getByLabel('Mailles du patron')).toHaveValue('22')
+  await gauge.getByLabel('Tes mailles').fill('24')
+  await gauge.getByRole('button', { name: 'Enregistrer l’échantillon' }).click()
+  await expect(page.getByText(/64 mailles à la fin \(≈ 70 avec ton échantillon\)/)).toBeVisible()
+
+  // Gardé au rechargement ; la liste d'attente est vide
+  await page.reload()
+  await expect(page.getByRole('region', { name: 'Laine et échantillon' })).toContainText('Phildar Partner 3.5')
+  await page.getByRole('link', { name: 'Projets' }).click()
+  await expect(page.getByText('Aucun patron en attente', { exact: false })).toBeVisible()
 })

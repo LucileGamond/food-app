@@ -1,4 +1,4 @@
-import { ArrowRight, BellRing, Check, SearchX, ChevronLeft, ChevronRight, FileText, Minus, MoreHorizontal, Plus, Trash2, Undo2 } from 'lucide-react'
+import { ArrowRight, BellRing, Check, SearchX, ChevronLeft, ChevronRight, FileText, Minus, MoreHorizontal, Plus, Sun, Trash2, Undo2 } from 'lucide-react'
 import { useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { toast } from 'sonner'
@@ -14,12 +14,17 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { Textarea } from '@/components/ui/textarea'
 import { NativeSelect } from '@/components/ui/native-select'
 import { LoadError } from '@/components/LoadError'
+import { useWakeLock } from '@/hooks/useWakeLock'
 import { cn } from '@/lib/utils'
+import { openInNewTab } from '@/lib/openInNewTab'
 import { StepSections } from '../components/StepSections'
+import { YarnPanel, type ProjectInfo } from '../components/YarnPanel'
+import { adjustCount, type Gauge } from '../lib/yarn'
 import { useKnitProject } from '../hooks/useKnitProject'
 import { alertsAt, currentStepIndex, describeSection, MAX_ROW_COUNT, type KnitStep } from '../lib/pattern'
 
-function RowCounter({ step, onCount }: { step: KnitStep; onCount: (delta: number) => void }) {
+function RowCounter({ step, gauges, onCount }: { step: KnitStep; gauges: { pattern: Gauge; mine: Gauge }; onCount: (delta: number) => void }) {
+  const adjustedRows = adjustCount(step.totalRows, gauges.pattern.rows, gauges.mine.rows)
   // Le compteur compte les rangs terminés : on annonce ce qu'il y a à faire sur le rang à tricoter.
   const row = step.rowCount + 1
   const finished = step.totalRows !== null && step.rowCount >= step.totalRows
@@ -36,6 +41,7 @@ function RowCounter({ step, onCount }: { step: KnitStep; onCount: (delta: number
         <p className="min-w-0 flex-1 text-center" aria-labelledby={`rows-${step.id}`}>
           <span className="text-4xl font-semibold tabular-nums">{step.rowCount}</span>
           {step.totalRows && <span className="text-muted-foreground"> / {step.totalRows}</span>}
+          {adjustedRows !== null && <span className="block text-xs text-muted-foreground">≈ {adjustedRows} rangs avec ton échantillon</span>}
         </p>
         <Button className="h-12 px-5" disabled={step.rowCount >= MAX_ROW_COUNT} onClick={() => onCount(1)}>
           <Plus />
@@ -99,6 +105,8 @@ export function KnittingProjectPage() {
   const { project, loading, loadError, reload, saveStep, countRows } = useKnitProject(api, id)
   const [selected, setSelected] = useState<string | null>(null)
   const [confirmDelete, setConfirmDelete] = useState(false)
+  // Aiguilles en main : l'écran ne s'éteint pas tant que le projet est affiché.
+  const awake = useWakeLock()
 
   const back = (
     <Link to="/tricot" className="mb-2 inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
@@ -142,15 +150,20 @@ export function KnittingProjectPage() {
   const index = steps.indexOf(step)
 
   async function openPdf() {
-    // Onglet ouvert tout de suite (sinon bloqué après l'attente), puis dirigé vers le PDF.
-    const tab = window.open('', '_blank')
+    await openInNewTab(() => api.knitting.pdfUrl(project!.pdfPath!)).catch((error: unknown) => toast.error(errorMessage(error)))
+  }
+
+  const gauges = { pattern: project.patternGauge, mine: project.myGauge }
+  const adjustedStitches = adjustCount(step.stitches, gauges.pattern.stitches, gauges.mine.stitches)
+
+  async function saveInfo(info: ProjectInfo): Promise<boolean> {
     try {
-      const url = await api.knitting.pdfUrl(project!.pdfPath!)
-      if (tab) tab.location.href = url
-      else window.location.href = url
+      await api.knitting.saveProjectInfo(project!.id, info)
+      await reload()
+      return true
     } catch (error) {
-      tab?.close()
       toast.error(errorMessage(error))
+      return false
     }
   }
 
@@ -194,6 +207,12 @@ export function KnittingProjectPage() {
           </>
         }
       />
+
+      {awake && (
+        <p className="-mt-2 mb-3 flex items-center gap-1.5 text-sm text-muted-foreground">
+          <Sun className="size-4" aria-hidden /> L’écran reste allumé.
+        </p>
+      )}
 
       <div className="grid grid-cols-[minmax(0,1fr)] gap-4 md:grid-cols-[16rem_minmax(0,1fr)]">
         {/* Téléphone : choix de l'étape et étape précédente / suivante. */}
@@ -246,13 +265,14 @@ export function KnittingProjectPage() {
             <p className="text-xs text-muted-foreground">
               Étape {index + 1} sur {steps.length}
               {step.stitches && ` · ${step.stitches} mailles à la fin`}
+              {adjustedStitches !== null && ` (≈ ${adjustedStitches} avec ton échantillon)`}
             </p>
             <h2 id="step-title" className="text-lg font-semibold">
               {step.title}
             </h2>
           </header>
           {step.instructions && <p className="text-sm whitespace-pre-line">{step.instructions}</p>}
-          <RowCounter step={step} onCount={(delta) => void countRows(step.id, delta)} />
+          <RowCounter step={step} gauges={gauges} onCount={(delta) => void countRows(step.id, delta)} />
           <StepSections step={step} onChange={(sections) => saveStep(step.id, { sections })} onCount={(delta) => void countRows(step.id, delta)} />
           <Notes step={step} onSave={(notes) => void saveStep(step.id, { notes })} />
           <div className="flex flex-wrap gap-2">
@@ -267,6 +287,10 @@ export function KnittingProjectPage() {
             )}
           </div>
         </article>
+      </div>
+
+      <div className="mt-4">
+        <YarnPanel info={{ yarns: project.yarns, patternGauge: project.patternGauge, myGauge: project.myGauge }} onSave={saveInfo} />
       </div>
 
       <ConfirmDialog

@@ -24,6 +24,27 @@ function renderPage(api = setup()) {
 }
 
 describe('HydrationPage', () => {
+  it('propose les contenants réglés par la personne', async () => {
+    const user = userEvent.setup()
+    const api = setup()
+    api.settings.getSettings.mockResolvedValue({
+      ...DEFAULT_SETTINGS,
+      disabledPages: [],
+      hydrationContainers: [
+        { name: 'Gourde', volumeMl: 750 },
+        { name: 'Tasse', volumeMl: 250 },
+        { name: 'Verre', volumeMl: 200 },
+      ],
+    })
+    renderPage(api)
+    await user.click(await screen.findByRole('button', { name: /^Gourde/ }))
+    expect(api.hydration.addIntake).toHaveBeenCalledWith(750)
+    expect(screen.getByRole('button', { name: /^Tasse/ })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /^Verre/ })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /Petit verre/ })).not.toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Changer les contenants' })).toHaveAttribute('href', '/reglages')
+  })
+
   it('ajoute un petit et un grand verre au total du jour', async () => {
     const user = userEvent.setup()
     const { api } = renderPage()

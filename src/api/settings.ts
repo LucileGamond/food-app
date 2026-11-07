@@ -1,4 +1,5 @@
 import type { AppSupabaseClient } from '@/api/client'
+import { containersFromJson, containersToJson } from '@/lib/hydration'
 import { DEFAULT_SETTINGS, type NotificationTopic, type PageKey, type UserSettings } from '@/lib/settings'
 import { toAppError } from './errors'
 
@@ -6,13 +7,14 @@ import { toAppError } from './errors'
 export function createSettingsApi(db: AppSupabaseClient) {
   return {
     async getSettings(): Promise<UserSettings> {
-      const { data, error } = await db.from('user_settings').select('disabled_pages, muted_notifications, hydration_goal_ml').maybeSingle()
+      const { data, error } = await db.from('user_settings').select('disabled_pages, muted_notifications, hydration_goal_ml, hydration_containers').maybeSingle()
       if (error) throw toAppError(error, 'Impossible de charger les réglages.')
       if (!data) return DEFAULT_SETTINGS
       return {
         disabledPages: data.disabled_pages as PageKey[],
         mutedNotifications: data.muted_notifications as NotificationTopic[],
         hydrationGoalMl: data.hydration_goal_ml,
+        hydrationContainers: containersFromJson(data.hydration_containers),
       }
     },
 
@@ -23,6 +25,7 @@ export function createSettingsApi(db: AppSupabaseClient) {
           disabled_pages: settings.disabledPages,
           muted_notifications: settings.mutedNotifications,
           hydration_goal_ml: settings.hydrationGoalMl,
+          hydration_containers: containersToJson(settings.hydrationContainers),
           updated_at: new Date().toISOString(),
         },
         { onConflict: 'profile_id' },

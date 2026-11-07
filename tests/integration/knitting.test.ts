@@ -90,3 +90,71 @@ describe('knitting api', () => {
     await expect(api.knitting.readPattern(pdf(), 'M')).rejects.toThrow('Le service d’analyse est mal configuré.')
   })
 })
+
+describe('laine, échantillon et patrons en attente', () => {
+  it('enregistre la laine et les échantillons du projet', async () => {
+    const { api } = await signedInApi()
+    const id = await api.knitting.createProject({ title: 'Pull', size: 'M', pdf: null, steps: STEPS, gauge: { stitches: 22, rows: null } })
+    let project = (await api.knitting.getProject(id))!
+    expect(project).toMatchObject({ yarns: [], patternGauge: { stitches: 22, rows: null }, myGauge: { stitches: null, rows: null } })
+
+    const yarn = { brand: 'Phildar', name: 'Partner 3.5', color: null, dye_lot: '4471', composition: null, weight_g: 50, length_m: 125, skeins: 6.5, needle_mm: 3.5 }
+    await api.knitting.saveProjectInfo(id, { yarns: [yarn], patternGauge: { stitches: 22, rows: 30 }, myGauge: { stitches: 24, rows: 28.5 } })
+    project = (await api.knitting.getProject(id))!
+    expect(project.yarns).toEqual([yarn])
+    expect(project.patternGauge).toEqual({ stitches: 22, rows: 30 })
+    expect(project.myGauge).toEqual({ stitches: 24, rows: 28.5 })
+
+    await expect(api.knitting.saveProjectInfo(id, { yarns: [{ ...yarn, skeins: -2 }], patternGauge: project.patternGauge, myGauge: project.myGauge })).rejects.toThrow()
+  })
+
+  it('met un patron de côté, le commence (PDF repris) et le retire de la liste', async () => {
+    const { api } = await signedInApi()
+    const eric = await signedInApi(ERIC.email)
+    const queuedId = await api.knitting.addToQueue({ title: 'Gilet', pdf: pdf(), url: null, size: 'M', yarnIdea: 'Mérinos', notes: '', priority: 1 })
+    await api.knitting.addToQueue({ title: 'Bonnet', pdf: null, url: 'https://patrons.exemple/bonnet', size: null, yarnIdea: '', notes: 'Pour Eric', priority: 3 })
+
+    const queue = await api.knitting.listQueue()
+    expect(queue.map((q) => [q.title, q.size, q.priority, q.url])).toEqual([
+      ['Gilet', 'M', 1, null],
+      ['Bonnet', null, 3, 'https://patrons.exemple/bonnet'],
+    ])
+    expect(await eric.api.knitting.listQueue()).toEqual([])
+
+    const queued = (await api.knitting.getQueued(queuedId))!
+    const file = await api.knitting.downloadPdf(queued.pdfPath!, queued.title)
+    expect(await file.text()).toContain('%PDF-1.4')
+
+    const id = await api.knitting.createProject({ title: 'Gilet', size: 'M', pdf: file, steps: STEPS, queued })
+    expect((await api.knitting.getProject(id))!.pdfPath).toBe(queued.pdfPath)
+    expect((await api.knitting.listQueue()).map((q) => q.title)).toEqual(['Bonnet'])
+
+    const bonnet = (await api.knitting.listQueue())[0]!
+    await api.knitting.deleteQueued(bonnet)
+    expect(await api.knitting.listQueue()).toEqual([])
+    expect(await api.knitting.getQueued(bonnet.id)).toBeNull()
+  })
+})
+
+describe('patrons en attente : erreurs', () => {
+  it('refuse sans connexion, et n’enregistre rien d’invalide', async () => {
+    const anon = createKnittingApi(anonClient())
+    await expect(anon.listQueue()).rejects.toThrow()
+    await expect(anon.getQueued(crypto.randomUUID())).rejects.toThrow()
+    await expect(anon.addToQueue({ title: 'Gilet', pdf: pdf(), url: null, size: null, yarnIdea: '', notes: '', priority: 2 })).rejects.toThrow('Reconnecte-toi')
+    await expect(anon.deleteQueued({ id: crypto.randomUUID(), pdfPath: null })).rejects.toThrow()
+    await expect(anon.downloadPdf('perdu/perdu.pdf', 'Perdu')).rejects.toThrow('Impossible de récupérer le PDF du patron.')
+    await expect(anon.saveProjectInfo(crypto.randomUUID(), { yarns: [], patternGauge: { stitches: null, rows: null }, myGauge: { stitches: null, rows: null } })).rejects.toThrow()
+
+    const { api } = await signedInApi()
+    // Priorité hors bornes : refusé, et le PDF déjà envoyé est retiré.
+    await expect(api.knitting.addToQueue({ title: 'Gilet', pdf: pdf(), url: null, size: null, yarnIdea: '', notes: '', priority: 9 as 1 })).rejects.toThrow()
+    expect(await api.knitting.listQueue()).toEqual([])
+    // Lien invalide, sans PDF : refusé.
+    await expect(api.knitting.addToQueue({ title: 'Gilet', pdf: null, url: 'ftp://patrons', size: null, yarnIdea: '', notes: '', priority: 2 })).rejects.toThrow()
+    // Lecture par le modèle impossible ici (pas de clé) : erreur lisible.
+    await expect(api.knitting.readPattern(pdf(), 'M')).rejects.toThrow()
+    // Projet refusé (aucune étape) : le PDF envoyé est retiré aussi.
+    await expect(api.knitting.createProject({ title: 'Pull', size: 'M', pdf: pdf(), steps: [] })).rejects.toThrow()
+  })
+})

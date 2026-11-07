@@ -131,18 +131,38 @@ isOneToOne: false
                   ]
                 },"knit_projects": {
                   Row: {
-                    "created_at": string,"id": string,"pdf_path": string | null,"profile_id": string,"size": string,"title": string,"updated_at": string
+                    "created_at": string,"id": string,"my_gauge_rows": number | null,"my_gauge_stitches": number | null,"pattern_gauge_rows": number | null,"pattern_gauge_stitches": number | null,"pdf_path": string | null,"profile_id": string,"size": string,"title": string,"updated_at": string,"yarns": NonNullable<Json>
                   }
                   ComputedFields: never
                   Insert: {
-                    "created_at"?: string,"id"?: string,"pdf_path"?: string | null,"profile_id"?: string,"size": string,"title": string,"updated_at"?: string
+                    "created_at"?: string,"id"?: string,"my_gauge_rows"?: number | null,"my_gauge_stitches"?: number | null,"pattern_gauge_rows"?: number | null,"pattern_gauge_stitches"?: number | null,"pdf_path"?: string | null,"profile_id"?: string,"size": string,"title": string,"updated_at"?: string,"yarns"?: NonNullable<Json>
                   }
                   Update: {
-                    "created_at"?: string,"id"?: string,"pdf_path"?: string | null,"profile_id"?: string,"size"?: string,"title"?: string,"updated_at"?: string
+                    "created_at"?: string,"id"?: string,"my_gauge_rows"?: number | null,"my_gauge_stitches"?: number | null,"pattern_gauge_rows"?: number | null,"pattern_gauge_stitches"?: number | null,"pdf_path"?: string | null,"profile_id"?: string,"size"?: string,"title"?: string,"updated_at"?: string,"yarns"?: NonNullable<Json>
                   }
                   Relationships: [
                     {
       foreignKeyName: "knit_projects_profile_id_fkey"
+      columns: ["profile_id"]
+isOneToOne: false
+      referencedRelation: "profiles"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"knit_queue": {
+                  Row: {
+                    "created_at": string,"id": string,"notes": string,"pdf_path": string | null,"priority": number,"profile_id": string,"size": string | null,"title": string,"url": string | null,"yarn_idea": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "created_at"?: string,"id"?: string,"notes"?: string,"pdf_path"?: string | null,"priority"?: number,"profile_id"?: string,"size"?: string | null,"title": string,"url"?: string | null,"yarn_idea"?: string
+                  }
+                  Update: {
+                    "created_at"?: string,"id"?: string,"notes"?: string,"pdf_path"?: string | null,"priority"?: number,"profile_id"?: string,"size"?: string | null,"title"?: string,"url"?: string | null,"yarn_idea"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "knit_queue_profile_id_fkey"
       columns: ["profile_id"]
 isOneToOne: false
       referencedRelation: "profiles"
@@ -192,6 +212,26 @@ isOneToOne: false
       columns: ["recipe_id"]
 isOneToOne: false
       referencedRelation: "recipes"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"notification_actions": {
+                  Row: {
+                    "created_at": string,"expires_at": string,"kind": string,"payload": NonNullable<Json>,"profile_id": string,"token": string,"used_at": string | null
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "created_at"?: string,"expires_at"?: string,"kind": string,"payload": NonNullable<Json>,"profile_id": string,"token"?: string,"used_at"?: string | null
+                  }
+                  Update: {
+                    "created_at"?: string,"expires_at"?: string,"kind"?: string,"payload"?: NonNullable<Json>,"profile_id"?: string,"token"?: string,"used_at"?: string | null
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "notification_actions_profile_id_fkey"
+      columns: ["profile_id"]
+isOneToOne: false
+      referencedRelation: "profiles"
       referencedColumns: ["id"]
     }
                   ]
@@ -455,14 +495,14 @@ isOneToOne: false
                   ]
                 },"user_settings": {
                   Row: {
-                    "disabled_pages": (string)[],"hydration_goal_ml": number,"hydration_reminded_at": string | null,"muted_notifications": (string)[],"plants_reminded_on": string | null,"profile_id": string,"updated_at": string
+                    "disabled_pages": (string)[],"hydration_containers": NonNullable<Json>,"hydration_goal_ml": number,"hydration_reminded_at": string | null,"muted_notifications": (string)[],"plants_reminded_on": string | null,"profile_id": string,"updated_at": string
                   }
                   ComputedFields: never
                   Insert: {
-                    "disabled_pages"?: (string)[],"hydration_goal_ml"?: number,"hydration_reminded_at"?: string | null,"muted_notifications"?: (string)[],"plants_reminded_on"?: string | null,"profile_id"?: string,"updated_at"?: string
+                    "disabled_pages"?: (string)[],"hydration_containers"?: NonNullable<Json>,"hydration_goal_ml"?: number,"hydration_reminded_at"?: string | null,"muted_notifications"?: (string)[],"plants_reminded_on"?: string | null,"profile_id"?: string,"updated_at"?: string
                   }
                   Update: {
-                    "disabled_pages"?: (string)[],"hydration_goal_ml"?: number,"hydration_reminded_at"?: string | null,"muted_notifications"?: (string)[],"plants_reminded_on"?: string | null,"profile_id"?: string,"updated_at"?: string
+                    "disabled_pages"?: (string)[],"hydration_containers"?: NonNullable<Json>,"hydration_goal_ml"?: number,"hydration_reminded_at"?: string | null,"muted_notifications"?: (string)[],"plants_reminded_on"?: string | null,"profile_id"?: string,"updated_at"?: string
                   }
                   Relationships: [
                     {
@@ -582,7 +622,7 @@ isOneToOne: false
                            },
 "claim_hydration_reminders":
 { Args: { "p_now"?: string }; Returns: {
-              "drunk_ml": number,"goal_ml": number,"profile_id": string
+              "containers": Json,"drunk_ml": number,"goal_ml": number,"profile_id": string
             }[]
                            },
 "claim_plant_reminders":
@@ -595,9 +635,14 @@ isOneToOne: false
                            },
 "create_knit_project":
 { Args: { "p_pdf_path": string,"p_size": string,"p_steps": Json,"p_title": string }; Returns: string
+                           } |
+{ Args: { "p_pattern_gauge_rows": number,"p_pattern_gauge_stitches": number,"p_pdf_path": string,"p_queue_id": string,"p_size": string,"p_steps": Json,"p_title": string }; Returns: string
                            },
 "create_meal":
 { Args: { "p_adhoc_notes"?: string,"p_adhoc_title"?: string,"p_adhoc_url"?: string,"p_meal_date": string,"p_people": (string)[],"p_recipe_id"?: string,"p_slot": Database["public"]['Enums']["meal_slot"] }; Returns: string
+                           },
+"create_notification_action":
+{ Args: { "p_kind": string,"p_payload": Json,"p_profile_id": string }; Returns: string
                            },
 "duplicate_meal":
 { Args: { "p_meal_date": string,"p_meal_id": string,"p_slot": Database["public"]['Enums']["meal_slot"] }; Returns: string
@@ -607,10 +652,16 @@ isOneToOne: false
               "id": string,"title": string
             }[]
                            },
+"hydration_containers_are_valid":
+{ Args: { "p_containers": Json }; Returns: boolean
+                           },
 "hydration_reminders_due":
 { Args: { "p_now"?: string }; Returns: {
-              "drunk_ml": number,"goal_ml": number,"profile_id": string
+              "containers": Json,"drunk_ml": number,"goal_ml": number,"profile_id": string
             }[]
+                           },
+"knit_yarns_are_valid":
+{ Args: { "p_yarns": Json }; Returns: boolean
                            },
 "link_recipe_ingredient":
 { Args: { "p_linked_recipe_id": string,"p_name": string,"p_position": number,"p_recipe_id": string }; Returns: undefined
@@ -632,6 +683,11 @@ isOneToOne: false
               "profile_id": string
             }[]
                            },
+"recent_activity":
+{ Args: { "p_since"?: string }; Returns: {
+              "actor_id": string,"actor_name": string,"at": string,"detail": string,"kind": string,"target_id": string,"title": string
+            }[]
+                           },
 "recipe_history":
 { Args: { "p_recipe_id"?: string,"p_today": string }; Returns: {
               "last_cooked": string,"next_planned": string,"recipe_id": string,"times_cooked": number
@@ -648,6 +704,9 @@ isOneToOne: false
                            },
 "resolve_inbox_item":
 { Args: { "p_item_id": string,"p_recipe_id": string }; Returns: (string)[]
+                           },
+"run_notification_action":
+{ Args: { "p_action": string,"p_token": string }; Returns: Json
                            },
 "save_plant":
 { Args: { "p_plant": Json,"p_plant_id"?: string,"p_rules": Json }; Returns: string

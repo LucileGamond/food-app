@@ -6,6 +6,8 @@
 // Les rangs de chaque section se calculent à la suite (rangs 1 à 4, puis 5 à 28…).
 // Le compteur compte les rangs terminés : ce qui est annoncé concerne le rang à tricoter (rangs faits + 1).
 
+import type { Gauge, Yarn } from './yarn'
+
 export type SectionKind = 'rows' | 'repeat'
 
 /** Action d'une répétition, placée sur un rang de la répétition. */
@@ -63,6 +65,10 @@ export interface KnitProject {
   size: string
   pdfPath: string | null
   steps: KnitStep[]
+  yarns: Yarn[]
+  /** Échantillon du patron (lu avec le patron, ou saisi) et celui de la tricoteuse. */
+  patternGauge: Gauge
+  myGauge: Gauge
 }
 
 /** Étape telle que lue dans le patron (avant enregistrement). */
@@ -72,6 +78,8 @@ export interface ReadPattern {
   title: string
   sizes: string[]
   steps: PatternStep[]
+  /** Échantillon indiqué dans le patron, s'il y en a un. */
+  gauge?: Gauge | null
 }
 
 /** Sections lues en base : seules celles bien formées sont gardées (une donnée abîmée ne fait pas planter l'écran). */

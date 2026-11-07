@@ -23,6 +23,9 @@ const step = (overrides: Partial<KnitStep>): KnitStep => ({
 })
 
 const PROJECT: KnitProject = {
+  yarns: [],
+  patternGauge: { stitches: null, rows: null },
+  myGauge: { stitches: null, rows: null },
   id: 'p1',
   title: 'Pull Bergamote',
   size: 'M',
@@ -67,7 +70,7 @@ describe('HomePage', () => {
 
   it('un verre, un arrosage et un rang en un geste', async () => {
     const { api, user } = setup()
-    await user.click(await within(await screen.findByRole('region', { name: 'Eau' })).findByRole('button', { name: 'Grand verre' }))
+    await user.click(await within(await screen.findByRole('region', { name: 'Eau' })).findByRole('button', { name: /^Grand verre/ }))
     expect(api.hydration.addIntake).toHaveBeenCalledWith(330)
 
     await user.click(await screen.findByRole('button', { name: 'Marquer Basilic comme arrosée' }))
@@ -86,10 +89,31 @@ describe('HomePage', () => {
     expect(screen.queryByRole('region', { name: 'Repas' })).not.toBeInTheDocument()
     expect(screen.queryByRole('region', { name: 'Eau' })).not.toBeInTheDocument()
     expect(screen.queryByRole('region', { name: /Pull/ })).not.toBeInTheDocument()
+    // Plantes affichées : les nouvelles de l'autre aussi.
+    expect(screen.getByRole('region', { name: 'Ce que l’autre a fait' })).toBeInTheDocument()
+  })
+
+  it('montre ce que l’autre a fait, avec un lien vers chaque page', async () => {
+    const { api } = setup()
+    const at = new Date(Date.now() - 20 * 60_000).toISOString()
+    api.activity.listRecent.mockResolvedValue([
+      { kind: 'watered', actorId: 'eric', actorName: 'Eric', at, title: 'Ficus', detail: null, targetId: 'ficus' },
+      { kind: 'shopping_added', actorId: 'eric', actorName: 'Eric', at, title: 'Lait', detail: 'Courses', targetId: 'l1' },
+    ])
+    const card = await screen.findByRole('region', { name: 'Ce que l’autre a fait' })
+    expect(await within(card).findByRole('link', { name: 'Eric a arrosé Ficus' })).toHaveAttribute('href', '/plantes/ficus')
+    expect(within(card).getByRole('link', { name: 'Eric a ajouté Lait à Courses' })).toHaveAttribute('href', '/courses/l1')
+    expect(within(card).getAllByText('il y a 20 min')).toHaveLength(2)
+    expect(api.activity.subscribe).toHaveBeenCalled()
+  })
+
+  it('rien de nouveau de l’autre', async () => {
+    setup()
+    expect(await within(await screen.findByRole('region', { name: 'Ce que l’autre a fait' })).findByText('Rien de nouveau depuis 3 jours.')).toBeInTheDocument()
   })
 
   it('aucune page résumable : renvoie aux réglages', async () => {
-    setup(['planning', 'hydratation', 'plantes', 'tricot'])
+    setup(['planning', 'recettes', 'courses', 'hydratation', 'plantes', 'tricot'])
     expect(await screen.findByText('Rien à résumer ici')).toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'Réglages' })).toHaveAttribute('href', '/reglages')
   })

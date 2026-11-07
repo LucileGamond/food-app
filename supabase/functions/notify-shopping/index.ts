@@ -37,6 +37,7 @@ async function send(subscription: DeviceSubscription, payload: PushPayload) {
 }
 
 interface PlantRow {
+  id: string
   name: string
   rules: { id: string; months: number[]; first_watering_on: string; interval_count: number; interval_unit: 'day' | 'week' | 'month'; amount_ml: number }[]
   events: { id: string; scheduled_on: string | null; watered_at: string }[]
@@ -117,11 +118,12 @@ Deno.serve(
       const since = new Date(Date.now() - 400 * 86_400_000).toISOString()
       const { data, error } = await db
         .from('plants')
-        .select('name, rules:watering_rules(id, months, first_watering_on, interval_count, interval_unit, amount_ml), events:watering_events(id, scheduled_on, watered_at)')
+        .select('id, name, rules:watering_rules(id, months, first_watering_on, interval_count, interval_unit, amount_ml), events:watering_events(id, scheduled_on, watered_at)')
         .is('archived_at', null)
         .gte('events.watered_at', since)
       if (error) throw error
       return (data as PlantRow[]).map((plant) => ({
+        id: plant.id,
         name: plant.name,
         rules: plant.rules.map((r) => ({
           id: r.id,
@@ -138,6 +140,11 @@ Deno.serve(
       const { data, error } = await db.rpc('claim_plant_reminders')
       if (error) throw error
       return (data as { profile_id: string }[]).map((row) => row.profile_id)
+    },
+    async createActionToken(profileId, kind, payload) {
+      const { data, error } = await db.rpc('create_notification_action', { p_profile_id: profileId, p_kind: kind, p_payload: payload })
+      if (error) throw error
+      return data as string
     },
     send,
     async deleteSubscriptions(ids) {

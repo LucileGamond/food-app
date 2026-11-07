@@ -1,3 +1,4 @@
+import { DEFAULT_SETTINGS } from '@/lib/settings'
 import { screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { AppError } from '@/api'
@@ -14,6 +15,7 @@ vi.mock('@/lib/push', () => {
     currentDevicePush: vi.fn(),
     subscribeDevice: vi.fn(),
     unsubscribeDevice: vi.fn(),
+    rememberPushConfig: vi.fn(async () => undefined),
   }
 })
 
@@ -61,7 +63,7 @@ describe('notifications de l’application', () => {
 
   it('décrit les notifications choisies dans les réglages, et ne propose rien sans aucune', async () => {
     const api = fakeApi()
-    api.settings.getSettings.mockResolvedValue({ disabledPages: [], mutedNotifications: [], hydrationGoalMl: 1500 })
+    api.settings.getSettings.mockResolvedValue({ ...DEFAULT_SETTINGS, disabledPages: [] })
     const { unmount } = renderLayout(api)
     expect(await screen.findByRole('region', { name: 'Activer les notifications' })).toHaveTextContent(
       'Tu seras prévenu(e) : listes de courses modifiées par l’autre, rappels pour boire et plantes à arroser.',
@@ -69,7 +71,7 @@ describe('notifications de l’application', () => {
     unmount()
 
     const none = fakeApi()
-    none.settings.getSettings.mockResolvedValue({ disabledPages: ['hydratation', 'tricot', 'plantes'], mutedNotifications: ['courses'], hydrationGoalMl: 1500 })
+    none.settings.getSettings.mockResolvedValue({ ...DEFAULT_SETTINGS, mutedNotifications: ['courses'] })
     renderLayout(none)
     await deviceStatus()
     expect(screen.queryByRole('region', { name: 'Activer les notifications' })).not.toBeInTheDocument()

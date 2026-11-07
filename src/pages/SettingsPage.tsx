@@ -1,4 +1,4 @@
-import { Loader2 } from 'lucide-react'
+import { Loader2, Plus, Trash2 } from 'lucide-react'
 import { useState, type FormEvent, type ReactNode } from 'react'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
@@ -9,6 +9,7 @@ import { BuildInfo } from '@/components/BuildInfo'
 import { PageHeader } from '@/components/PageHeader'
 import { LoadError } from '@/components/LoadError'
 import { useSettings } from '@/app/SettingsContext'
+import { CONTAINER_NAME_MAX, MAX_CONTAINERS, parseContainers, toContainerDraft, type ContainerDraft, type WaterContainer } from '@/lib/hydration'
 import { isPageEnabled, NOTIFICATION_TOPICS, PAGES, parseGoalLiters, toggleNotification, togglePage, MAX_GOAL_ML, MIN_GOAL_ML } from '@/lib/settings'
 
 function Section({ title, description, children }: { title: string; description: string; children: ReactNode }) {
@@ -77,6 +78,86 @@ function GoalForm({ goalMl, onSave }: { goalMl: number; onSave: (ml: number) => 
       </Button>
       {error && (
         <p id="hydration-goal-error" role="alert" className="w-full text-sm text-destructive">
+          {error}
+        </p>
+      )}
+    </form>
+  )
+}
+
+function ContainersForm({ containers, onSave }: { containers: WaterContainer[]; onSave: (containers: WaterContainer[]) => Promise<boolean> }) {
+  const [drafts, setDrafts] = useState<ContainerDraft[]>(() => containers.map(toContainerDraft))
+  const [error, setError] = useState<string | null>(null)
+  const [saving, setSaving] = useState(false)
+  const parsed = parseContainers(drafts)
+  const unchanged = 'containers' in parsed && JSON.stringify(parsed.containers) === JSON.stringify(containers)
+
+  const change = (index: number, patch: Partial<ContainerDraft>) => setDrafts((all) => all.map((d, i) => (i === index ? { ...d, ...patch } : d)))
+
+  async function submit(event: FormEvent) {
+    event.preventDefault()
+    if ('error' in parsed) return setError(parsed.error)
+    setError(null)
+    setSaving(true)
+    await onSave(parsed.containers)
+    setSaving(false)
+  }
+
+  return (
+    <form onSubmit={(e) => void submit(e)} className="space-y-2" noValidate aria-label="Contenants">
+      <p className="text-sm font-medium">Contenants</p>
+      <ul className="space-y-2">
+        {drafts.map((draft, index) => (
+          <li key={index} className="flex items-end gap-2">
+            <div className="grid min-w-0 flex-1 gap-1.5">
+              <Label htmlFor={`container-name-${index}`} className="sr-only">
+                Nom du contenant {index + 1}
+              </Label>
+              <Input
+                id={`container-name-${index}`}
+                className="h-10"
+                maxLength={CONTAINER_NAME_MAX}
+                placeholder="Gourde"
+                value={draft.name}
+                onChange={(e) => change(index, { name: e.target.value })}
+              />
+            </div>
+            <div className="grid gap-1.5">
+              <Label htmlFor={`container-cl-${index}`} className="sr-only">
+                Volume du contenant {index + 1} (cl)
+              </Label>
+              <div className="flex items-center gap-1.5">
+                <Input id={`container-cl-${index}`} inputMode="decimal" className="h-10 w-20" value={draft.cl} onChange={(e) => change(index, { cl: e.target.value })} />
+                <span className="text-sm text-muted-foreground">cl</span>
+              </div>
+            </div>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              className="size-10"
+              aria-label={`Retirer ${draft.name.trim() || `le contenant ${index + 1}`}`}
+              disabled={drafts.length === 1}
+              onClick={() => setDrafts((all) => all.filter((_, i) => i !== index))}
+            >
+              <Trash2 />
+            </Button>
+          </li>
+        ))}
+      </ul>
+      <div className="flex flex-wrap gap-2">
+        {drafts.length < MAX_CONTAINERS && (
+          <Button type="button" variant="ghost" className="h-10" onClick={() => setDrafts((all) => [...all, { name: '', cl: '' }])}>
+            <Plus /> Ajouter un contenant
+          </Button>
+        )}
+        <Button type="submit" variant="outline" className="h-10" disabled={saving || unchanged}>
+          {saving && <Loader2 className="animate-spin" aria-hidden />}
+          Enregistrer les contenants
+        </Button>
+      </div>
+      {error && (
+        <p role="alert" className="text-sm text-destructive">
           {error}
         </p>
       )}
@@ -173,8 +254,15 @@ export function SettingsPage() {
         </Section>
 
         {isPageEnabled(settings, 'hydratation') && (
-          <Section title="Eau" description="Petit verre : 20 cl, grand verre : 33 cl.">
-            <GoalForm key={settings.hydrationGoalMl} goalMl={settings.hydrationGoalMl} onSave={(ml) => update({ hydrationGoalMl: ml })} />
+          <Section title="Eau" description="Objectif du jour, et contenants proposés sur la page Eau et dans le rappel (les deux premiers).">
+            <div className="space-y-5">
+              <GoalForm key={settings.hydrationGoalMl} goalMl={settings.hydrationGoalMl} onSave={(ml) => update({ hydrationGoalMl: ml })} />
+              <ContainersForm
+                key={JSON.stringify(settings.hydrationContainers)}
+                containers={settings.hydrationContainers}
+                onSave={(containers) => update({ hydrationContainers: containers })}
+              />
+            </div>
           </Section>
         )}
       </div>

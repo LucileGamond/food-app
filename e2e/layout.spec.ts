@@ -1,3 +1,4 @@
+import { DEFAULT_SETTINGS } from '../src/lib/settings'
 import type { Locator, Page } from '@playwright/test'
 import { addDays, todayIso } from '../src/lib/dates'
 import { signedInApi } from '../tests/integration/helpers'
@@ -26,7 +27,7 @@ async function seed() {
     ],
   })
   // Suivi d'hydratation activé, avec quelques verres
-  await api.settings.saveSettings({ disabledPages: [], mutedNotifications: [], hydrationGoalMl: 1500 })
+  await api.settings.saveSettings({ ...DEFAULT_SETTINGS, disabledPages: [] })
   for (const volume of [200, 330, 200]) await api.hydration.addIntake(volume)
   const knitting = await api.knitting.createProject({
     title: `${LONG_TITLE} au tricot`,

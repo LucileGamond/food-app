@@ -284,10 +284,14 @@ export function createRecipesApi(db: AppSupabaseClient) {
       return [...tags.values()].sort((a, b) => a.localeCompare(b, 'fr'))
     },
 
-    /** Lit une recette sur 1 à 4 photos (pages de livre, scan, captures d'une légende), déjà réduites, pour préremplir le formulaire. */
-    async importFromPhotos(photos: Blob[], knownTags: string[] = []): Promise<RecipeImport> {
+    /**
+     * Lit une recette sur 1 à 4 photos (pages de livre, scan, captures d'une légende), déjà réduites, pour préremplir le
+     * formulaire. `insist` : la personne affirme qu'il y a une recette (relecture d'une page jugée sans recette).
+     */
+    async importFromPhotos(photos: Blob[], knownTags: string[] = [], { insist = false } = {}): Promise<RecipeImport> {
       const images = await Promise.all(photos.map(async (photo) => ({ type: photo.type || 'image/jpeg', data: await toBase64(photo) })))
-      const { data, error } = await db.functions.invoke<RecipeImport>('import-recipe', { body: { mode: 'photos', images, knownTags }, timeout: IMPORT_TIMEOUT_MS })
+      const body = { mode: 'photos', images, knownTags, ...(insist && { insist: true }) }
+      const { data, error } = await db.functions.invoke<RecipeImport>('import-recipe', { body, timeout: IMPORT_TIMEOUT_MS })
       if (error) throw await functionError(error, 'La lecture de la photo a échoué.', 'import')
       if (!data?.recipe) throw new AppError("La lecture de la photo a échoué.")
       return data

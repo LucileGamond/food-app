@@ -29,12 +29,13 @@ const SECTION_ICONS: Record<SectionKey, LucideIcon> = {
 
 function Brand() {
   return (
-    <div className="flex items-center gap-2 font-semibold tracking-tight">
+    // Raccourci vers l'accueil « Aujourd’hui ».
+    <Link to={HOME_PATH} aria-label="Life, accueil" className="flex items-center gap-2 rounded-lg font-semibold tracking-tight">
       <span className="flex size-8 items-center justify-center rounded-lg bg-brand text-white">
         <Leaf className="size-4" aria-hidden />
       </span>
       Life
-    </div>
+    </Link>
   )
 }
 

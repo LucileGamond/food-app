@@ -2,6 +2,7 @@ import { Settings } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { buttonVariants } from '@/components/ui/button'
 import { EmptyState } from '@/components/EmptyState'
+import { ActivityCard } from '@/components/home/ActivityCard'
 import { KnittingCard, MealsTodayCard, PlantsCard, WaterCard } from '@/components/home/HomeCards'
 import { PageHeader } from '@/components/PageHeader'
 import { useSettings } from '@/app/SettingsContext'
@@ -9,7 +10,7 @@ import { useToday } from '@/hooks/useToday'
 import { formatDay, type IsoDate } from '@/lib/dates'
 import { cn } from '@/lib/utils'
 
-/** Accueil « Aujourd’hui » : l'essentiel du jour des pages affichées (repas, eau, plantes, tricot). */
+/** Accueil « Aujourd’hui » : l'essentiel du jour des pages affichées (repas, eau, plantes, tricot) et ce que l'autre a fait. */
 export function HomePage({ today: fixedToday }: { today?: IsoDate }) {
   const today = useToday(fixedToday)
   const { loading, isEnabled } = useSettings()
@@ -18,6 +19,8 @@ export function HomePage({ today: fixedToday }: { today?: IsoDate }) {
     isEnabled('hydratation') && <WaterCard key="water" today={today} />,
     isEnabled('plantes') && <PlantsCard key="plants" />,
     isEnabled('tricot') && <KnittingCard key="knitting" />,
+    // Gestes de l'autre sur ce qu'on partage (plantes, planning, recettes, courses).
+    (['plantes', 'planning', 'recettes', 'courses'] as const).some(isEnabled) && <ActivityCard key="activity" />,
   ].filter(Boolean)
 
   return (

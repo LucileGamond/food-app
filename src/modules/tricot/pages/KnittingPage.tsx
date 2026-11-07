@@ -1,4 +1,4 @@
-import { ChevronRight, FilePlus2, Spool } from 'lucide-react'
+import { BookmarkPlus, ChevronRight, FilePlus2, Spool } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { useApi } from '@/app/ApiContext'
 import { buttonVariants } from '@/components/ui/button'
@@ -8,12 +8,14 @@ import { PageHeader } from '@/components/PageHeader'
 import { LoadError } from '@/components/LoadError'
 import { useAsync } from '@/hooks/useAsync'
 import { cn } from '@/lib/utils'
+import { QueueList } from '../components/QueueList'
 
-/** Module Tricot : projets en cours (un patron suivi pour une taille). */
+/** Module Tricot : projets en cours (un patron suivi pour une taille) et patrons à faire plus tard. */
 export function KnittingPage() {
   const api = useApi()
   const list = useAsync(() => api.knitting.listProjects(), [api])
   const projects = list.data ?? null
+  const queue = useAsync(() => api.knitting.listQueue(), [api])
 
   const newLink = (
     <Link to="/tricot/nouveau" className={cn(buttonVariants(), 'h-10 px-4')}>
@@ -50,6 +52,26 @@ export function KnittingPage() {
           ))}
         </ul>
       )}
+
+      <section aria-labelledby="knit-queue" className="mt-8 space-y-3">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <h2 id="knit-queue" className="text-lg font-semibold tracking-tight">
+            À faire plus tard
+          </h2>
+          <Link to="/tricot/a-faire" className={cn(buttonVariants({ variant: 'outline' }), 'h-10')}>
+            <BookmarkPlus /> Mettre un patron de côté
+          </Link>
+        </div>
+        {queue.error ? (
+          <LoadError message={queue.error} onRetry={queue.reload} />
+        ) : !queue.data ? (
+          <Skeleton className="h-16 rounded-2xl" aria-busy="true" aria-label="Chargement des patrons en attente" />
+        ) : queue.data.length === 0 ? (
+          <p className="text-sm text-muted-foreground">Aucun patron en attente : garde ici ceux que tu veux tricoter un jour.</p>
+        ) : (
+          <QueueList items={queue.data} onChange={queue.reload} />
+        )}
+      </section>
     </>
   )
 }

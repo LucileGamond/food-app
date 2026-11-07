@@ -3,16 +3,21 @@
 // le moteur partagé avec l'application (_shared/watering).
 
 import { plantSchedule, type WateringEvent, type WateringRule } from '../_shared/watering/schedule.ts'
-import type { PushPayload } from './message.ts'
+import type { NotificationButton, PushPayload } from './message.ts'
 
 export interface PlantData {
+  id: string
   name: string
   rules: WateringRule[]
   events: WateringEvent[]
 }
 
 export interface DuePlant {
+  plantId: string
   name: string
+  /** Échéance à couvrir (règle et jour), notée par le bouton « C’est arrosé ». */
+  ruleId: string
+  scheduledOn: string
   amountMl: number
   overdueDays: number
 }
@@ -26,7 +31,14 @@ export function duePlants(plants: PlantData[], today: string): DuePlant[] {
   return plants
     .map((plant) => ({ plant, schedule: plantSchedule(plant.rules, plant.events, today) }))
     .filter(({ schedule }) => schedule.pending !== null)
-    .map(({ plant, schedule }) => ({ name: plant.name, amountMl: schedule.pending!.amountMl, overdueDays: schedule.overdueDays }))
+    .map(({ plant, schedule }) => ({
+      plantId: plant.id,
+      name: plant.name,
+      ruleId: schedule.pending!.ruleId,
+      scheduledOn: schedule.pending!.date,
+      amountMl: schedule.pending!.amountMl,
+      overdueDays: schedule.overdueDays,
+    }))
     .sort((a, b) => b.overdueDays - a.overdueDays || a.name.localeCompare(b.name, 'fr'))
 }
 
@@ -40,4 +52,14 @@ export function buildPlantsMessage(due: DuePlant[], today: string): PushPayload 
     url: '/plantes',
     tag: `plants-${today}`,
   }
+}
+
+/** Bouton qui note d'un geste toutes les plantes de la notification. */
+export function wateredButton(due: DuePlant[]): NotificationButton {
+  return { action: 'watered', title: due.length === 1 ? 'C’est arrosé' : 'Tout est arrosé' }
+}
+
+/** Échéances couvertes par ce bouton (jeton de la notification). */
+export function wateringsOf(due: DuePlant[]) {
+  return due.map((p) => ({ plant_id: p.plantId, rule_id: p.ruleId, scheduled_on: p.scheduledOn, amount_ml: p.amountMl }))
 }

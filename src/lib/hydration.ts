@@ -6,10 +6,66 @@ export interface WaterIntake {
   drunk_at: string
 }
 
-export const GLASSES = [
-  { label: 'Petit verre', volumeMl: 200 },
-  { label: 'Grand verre', volumeMl: 330 },
-] as const
+/** Contenant proposé sur la page Eau et dans le rappel (« Gourde », 750 ml). */
+export interface WaterContainer {
+  name: string
+  volumeMl: number
+}
+
+/** Contenants tant que la personne n'a rien réglé (identiques à ceux de la base). */
+export const DEFAULT_CONTAINERS: WaterContainer[] = [
+  { name: 'Petit verre', volumeMl: 200 },
+  { name: 'Grand verre', volumeMl: 330 },
+]
+
+/** Bornes des contenants (mêmes que la base : hydration_containers_are_valid). */
+export const MAX_CONTAINERS = 4
+export const CONTAINER_NAME_MAX = 20
+export const MIN_CONTAINER_ML = 50
+export const MAX_CONTAINER_ML = 2000
+
+/** Contenant en cours de saisie : volume en centilitres, tel que tapé. */
+export interface ContainerDraft {
+  name: string
+  cl: string
+}
+
+export function toContainerDraft(container: WaterContainer): ContainerDraft {
+  return { name: container.name, cl: String(container.volumeMl / 10).replace('.', ',') }
+}
+
+/** Contenants saisis → contenants enregistrables, ou le premier problème rencontré. */
+export function parseContainers(drafts: ContainerDraft[]): { containers: WaterContainer[] } | { error: string } {
+  if (drafts.length === 0) return { error: 'Garde au moins un contenant.' }
+  if (drafts.length > MAX_CONTAINERS) return { error: `${MAX_CONTAINERS} contenants au plus.` }
+  const containers: WaterContainer[] = []
+  for (const [index, draft] of drafts.entries()) {
+    const name = draft.name.trim()
+    const label = name || `Contenant ${index + 1}`
+    if (!name) return { error: `${label} : donne-lui un nom.` }
+    if (name.length > CONTAINER_NAME_MAX) return { error: `${label} : ${CONTAINER_NAME_MAX} caractères au plus.` }
+    const cl = Number(draft.cl.trim().replace(',', '.'))
+    const volumeMl = Math.round(cl * 10)
+    if (draft.cl.trim() === '' || !Number.isFinite(cl) || volumeMl < MIN_CONTAINER_ML || volumeMl > MAX_CONTAINER_ML) {
+      return { error: `${label} : volume entre ${MIN_CONTAINER_ML / 10} et ${MAX_CONTAINER_ML / 10} cl.` }
+    }
+    containers.push({ name, volumeMl })
+  }
+  return { containers }
+}
+
+/** Contenants lus en base (jsonb { name, ml }) ; ceux par défaut si la valeur est inattendue. */
+export function containersFromJson(value: unknown): WaterContainer[] {
+  if (!Array.isArray(value)) return DEFAULT_CONTAINERS
+  const containers = value.flatMap((c: { name?: unknown; ml?: unknown }) =>
+    typeof c?.name === 'string' && typeof c.ml === 'number' ? [{ name: c.name, volumeMl: c.ml }] : [],
+  )
+  return containers.length > 0 ? containers : DEFAULT_CONTAINERS
+}
+
+export function containersToJson(containers: WaterContainer[]): { name: string; ml: number }[] {
+  return containers.map((c) => ({ name: c.name, ml: c.volumeMl }))
+}
 
 /** Plage des rappels (heure de Paris, comme le serveur) et délai sans boire avant un rappel. */
 export const REMINDER_START_HOUR = 9
