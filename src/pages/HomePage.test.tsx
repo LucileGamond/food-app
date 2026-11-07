@@ -115,7 +115,7 @@ describe('HomePage', () => {
   })
 
   it('aucune page résumable : renvoie aux réglages', async () => {
-    setup(['planning', 'recettes', 'courses', 'hydratation', 'plantes', 'tricot'])
+    setup(['planning', 'recettes', 'courses', 'hydratation', 'plantes', 'tricot', 'agenda'])
     expect(await screen.findByText('Rien à résumer ici')).toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'Réglages' })).toHaveAttribute('href', '/reglages')
   })

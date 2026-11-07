@@ -21,6 +21,9 @@
       ],
       "@watering/*": [
         "./supabase/functions/_shared/watering/*"
+      ],
+      "@agenda/*": [
+        "./supabase/functions/_shared/agenda/*"
       ]
     }
   }

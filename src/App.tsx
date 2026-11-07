@@ -37,6 +37,8 @@ const KnittingProjectPage = lazy(() => import('@/modules/tricot/pages/KnittingPr
 const PlantsPage = lazy(() => import('@/modules/plantes/pages/PlantsPage').then((m) => ({ default: m.PlantsPage })))
 const PlantFormPage = lazy(() => import('@/modules/plantes/pages/PlantFormPage').then((m) => ({ default: m.PlantFormPage })))
 const PlantDetailPage = lazy(() => import('@/modules/plantes/pages/PlantDetailPage').then((m) => ({ default: m.PlantDetailPage })))
+const AgendaPage = lazy(() => import('@/modules/agenda/pages/AgendaPage').then((m) => ({ default: m.AgendaPage })))
+const AgendaSourcesPage = lazy(() => import('@/modules/agenda/pages/AgendaSourcesPage').then((m) => ({ default: m.AgendaSourcesPage })))
 const RecipeFormPage = lazy(() => import('@/pages/RecipeFormPage').then((m) => ({ default: m.RecipeFormPage })))
 
 export function App({ api, auth }: { api: Api; auth: AuthClient }) {
@@ -92,6 +94,8 @@ export function App({ api, auth }: { api: Api; auth: AuthClient }) {
                 <Route path="/plantes/nouvelle" element={<PlantFormPage />} />
                 <Route path="/plantes/:id" element={<PlantDetailPage />} />
                 <Route path="/plantes/:id/modifier" element={<PlantFormPage />} />
+                <Route path="/agenda" element={<AgendaPage />} />
+                <Route path="/agenda/sources" element={<AgendaSourcesPage />} />
               </Route>
             </Route>
           </Route>

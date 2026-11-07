@@ -3,9 +3,11 @@
 //   - toutes les 3 minutes : notifications groupées des modifications de listes de courses aux appareils des autres ;
 //   - toutes les 10 minutes, corps {"job": "hydration"} : rappels « pense à boire » ;
 //   - toutes les heures, corps {"job": "plants"} : rappels d'arrosage du matin (à partir de 8 h, une fois par jour) ;
+//   - toutes les heures, corps {"job": "agenda"} : résumé du matin des rendez-vous (agenda.ts, branché par index.ts) ;
 //   - chaque nuit, corps {"job": "cleanup"} : suppression des fichiers (photos, PDF) que plus rien n'utilise.
 
 import { CLEANED_BUCKETS, orphanFiles, type CleanedBucket, type StoredFile } from './cleanup.ts'
+import { sameSecret } from '../_shared/secret.ts'
 import { toCivilDate } from '../_shared/watering/civil-date.ts'
 import { buildHydrationMessage, drinkButtons, type HydrationReminder } from './hydration.ts'
 import { buildPlantsMessage, duePlants, wateredButton, wateringsOf, type PlantData } from './plants.ts'
@@ -52,6 +54,12 @@ export interface Deps {
   purgeOldEvents: () => Promise<void>
   log?: (message: string, data?: Record<string, unknown>) => void
 }
+
+/** Ce qu'il faut pour envoyer un message à des personnes (notifications de chaque module). */
+export type SendDeps = Pick<Deps, 'loadProfileSubscriptions' | 'send' | 'deleteSubscriptions'>
+
+/** Notifications d'un module, déclenchées par leur tâche planifiée (corps {"job": "<nom>"}). */
+export type Jobs = Record<string, () => Promise<RunReport>>
 
 export interface RunReport {
   groups: number
@@ -103,7 +111,7 @@ export async function notifyPending(deps: Deps): Promise<RunReport> {
 }
 
 /** Un message par personne, sur tous ses appareils ; les abonnements expirés sont retirés. */
-async function sendToProfiles(deps: Deps, messages: { profileId: string; payload: PushPayload }[]): Promise<RunReport> {
+export async function sendToProfiles(deps: SendDeps, messages:{ profileId: string; payload: PushPayload }[]): Promise<RunReport> {
   const report: RunReport = { groups: 0, sent: 0, failed: 0, removed: 0 }
   const gone: string[] = []
   try {
@@ -181,20 +189,14 @@ export async function cleanupFiles(deps: Deps): Promise<{ removed: number }> {
   return { removed }
 }
 
-/** Comparaison en temps constant (le secret ne se devine pas caractère par caractère). */
-export function sameSecret(given: string | null, expected: string): boolean {
-  const a = new TextEncoder().encode(given ?? '')
-  const b = new TextEncoder().encode(expected)
-  let diff = a.length ^ b.length
-  for (let i = 0; i < b.length; i++) diff |= (a[i] ?? 0) ^ b[i]!
-  return diff === 0
-}
+export { sameSecret }
 
 function json(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json; charset=utf-8' } })
 }
 
-export function createHandler(deps: Deps) {
+/** `jobs` : notifications des autres modules (agenda…), ajoutées sans toucher à ce handler. */
+export function createHandler(deps: Deps, jobs: Jobs = {}) {
   return async (request: Request): Promise<Response> => {
     if (request.method !== 'POST') return json({ error: 'Méthode non autorisée.' }, 405)
     if (!deps.secret || !sameSecret(request.headers.get('x-cron-secret'), deps.secret)) return json({ error: 'Non autorisé.' }, 401)
@@ -205,8 +207,14 @@ export function createHandler(deps: Deps) {
         if (result.removed > 0) deps.log?.('fichiers inutilisés supprimés', result)
         return json(result)
       }
-      const report =
-        body?.job === 'hydration' ? await notifyHydration(deps) : body?.job === 'plants' ? await notifyPlants(deps) : await notifyPending(deps)
+      const job = typeof body?.job === 'string' && Object.hasOwn(jobs, body.job) ? jobs[body.job] : undefined
+      const report = job
+        ? await job()
+        : body?.job === 'hydration'
+          ? await notifyHydration(deps)
+          : body?.job === 'plants'
+            ? await notifyPlants(deps)
+            : await notifyPending(deps)
       if (report.groups > 0) deps.log?.('notifications envoyées', { ...report })
       return json(report)
     } catch (error) {

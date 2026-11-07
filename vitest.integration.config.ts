@@ -7,6 +7,7 @@ export default defineConfig({
     alias: {
       '@': fileURLToPath(new URL('./src', import.meta.url)),
       '@watering': fileURLToPath(new URL('./supabase/functions/_shared/watering', import.meta.url)),
+      '@agenda': fileURLToPath(new URL('./supabase/functions/_shared/agenda', import.meta.url)),
     },
   },
   test: {

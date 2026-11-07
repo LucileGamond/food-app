@@ -72,7 +72,7 @@ select is((select count(*)::int from public.knit_steps), 0, 'étapes supprimées
 reset role;
 select is(
   (select column_default from information_schema.columns where table_name = 'user_settings' and column_name = 'disabled_pages'),
-  '''{hydratation,tricot,plantes}''::text[]', 'tricot masqué par défaut'
+  '''{hydratation,tricot,plantes,agenda}''::text[]', 'tricot masqué par défaut'
 );
 
 select * from finish();

@@ -1,7 +1,8 @@
 import { DEFAULT_SETTINGS } from '../src/lib/settings'
 import type { Locator, Page } from '@playwright/test'
 import { addDays, todayIso } from '../src/lib/dates'
-import { signedInApi } from '../tests/integration/helpers'
+import { createAppClient } from '../src/api/client'
+import { LOCAL_SERVICE_KEY, LOCAL_URL, signedInApi } from '../tests/integration/helpers'
 import { ERIC, LUCILE, dayLabel, expect, login, test } from './fixtures'
 
 // Revue de mise en page : chaque écran et chaque fenêtre, sur ordinateur et sur un petit téléphone (360 px),
@@ -9,6 +10,8 @@ import { ERIC, LUCILE, dayLabel, expect, login, test } from './fixtures'
 
 const LONG_TITLE = 'Gratin dauphinois de grand-mère aux pommes de terre fondantes et au comté affiné 24 mois'
 const LONG_URL = 'https://www.une-tres-longue-adresse-de-site-de-cuisine.example/recettes/plats/gratin-dauphinois-de-grand-mere-au-comte'
+
+const admin = createAppClient(LOCAL_URL, LOCAL_SERVICE_KEY, { persistSession: false })
 
 async function seed() {
   const { api } = await signedInApi()
@@ -250,6 +253,22 @@ test('aucun écran ni aucune fenêtre ne déborde', async ({ page, isMobile }) =
   await page.goto('/reglages')
   await expect(page.getByRole('textbox', { name: 'Objectif par jour (litres)' })).toBeVisible()
   await check(page, 'reglages')
+
+  // Agenda : un agenda au nom long, un rendez-vous au titre et au lieu longs
+  const { data: source } = await admin.from('calendar_sources').insert({ owner_id: ERIC.id, provider: 'ical', name: LONG_TITLE.slice(0, 60) }).select('id').single()
+  await admin.rpc('replace_calendar_events', {
+    p_source_id: source!.id,
+    p_events: [{ uid: 'long', title: LONG_TITLE, location: LONG_TITLE, allDay: false, startsAt: `${todayIso()}T10:00:00Z`, endsAt: `${todayIso()}T11:00:00Z` }],
+  })
+  await page.goto('/agenda')
+  await expect(page.getByText(LONG_TITLE).first()).toBeVisible()
+  await check(page, 'agenda')
+  await page.goto('/agenda/sources')
+  await expect(page.getByRole('list', { name: 'Agendas suivis' })).toBeVisible()
+  await check(page, 'agenda-sources')
+  await page.goto('/')
+  await expect(page.getByRole('region', { name: 'Rendez-vous' }).getByText(LONG_TITLE).first()).toBeVisible()
+  await check(page, 'accueil-agenda')
 
   // Tricot
   await page.goto('/tricot')

@@ -21,6 +21,7 @@ describe('settings api', () => {
         { name: 'Gourde', volumeMl: 750 },
         { name: 'Tasse', volumeMl: 250 },
       ],
+      agendaScope: 'mine' as const,
     }
     await lucile.api.settings.saveSettings(mine)
     expect(await lucile.api.settings.getSettings()).toEqual(mine)
@@ -36,6 +37,7 @@ describe('settings api', () => {
     await expect(api.settings.saveSettings({ ...DEFAULT_SETTINGS, hydrationGoalMl: 10 })).rejects.toThrow('Certaines valeurs sont invalides.')
     await expect(api.settings.saveSettings({ ...DEFAULT_SETTINGS, hydrationContainers: [{ name: 'Seau', volumeMl: 10_000 }] })).rejects.toThrow('Certaines valeurs sont invalides.')
     await expect(api.settings.saveSettings({ ...DEFAULT_SETTINGS, hydrationContainers: [] })).rejects.toThrow('Certaines valeurs sont invalides.')
+    await expect(api.settings.saveSettings({ ...DEFAULT_SETTINGS, agendaScope: 'personne' as 'all' })).rejects.toThrow('Certaines valeurs sont invalides.')
     await expect(createSettingsApi(anonClient()).getSettings()).rejects.toThrow()
   })
 })

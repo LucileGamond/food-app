@@ -5,7 +5,7 @@
     "lib": ["ES2023", "DOM"],
     "module": "esnext",
     "types": ["vite/client", "vitest/globals", "@testing-library/jest-dom"],
-    "paths": { "@/*": ["./src/*"], "@watering/*": ["./supabase/functions/_shared/watering/*"] },
+    "paths": { "@/*": ["./src/*"], "@watering/*": ["./supabase/functions/_shared/watering/*"], "@agenda/*": ["./supabase/functions/_shared/agenda/*"] },
     "allowArbitraryExtensions": true,
     "skipLibCheck": true,
 

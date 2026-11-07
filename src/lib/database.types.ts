@@ -23,7 +23,67 @@ export type Database = {
           }
         },"public": {
           Tables: {
-            "cooking_progress": {
+            "calendar_events": {
+                  Row: {
+                    "all_day": boolean,"end_date": string | null,"ends_at": string | null,"id": string,"location": string | null,"source_id": string,"start_date": string | null,"starts_at": string | null,"title": string,"uid": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "all_day": boolean,"end_date"?: string | null,"ends_at"?: string | null,"id"?: string,"location"?: string | null,"source_id": string,"start_date"?: string | null,"starts_at"?: string | null,"title": string,"uid": string
+                  }
+                  Update: {
+                    "all_day"?: boolean,"end_date"?: string | null,"ends_at"?: string | null,"id"?: string,"location"?: string | null,"source_id"?: string,"start_date"?: string | null,"starts_at"?: string | null,"title"?: string,"uid"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "calendar_events_source_id_fkey"
+      columns: ["source_id"]
+isOneToOne: false
+      referencedRelation: "calendar_sources"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"calendar_source_credentials": {
+                  Row: {
+                    "ical_url": string | null,"source_id": string,"updated_at": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "ical_url"?: string | null,"source_id": string,"updated_at"?: string
+                  }
+                  Update: {
+                    "ical_url"?: string | null,"source_id"?: string,"updated_at"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "calendar_source_credentials_source_id_fkey"
+      columns: ["source_id"]
+isOneToOne: true
+      referencedRelation: "calendar_sources"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"calendar_sources": {
+                  Row: {
+                    "created_at": string,"id": string,"last_error": string | null,"last_synced_at": string | null,"name": string,"owner_id": string,"provider": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "created_at"?: string,"id"?: string,"last_error"?: string | null,"last_synced_at"?: string | null,"name": string,"owner_id"?: string,"provider": string
+                  }
+                  Update: {
+                    "created_at"?: string,"id"?: string,"last_error"?: string | null,"last_synced_at"?: string | null,"name"?: string,"owner_id"?: string,"provider"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "calendar_sources_owner_id_fkey"
+      columns: ["owner_id"]
+isOneToOne: false
+      referencedRelation: "profiles"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"cooking_progress": {
                   Row: {
                     "ingredients": (number)[],"people": number | null,"recipe_id": string,"steps": (number)[],"updated_at": string
                   }
@@ -541,14 +601,14 @@ isOneToOne: false
                   ]
                 },"user_settings": {
                   Row: {
-                    "disabled_pages": (string)[],"hydration_containers": NonNullable<Json>,"hydration_goal_ml": number,"hydration_reminded_at": string | null,"muted_notifications": (string)[],"plants_reminded_on": string | null,"profile_id": string,"updated_at": string
+                    "agenda_reminded_on": string | null,"agenda_scope": string,"disabled_pages": (string)[],"hydration_containers": NonNullable<Json>,"hydration_goal_ml": number,"hydration_reminded_at": string | null,"muted_notifications": (string)[],"plants_reminded_on": string | null,"profile_id": string,"updated_at": string
                   }
                   ComputedFields: never
                   Insert: {
-                    "disabled_pages"?: (string)[],"hydration_containers"?: NonNullable<Json>,"hydration_goal_ml"?: number,"hydration_reminded_at"?: string | null,"muted_notifications"?: (string)[],"plants_reminded_on"?: string | null,"profile_id"?: string,"updated_at"?: string
+                    "agenda_reminded_on"?: string | null,"agenda_scope"?: string,"disabled_pages"?: (string)[],"hydration_containers"?: NonNullable<Json>,"hydration_goal_ml"?: number,"hydration_reminded_at"?: string | null,"muted_notifications"?: (string)[],"plants_reminded_on"?: string | null,"profile_id"?: string,"updated_at"?: string
                   }
                   Update: {
-                    "disabled_pages"?: (string)[],"hydration_containers"?: NonNullable<Json>,"hydration_goal_ml"?: number,"hydration_reminded_at"?: string | null,"muted_notifications"?: (string)[],"plants_reminded_on"?: string | null,"profile_id"?: string,"updated_at"?: string
+                    "agenda_reminded_on"?: string | null,"agenda_scope"?: string,"disabled_pages"?: (string)[],"hydration_containers"?: NonNullable<Json>,"hydration_goal_ml"?: number,"hydration_reminded_at"?: string | null,"muted_notifications"?: (string)[],"plants_reminded_on"?: string | null,"profile_id"?: string,"updated_at"?: string
                   }
                   Relationships: [
                     {
@@ -663,8 +723,21 @@ isOneToOne: false
             [_ in never]: never
           }
           Functions: {
-            "add_to_inbox":
+            "add_ical_calendar":
+{ Args: { "p_name": string,"p_url": string }; Returns: string
+                           },
+"add_to_inbox":
 { Args: { "p_list"?: string,"p_photos"?: (string)[],"p_recipe_id"?: string,"p_title"?: string,"p_url"?: string }; Returns: string
+                           },
+"agenda_reminders_due":
+{ Args: { "p_now"?: string }; Returns: {
+              "agenda_scope": string,"profile_id": string
+            }[]
+                           },
+"claim_agenda_reminders":
+{ Args: { "p_now"?: string }; Returns: {
+              "agenda_scope": string,"profile_id": string
+            }[]
                            },
 "claim_hydration_reminders":
 { Args: { "p_now"?: string }; Returns: {
@@ -744,6 +817,9 @@ isOneToOne: false
                            },
 "referenced_files":
 { Args: { "p_bucket": string }; Returns: string[]
+                           },
+"replace_calendar_events":
+{ Args: { "p_events": Json,"p_source_id": string }; Returns: undefined
                            },
 "replace_watering_rules":
 { Args: { "p_plant_id": string,"p_rules": Json }; Returns: undefined

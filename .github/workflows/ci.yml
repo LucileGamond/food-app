@@ -104,6 +104,7 @@ jobs:
           supabase functions deploy estimate-nutrition --project-ref "${{ secrets.SUPABASE_PROJECT_REF }}" --use-api
           supabase functions deploy knit-pattern --project-ref "${{ secrets.SUPABASE_PROJECT_REF }}" --use-api
           supabase functions deploy notify-shopping --project-ref "${{ secrets.SUPABASE_PROJECT_REF }}" --use-api --no-verify-jwt
+          supabase functions deploy sync-calendars --project-ref "${{ secrets.SUPABASE_PROJECT_REF }}" --use-api --no-verify-jwt
 
       - name: Publier sur Azure Static Web Apps
         uses: Azure/static-web-apps-deploy@v1

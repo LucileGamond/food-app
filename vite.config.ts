@@ -69,6 +69,8 @@ export default defineConfig({
       '@': fileURLToPath(new URL('./src', import.meta.url)),
       // Moteur d'arrosage partagé avec les rappels (Edge Function).
       '@watering': fileURLToPath(new URL('./supabase/functions/_shared/watering', import.meta.url)),
+      // Agenda (occurrences, horaires, agendas affichés), partagé avec la synchronisation et le résumé du matin.
+      '@agenda': fileURLToPath(new URL('./supabase/functions/_shared/agenda', import.meta.url)),
     },
   },
   test: {

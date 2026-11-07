@@ -66,7 +66,7 @@ describe('notifications de l’application', () => {
     api.settings.getSettings.mockResolvedValue({ ...DEFAULT_SETTINGS, disabledPages: [] })
     const { unmount } = renderLayout(api)
     expect(await screen.findByRole('region', { name: 'Activer les notifications' })).toHaveTextContent(
-      'Tu seras prévenu(e) : listes de courses modifiées par l’autre, rappels pour boire et plantes à arroser.',
+      'Tu seras prévenu(e) : listes de courses modifiées par l’autre, rappels pour boire, plantes à arroser et rendez-vous du jour.',
     )
     unmount()
 

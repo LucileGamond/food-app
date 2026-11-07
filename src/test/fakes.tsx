@@ -26,6 +26,7 @@ import type { Plant, PlantPhoto, WateringEvent } from '@/modules/plantes/lib/pla
 import type { KnitProject, KnitProjectSummary, ReadPattern } from '@/modules/tricot/lib/pattern'
 import { EMPTY_YARN, type QueuedPattern, type StashItem, type Yarn, type YarnIdea } from '@/modules/tricot/lib/yarn'
 import { DEFAULT_SETTINGS, type UserSettings } from '@/lib/settings'
+import type { AgendaEvent, CalendarSource } from '@/modules/agenda/lib/agenda'
 
 export const LUCILE: Profile = { id: 'u-lucile', display_name: 'Lucile' }
 export const ERIC: Profile = { id: 'u-eric', display_name: 'Eric' }
@@ -208,6 +209,14 @@ export function fakeApi(): FakeApi {
       deletePhoto: vi.fn(async () => undefined),
       reorderPhotos: vi.fn(async () => undefined),
       signedUrls: vi.fn(async (paths: string[]) => Object.fromEntries(paths.map((p) => [p, `https://cdn.test/${p}`]))),
+      subscribe: vi.fn(() => () => undefined),
+    },
+    agenda: {
+      listSources: vi.fn(async () => [] as CalendarSource[]),
+      addIcalSource: vi.fn(async () => 'new-source'),
+      deleteSource: vi.fn(async () => undefined),
+      listEvents: vi.fn(async () => [] as AgendaEvent[]),
+      syncNow: vi.fn(async () => undefined),
       subscribe: vi.fn(() => () => undefined),
     },
     activity: {

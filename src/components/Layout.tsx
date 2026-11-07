@@ -1,4 +1,4 @@
-import { BookOpen, CalendarDays, GlassWater, HeartPulse, House, Leaf, ListChecks, LogOut, Scale, Settings, ShoppingCart, Spool, Sprout, UtensilsCrossed, type LucideIcon } from 'lucide-react'
+import { BookOpen, CalendarClock, CalendarDays, GlassWater, HeartPulse, House, Leaf, ListChecks, LogOut, Scale, Settings, ShoppingCart, Spool, Sprout, UtensilsCrossed, type LucideIcon } from 'lucide-react'
 import { useState } from 'react'
 import { Link, NavLink, Outlet, useLocation } from 'react-router-dom'
 import { Button, buttonVariants } from '@/components/ui/button'
@@ -18,6 +18,7 @@ const PAGE_ICONS: Record<PageKey, LucideIcon> = {
   hydratation: GlassWater,
   tricot: Spool,
   plantes: Sprout,
+  agenda: CalendarClock,
 }
 
 const SECTION_ICONS: Record<SectionKey, LucideIcon> = {
@@ -25,6 +26,7 @@ const SECTION_ICONS: Record<SectionKey, LucideIcon> = {
   sante: HeartPulse,
   tricot: Spool,
   plantes: Sprout,
+  agenda: CalendarClock,
 }
 
 function Brand() {

@@ -18,13 +18,13 @@ describe('réglages', () => {
   it('regroupe les pages par section, et cache une section sans page affichée', () => {
     expect(SECTIONS.flatMap((s) => s.pages).toSorted()).toEqual(PAGES.map((p) => p.key).toSorted())
     expect(sectionOf('hydratation').label).toBe('Santé')
-    const shown = visibleSections((page) => isPageEnabled({ ...DEFAULT_SETTINGS, disabledPages: ['poids', 'plan', 'hydratation', 'courses'] }, page))
+    const shown = visibleSections((page) => isPageEnabled({ ...DEFAULT_SETTINGS, disabledPages: ['poids', 'plan', 'hydratation', 'courses', 'agenda'] }, page))
     expect(shown.map(({ section, pages }) => `${section.label}: ${pages.map((p) => p.label).join(', ')}`)).toEqual(['Repas: Planning, Recettes', 'Tricot: Tricot', 'Plantes: Plantes'])
   })
 
   it('active et désactive pages et notifications', () => {
-    expect(togglePage(DEFAULT_SETTINGS, 'hydratation', true)).toEqual({ disabledPages: ['tricot', 'plantes'] })
-    expect(togglePage(DEFAULT_SETTINGS, 'poids', false)).toEqual({ disabledPages: ['hydratation', 'tricot', 'plantes', 'poids'] })
+    expect(togglePage(DEFAULT_SETTINGS, 'hydratation', true)).toEqual({ disabledPages: ['tricot', 'plantes', 'agenda'] })
+    expect(togglePage(DEFAULT_SETTINGS, 'poids', false)).toEqual({ disabledPages: ['hydratation', 'tricot', 'plantes', 'agenda', 'poids'] })
     expect(toggleNotification(DEFAULT_SETTINGS, 'courses', false)).toEqual({ mutedNotifications: ['courses'] })
     expect(toggleNotification({ ...DEFAULT_SETTINGS, mutedNotifications: ['courses'] }, 'courses', true)).toEqual({ mutedNotifications: [] })
   })
@@ -32,8 +32,8 @@ describe('réglages', () => {
   it('liste les notifications qu’on recevra', () => {
     expect(activeTopics(DEFAULT_SETTINGS).map((t) => t.key)).toEqual(['courses'])
     const all = activeTopics({ ...DEFAULT_SETTINGS, disabledPages: [] })
-    expect(describeTopics(all)).toBe('listes de courses modifiées par l’autre, rappels pour boire et plantes à arroser')
-    expect(activeTopics({ ...DEFAULT_SETTINGS, disabledPages: [], mutedNotifications: ['courses'] }).map((t) => t.key)).toEqual(['hydratation', 'plantes'])
+    expect(describeTopics(all)).toBe('listes de courses modifiées par l’autre, rappels pour boire, plantes à arroser et rendez-vous du jour')
+    expect(activeTopics({ ...DEFAULT_SETTINGS, disabledPages: [], mutedNotifications: ['courses'] }).map((t) => t.key)).toEqual(['hydratation', 'plantes', 'agenda'])
     expect(describeTopics([])).toBe('')
   })
 

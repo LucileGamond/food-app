@@ -1,9 +1,10 @@
 // Réglages de chacun : pages affichées, notifications reçues, objectif et contenants d'hydratation.
 
+import type { AgendaScope } from '@agenda/scope.ts'
 import { DEFAULT_CONTAINERS, type WaterContainer } from './hydration'
 
-export type PageKey = 'planning' | 'recettes' | 'plan' | 'courses' | 'poids' | 'hydratation' | 'tricot' | 'plantes'
-export type NotificationTopic = 'courses' | 'hydratation' | 'plantes'
+export type PageKey = 'planning' | 'recettes' | 'plan' | 'courses' | 'poids' | 'hydratation' | 'tricot' | 'plantes' | 'agenda'
+export type NotificationTopic = 'courses' | 'hydratation' | 'plantes' | 'agenda'
 
 export interface PageInfo {
   key: PageKey
@@ -24,12 +25,14 @@ export const PAGES: PageInfo[] = [
   { key: 'hydratation', to: '/hydratation', label: 'Eau', description: 'Suivi d’hydratation' },
   { key: 'tricot', to: '/tricot', label: 'Tricot', description: 'Patrons découpés en étapes, compteur de rangs' },
   { key: 'plantes', to: '/plantes', label: 'Plantes', description: 'Plantes de la maison et arrosages, partagés' },
+  { key: 'agenda', to: '/agenda', label: 'Agenda', description: 'Rendez-vous de vos agendas Google, en lecture seule' },
 ]
 
 export const NOTIFICATION_TOPICS: { key: NotificationTopic; label: string; description: string; summary: string }[] = [
   { key: 'courses', label: 'Courses', description: 'Quand l’autre modifie une liste de courses', summary: 'listes de courses modifiées par l’autre' },
   { key: 'hydratation', label: 'Eau', description: 'Rappel après 4 h sans boire (9 h – 23 h), jusqu’à l’objectif', summary: 'rappels pour boire' },
   { key: 'plantes', label: 'Plantes', description: 'Le matin à 8 h, les plantes à arroser dans la journée', summary: 'plantes à arroser' },
+  { key: 'agenda', label: 'Agenda', description: 'Le matin à 7 h, les rendez-vous du jour', summary: 'rendez-vous du jour' },
 ]
 
 /** Notifications qu'on recevra : page affichée et sujet non coupé. */
@@ -48,10 +51,17 @@ export interface UserSettings {
   mutedNotifications: NotificationTopic[]
   hydrationGoalMl: number
   hydrationContainers: WaterContainer[]
+  /** Agendas affichés (accueil, page Agenda, résumé du matin). */
+  agendaScope: AgendaScope
 }
 
 /** Valeurs tant que la personne n'a rien enregistré (identiques à celles de la base). */
-export const DEFAULT_SETTINGS: UserSettings = { disabledPages: ['hydratation', 'tricot', 'plantes'], mutedNotifications: [], hydrationGoalMl: 1500, hydrationContainers: DEFAULT_CONTAINERS }
+export const DEFAULT_SETTINGS: UserSettings = { disabledPages: ['hydratation', 'tricot', 'plantes', 'agenda'],
+  mutedNotifications: [],
+  hydrationGoalMl: 1500,
+  hydrationContainers: DEFAULT_CONTAINERS,
+  agendaScope: 'all',
+}
 
 export const MIN_GOAL_ML = 500
 export const MAX_GOAL_ML = 5000
@@ -68,7 +78,7 @@ export function pageOf(pathname: string): PageKey | null {
 /** Accueil « Aujourd’hui » : toujours affiché, il résume les pages affichées. */
 export const HOME_PATH = '/'
 
-export type SectionKey = 'repas' | 'sante' | 'tricot' | 'plantes'
+export type SectionKey = 'repas' | 'sante' | 'tricot' | 'plantes' | 'agenda'
 
 export interface SectionInfo {
   key: SectionKey
@@ -82,6 +92,7 @@ export const SECTIONS: SectionInfo[] = [
   { key: 'sante', label: 'Santé', pages: ['poids', 'plan', 'hydratation'] },
   { key: 'tricot', label: 'Tricot', pages: ['tricot'] },
   { key: 'plantes', label: 'Plantes', pages: ['plantes'] },
+  { key: 'agenda', label: 'Agenda', pages: ['agenda'] },
 ]
 
 /** Sections avec leurs pages affichées ; une section dont aucune page n'est affichée disparaît. */

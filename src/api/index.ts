@@ -11,6 +11,7 @@ import { createRecipesApi } from './recipes'
 import { createSettingsApi } from './settings'
 import { createShoppingApi } from './shopping'
 import { createWeightsApi } from './weights'
+import { createAgendaApi } from '@/modules/agenda/api'
 import { createPlantsApi } from '@/modules/plantes/api'
 import { createKnittingApi } from '@/modules/tricot/api'
 
@@ -29,6 +30,7 @@ export function createApi(db: AppSupabaseClient) {
     hydration: createHydrationApi(db),
     knitting: createKnittingApi(db),
     plants: createPlantsApi(db),
+    agenda: createAgendaApi(db),
     activity: createActivityApi(db),
   }
 }

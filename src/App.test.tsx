@@ -125,7 +125,7 @@ describe('App', () => {
     const [sidebar, tabs] = screen.getAllByRole('navigation', { name: 'Navigation principale' })
     expect(within(within(sidebar!).getByRole('group', { name: 'Repas' })).getAllByRole('link').map((l) => l.textContent)).toEqual(['Planning', 'Recettes', 'Courses'])
     expect(within(within(sidebar!).getByRole('group', { name: 'Santé' })).getAllByRole('link').map((l) => l.textContent)).toEqual(['Poids', 'Plan', 'Eau'])
-    expect(within(tabs!).getAllByRole('link').map((l) => l.textContent)).toEqual(['Accueil', 'Repas', 'Santé', 'Tricot', 'Plantes'])
+    expect(within(tabs!).getAllByRole('link').map((l) => l.textContent)).toEqual(['Accueil', 'Repas', 'Santé', 'Tricot', 'Plantes', 'Agenda'])
 
     // Section Santé : ses pages en haut ; l'onglet ramène ensuite à la dernière page ouverte
     await user.click(within(tabs!).getByRole('link', { name: 'Santé' }))
