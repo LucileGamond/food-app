@@ -14,6 +14,8 @@ export interface BatchContext {
   tags: string[]
   /** Recettes déjà enregistrées ou importées dans cette série (`recipeKey` : titre et livre) → recette ; complété au fil de l'import. */
   known: Map<string, string>
+  /** Relecture demandée par la personne (« C'est une recette ») : le modèle ne doit pas répondre « pas de recette ». */
+  insist?: boolean
 }
 
 const firstError = (errors: RecipeFormErrors) =>
@@ -62,10 +64,14 @@ export async function importOne(file: File, context: BatchContext): Promise<Batc
 export async function importPages(pages: Blob[], context: BatchContext, originals: Blob[] = pages): Promise<BatchResult> {
   let read
   try {
-    read = await context.api.recipes.importFromPhotos(pages, context.tags)
+    read = context.insist
+      ? await context.api.recipes.importFromPhotos(pages, context.tags, { insist: true })
+      : await context.api.recipes.importFromPhotos(pages, context.tags)
   } catch (error) {
-    // 422 : la page n'est pas une recette (couverture, sommaire…).
-    if (error instanceof AppError && error.code === 'import-422') return { status: 'skipped', message: 'Pas une recette', recipes: [] }
+    // 422 : la page n'est pas une recette (couverture, sommaire…), ou toujours illisible après « C'est une recette ».
+    if (error instanceof AppError && error.code === 'import-422') {
+      return { status: 'skipped', message: context.insist ? 'Toujours aucune recette lisible : reprends la photo' : 'Pas une recette', recipes: [] }
+    }
     return { status: 'error', message: error instanceof Error ? error.message : 'La lecture a échoué.', recipes: [] }
   }
 

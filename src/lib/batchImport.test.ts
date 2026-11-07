@@ -90,6 +90,10 @@ describe('import en série', () => {
       const ctx = context()
       ctx.api.recipes.importFromPhotos.mockRejectedValue(new AppError('Aucune recette trouvée sur cette photo.', 'import-422'))
       expect(await importOne(file('sommaire.jpg'), ctx)).toEqual({ status: 'skipped', message: 'Pas une recette', recipes: [] })
+      // Relecture en insistant (« C'est une recette ») : demandée au modèle ; toujours rien → reprendre la photo.
+      const insisted = await importPages([new Blob(['p'])], { ...ctx, insist: true })
+      expect(ctx.api.recipes.importFromPhotos).toHaveBeenLastCalledWith([expect.any(Blob)], ['dessert'], { insist: true })
+      expect(insisted).toMatchObject({ status: 'skipped', message: 'Toujours aucune recette lisible : reprends la photo' })
     })
 
     it('saute une recette du même titre et du même livre, déjà enregistrée ou importée dans la série', async () => {

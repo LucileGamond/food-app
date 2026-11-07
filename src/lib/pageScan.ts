@@ -17,8 +17,8 @@ export const SCAN_CONFIG = {
   stillMotion: 4,
   /** Au-delà, la page bouge vraiment : c'est le signe qu'on la tourne. */
   turnMotion: 12,
-  /** Durée d'immobilité avant la photo. */
-  stillMs: 600,
+  /** Durée d'immobilité avant la photo (le temps de retirer les mains de la page). */
+  stillMs: 3000,
   /** Netteté minimale (variance du laplacien) : en dessous, page floue ou vide. */
   minSharpness: 30,
   /** Netteté comparée à la meilleure récente : la mise au point est faite. */
@@ -27,10 +27,13 @@ export const SCAN_CONFIG = {
   sharpnessDecay: 0.995,
   /** Délai minimal entre deux photos. */
   minIntervalMs: 1500,
-  /** Distance d'empreinte au-delà de laquelle la page n'est plus la même (après l'avoir tournée). */
-  newPage: 0.35,
+  /**
+   * Distance d'empreinte au-delà de laquelle la page n'est plus la même (après l'avoir tournée). Bas : deux pages d'un
+   * même livre se ressemblent beaucoup en 32×24 ; une page prise en double coûte moins qu'une page manquée.
+   */
+  newPage: 0.15,
   /** Sans mouvement vu, il faut une page franchement différente. */
-  newPageWithoutTurn: 0.7,
+  newPageWithoutTurn: 0.5,
 }
 
 export type ScanConfig = typeof SCAN_CONFIG
@@ -131,7 +134,9 @@ export function nextScanState(state: ScanState, frame: GrayFrame, now: number, c
   const print = signature(frame)
   const distance = state.lastSignature ? signatureDistance(print, state.lastSignature) : Infinity
   const best = Math.max(sharp, state.best * config.sharpnessDecay)
-  const turned = state.turned || (Number.isFinite(move) && move > config.turnMotion)
+  // Page tournée : grand mouvement entre deux images, ou vue passée loin de la page prise (main devant, page en l'air).
+  const turned =
+    state.turned || (Number.isFinite(move) && move > config.turnMotion) || (state.lastSignature !== null && distance > config.newPageWithoutTurn)
   const still = move <= config.stillMotion
   const stillSince = still ? (state.stillSince ?? now) : null
 

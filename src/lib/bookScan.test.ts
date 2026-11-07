@@ -9,6 +9,8 @@ import {
   readyToRead,
   resumeSession,
   retryErrors,
+  canInsist,
+  insistOnRecipe,
   scanCounts,
   startNewRecipe,
   undoLast,
@@ -129,5 +131,18 @@ describe('session de scan', () => {
     expect(retried.groups[1]).toMatchObject({ status: 'pending', message: undefined })
     expect(retried.groups[2]!.status).toBe('done')
     expect(allRead(updateGroup(updateGroup(session, 'g1', { status: 'skipped' }), 'g2', { status: 'done' }))).toBe(true)
+  })
+
+  it('« C’est une recette » : une page ignorée repart à la lecture en insistant, une seule fois', () => {
+    let session = shoot(newSession('Livre', false), [['a'], ['b']])
+    session = updateGroup(updateGroup(session, 'g1', { status: 'skipped', message: 'Pas une recette' }), 'g2', { status: 'done' })
+    expect(session.groups.map(canInsist)).toEqual([true, false])
+    session = insistOnRecipe(session, 'g1')
+    expect(session.groups[0]).toMatchObject({ status: 'pending', insist: true, readyAt: 0, message: undefined })
+    expect(insistOnRecipe(session, 'g2').groups[1]!.status).toBe('done')
+    // Toujours rien après la relecture : plus de relecture proposée.
+    session = updateGroup(session, 'g1', { status: 'skipped' })
+    expect(canInsist(session.groups[0]!)).toBe(false)
+    expect(insistOnRecipe(session, 'g1').groups[0]!.status).toBe('skipped')
   })
 })

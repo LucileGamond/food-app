@@ -177,8 +177,14 @@ const PHOTO_TOOL = {
                     top: { type: 'number', description: 'Bord haut, en fraction de la hauteur de l’image (0 à 1).' },
                     right: { type: 'number', description: 'Bord droit, en fraction de la largeur (0 à 1).' },
                     bottom: { type: 'number', description: 'Bord bas, en fraction de la hauteur (0 à 1).' },
+                    rotation: {
+                      type: 'integer',
+                      enum: [0, 90, 180, 270],
+                      description:
+                        'Quart de tour, dans le sens des aiguilles d’une montre, qui remet la photo à l’endroit (comme le texte de la page se lit) : 0 si l’image est déjà droite, 180 si la page est à l’envers, 90 ou 270 si elle est couchée.',
+                    },
                   },
-                  required: ['image', 'left', 'top', 'right', 'bottom'],
+                  required: ['image', 'left', 'top', 'right', 'bottom', 'rotation'],
                 },
                 { type: 'null' },
               ],
@@ -205,20 +211,31 @@ const PHOTO_SYSTEM = [
   'Signale dans checks tout ce que tu as deviné ou mal lu.',
   'Note le titre du livre s’il est visible et le numéro de page imprimé, séparément.',
   'Reprends les valeurs nutritionnelles (calories, glucides, protéines, lipides) si la recette les indique, sans les calculer.',
-  'Si une image montre une photo du plat terminé de la recette, donne son cadre (photo) : cadre serré autour de la photo seule, en fractions de la largeur et de la hauteur de l’image. Pas pour un schéma, une illustration décorative, une photo d’étape ou une capture d’écran de vidéo ; null en cas de doute.',
+  'Si une image montre une photo du plat terminé de la recette, donne son cadre (photo) : cadre serré autour de la photo seule, en fractions de la largeur et de la hauteur de l’image telle que tu la reçois, avec le quart de tour qui la remet à l’endroit si la page est couchée ou à l’envers. Pas pour un schéma, une illustration décorative, une photo d’étape ou une capture d’écran de vidéo ; null en cas de doute.',
   'Traduis en français si la recette est dans une autre langue.',
   'Pour les tags, réutilise de préférence les tags existants fournis.',
   `Réponds uniquement en appelant l’outil ${PHOTO_TOOL_NAME}.`,
 ].join('\n')
+
+/** Nouvelle lecture demandée par la personne : la page avait été jugée sans recette, elle affirme le contraire. */
+export const INSIST_NOTE =
+  'La personne confirme qu’il y a bien une recette sur ces photos (une première lecture n’en avait pas trouvé) : lis-la même si elle est peu lisible, incomplète ou présentée de façon inhabituelle (ingrédients cités dans le texte, recette courte, mise en page originale). Ne réponds pas qu’il n’y a pas de recette.'
 
 /** Lit les recettes sur les photos (une le plus souvent) et les renvoie validées, dans l'ordre de la page. */
 export async function extractRecipeFromPhotos(
   photos: readonly PhotoInput[],
   knownTags: readonly string[],
   options: ModelOptions,
+  insist = false,
 ): Promise<{ recipes: ImportedRecipe[]; usage: ModelUsage | null }> {
   const tags = knownTags.slice(0, MAX_KNOWN_TAGS).join(', ')
-  const text = [photos.length > 1 ? `${photos.length} images, numérotées de 0 à ${photos.length - 1} dans l’ordre.` : 'Une image (numéro 0).', tags ? `Tags existants : ${tags}` : null].filter(Boolean).join('\n')
+  const text = [
+    photos.length > 1 ? `${photos.length} images, numérotées de 0 à ${photos.length - 1} dans l’ordre.` : 'Une image (numéro 0).',
+    tags ? `Tags existants : ${tags}` : null,
+    insist ? INSIST_NOTE : null,
+  ]
+    .filter(Boolean)
+    .join('\n')
   const { input, usage } = await callTool(
     {
       system: PHOTO_SYSTEM,

@@ -96,11 +96,21 @@ describe('BookScanPage', { timeout: 20_000 }, () => {
     expect(api.recipes.importFromPhotos).toHaveBeenCalledWith([expect.any(Blob)], ['dessert'])
     expect(api.recipes.saveRecipe).toHaveBeenCalledWith(expect.objectContaining({ source: 'Pâtisserie maison' }))
     await waitFor(() => expect(screen.getByText('2 pages · 1 enregistrée · 1 sans recette')).toBeInTheDocument())
+    // Pendant la prise, pas de relecture proposée : c'est au récapitulatif.
+    expect(screen.queryByRole('button', { name: /C’est une recette/ })).not.toBeInTheDocument()
 
     await user.click(screen.getByRole('button', { name: 'Terminer' }))
     expect(await screen.findByRole('heading', { name: 'Scan terminé' })).toBeInTheDocument()
     expect(camera.stop).toHaveBeenCalled()
     await waitFor(() => expect(api.recipes.listLinkable).toHaveBeenCalled())
+
+    // Page ignorée : miniature et « C'est une recette », relue en insistant (une seule fois).
+    expect(await screen.findByAltText('Photo : Photo 2')).toBeInTheDocument()
+    api.recipes.importFromPhotos.mockResolvedValueOnce(read('Galettes'))
+    await user.click(screen.getByRole('button', { name: 'C’est une recette : relire' }))
+    await waitFor(() => expect(within(results()).getByRole('link', { name: 'Galettes' })).toBeInTheDocument())
+    expect(api.recipes.importFromPhotos).toHaveBeenLastCalledWith([expect.any(Blob)], ['dessert'], { insist: true })
+    expect(screen.queryByRole('button', { name: /C’est une recette/ })).not.toBeInTheDocument()
   })
 
   it('annule la dernière photo tant qu’elle n’est pas partie', async () => {

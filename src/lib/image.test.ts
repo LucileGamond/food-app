@@ -32,6 +32,25 @@ describe('recadrage de la photo du plat', () => {
     expect(photo.type).toBe('image/jpeg')
   })
 
+  it('remet à l’endroit une photo du plat prise de travers (quart de tour indiqué par la lecture)', async () => {
+    const translate = vi.fn()
+    const rotate = vi.fn()
+    let size: [number, number] = [0, 0]
+    vi.mocked(HTMLCanvasElement.prototype.getContext).mockImplementation(function (this: HTMLCanvasElement) {
+      size = [this.width, this.height]
+      return { drawImage, translate, rotate } as unknown as CanvasRenderingContext2D
+    } as unknown as HTMLCanvasElement['getContext'])
+    await cropImage(new Blob(['page']), { left: 0.1, top: 0.25, right: 0.9, bottom: 0.75, rotation: 90 })
+    expect(size).toEqual([1000, 800])
+    expect(translate).toHaveBeenCalledWith(500, 400)
+    expect(rotate).toHaveBeenCalledWith(Math.PI / 2)
+    expect(drawImage).toHaveBeenCalledWith(expect.anything(), 100, 500, 800, 1000, -400, -500, 800, 1000)
+    // Valeur inconnue : pas de rotation.
+    drawImage.mockClear()
+    await cropImage(new Blob(['page']), { left: 0.1, top: 0.25, right: 0.9, bottom: 0.75, rotation: 45 })
+    expect(drawImage).toHaveBeenCalledWith(expect.anything(), 100, 500, 800, 1000, 0, 0, 800, 1000)
+  })
+
   it('échoue si le navigateur ne sait pas produire l’image', async () => {
     toBlob = (cb) => cb(null)
     await expect(cropImage(new Blob(['page']), { left: 0, top: 0, right: 1, bottom: 1 })).rejects.toThrow('Recadrage impossible.')

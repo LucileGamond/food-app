@@ -49,6 +49,8 @@ export interface PhotoArea {
   top: number
   right: number
   bottom: number
+  /** Quart de tour (sens horaire) qui remet la photo à l'endroit. */
+  rotation: 0 | 90 | 180 | 270
 }
 
 /** Plus petit cadre gardé (fraction de la largeur et de la hauteur) : en dessous, une vignette ou un pictogramme. */
@@ -191,7 +193,8 @@ export function sanitizePhotoArea(input: unknown, images: number): PhotoArea | n
   if (left === null || top === null || right === null || bottom === null) return null
   if (right - left < MIN_PHOTO_SIDE || bottom - top < MIN_PHOTO_SIDE) return null
   const round = (n: number) => Math.round(n * 1000) / 1000
-  return { image: d.image as number, left: round(left), top: round(top), right: round(right), bottom: round(bottom) }
+  const rotation = d.rotation === 90 || d.rotation === 180 || d.rotation === 270 ? d.rotation : 0
+  return { image: d.image as number, left: round(left), top: round(top), right: round(right), bottom: round(bottom), rotation }
 }
 
 /** Recettes lues sur une photo : chacune validée ; celles qui ne sont pas des recettes (ou sans ingrédient) sont écartées. */

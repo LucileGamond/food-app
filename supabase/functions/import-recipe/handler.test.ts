@@ -1,4 +1,5 @@
 import { createHandler, MAX_PAGE_BYTES, type Deps } from './handler.ts'
+import { INSIST_NOTE } from './model.ts'
 
 const PAGE_URL = 'https://cuisine.exemple.fr/crepes'
 
@@ -233,6 +234,13 @@ describe('import-recipe — photos', () => {
     ])
     expect(body.system).toContain('photos')
     expect(deps.log).toHaveBeenCalledWith('import réussi', expect.objectContaining({ source: 'photo', input_tokens: 300 }))
+  })
+
+  it('« c’est une recette » : la relecture demande au modèle de ne pas répondre « pas de recette »', async () => {
+    const { deps, handle } = setup({}, new Response(JSON.stringify(PHOTO_REPLY)))
+    expect(await call(handle, { mode: 'photos', images: [PHOTO], insist: true })).toMatchObject({ status: 200 })
+    const body = JSON.parse(String(deps.fetchModel.mock.calls[0]![1]!.body))
+    expect(body.messages[0].content.at(-1)).toEqual({ type: 'text', text: `Une image (numéro 0).\n${INSIST_NOTE}` })
   })
 
   it.each([

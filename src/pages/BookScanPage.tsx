@@ -14,7 +14,9 @@ import { BATCH_CONCURRENCY, mergeRetry, type BatchResult } from '@/lib/batchImpo
 import {
   addCapture,
   allRead,
+  canInsist,
   closeAll,
+  insistOnRecipe,
   MAX_SCAN_PAGES,
   newSession,
   nextReadyAt,
@@ -54,12 +56,23 @@ const newId = () => crypto.randomUUID()
 
 const plural = (n: number, word: string) => `${n} ${word}${n > 1 ? 's' : ''}`
 
-/** Ligne de résultat d'un groupe de photos. */
-function resultItem(group: ScanGroup, index: number, multi: boolean): BatchResultItem {
+/**
+ * Ligne de résultat d'un groupe de photos. Au récapitulatif, une page ignorée montre sa miniature et peut être relue
+ * (« C'est une recette ») ; `onInsist` absent pendant la prise.
+ */
+function resultItem(group: ScanGroup, index: number, multi: boolean, onInsist?: (id: string) => void, thumbnail?: string): BatchResultItem {
   const label = multi
     ? `Recette ${index + 1} · ${plural(group.images.length, 'page')}`
     : `Photo ${index + 1}${group.images.length > 1 ? ' · double page' : ''}`
-  return { key: group.id, label, status: group.status, message: group.closed ? group.message : 'Prends les pages suivantes', recipes: group.recipes }
+  return {
+    key: group.id,
+    label,
+    status: group.status,
+    message: group.closed ? group.message : 'Prends les pages suivantes',
+    recipes: group.recipes,
+    action: onInsist && canInsist(group) ? { label: 'C’est une recette : relire', onClick: () => onInsist(group.id) } : undefined,
+    thumbnail,
+  }
 }
 
 interface CameraProps {
@@ -318,6 +331,33 @@ export function BookScanPage() {
 
   useEffect(() => () => void (lastPhoto && URL.revokeObjectURL(lastPhoto)), [lastPhoto])
 
+  // Récapitulatif : miniature des pages ignorées, pour juger si c'était bien une recette.
+  const [thumbs, setThumbs] = useState<Record<string, string>>({})
+  const thumbsRef = useRef(thumbs)
+  useEffect(() => {
+    thumbsRef.current = thumbs
+  }, [thumbs])
+  useEffect(() => () => Object.values(thumbsRef.current).forEach((url) => URL.revokeObjectURL(url)), [])
+  useEffect(() => {
+    if (phase !== 'review' || !session) return
+    const missing = session.groups.filter((g) => g.status === 'skipped' && g.images[0] && !thumbsRef.current[g.id])
+    let cancelled = false
+    for (const group of missing) {
+      store.getImage(group.images[0]!).then(
+        (blob) => {
+          if (cancelled || !blob || thumbsRef.current[group.id]) return
+          const url = URL.createObjectURL(blob)
+          thumbsRef.current = { ...thumbsRef.current, [group.id]: url }
+          setThumbs(thumbsRef.current)
+        },
+        () => undefined,
+      )
+    }
+    return () => {
+      cancelled = true
+    }
+  }, [phase, session, store])
+
   /** Recettes déjà enregistrées (doublons sautés) et tags existants (réutilisés par le modèle). */
   async function prepare() {
     const [summaries, existingTags] = await Promise.all([api.recipes.listSavedSummaries().catch(() => []), api.recipes.listTags().catch(() => [] as string[])])
@@ -332,7 +372,13 @@ export function BookScanPage() {
     try {
       const pages = await Promise.all(group.images.map((id) => store.getImage(id).catch(() => undefined)))
       if (pages.some((p) => !p)) return patch({ status: 'error', message: 'Photo introuvable sur le téléphone : reprends-la.' })
-      const result: BatchResult = await importPages(pages as Blob[], { api, book: current.current?.book ?? '', tags: tags.current, known: known.current })
+      const result: BatchResult = await importPages(pages as Blob[], {
+        api,
+        book: current.current?.book ?? '',
+        tags: tags.current,
+        known: known.current,
+        insist: group.insist,
+      })
       if (result.status === 'error' && !navigator.onLine) {
         return patch({ status: 'pending', readyAt: Date.now() + OFFLINE_RETRY_MS, message: 'Hors ligne : nouvel essai au retour du réseau' })
       }
@@ -427,7 +473,18 @@ export function BookScanPage() {
 
   const counts = session ? scanCounts(session) : null
   const full = (counts?.pages ?? 0) >= MAX_SCAN_PAGES
-  const results = session ? <BatchResults label="Recettes scannées" items={session.groups.map((g, i) => resultItem(g, i, session.multi))} /> : null
+  const insist = (id: string) => {
+    // Relecture : les liens entre recettes seront refaits une fois tout lu.
+    linked.current = false
+    setSession((s) => s && insistOnRecipe(s, id))
+  }
+  const review = phase === 'review'
+  const results = session ? (
+    <BatchResults
+      label="Recettes scannées"
+      items={session.groups.map((g, i) => (review ? resultItem(g, i, session.multi, insist, thumbs[g.id]) : resultItem(g, i, session.multi)))}
+    />
+  ) : null
   const summary = counts
     ? [
         plural(counts.pages, 'page'),

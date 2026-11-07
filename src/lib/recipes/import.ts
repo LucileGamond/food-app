@@ -33,6 +33,8 @@ interface PhotoArea {
   top: number
   right: number
   bottom: number
+  /** Quart de tour (sens horaire) qui remet la photo à l'endroit ; absent avec une ancienne version de la fonction. */
+  rotation?: 0 | 90 | 180 | 270
 }
 
 export interface RecipeImport {

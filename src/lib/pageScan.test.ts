@@ -66,7 +66,10 @@ function shift(frame: GrayFrame, dx: number): GrayFrame {
 }
 
 /** Fait défiler des images (8 par seconde) et renvoie les instants des photos prises. */
-function run(frames: GrayFrame[], start: ScanState = initialScanState(), t0 = 0, config = SCAN_CONFIG) {
+/** Délai d'immobilité court dans la plupart des tests (moins d'images à faire défiler). */
+const FAST = { ...SCAN_CONFIG, stillMs: 600 }
+
+function run(frames: GrayFrame[], start: ScanState = initialScanState(), t0 = 0, config = FAST) {
   let state = start
   const captures: number[] = []
   const hints: string[] = []
@@ -117,6 +120,11 @@ describe('prise automatique', () => {
     expect(hints.at(-1)).toBe('same-page')
   })
 
+  it('réglage réel : 3 s d’immobilité avant la photo, le temps de retirer les mains', () => {
+    const { captures } = run(repeat(page(1), 30), initialScanState(), 0, SCAN_CONFIG)
+    expect(captures).toEqual([3125])
+  })
+
   it('attend que le téléphone soit immobile', () => {
     const frames = [page(1), shift(page(1), 3), page(1), shift(page(1), 3), page(1), shift(page(1), 3), page(1)]
     const { captures, hints } = run(frames)
@@ -137,6 +145,34 @@ describe('prise automatique', () => {
     const frames = [...repeat(page(1), 10), ...turning(page(1), page(2)), ...repeat(page(2), 10), ...turning(page(2), page(3)), ...repeat(page(3), 10)]
     const { captures } = run(frames)
     expect(captures).toHaveLength(3)
+  })
+
+  it('reprend une photo entre deux pages de même mise en page (titre au même endroit, autre texte)', () => {
+    // Livre de cuisine : toutes les pages se ressemblent en 32×24 ; seule la page tournée doit compter.
+    const templated = (seed: number): GrayFrame => {
+      const data = new Uint8Array(W * H).fill(235)
+      let s = seed
+      const rand = () => ((s = (s * 1103515245 + 12345) % 2 ** 31) / 2 ** 31)
+      for (let y = 10; y < 26; y++) for (let x = 10; x < 90; x++) data[y * W + x] = 20
+      for (let line = 34; line < H - 8; line += 7) {
+        let x = 6 + Math.floor(rand() * 10)
+        while (x < W - 12) {
+          const word = 4 + Math.floor(rand() * 14)
+          for (let y = line; y < line + 3; y++) for (let dx = 0; dx < word && x + dx < W - 6; dx++) data[y * W + x + dx] = 30
+          x += word + 3
+        }
+      }
+      return { width: W, height: H, data }
+    }
+    const [a, b] = [templated(4), templated(5)]
+    expect(signatureDistance(signature(a), signature(b))).toBeLessThan(0.35)
+    const frames = [...repeat(a, 10), ...turning(a, b), ...repeat(b, 10)]
+    expect(run(frames).captures).toHaveLength(2)
+  })
+
+  it('compte la page comme tournée quand la vue s’en éloigne franchement, même sans grand mouvement entre deux images', () => {
+    const frames = [...repeat(page(1), 10), ...repeat(page(7), 3), ...repeat(page(2), 10)]
+    expect(run(frames, initialScanState(), 0, { ...FAST, turnMotion: Infinity }).captures).toHaveLength(2)
   })
 
   it('ne reprend pas la même page après l’avoir bougée sans la tourner', () => {

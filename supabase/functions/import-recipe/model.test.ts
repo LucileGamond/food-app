@@ -296,13 +296,15 @@ describe('plusieurs recettes sur une photo', () => {
   it('garde le cadre de la photo du plat de chaque recette, s’il est plausible', () => {
     const photo = { image: 1, left: 0.1, top: 0.05, right: 0.9, bottom: 0.4567 }
     const recipes = sanitizeRecipes({ recettes: [{ ...GOOD, photo }, { ...GOOD, title: 'Quiche', photo: null }, { ...GOOD, title: 'Tarte' }] }, 2)
-    expect(recipes.map((r) => r.photo)).toEqual([{ image: 1, left: 0.1, top: 0.05, right: 0.9, bottom: 0.457 }, null, null])
+    expect(recipes.map((r) => r.photo)).toEqual([{ image: 1, left: 0.1, top: 0.05, right: 0.9, bottom: 0.457, rotation: 0 }, null, null])
     // Image inexistante (une seule envoyée).
     expect(sanitizeRecipes({ recettes: [{ ...GOOD, photo }] })[0]!.photo).toBeNull()
   })
 
   it.each([
-    [{ image: 0, left: -0.2, top: 0, right: 1.4, bottom: 0.5 }, { image: 0, left: 0, top: 0, right: 1, bottom: 0.5 }],
+    [{ image: 0, left: -0.2, top: 0, right: 1.4, bottom: 0.5 }, { image: 0, left: 0, top: 0, right: 1, bottom: 0.5, rotation: 0 }],
+    [{ image: 0, left: 0, top: 0, right: 1, bottom: 0.5, rotation: 180 }, { image: 0, left: 0, top: 0, right: 1, bottom: 0.5, rotation: 180 }],
+    [{ image: 0, left: 0, top: 0, right: 1, bottom: 0.5, rotation: 45 }, { image: 0, left: 0, top: 0, right: 1, bottom: 0.5, rotation: 0 }],
     [{ image: 0, left: 0.5, top: 0, right: 0.6, bottom: 0.5 }, null],
     [{ image: 0, left: 0.8, top: 0, right: 0.2, bottom: 0.5 }, null],
     [{ image: 0.5, left: 0, top: 0, right: 1, bottom: 1 }, null],

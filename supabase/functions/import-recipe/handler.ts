@@ -5,7 +5,7 @@
 // POST { url: string, mode: 'title' } → 200 { title: string | null } (titre de la page seul, sans modèle)
 //   Vidéo YouTube : description de la vidéo, sinon recette écrite trouvée en ligne → source 'video', foundUrl
 // POST { mode: 'text', text, url?, knownTags? } → 200 { recipe, source: 'text', image: null } (légende Instagram collée)
-// POST { mode: 'photos', images: [{ data, type }], knownTags? } → 200 { recipe, source: 'photo', image: null }
+// POST { mode: 'photos', images: [{ data, type }], knownTags?, insist? } → 200 { recipe, source: 'photo', image: null }
 //   (1 à 4 photos : pages d'un livre, scan, ou captures d'écran de la légende d'une publication)
 //   → 4xx/5xx { error: message lisible }
 // La passerelle Supabase vérifie le jeton (verify_jwt), mais accepte aussi la clé publique anonyme :
@@ -313,7 +313,9 @@ export async function importPhotos(body: unknown, deps: Deps): Promise<ImportRes
   const input = body as Record<string, unknown>
   const knownTags = knownTagsOf(input)
   if (!deps.apiKey) throw new ImportError(MISCONFIGURED, 500)
-  const { recipes, usage } = await extractRecipeFromPhotos(photos, knownTags, { apiKey: deps.apiKey, model: deps.model, fetch: deps.fetchModel })
+  // « C'est une recette » : relecture demandée après une page jugée sans recette.
+  const insist = input.insist === true
+  const { recipes, usage } = await extractRecipeFromPhotos(photos, knownTags, { apiKey: deps.apiKey, model: deps.model, fetch: deps.fetchModel }, insist)
   return { recipe: recipes[0]!, recipes, source: 'photo', image: null, usage }
 }
 

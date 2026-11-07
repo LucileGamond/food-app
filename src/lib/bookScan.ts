@@ -24,6 +24,8 @@ export interface ScanGroup {
   status: BatchStatus
   message?: string
   recipes: BatchRecipe[]
+  /** Relu à la demande (« C'est une recette ») après avoir été jugé sans recette. */
+  insist?: boolean
 }
 
 export interface ScanSession {
@@ -139,6 +141,17 @@ export function resumeSession(session: ScanSession): ScanSession {
 export function retryErrors(session: ScanSession): ScanSession {
   return { ...session, groups: session.groups.map((g) => (needsRetry(g) ? { ...g, status: 'pending', message: undefined, readyAt: 0 } : g)) }
 }
+
+/** « C'est une recette » : un groupe jugé sans recette repart à la lecture, en insistant (une seule fois). */
+export function insistOnRecipe(session: ScanSession, id: string): ScanSession {
+  return {
+    ...session,
+    groups: session.groups.map((g) => (g.id === id && g.status === 'skipped' && !g.insist ? { ...g, status: 'pending', message: undefined, readyAt: 0, insist: true } : g)),
+  }
+}
+
+/** Le groupe peut être relu en insistant : jugé sans recette, pas encore relu. */
+export const canInsist = (group: ScanGroup): boolean => group.status === 'skipped' && !group.insist
 
 export interface ScanCounts extends ReturnType<typeof tally> {
   pages: number

@@ -34,12 +34,12 @@ function shifted(source: Uint8Array, dx: number): Uint8Array {
   return data
 }
 
-/** Écrit la vidéo : page 1 immobile 3 s, on tourne, page 2 immobile 3 s, on tourne (puis la vidéo boucle). */
+/** Écrit la vidéo : page 1 immobile 5 s, on tourne, page 2 immobile 5 s (la photo part après 3 s d'immobilité), on tourne (puis la vidéo boucle). */
 export function writeBookVideo(path: string): string {
   const first = page(7)
   const second = page(42)
   const turn = (from: Uint8Array, to: Uint8Array) => [shifted(from, 40), shifted(from, 90), shifted(to, -90), shifted(to, -40)]
-  const frames = [...Array(30).fill(first), ...turn(first, second), ...Array(30).fill(second), ...turn(second, first)] as Uint8Array[]
+  const frames = [...Array(50).fill(first), ...turn(first, second), ...Array(50).fill(second), ...turn(second, first)] as Uint8Array[]
   const chroma = new Uint8Array((W / 2) * (H / 2) * 2).fill(128)
   const header = Buffer.from(`YUV4MPEG2 W${W} H${H} F${FPS}:1 Ip A1:1 C420jpeg\n`)
   const parts: Buffer[] = [header]

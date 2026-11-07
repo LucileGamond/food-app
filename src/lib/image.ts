@@ -18,18 +18,30 @@ export async function compressImage(file: File): Promise<Blob> {
  * Photo du plat recadrée dans une page de livre photographiée (cadre en fractions de l'image, donné par la lecture),
  * puis réduite comme une photo de recette. Rejette si le navigateur ne sait pas lire l'image.
  */
-export async function cropImage(file: Blob, area: { left: number; top: number; right: number; bottom: number }): Promise<File> {
+export async function cropImage(
+  file: Blob,
+  area: { left: number; top: number; right: number; bottom: number; rotation?: number | null },
+): Promise<File> {
   const bitmap = await createImageBitmap(file)
   const sx = Math.round(area.left * bitmap.width)
   const sy = Math.round(area.top * bitmap.height)
   const width = Math.max(1, Math.round((area.right - area.left) * bitmap.width))
   const height = Math.max(1, Math.round((area.bottom - area.top) * bitmap.height))
+  // Page photographiée de travers ou à l'envers : la photo du plat est remise à l'endroit (quart de tour, sens horaire).
+  const rotation = area.rotation === 90 || area.rotation === 180 || area.rotation === 270 ? area.rotation : 0
+  const sideways = rotation === 90 || rotation === 270
   const canvas = document.createElement('canvas')
-  canvas.width = width
-  canvas.height = height
+  canvas.width = sideways ? height : width
+  canvas.height = sideways ? width : height
   const context = canvas.getContext('2d')
   if (!context) throw new Error('Recadrage impossible.')
-  context.drawImage(bitmap, sx, sy, width, height, 0, 0, width, height)
+  if (rotation === 0) {
+    context.drawImage(bitmap, sx, sy, width, height, 0, 0, width, height)
+  } else {
+    context.translate(canvas.width / 2, canvas.height / 2)
+    context.rotate((rotation * Math.PI) / 180)
+    context.drawImage(bitmap, sx, sy, width, height, -width / 2, -height / 2, width, height)
+  }
   bitmap.close()
   const cropped = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, 'image/jpeg', 0.9))
   if (!cropped) throw new Error('Recadrage impossible.')

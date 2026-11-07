@@ -1,5 +1,6 @@
-import { CheckCircle2, CircleAlert, CircleDashed, CopyCheck, Loader2, MinusCircle, TriangleAlert } from 'lucide-react'
+import { CheckCircle2, CircleAlert, CircleDashed, CopyCheck, Loader2, MinusCircle, RotateCcw, TriangleAlert } from 'lucide-react'
 import { Link } from 'react-router-dom'
+import { Button } from '@/components/ui/button'
 import type { BatchItem, BatchStatus, RecipeOutcome } from '@/lib/batchImport'
 import { cn } from '@/lib/utils'
 
@@ -38,37 +39,51 @@ function StatusLine({ style, message, error, children }: { style: StatusStyle; m
   )
 }
 
-export type BatchResultItem = Pick<BatchItem, 'key' | 'status' | 'message' | 'recipes'> & { label: string }
+export type BatchResultItem = Pick<BatchItem, 'key' | 'status' | 'message' | 'recipes'> & {
+  label: string
+  /** Action proposée sous la ligne (ex. « C'est une recette » pour une page ignorée). */
+  action?: { label: string; onClick: () => void }
+  /** Miniature de la photo (adresse d'objet), pour juger d'un coup d'œil. */
+  thumbnail?: string
+}
 
 /** Résultat de l'import, image par image (ou groupe de photos par groupe) : recettes enregistrées, ignorées, erreurs. */
 export function BatchResults({ items, label }: { items: BatchResultItem[]; label: string }) {
   return (
     <ul className="divide-y rounded-2xl border bg-background shadow-xs" aria-label={label}>
       {items.map((item) => (
-        <li key={item.key} className="space-y-2 px-4 py-3 text-sm" data-testid="batch-item">
-          <p className="truncate text-xs text-muted-foreground">
-            {item.label}
-            {item.recipes.length > 1 && ` · ${item.recipes.length} recettes`}
-          </p>
-          {item.status === 'done' ? (
-            <ul className="space-y-1.5">
-              {item.recipes.map((recipe, i) => (
-                <StatusLine key={i} style={RECIPE_STATUS[recipe.status]} message={recipe.photo ? 'avec la photo du plat' : recipe.message} error={recipe.status === 'error'}>
-                  {recipe.recipeId ? (
-                    <Link to={`/recettes/${recipe.recipeId}`} className="font-medium underline-offset-4 hover:underline">
-                      {recipe.title}
-                    </Link>
-                  ) : (
-                    <span className="font-medium">{recipe.title}</span>
-                  )}
-                </StatusLine>
-              ))}
-            </ul>
-          ) : (
-            <ul>
-              <StatusLine style={IMAGE_STATUS[item.status]} message={item.message} error={item.status === 'error'} />
-            </ul>
-          )}
+        <li key={item.key} className="flex gap-3 px-4 py-3 text-sm" data-testid="batch-item">
+          {item.thumbnail && <img src={item.thumbnail} alt={`Photo : ${item.label}`} className="h-20 w-15 shrink-0 rounded border object-cover" />}
+          <div className="min-w-0 flex-1 space-y-2">
+            <p className="truncate text-xs text-muted-foreground">
+              {item.label}
+              {item.recipes.length > 1 && ` · ${item.recipes.length} recettes`}
+            </p>
+            {item.status === 'done' ? (
+              <ul className="space-y-1.5">
+                {item.recipes.map((recipe, i) => (
+                  <StatusLine key={i} style={RECIPE_STATUS[recipe.status]} message={recipe.photo ? 'avec la photo du plat' : recipe.message} error={recipe.status === 'error'}>
+                    {recipe.recipeId ? (
+                      <Link to={`/recettes/${recipe.recipeId}`} className="font-medium underline-offset-4 hover:underline">
+                        {recipe.title}
+                      </Link>
+                    ) : (
+                      <span className="font-medium">{recipe.title}</span>
+                    )}
+                  </StatusLine>
+                ))}
+              </ul>
+            ) : (
+              <ul>
+                <StatusLine style={IMAGE_STATUS[item.status]} message={item.message} error={item.status === 'error'} />
+              </ul>
+            )}
+            {item.action && (
+              <Button variant="outline" size="sm" className="h-9" onClick={item.action.onClick}>
+                <RotateCcw /> {item.action.label}
+              </Button>
+            )}
+          </div>
         </li>
       ))}
     </ul>
