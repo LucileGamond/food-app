@@ -1,6 +1,6 @@
-import { ChevronLeft, FileText, Loader2 } from 'lucide-react'
+import { FileText, Loader2 } from 'lucide-react'
 import { useState, type FormEvent } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { useNavigate } from 'react-router-dom'
 import { toast } from 'sonner'
 import { errorMessage } from '@/api'
 import { useApi } from '@/app/ApiContext'
@@ -9,25 +9,39 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { NativeSelect } from '@/components/ui/native-select'
 import { Textarea } from '@/components/ui/textarea'
-import { PageHeader } from '@/components/PageHeader'
 import { MAX_PDF_BYTES } from '../lib/pattern'
 import { parseQueueDraft, PRIORITIES, type QueueDraft, type QueuePriority } from '../lib/yarn'
 
+interface Props {
+  /** PDF et taille, partagés avec « Commencer maintenant » (gardés si on change d'avis). */
+  pdf: File | null
+  onPdf: (pdf: File | null) => void
+  size: string
+  onSize: (size: string) => void
+}
+
 /** Met un patron de côté pour plus tard : PDF ou lien, taille visée, laine envisagée, priorité. */
-export function KnittingQueueFormPage() {
+export function QueueForm({ pdf, onPdf, size, onSize }: Props) {
   const api = useApi()
   const navigate = useNavigate()
-  const [draft, setDraft] = useState<QueueDraft>({ title: '', url: '', size: '', yarnIdea: '', notes: '', priority: 2, metersNeeded: '', needleMm: '' })
-  const [pdf, setPdf] = useState<File | null>(null)
+  const [draft, setDraft] = useState<Omit<QueueDraft, 'size'>>(() => ({
+    title: pdf ? pdf.name.replace(/\.pdf$/i, '') : '',
+    url: '',
+    yarnIdea: '',
+    notes: '',
+    priority: 2,
+    metersNeeded: '',
+    needleMm: '',
+  }))
   const [error, setError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
 
-  const change = (patch: Partial<QueueDraft>) => setDraft((d) => ({ ...d, ...patch }))
+  const change = (patch: Partial<Omit<QueueDraft, 'size'>>) => setDraft((d) => ({ ...d, ...patch }))
 
   async function submit(event: FormEvent) {
     event.preventDefault()
     if (pdf && pdf.size > MAX_PDF_BYTES) return setError('PDF trop lourd (20 Mo au plus).')
-    const parsed = parseQueueDraft(draft, pdf)
+    const parsed = parseQueueDraft({ ...draft, size }, pdf)
     if ('error' in parsed) return setError(parsed.error)
     setError(null)
     setSaving(true)
@@ -43,10 +57,6 @@ export function KnittingQueueFormPage() {
 
   return (
     <>
-      <Link to="/tricot" className="mb-2 inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
-        <ChevronLeft className="size-4" aria-hidden /> Tricot
-      </Link>
-      <PageHeader title="Patron pour plus tard" description="Garde-le ici ; « Commencer » le découpera en étapes le moment venu." />
       <form onSubmit={(e) => void submit(e)} className="max-w-lg space-y-4" noValidate>
         <div className="grid gap-1.5">
           <Label htmlFor="queue-title">Nom du patron</Label>
@@ -61,7 +71,7 @@ export function KnittingQueueFormPage() {
             className="h-10"
             onChange={(e) => {
               const file = e.target.files?.[0] ?? null
-              setPdf(file)
+              onPdf(file)
               if (file && !draft.title.trim()) change({ title: file.name.replace(/\.pdf$/i, '') })
             }}
           />
@@ -78,7 +88,7 @@ export function KnittingQueueFormPage() {
         <div className="grid grid-cols-2 gap-3">
           <div className="grid gap-1.5">
             <Label htmlFor="queue-size">Taille visée</Label>
-            <Input id="queue-size" className="h-10" maxLength={40} value={draft.size} onChange={(e) => change({ size: e.target.value })} placeholder="M, 4 ans…" />
+            <Input id="queue-size" className="h-10" maxLength={40} value={size} onChange={(e) => onSize(e.target.value)} placeholder="M, 4 ans…" />
           </div>
           <div className="grid gap-1.5">
             <Label htmlFor="queue-priority">Quand</Label>

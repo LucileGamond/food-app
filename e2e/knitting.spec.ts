@@ -69,14 +69,14 @@ test('charge un patron PDF pour une taille, compte les rangs et retrouve son ava
   // 5 rangs terminés : le 6e est à tricoter, avec la diminution
   for (let i = 0; i < 5; i++) await page.getByRole('button', { name: 'Ajouter 1 rang' }).click()
   await expect(page.getByRole('status')).toHaveText('Rang 6 à tricoter1 diminution de chaque côté (1/4)')
-  await page.getByLabel('Notes').fill('Aiguilles 4,5')
-  await page.getByLabel('Notes').blur()
+  await page.getByLabel('Notes', { exact: true }).fill('Aiguilles 4,5')
+  await page.getByLabel('Notes', { exact: true }).blur()
   await expectNoA11yViolations(page)
 
   // Avancée enregistrée
   await expect.poll(async () => {
     await page.reload()
-    return page.getByLabel('Notes').inputValue()
+    return page.getByLabel('Notes', { exact: true }).inputValue()
   }).toBe('Aiguilles 4,5')
   await expect(page.getByRole('heading', { name: 'Emmanchures' })).toBeVisible()
   await expect(page.getByText('Rangs 1 à 24 · prochaine fois : rang 6')).toBeVisible()
@@ -107,13 +107,16 @@ test('met un patron de côté, le commence, puis note la laine (étiquette) et s
   await login(page)
   await openNavPage(page, 'Tricot')
 
-  // Patron mis de côté
-  await page.getByRole('link', { name: 'Mettre un patron de côté' }).click()
+  // Patron mis de côté, depuis « Nouveau patron »
+  await page.getByRole('link', { name: 'Nouveau patron' }).first().click()
+  await page.getByRole('radio', { name: 'Mettre de côté' }).click()
   await page.getByLabel('Patron (PDF)').setInputFiles({ name: 'Gilet Rosée.pdf', mimeType: 'application/pdf', buffer: Buffer.from('%PDF-1.4\n%gilet') })
   await page.getByLabel('Taille visée').fill('M')
   await page.getByLabel('Quand').selectOption('Bientôt')
   await expectNoA11yViolations(page)
   await page.getByRole('button', { name: 'Mettre de côté' }).click()
+  // Liste repliée : ouverte d'un toucher
+  await page.getByRole('button', { name: 'À faire plus tard' }).click()
   const queue = page.getByRole('list', { name: 'Patrons à faire plus tard' })
   await expect(queue).toContainText('Gilet Rosée')
   await expect(queue).toContainText('Bientôt · taille M')
@@ -122,6 +125,9 @@ test('met un patron de côté, le commence, puis note la laine (étiquette) et s
   await queue.getByRole('link', { name: 'Commencer Gilet Rosée' }).click()
   await expect(page.getByRole('heading', { name: 'Commencer « Gilet Rosée »' })).toBeVisible()
   await expect(page.getByLabel('Taille choisie')).toHaveValue('M')
+  // PDF repris : il n'est pas redemandé
+  await expect(page.getByText('Gilet Rosée.pdf')).toBeVisible()
+  await expect(page.getByLabel('Patron (PDF)')).toHaveCount(0)
   await page.getByRole('button', { name: 'Lire le patron' }).click()
   await expect(page.getByText(/échantillon 22 m\. × 30 rangs pour 10 cm/)).toBeVisible()
   await page.getByRole('button', { name: 'Enregistrer le projet' }).click()

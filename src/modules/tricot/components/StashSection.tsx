@@ -15,6 +15,7 @@ import { LoadError } from '@/components/LoadError'
 import { useAsync } from '@/hooks/useAsync'
 import { cn } from '@/lib/utils'
 import { matchPatterns, patternSearchUrl, siteOf, yarnDetails, yarnMeters, yarnTitle, type QueuedPattern, type StashItem, type Yarn, type YarnIdea } from '../lib/yarn'
+import { FoldHeader } from './FoldHeader'
 import { YarnDialog } from './YarnPanel'
 
 function PatternLink({ item }: { item: QueuedPattern }) {
@@ -162,11 +163,15 @@ export function StashSection({ queue }: { queue: QueuedPattern[] }) {
   const [editing, setEditing] = useState<StashItem | 'new' | null>(null)
   const [removing, setRemoving] = useState<StashItem | null>(null)
   const [matching, setMatching] = useState<StashItem | null>(null)
+  // Replié par défaut ; ouvert après un ajout pour voir la laine ajoutée.
+  const [open, setOpen] = useState(false)
+  const count = stash.data?.length ?? 0
 
   async function save(yarn: Yarn): Promise<boolean> {
     try {
       await api.knitting.saveStashItem({ id: editing && editing !== 'new' ? editing.id : null, yarn, notes: editing && editing !== 'new' ? editing.notes : '' })
       stash.reload()
+      setOpen(true)
       return true
     } catch (error) {
       toast.error(errorMessage(error))
@@ -187,43 +192,49 @@ export function StashSection({ queue }: { queue: QueuedPattern[] }) {
 
   return (
     <section aria-labelledby="knit-stash" className="mt-8 space-y-3">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <h2 id="knit-stash" className="text-lg font-semibold tracking-tight">
-          Stock de laine
-        </h2>
-        <Button variant="outline" className="h-10" onClick={() => setEditing('new')}>
-          <Plus /> Ajouter au stock
-        </Button>
+      <FoldHeader
+        id="knit-stash"
+        title="Stock de laine"
+        open={open}
+        onToggle={() => setOpen((o) => !o)}
+        count={count > 0 ? `${count} laine${count > 1 ? 's' : ''}` : null}
+        action={
+          <Button variant="outline" className="h-10" onClick={() => setEditing('new')}>
+            <Plus /> Ajouter au stock
+          </Button>
+        }
+      />
+      <div id="knit-stash-content" hidden={!open && count > 0}>
+        {stash.error ? (
+          <LoadError message={stash.error} onRetry={stash.reload} />
+        ) : !stash.data ? (
+          <Skeleton className="h-16 rounded-2xl" aria-busy="true" aria-label="Chargement du stock de laine" />
+        ) : stash.data.length === 0 ? (
+          <p className="text-sm text-muted-foreground">Aucune laine en stock : note tes pelotes (la photo de l’étiquette suffit) pour savoir quoi en faire.</p>
+        ) : (
+          <ul aria-label="Stock de laine" className="space-y-2">
+            {stash.data.map((item) => (
+              <li key={item.id} className="rounded-2xl border bg-background p-4 shadow-xs">
+                <div className="flex items-start gap-2">
+                  <p className="min-w-0 flex-1 text-sm">
+                    <span className="block font-medium">{yarnTitle(item.yarn)}</span>
+                    <span className="text-muted-foreground">{yarnDetails(item.yarn)}</span>
+                  </p>
+                  <Button variant="ghost" size="icon" aria-label={`Modifier ${yarnTitle(item.yarn)}`} onClick={() => setEditing(item)}>
+                    <Pencil />
+                  </Button>
+                  <Button variant="ghost" size="icon" aria-label={`Retirer ${yarnTitle(item.yarn)} du stock`} onClick={() => setRemoving(item)}>
+                    <Trash2 />
+                  </Button>
+                </div>
+                <Button variant="outline" className="mt-3 h-10" onClick={() => setMatching(item)} aria-label={`Quel patron pour ${yarnTitle(item.yarn)} ?`}>
+                  <Wand2 /> Quel patron ?
+                </Button>
+              </li>
+            ))}
+          </ul>
+        )}
       </div>
-      {stash.error ? (
-        <LoadError message={stash.error} onRetry={stash.reload} />
-      ) : !stash.data ? (
-        <Skeleton className="h-16 rounded-2xl" aria-busy="true" aria-label="Chargement du stock de laine" />
-      ) : stash.data.length === 0 ? (
-        <p className="text-sm text-muted-foreground">Aucune laine en stock : note tes pelotes (la photo de l’étiquette suffit) pour savoir quoi en faire.</p>
-      ) : (
-        <ul aria-label="Stock de laine" className="space-y-2">
-          {stash.data.map((item) => (
-            <li key={item.id} className="rounded-2xl border bg-background p-4 shadow-xs">
-              <div className="flex items-start gap-2">
-                <p className="min-w-0 flex-1 text-sm">
-                  <span className="block font-medium">{yarnTitle(item.yarn)}</span>
-                  <span className="text-muted-foreground">{yarnDetails(item.yarn)}</span>
-                </p>
-                <Button variant="ghost" size="icon" aria-label={`Modifier ${yarnTitle(item.yarn)}`} onClick={() => setEditing(item)}>
-                  <Pencil />
-                </Button>
-                <Button variant="ghost" size="icon" aria-label={`Retirer ${yarnTitle(item.yarn)} du stock`} onClick={() => setRemoving(item)}>
-                  <Trash2 />
-                </Button>
-              </div>
-              <Button variant="outline" className="mt-3 h-10" onClick={() => setMatching(item)} aria-label={`Quel patron pour ${yarnTitle(item.yarn)} ?`}>
-                <Wand2 /> Quel patron ?
-              </Button>
-            </li>
-          ))}
-        </ul>
-      )}
 
       <YarnDialog
         yarn={editing && editing !== 'new' ? editing.yarn : null}

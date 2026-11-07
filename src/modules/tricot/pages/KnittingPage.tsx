@@ -1,4 +1,5 @@
-import { BookmarkPlus, ChevronRight, FilePlus2, Spool } from 'lucide-react'
+import { ChevronRight, FilePlus2, Spool } from 'lucide-react'
+import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useApi } from '@/app/ApiContext'
 import { buttonVariants } from '@/components/ui/button'
@@ -8,6 +9,7 @@ import { PageHeader } from '@/components/PageHeader'
 import { LoadError } from '@/components/LoadError'
 import { useAsync } from '@/hooks/useAsync'
 import { cn } from '@/lib/utils'
+import { FoldHeader } from '../components/FoldHeader'
 import { QueueList } from '../components/QueueList'
 import { StashSection } from '../components/StashSection'
 
@@ -17,6 +19,9 @@ export function KnittingPage() {
   const list = useAsync(() => api.knitting.listProjects(), [api])
   const projects = list.data ?? null
   const queue = useAsync(() => api.knitting.listQueue(), [api])
+  // Patrons pour plus tard : repliés, la page reste centrée sur les projets en cours.
+  const [queueOpen, setQueueOpen] = useState(false)
+  const queueCount = queue.data?.length ?? 0
 
   const newLink = (
     <Link to="/tricot/nouveau" className={cn(buttonVariants(), 'h-10 px-4')}>
@@ -57,23 +62,24 @@ export function KnittingPage() {
       <StashSection queue={queue.data ?? []} />
 
       <section aria-labelledby="knit-queue" className="mt-8 space-y-3">
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <h2 id="knit-queue" className="text-lg font-semibold tracking-tight">
-            À faire plus tard
-          </h2>
-          <Link to="/tricot/a-faire" className={cn(buttonVariants({ variant: 'outline' }), 'h-10')}>
-            <BookmarkPlus /> Mettre un patron de côté
-          </Link>
+        <FoldHeader
+          id="knit-queue"
+          title="À faire plus tard"
+          open={queueOpen}
+          onToggle={() => setQueueOpen((o) => !o)}
+          count={queueCount > 0 ? `${queueCount} patron${queueCount > 1 ? 's' : ''}` : null}
+        />
+        <div id="knit-queue-content" hidden={!queueOpen && queueCount > 0}>
+          {queue.error ? (
+            <LoadError message={queue.error} onRetry={queue.reload} />
+          ) : !queue.data ? (
+            <Skeleton className="h-16 rounded-2xl" aria-busy="true" aria-label="Chargement des patrons en attente" />
+          ) : queue.data.length === 0 ? (
+            <p className="text-sm text-muted-foreground">Aucun patron en attente : choisis « Mettre de côté » dans « Nouveau patron ».</p>
+          ) : (
+            <QueueList items={queue.data} onChange={queue.reload} />
+          )}
         </div>
-        {queue.error ? (
-          <LoadError message={queue.error} onRetry={queue.reload} />
-        ) : !queue.data ? (
-          <Skeleton className="h-16 rounded-2xl" aria-busy="true" aria-label="Chargement des patrons en attente" />
-        ) : queue.data.length === 0 ? (
-          <p className="text-sm text-muted-foreground">Aucun patron en attente : garde ici ceux que tu veux tricoter un jour.</p>
-        ) : (
-          <QueueList items={queue.data} onChange={queue.reload} />
-        )}
       </section>
     </>
   )

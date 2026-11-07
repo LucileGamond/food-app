@@ -5,7 +5,6 @@ import { fakeApi, renderWithApp } from '@/test/fakes'
 import { AppError } from '@/api'
 import type { KnitProject, KnitStep, ReadPattern } from '../lib/pattern'
 import { EMPTY_YARN, type QueuedPattern, type StashItem } from '../lib/yarn'
-import { KnittingQueueFormPage } from './KnittingQueueFormPage'
 import { KnittingImportPage } from './KnittingImportPage'
 import { KnittingPage } from './KnittingPage'
 import { KnittingProjectPage } from './KnittingProjectPage'
@@ -116,9 +115,6 @@ describe('KnittingImportPage', () => {
     expect(screen.getByRole('alert')).toHaveTextContent('Choisis le PDF du patron.')
     const file = pdf()
     await user.upload(screen.getByLabelText('Patron (PDF)'), file)
-    await user.click(screen.getByRole('button', { name: 'Lire le patron' }))
-    expect(screen.getByRole('alert')).toHaveTextContent('Indique la taille choisie.')
-
     await user.type(screen.getByLabelText('Taille choisie'), ' M ')
     await user.click(screen.getByRole('button', { name: 'Lire le patron' }))
     expect(api.knitting.readPattern).toHaveBeenCalledWith(file, 'M')
@@ -566,6 +562,12 @@ describe('patrons à faire plus tard', () => {
     const api = fakeApi()
     api.knitting.listQueue.mockResolvedValue([{ ...QUEUED, id: 'q2', title: 'Bonnet', pdfPath: null, url: 'https://patrons.exemple/bonnet', priority: 3, size: null, yarnIdea: '', notes: '' }, QUEUED])
     renderWithApp(<KnittingPage />, { api })
+    // Repliée par défaut, avec le nombre de patrons
+    const toggle = await screen.findByRole('button', { name: 'À faire plus tard' })
+    expect(toggle).toHaveAttribute('aria-expanded', 'false')
+    expect(await screen.findByText('2 patrons')).toBeInTheDocument()
+    expect(screen.queryByRole('list', { name: 'Patrons à faire plus tard' })).not.toBeInTheDocument()
+    await user.click(toggle)
     const list = await screen.findByRole('list', { name: 'Patrons à faire plus tard' })
     const items = within(list).getAllByRole('listitem')
     expect(items.map((i) => i.querySelector('p')?.textContent)).toEqual(['Gilet Rosée', 'Bonnet'])
@@ -586,22 +588,29 @@ describe('patrons à faire plus tard', () => {
     expect(api.knitting.listQueue).toHaveBeenCalledTimes(2)
   })
 
-  it('invite à mettre un patron de côté', async () => {
+  it('invite à mettre un patron de côté depuis « Nouveau patron »', async () => {
     renderWithApp(<KnittingPage />)
-    expect(await screen.findByText(/Aucun patron en attente/)).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: 'Mettre un patron de côté' })).toHaveAttribute('href', '/tricot/a-faire')
+    expect(await screen.findByText(/Aucun patron en attente : choisis « Mettre de côté »/)).toBeInTheDocument()
+    expect(screen.getAllByRole('link', { name: 'Nouveau patron' })[0]).toHaveAttribute('href', '/tricot/nouveau')
   })
 
   it('met un patron de côté, avec son PDF', async () => {
     const user = userEvent.setup()
     const api = fakeApi()
-    renderWithApp(<KnittingQueueFormPage />, { api, route: '/tricot/a-faire', path: '/tricot/a-faire', extraRoutes: <Route path="/tricot" element={<p>Tricot</p>} /> })
-    await user.click(screen.getByRole('button', { name: 'Mettre de côté' }))
-    expect(screen.getByRole('alert')).toHaveTextContent('Donne un nom au patron.')
+    renderWithApp(<KnittingImportPage />, { api, route: '/tricot/nouveau', path: '/tricot/nouveau', extraRoutes: <Route path="/tricot" element={<p>Tricot</p>} /> })
+    // PDF et taille choisis d'abord pour « Commencer maintenant » : repris en changeant d'avis
     const pdf = new File(['%PDF'], 'Gilet Rosée.pdf', { type: 'application/pdf' })
     await user.upload(screen.getByLabelText('Patron (PDF)'), pdf)
+    await user.type(screen.getByLabelText('Taille choisie'), 'M')
+    expect(screen.getByRole('radio', { name: 'Commencer maintenant' })).toBeChecked()
+    await user.click(screen.getByRole('radio', { name: 'Mettre de côté' }))
+    expect(screen.getByRole('radio', { name: 'Mettre de côté' })).toBeChecked()
     expect(screen.getByLabelText('Nom du patron')).toHaveValue('Gilet Rosée')
-    await user.type(screen.getByLabelText('Taille visée'), 'M')
+    expect(screen.getByLabelText('Taille visée')).toHaveValue('M')
+    await user.clear(screen.getByLabelText('Nom du patron'))
+    await user.click(screen.getByRole('button', { name: 'Mettre de côté' }))
+    expect(screen.getByRole('alert')).toHaveTextContent('Donne un nom au patron.')
+    await user.type(screen.getByLabelText('Nom du patron'), 'Gilet Rosée')
     await user.selectOptions(screen.getByLabelText('Quand'), 'Bientôt')
     await user.type(screen.getByLabelText('Laine envisagée'), 'Mérinos')
     await user.type(screen.getByLabelText('Métrage nécessaire (m)'), '600')
@@ -615,7 +624,9 @@ describe('patrons à faire plus tard', () => {
     const user = userEvent.setup()
     const api = fakeApi()
     api.knitting.addToQueue.mockRejectedValue(new AppError('Impossible d’envoyer le PDF.'))
-    renderWithApp(<KnittingQueueFormPage />, { api })
+    // Ancienne adresse et `?plus-tard` : « Mettre de côté » d'emblée
+    renderWithApp(<KnittingImportPage />, { api, route: '/tricot/nouveau?plus-tard', path: '/tricot/nouveau' })
+    expect(screen.getByRole('radio', { name: 'Mettre de côté' })).toBeChecked()
     await user.type(screen.getByLabelText('Nom du patron'), 'Bonnet')
     await user.type(screen.getByLabelText('Ou lien vers le patron'), 'https://patrons.exemple/bonnet')
     await user.click(screen.getByRole('button', { name: 'Mettre de côté' }))
@@ -636,11 +647,40 @@ describe('patrons à faire plus tard', () => {
     expect(await screen.findByRole('heading', { name: 'Commencer « Gilet Rosée »' })).toBeInTheDocument()
     expect(api.knitting.downloadPdf).toHaveBeenCalledWith('u-lucile/gilet.pdf', 'Gilet Rosée')
     expect(screen.getByLabelText('Taille choisie')).toHaveValue('M')
-    expect(screen.getByText('Gilet Rosée.pdf')).toBeInTheDocument()
+    // PDF repris : rien à choisir, ni « Mettre de côté »
+    expect(await screen.findByText('Gilet Rosée.pdf')).toBeInTheDocument()
+    expect(screen.queryByLabelText('Patron (PDF)')).not.toBeInTheDocument()
+    expect(screen.queryByRole('radiogroup')).not.toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: 'Lire le patron' }))
     expect(await screen.findByText(/échantillon 22 m\. × 30 rangs pour 10 cm/)).toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: 'Enregistrer le projet' }))
     await waitFor(() => expect(api.knitting.createProject).toHaveBeenCalledWith(expect.objectContaining({ queued: QUEUED, gauge: { stitches: 22, rows: 30 } })))
+  })
+
+  it('lit un patron sans taille : la première taille du patron est prise', async () => {
+    const user = userEvent.setup()
+    const api = fakeApi()
+    api.knitting.readPattern.mockResolvedValue({ ...PATTERN, sizeIndex: 0 })
+    renderWithApp(<KnittingImportPage />, { api, route: '/tricot/nouveau', path: '/tricot/nouveau', extraRoutes: <Route path="/tricot/:id" element={<p>Projet ouvert</p>} /> })
+    const file = new File(['%PDF-1.4'], 'p.pdf', { type: 'application/pdf' })
+    await user.upload(screen.getByLabelText('Patron (PDF)'), file)
+    await user.click(screen.getByRole('button', { name: 'Lire le patron' }))
+    expect(api.knitting.readPattern).toHaveBeenCalledWith(file, '')
+    expect(await screen.findByText(/^Taille S · 3 étapes/)).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'Enregistrer le projet' }))
+    expect(api.knitting.createProject).toHaveBeenCalledWith(expect.objectContaining({ size: 'S', sizeIndex: 0 }))
+  })
+
+  it('patron mis de côté : un autre PDF peut le remplacer', async () => {
+    const user = userEvent.setup()
+    const api = fakeApi()
+    api.knitting.getQueued.mockResolvedValue(QUEUED)
+    renderWithApp(<KnittingImportPage />, { api, route: '/tricot/nouveau?patron=q1', path: '/tricot/nouveau' })
+    await user.click(await screen.findByRole('button', { name: 'Choisir un autre PDF' }))
+    const other = new File(['%PDF-1.4'], 'autre.pdf', { type: 'application/pdf' })
+    await user.upload(screen.getByLabelText('Patron (PDF)'), other)
+    await user.click(screen.getByRole('button', { name: 'Lire le patron' }))
+    expect(api.knitting.readPattern).toHaveBeenCalledWith(other, 'M')
   })
 
   it('patron mis de côté introuvable', async () => {
@@ -672,6 +712,7 @@ describe('stock de laine', () => {
     const api = fakeApi()
     renderWithApp(<KnittingPage />, { api })
     const section = await screen.findByRole('region', { name: 'Stock de laine' })
+    // Stock vide : le message se voit même replié
     expect(await within(section).findByText(/Aucune laine en stock/)).toBeInTheDocument()
     await user.click(within(section).getByRole('button', { name: 'Ajouter au stock' }))
     let dialog = await screen.findByRole('dialog', { name: 'Ajouter au stock' })
@@ -687,7 +728,11 @@ describe('stock de laine', () => {
     // Recharge avec la laine
     api.knitting.saveStashItem.mockClear()
     renderWithApp(<KnittingPage />, { api })
-    const list = (await screen.findAllByRole('list', { name: 'Stock de laine' }))[0]!
+    // Replié par défaut, avec le nombre de laines
+    expect((await screen.findAllByText('1 laine'))[0]).toBeInTheDocument()
+    expect(screen.queryByRole('list', { name: 'Stock de laine' })).not.toBeInTheDocument()
+    await user.click(screen.getAllByRole('button', { name: 'Stock de laine' }).at(-1)!)
+    const list = await screen.findByRole('list', { name: 'Stock de laine' })
     await user.click(within(list).getByRole('button', { name: 'Modifier DROPS Merino' }))
     dialog = await screen.findByRole('dialog', { name: 'Modifier la laine' })
     await user.clear(within(dialog).getByLabelText(/Nombre de pelotes/))
@@ -718,6 +763,7 @@ describe('stock de laine', () => {
       },
     ])
     renderWithApp(<KnittingPage />, { api })
+    await user.click(await screen.findByRole('button', { name: 'Stock de laine' }))
     await user.click(await screen.findByRole('button', { name: 'Quel patron pour DROPS Merino ?' }))
     const dialog = await screen.findByRole('dialog', { name: 'Quel patron pour cette laine ?' })
     expect(dialog).toHaveTextContent('DROPS Merino · 840 m en stock')
@@ -746,6 +792,7 @@ describe('stock de laine', () => {
     api.knitting.listStash.mockResolvedValue(STASH)
     api.knitting.yarnIdeas.mockRejectedValue(new AppError('La recherche d’idées a échoué.'))
     renderWithApp(<KnittingPage />, { api })
+    await user.click(await screen.findByRole('button', { name: 'Stock de laine' }))
     await user.click(await screen.findByRole('button', { name: 'Quel patron pour DROPS Merino ?' }))
     const dialog = await screen.findByRole('dialog')
     expect(dialog).toHaveTextContent('Aucun patron mis de côté.')

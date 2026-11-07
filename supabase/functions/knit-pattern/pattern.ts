@@ -88,7 +88,7 @@ export function parseInput(body: unknown): PatternInput {
   if (!pdf) throw new HttpError('PDF manquant.', 400)
   if (pdf.length > MAX_PDF_BASE64) throw new HttpError('PDF trop lourd (20 Mo au plus).', 413)
   if (!/^[A-Za-z0-9+/]+=*$/.test(pdf.slice(0, 1000)) || !pdf.startsWith('JVBER')) throw new HttpError('Ce fichier n’est pas un PDF.', 400)
-  if (!size) throw new HttpError('Indique la taille choisie.', 400)
+  // Taille facultative : sans elle, les nombres comptés sont ceux de la première taille du patron.
   return { pdf, size }
 }
 
@@ -181,9 +181,17 @@ export const TOOL: Tool = {
 }
 
 export function systemPrompt(size: string): string {
+  const chosen = size
+    ? [
+        'Tu lis un patron de tricot (PDF) pour une tricoteuse qui a choisi une taille.',
+        `Taille choisie : « ${size} ». Retrouve-la parmi les tailles du patron (même écrite autrement : « M » = « taille 2 » si le patron l’indique, « 4 ans » = « 4A »…).`,
+      ]
+    : [
+        'Tu lis un patron de tricot (PDF) pour une tricoteuse qui n’a pas encore choisi de taille.',
+        'Prends la première taille du patron comme taille choisie (size_found à true) ; un patron en taille unique a une seule taille.',
+      ]
   return [
-    'Tu lis un patron de tricot (PDF) pour une tricoteuse qui a choisi une taille.',
-    `Taille choisie : « ${size} ». Retrouve-la parmi les tailles du patron (même écrite autrement : « M » = « taille 2 » si le patron l’indique, « 4 ans » = « 4A »…).`,
+    ...chosen,
     'Les patrons donnent les nombres de toutes les tailles à la suite, par exemple « monter 60 (64-68-72) m. » ou « 60/64/68/72 m. ».',
     'Découpe le patron en étapes de tricot dans l’ordre (dos, devant, manches, finitions…).',
     'Dans instructions, recopie mot pour mot le texte du patron pour l’étape, avec les nombres de toutes les tailles tels qu’écrits :',
@@ -266,6 +274,8 @@ function sizeIndex(value: unknown, sizes: string[], size: string): number | null
   const number = int(value, 1, sizes.length)
   if (number !== null) return number - 1
   const key = (s: string) => s.trim().toLowerCase().replace(/\s+/g, ' ')
+  // Sans taille choisie : la première, prise pour les nombres comptés.
+  if (!size) return sizes.length ? 0 : null
   const index = sizes.findIndex((s) => key(s) === key(size))
   return index === -1 ? null : index
 }
@@ -274,7 +284,8 @@ function sizeIndex(value: unknown, sizes: string[], size: string): number | null
 export function sanitizePattern(input: unknown, size: string): ReadPattern {
   const data = asRecord(input)
   const sizes = (Array.isArray(data.sizes) ? data.sizes : []).map((s) => str(s, 40)).filter(Boolean).slice(0, 30)
-  if (data.size_found === false) {
+  // Sans taille choisie, la première taille est prise : rien d'introuvable.
+  if (size && data.size_found === false) {
     throw new HttpError(
       sizes.length ? `Taille « ${size} » introuvable. Tailles du patron : ${sizes.join(', ')}.` : `Taille « ${size} » introuvable dans ce patron.`,
       422,
@@ -311,7 +322,7 @@ export async function readPattern(input: PatternInput, options: ModelOptions): P
       tool: TOOL,
       message: [
         { type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: input.pdf } },
-        { type: 'text', text: `Découpe ce patron en étapes pour la taille « ${input.size} ».` },
+        { type: 'text', text: input.size ? `Découpe ce patron en étapes pour la taille « ${input.size} ».` : 'Découpe ce patron en étapes (aucune taille choisie : prends la première).' },
       ],
       // Texte recopié tel quel : plus long qu'un résumé.
       maxTokens: 32_000,

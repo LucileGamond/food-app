@@ -31,7 +31,6 @@ const SettingsPage = lazy(() => import('@/pages/SettingsPage').then((m) => ({ de
 // Module Tricot (indépendant de la cuisine).
 const KnittingPage = lazy(() => import('@/modules/tricot/pages/KnittingPage').then((m) => ({ default: m.KnittingPage })))
 const KnittingImportPage = lazy(() => import('@/modules/tricot/pages/KnittingImportPage').then((m) => ({ default: m.KnittingImportPage })))
-const KnittingQueueFormPage = lazy(() => import('@/modules/tricot/pages/KnittingQueueFormPage').then((m) => ({ default: m.KnittingQueueFormPage })))
 const KnittingProjectPage = lazy(() => import('@/modules/tricot/pages/KnittingProjectPage').then((m) => ({ default: m.KnittingProjectPage })))
 // Module Plantes (indépendant de la cuisine, partagé par le foyer).
 const PlantsPage = lazy(() => import('@/modules/plantes/pages/PlantsPage').then((m) => ({ default: m.PlantsPage })))
@@ -88,7 +87,8 @@ export function App({ api, auth }: { api: Api; auth: AuthClient }) {
                 <Route path="/reglages" element={<SettingsPage />} />
                 <Route path="/tricot" element={<KnittingPage />} />
                 <Route path="/tricot/nouveau" element={<KnittingImportPage />} />
-                <Route path="/tricot/a-faire" element={<KnittingQueueFormPage />} />
+                {/* Ancienne adresse de « Mettre un patron de côté », réunie avec « Nouveau patron ». */}
+                <Route path="/tricot/a-faire" element={<Navigate to="/tricot/nouveau?plus-tard" replace />} />
                 <Route path="/tricot/:id" element={<KnittingProjectPage />} />
                 <Route path="/plantes" element={<PlantsPage />} />
                 <Route path="/plantes/nouvelle" element={<PlantFormPage />} />

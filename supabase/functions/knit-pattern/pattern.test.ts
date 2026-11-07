@@ -28,7 +28,9 @@ describe('entrée', () => {
   it('exige un PDF et une taille', () => {
     expect(parseInput({ pdf: PDF, size: ' M ' })).toEqual({ pdf: PDF, size: 'M' })
     expect(() => parseInput({ size: 'M' })).toThrow('PDF manquant.')
-    expect(() => parseInput({ pdf: PDF, size: '' })).toThrow('Indique la taille choisie.')
+    // Taille facultative
+    expect(parseInput({ pdf: PDF, size: '' })).toEqual({ pdf: PDF, size: '' })
+    expect(parseInput({ pdf: PDF })).toEqual({ pdf: PDF, size: '' })
     expect(() => parseInput({ pdf: 'iVBORw0KGgo=', size: 'M' })).toThrow('Ce fichier n’est pas un PDF.')
     expect(() => parseInput({ pdf: 'J'.repeat(MAX_PDF_BASE64 + 1), size: 'M' })).toThrow('PDF trop lourd')
     expect(() => parseInput(null)).toThrow('PDF manquant.')
@@ -132,6 +134,14 @@ describe('résultat du modèle', () => {
     expect(sanitizePattern({ ...PATTERN, steps, instructions: undefined }, 'M').steps[0]!.instructions.length).toBe(text.length)
     expect(sanitizePattern({ ...PATTERN, steps: [{ ...steps[0], instructions: 'x'.repeat(30_000) }] }, 'M').steps[0]!.instructions).toHaveLength(20_000)
     expect(systemPrompt('M')).toContain('mot pour mot')
+  })
+
+  it('sans taille choisie : la première taille du patron', () => {
+    expect(sanitizePattern({ ...PATTERN, size_found: false }, '').sizeIndex).toBe(0)
+    expect(sanitizePattern({ ...PATTERN, size_number: 3 }, '').sizeIndex).toBe(2)
+    expect(sanitizePattern({ ...PATTERN, sizes: [] }, '').sizeIndex).toBeNull()
+    expect(systemPrompt('')).toContain('Prends la première taille du patron')
+    expect(systemPrompt('M')).not.toContain('Prends la première taille du patron')
   })
 
   it('repère les diagrammes : page, lignes de la grille, étape et sens de lecture', () => {
