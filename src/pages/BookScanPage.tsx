@@ -29,7 +29,7 @@ import {
   type ScanGroup,
   type ScanSession,
 } from '@/lib/bookScan'
-import { createShutterFeedback, openCamera, type CameraSession } from '@/lib/camera'
+import { createShutterFeedback, openCamera, type CameraSession, type CameraZoom } from '@/lib/camera'
 import { initialScanState, nextScanState, registerCapture, samePageInView, type ScanHint, type ScanStep } from '@/lib/pageScan'
 import { scanStore } from '@/lib/scanStore'
 import { findSource, recipeKey } from '@/lib/sources'
@@ -82,12 +82,15 @@ function ScanCamera({ multi, full, feedback, onCapture, onNewRecipe, onUndo, onF
   const props = useRef({ onCapture, feedback, full })
   const [ready, setReady] = useState(false)
   const [failed, setFailed] = useState(false)
+  // Réglage d'abord (position, zoom, lumière) : aucune photo avant « Lancer le scan ».
+  const [launched, setLaunched] = useState(false)
   const [paused, setPaused] = useState(false)
   const [hint, setHint] = useState<ScanHint>('moving')
   const [double, setDouble] = useState(false)
   const [flash, setFlash] = useState(false)
   const [torch, setTorch] = useState(false)
   const [hasTorch, setHasTorch] = useState(false)
+  const [zoom, setZoom] = useState<CameraZoom | null>(null)
   const [metrics, setMetrics] = useState<ScanStep['metrics'] | null>(null)
   const [debug] = useState(() => new URLSearchParams(window.location.search).has('debug'))
   useWakeLock()
@@ -103,6 +106,7 @@ function ScanCamera({ multi, full, feedback, onCapture, onNewRecipe, onUndo, onF
         if (stopped) return session.stop()
         camera.current = session
         setHasTorch(session.hasTorch)
+        setZoom(session.zoom)
         setReady(true)
       },
       () => setFailed(true),
@@ -138,7 +142,7 @@ function ScanCamera({ multi, full, feedback, onCapture, onNewRecipe, onUndo, onF
 
   // Analyse de l'image ~8 fois par seconde : la photo part toute seule quand la page est prête.
   useEffect(() => {
-    if (!ready || paused || full) return
+    if (!ready || !launched || paused || full) return
     const timer = setInterval(() => {
       const session = camera.current
       if (!session || busy.current) return
@@ -152,10 +156,21 @@ function ScanCamera({ multi, full, feedback, onCapture, onNewRecipe, onUndo, onF
       if (step.capture) void shootRef.current(false)
     }, ANALYSIS_INTERVAL_MS)
     return () => clearInterval(timer)
-  }, [ready, paused, full, debug])
+  }, [ready, launched, paused, full, debug])
 
   async function undo() {
     if (!(await onUndo())) toast.error('Trop tard : cette photo est déjà en lecture.')
+  }
+
+  function launch() {
+    // La page devant la caméra au lancement sera la première photo.
+    scan.current = initialScanState()
+    setLaunched(true)
+  }
+
+  function changeZoom(value: number) {
+    setZoom((z) => z && { ...z, value })
+    void camera.current?.setZoom(value)
   }
 
   function toggleTorch() {
@@ -170,7 +185,9 @@ function ScanCamera({ multi, full, feedback, onCapture, onNewRecipe, onUndo, onF
       ? `${MAX_SCAN_PAGES} pages : c’est le maximum pour une session. Termine pour lire les dernières recettes.`
       : !ready
         ? 'Ouverture de la caméra…'
-        : paused
+        : !launched
+          ? 'Règle le téléphone (position, zoom, lumière), puis lance le scan : aucune photo avant.'
+          : paused
           ? 'En pause : la photo automatique est arrêtée.'
           : HINTS[hint]
 
@@ -189,21 +206,49 @@ function ScanCamera({ multi, full, feedback, onCapture, onNewRecipe, onUndo, onF
       <p role="status" className={cn('text-center text-sm font-medium', failed && 'text-destructive')}>
         {status}
       </p>
-      {multi && (
-        <Button className="h-14 w-full text-base" onClick={() => onNewRecipe(samePageInView(scan.current))} disabled={failed}>
-          <Plus /> Nouvelle recette
+      {zoom && (
+        <div className="flex items-center gap-3">
+          <Label htmlFor="scan-zoom" className="shrink-0">
+            Zoom
+          </Label>
+          <input
+            id="scan-zoom"
+            type="range"
+            min={zoom.min}
+            max={zoom.max}
+            step={zoom.step}
+            value={zoom.value}
+            onChange={(e) => changeZoom(Number(e.target.value))}
+            className="w-full accent-brand"
+          />
+          <span className="w-10 text-right text-sm text-muted-foreground tabular-nums">×{zoom.value.toFixed(1)}</span>
+        </div>
+      )}
+      {!launched ? (
+        <Button className="h-14 w-full text-base" onClick={launch} disabled={!ready || full}>
+          <Play /> Lancer le scan
         </Button>
+      ) : (
+        multi && (
+          <Button className="h-14 w-full text-base" onClick={() => onNewRecipe(samePageInView(scan.current))} disabled={failed}>
+            <Plus /> Nouvelle recette
+          </Button>
+        )
       )}
       <div className="flex flex-wrap justify-center gap-2">
-        <Button variant="outline" className="h-10 px-3" onClick={() => setPaused((p) => !p)} disabled={!ready || full}>
-          {paused ? <Play /> : <Pause />} {paused ? 'Reprendre' : 'Pause'}
-        </Button>
-        <Button variant="outline" className="h-10 px-3" onClick={() => void shoot(true)} disabled={!ready || full}>
-          <Camera /> Prendre la photo
-        </Button>
-        <Button variant="outline" className="h-10 px-3" onClick={() => void undo()}>
-          <Undo2 /> Annuler la dernière
-        </Button>
+        {launched && (
+          <>
+            <Button variant="outline" className="h-10 px-3" onClick={() => setPaused((p) => !p)} disabled={!ready || full}>
+              {paused ? <Play /> : <Pause />} {paused ? 'Reprendre' : 'Pause'}
+            </Button>
+            <Button variant="outline" className="h-10 px-3" onClick={() => void shoot(true)} disabled={!ready || full}>
+              <Camera /> Prendre la photo
+            </Button>
+            <Button variant="outline" className="h-10 px-3" onClick={() => void undo()}>
+              <Undo2 /> Annuler la dernière
+            </Button>
+          </>
+        )}
         {hasTorch && (
           <Button variant="outline" className="h-10 px-3" aria-pressed={torch} onClick={toggleTorch}>
             <Flashlight /> Lampe

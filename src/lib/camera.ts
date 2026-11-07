@@ -16,7 +16,15 @@ interface ImageCaptureLike {
   takePhoto(settings?: { fillLightMode?: 'off' | 'flash' | 'auto' }): Promise<Blob>
 }
 type ImageCaptureCtor = new (track: MediaStreamTrack) => ImageCaptureLike
-type TrackCapabilities = MediaTrackCapabilities & { focusMode?: string[]; torch?: boolean }
+type TrackCapabilities = MediaTrackCapabilities & { focusMode?: string[]; torch?: boolean; zoom?: { min: number; max: number; step?: number } }
+
+/** Zoom de la caméra (si le téléphone le permet) : bornes, pas et valeur actuelle. */
+export interface CameraZoom {
+  min: number
+  max: number
+  step: number
+  value: number
+}
 
 export interface CameraSession {
   /** Image actuelle réduite en gris, pour la détection (null tant que la vidéo n'a pas d'image). */
@@ -27,6 +35,9 @@ export interface CameraSession {
   isDoublePage(): boolean
   hasTorch: boolean
   setTorch(on: boolean): Promise<void>
+  /** Zoom réglable, ou null si le téléphone ne le permet pas. */
+  zoom: CameraZoom | null
+  setZoom(value: number): Promise<void>
   stop(): void
 }
 
@@ -143,6 +154,18 @@ export async function openCamera(video: HTMLVideoElement): Promise<CameraSession
     hasTorch: capabilities.torch === true,
     async setTorch(on) {
       await track.applyConstraints({ advanced: [{ torch: on } as MediaTrackConstraintSet] }).catch(() => undefined)
+    },
+    zoom:
+      capabilities.zoom && capabilities.zoom.max > capabilities.zoom.min
+        ? {
+            min: capabilities.zoom.min,
+            max: capabilities.zoom.max,
+            step: capabilities.zoom.step || 0.1,
+            value: (track.getSettings() as MediaTrackSettings & { zoom?: number }).zoom ?? capabilities.zoom.min,
+          }
+        : null,
+    async setZoom(value) {
+      await track.applyConstraints({ advanced: [{ zoom: value } as MediaTrackConstraintSet] }).catch(() => undefined)
     },
     stop() {
       stream.getTracks().forEach((t) => t.stop())

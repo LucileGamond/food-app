@@ -1,4 +1,4 @@
-import { act, screen, waitFor, within } from '@testing-library/react'
+import { act, fireEvent, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { Route } from 'react-router-dom'
 import { AppError } from '@/api'
@@ -13,6 +13,8 @@ const camera = vi.hoisted(() => ({
   isDoublePage: vi.fn(() => false),
   hasTorch: true,
   setTorch: vi.fn(async () => undefined),
+  zoom: { min: 1, max: 5, step: 0.5, value: 1 },
+  setZoom: vi.fn(async () => undefined),
   stop: vi.fn(),
 }))
 const shutter = vi.hoisted(() => vi.fn())
@@ -50,6 +52,7 @@ async function open(user: ReturnType<typeof userEvent.setup>, { multi = false } 
   await user.type(await screen.findByLabelText('Livre'), 'Pâtisserie maison')
   if (multi) await user.click(screen.getByRole('checkbox', { name: 'Recettes sur plusieurs photos' }))
   await user.click(screen.getByRole('button', { name: 'Ouvrir la caméra' }))
+  await user.click(await screen.findByRole('button', { name: 'Lancer le scan' }))
   await screen.findByText('Tiens le téléphone immobile au-dessus de la page')
 }
 
@@ -171,6 +174,22 @@ describe('BookScanPage', () => {
     await waitFor(() => expect(within(results()).getByRole('link', { name: 'Financiers' })).toBeInTheDocument())
     await user.click(screen.getByRole('button', { name: 'Scanner un autre livre' }))
     expect(await screen.findByLabelText('Livre')).toHaveValue('')
+  })
+
+  it('réglage avant le scan : aperçu, zoom et lampe, sans photo ni bouton de prise', async () => {
+    const { user } = setup()
+    await user.type(await screen.findByLabelText('Livre'), 'Pâtisserie maison')
+    await user.click(screen.getByRole('button', { name: 'Ouvrir la caméra' }))
+    expect(await screen.findByText(/Règle le téléphone/)).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Prendre la photo' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Pause' })).not.toBeInTheDocument()
+    fireEvent.change(screen.getByLabelText('Zoom'), { target: { value: '2.5' } })
+    expect(camera.setZoom).toHaveBeenCalledWith(2.5)
+    expect(screen.getByText('×2.5')).toBeInTheDocument()
+    await wait(2000)
+    expect(camera.capture).not.toHaveBeenCalled()
+    await user.click(screen.getByRole('button', { name: 'Lancer le scan' }))
+    expect(screen.getByRole('button', { name: 'Prendre la photo' })).toBeInTheDocument()
   })
 
   it('lampe, pause et caméra refusée', async () => {

@@ -37,6 +37,12 @@ test('scanne un livre en tournant les pages : photo automatique, lecture au fil 
   await expect(page.getByRole('heading', { name: 'Scanner un livre' })).toBeVisible()
   await page.getByLabel('Livre', { exact: true }).fill('Livre scanné')
   await page.getByRole('button', { name: 'Ouvrir la caméra' }).click()
+  // Réglage du téléphone : aperçu sans photo, jusqu'au lancement.
+  await expect(page.getByRole('status')).toContainText('Règle le téléphone')
+  await page.waitForTimeout(2500)
+  expect(calls).toBe(0)
+  await expect(page.getByText('0 page')).toBeVisible()
+  await page.getByRole('button', { name: 'Lancer le scan' }).click()
 
   // Photos prises toutes seules (page 1, puis page 2 une fois tournée), lues 3 s plus tard.
   const scan = page.getByRole('region', { name: 'Scan en cours' })
