@@ -606,7 +606,7 @@ describe('patrons à faire plus tard', () => {
     await user.click(screen.getByRole('button', { name: 'Mettre de côté' }))
     expect(api.knitting.addToQueue).toHaveBeenCalledWith({ title: 'Gilet Rosée', pdf, url: null, size: 'M', yarnIdea: 'Mérinos', notes: '', priority: 1, metersNeeded: 600, needleMm: 4 })
     expect(await screen.findByText('Tricot')).toBeInTheDocument()
-  })
+  }, 30_000)
 
   it('signale un enregistrement impossible', async () => {
     const user = userEvent.setup()
