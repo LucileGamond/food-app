@@ -1,4 +1,4 @@
-import { cropFromDrag, FULL_CROP, isFullCrop, isUnchanged, rotateCrop, turn } from './photoEdit'
+import { cropFromDrag, FULL_CROP, isFullCrop, isUnchanged, rotateCrop, rotationOf, turn } from './photoEdit'
 
 describe('retouche de photo', () => {
   it('tourne d’un quart de tour dans les deux sens', () => {
@@ -21,6 +21,13 @@ describe('retouche de photo', () => {
     const close = (a: typeof crop, b: typeof crop) => (['left', 'top', 'right', 'bottom'] as const).forEach((k) => expect(a[k]).toBeCloseTo(b[k]))
     close(rotateCrop(rotateCrop(crop, 1), -1), crop)
     close([1, 1, 1, 1].reduce((c) => rotateCrop(c, 1), crop), crop)
+  })
+
+  it('lit la rotation renvoyée par la détection, 0 pour toute réponse inattendue', () => {
+    expect(rotationOf({ rotation: 270 })).toBe(270)
+    expect(rotationOf({ rotation: 45 })).toBe(0)
+    expect(rotationOf({ rotation: '90' })).toBe(0)
+    expect(rotationOf(null)).toBe(0)
   })
 
   it('sait quand il n’y a rien à changer', () => {

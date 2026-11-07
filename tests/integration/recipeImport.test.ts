@@ -58,6 +58,13 @@ describe('import de recette depuis une photo (Edge Function)', () => {
     const { api } = await signedInApi()
     await expect(api.recipes.importFromPhotos([page])).rejects.toThrow(/Le service d’analyse est mal configuré\.|Le service d’analyse ne répond pas/)
   })
+
+  it('sens d’une photo : connexion exigée, 4 versions attendues, service mal configuré signalé', async () => {
+    await expect(createApi(anonClient()).recipes.detectPhotoRotation([page, page, page, page])).rejects.toMatchObject({ code: 'import-401' })
+    const { api } = await signedInApi()
+    await expect(api.recipes.detectPhotoRotation([page])).rejects.toThrow('4 versions de la photo attendues.')
+    await expect(api.recipes.detectPhotoRotation([page, page, page, page])).rejects.toThrow(/Le service d’analyse est mal configuré\.|Le service d’analyse ne répond pas/)
+  })
 })
 
 // Vidéos et publications (vraie Edge Function locale, sans clé API Anthropic : jamais d'appel au modèle).

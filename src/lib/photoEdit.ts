@@ -40,6 +40,12 @@ export function rotateCrop(crop: Crop, direction: 1 | -1): Crop {
     : { left: crop.top, top: 1 - crop.right, right: crop.bottom, bottom: 1 - crop.left }
 }
 
+/** Rotation renvoyée par la détection du sens (`{ rotation }`) ; toute autre réponse : 0, la photo ne bouge pas. */
+export function rotationOf(response: unknown): Rotation {
+  const value = (response as { rotation?: unknown } | null)?.rotation
+  return value === 90 || value === 180 || value === 270 ? value : 0
+}
+
 export const isFullCrop = (crop: Crop): boolean => crop.left <= 0 && crop.top <= 0 && crop.right >= 1 && crop.bottom >= 1
 
 /** Rien à changer : ni tournée ni recadrée. */

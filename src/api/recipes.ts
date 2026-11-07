@@ -3,6 +3,7 @@ import { todayIso, type IsoDate } from '@/lib/dates'
 import type { LinkableRecipe } from '@/lib/autoLinks'
 import type { CookingProgress, SavedProgress } from '@/lib/cooking'
 import { toRecipeListItem } from '@/lib/recipeList'
+import { rotationOf } from '@/lib/photoEdit'
 import { isNutritionBasis, type Ingredient, type LinkedRecipe, type Recipe, type RecipeHistory, type RecipeImport, type RecipeListItem, type SaveRecipeInput } from '@/lib/recipes'
 import { estimateInput, parseEstimate, type NutritionEstimate } from '@/lib/nutritionEstimate'
 import { groupSources } from '@/lib/sources'
@@ -32,6 +33,9 @@ async function toBase64(blob: Blob): Promise<string> {
   for (let i = 0; i < bytes.length; i += 0x8000) binary += String.fromCharCode(...bytes.subarray(i, i + 0x8000))
   return btoa(binary)
 }
+
+/** Photos envoyées à la fonction import-recipe, en base64. */
+const photoPayload = (photos: Blob[]) => Promise.all(photos.map(async (photo) => ({ type: photo.type || 'image/jpeg', data: await toBase64(photo) })))
 
 export function createRecipesApi(db: AppSupabaseClient) {
   /** Recette sauvegardée qui utilise déjà ce lien (hors `excludeId`), ou null. */
@@ -289,8 +293,7 @@ export function createRecipesApi(db: AppSupabaseClient) {
      * formulaire. `insist` : la personne affirme qu'il y a une recette (relecture d'une page jugée sans recette).
      */
     async importFromPhotos(photos: Blob[], knownTags: string[] = [], { insist = false } = {}): Promise<RecipeImport> {
-      const images = await Promise.all(photos.map(async (photo) => ({ type: photo.type || 'image/jpeg', data: await toBase64(photo) })))
-      const body = { mode: 'photos', images, knownTags, ...(insist && { insist: true }) }
+      const body = { mode: 'photos', images: await photoPayload(photos), knownTags, insist }
       const { data, error } = await db.functions.invoke<RecipeImport>('import-recipe', { body, timeout: IMPORT_TIMEOUT_MS })
       if (error) throw await functionError(error, 'La lecture de la photo a échoué.', 'import')
       if (!data?.recipe) throw new AppError("La lecture de la photo a échoué.")
@@ -302,10 +305,10 @@ export function createRecipesApi(db: AppSupabaseClient) {
      * la rotation qui la remet à l'endroit (0 en cas de doute).
      */
     async detectPhotoRotation(candidates: Blob[]): Promise<number> {
-      const images = await Promise.all(candidates.map(async (photo) => ({ type: photo.type || 'image/jpeg', data: await toBase64(photo) })))
-      const { data, error } = await db.functions.invoke<{ rotation: number }>('import-recipe', { body: { mode: 'orient', images }, timeout: IMPORT_TIMEOUT_MS })
+      const body = { mode: 'orient', images: await photoPayload(candidates) }
+      const { data, error } = await db.functions.invoke<unknown>('import-recipe', { body, timeout: IMPORT_TIMEOUT_MS })
       if (error) throw await functionError(error, 'La détection du sens de la photo a échoué.', 'import')
-      return [90, 180, 270].includes(data?.rotation ?? 0) ? data!.rotation : 0
+      return rotationOf(data)
     },
 
     /** Calories et macros d'après la table Ciqual (Edge Function estimate-nutrition), non enregistrées. */
