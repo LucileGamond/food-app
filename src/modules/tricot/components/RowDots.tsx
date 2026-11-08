@@ -41,10 +41,10 @@ function Dot({ row, label, checked, next, border, onCount }: { row: number; labe
         if (!checked) onCount(1)
       }}
       className={cn(
-        'size-7 shrink-0 touch-manipulation rounded-full border-2 transition-colors select-none',
+        'size-5 shrink-0 touch-manipulation rounded-full border-2 transition-colors select-none',
         border ? cn(border, 'border-[3px]') : 'border-muted-foreground/40',
         checked ? 'bg-brand' : 'bg-background',
-        next && 'ring-2 ring-foreground ring-offset-2 ring-offset-background',
+        next && 'ring-2 ring-foreground ring-offset-1 ring-offset-background',
       )}
     />
   )
@@ -57,7 +57,7 @@ export function RowDots({ planned, rowCount, onCount }: { planned: PlannedSectio
   const { section } = planned
 
   return (
-    <div className="mt-2 space-y-1.5">
+    <div className="mt-2 space-y-1">
       {lines.map((line, i) => (
         <div key={line.rows[0]} className="flex items-center gap-2">
           {section.kind === 'repeat' && (
@@ -66,7 +66,7 @@ export function RowDots({ planned, rowCount, onCount }: { planned: PlannedSectio
               {section.times !== null && `/${section.times}`}
             </span>
           )}
-          <div className="flex flex-wrap gap-1.5">
+          <div className="flex flex-wrap gap-1">
             {line.rows.map((r) => {
               const actions = line.actions.get(r) ?? []
               return (

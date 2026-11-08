@@ -18,6 +18,7 @@ import { useAsync } from '@/hooks/useAsync'
 import { useSignedUrls } from '@/hooks/useSignedUrls'
 import { ACCEPTED_IMAGE_TYPES, compressImage } from '@/lib/image'
 import { CAPTION_MAX, describePhoto, PROJECT_NOTES_MAX, type ProgressPhoto } from '../lib/progress'
+import { PanelFold } from './PanelFold'
 
 interface Props {
   projectId: string
@@ -88,11 +89,10 @@ export function ProgressPanel({ projectId, currentStepId, stepTitle }: Props) {
   }
 
   return (
-    <section aria-labelledby="knit-progress" className="space-y-4 rounded-2xl border bg-background p-4 shadow-xs sm:p-5">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <h2 id="knit-progress" className="font-semibold">
-          Notes et photos
-        </h2>
+    <PanelFold
+      id="knit-progress"
+      title="Notes et photos"
+      action={
         <div>
           <Label htmlFor="knit-progress-photo" className="sr-only">
             Ajouter une photo d’avancement
@@ -114,7 +114,8 @@ export function ProgressPanel({ projectId, currentStepId, stepTitle }: Props) {
             {adding ? 'Envoi…' : 'Photo d’avancement'}
           </Button>
         </div>
-      </div>
+      }
+    >
 
       {progress.error ? (
         <LoadError message={progress.error} onRetry={progress.reload} />
@@ -192,6 +193,6 @@ export function ProgressPanel({ projectId, currentStepId, stepTitle }: Props) {
         confirmLabel="Supprimer"
         onConfirm={remove}
       />
-    </section>
+    </PanelFold>
   )
 }

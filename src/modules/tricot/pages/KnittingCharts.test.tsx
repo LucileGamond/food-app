@@ -73,7 +73,7 @@ const PROJECT: KnitProject = {
 
 function renderProject(project: KnitProject = PROJECT, api = fakeApi()) {
   api.knitting.getProject.mockResolvedValue(structuredClone(project))
-  return renderWithApp(<KnittingProjectPage />, { api, route: '/tricot/p1', path: '/tricot/:id' })
+  return renderWithApp(<KnittingProjectPage />, { api, route: '/tricot/p1?etape', path: '/tricot/:id' })
 }
 
 describe('diagrammes d’une étape', () => {

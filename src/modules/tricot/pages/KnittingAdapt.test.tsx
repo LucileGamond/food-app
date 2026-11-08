@@ -5,6 +5,7 @@ import { fakeApi, renderWithApp } from '@/test/fakes'
 import { adaptationToJson, applyAdaptation, describeChange, sanitizeAdaptation, withAdaptedSections, type Adaptation } from '../lib/adapt'
 import type { KnitProject, KnitStep, StepSection } from '../lib/pattern'
 import { KnittingProjectPage } from './KnittingProjectPage'
+import { openFold } from '@/test/openFold'
 
 const step = (overrides: Partial<KnitStep>): KnitStep => ({
   id: 's1',
@@ -49,9 +50,13 @@ const ADAPTATION: Adaptation = {
   steps: [{ stepId: 's1', totalRows: 136, stitches: 66, sections: [ADAPTED_REPEAT], note: '16 rangs de plus pour 5 cm.' }],
 }
 
-function renderProject(api = fakeApi(), value = project()) {
+/** Page du projet : liste des étapes et cartes repliées. */
+const OVERVIEW = '/tricot/p1'
+
+/** Par défaut, l'étape en cours (?etape vide). */
+function renderProject(api = fakeApi(), value = project(), route = '/tricot/p1?etape') {
   api.knitting.getProject.mockResolvedValue(value)
-  return renderWithApp(<KnittingProjectPage />, { route: '/tricot/p1', path: '/tricot/:id', api })
+  return renderWithApp(<KnittingProjectPage />, { route, path: '/tricot/:id', api })
 }
 
 describe('patron adapté : logique', () => {
@@ -88,7 +93,8 @@ describe('patron adapté : écran', () => {
     const user = userEvent.setup()
     const api = fakeApi()
     api.knitting.adaptPattern.mockResolvedValue(ADAPTATION.steps)
-    renderProject(api)
+    renderProject(api, project(), OVERVIEW)
+    await openFold('Patron adapté à moi')
     const panel = await screen.findByRole('region', { name: /Patron adapté à moi/ })
     expect(panel).toHaveTextContent('Ton échantillon : 24 m. × 30 rangs pour 10 cm (celui du patron : 22 m. × 30 rangs pour 10 cm).')
     await user.type(within(panel).getByLabelText('Retouches (facultatif)'), '5 cm de plus aux manches')
@@ -112,6 +118,7 @@ describe('patron adapté : écran', () => {
       expect(api.knitting.saveAdaptation).toHaveBeenCalledWith('p1', { request: '5 cm de plus aux manches', active: true, at: expect.any(String), steps: ADAPTATION.steps }),
     )
     // L'étape suit le patron adapté, l'origine reste visible
+    await user.click(await screen.findByRole('link', { name: /Manches/ }))
     expect(await screen.findByText(/Patron adapté : 16 rangs de plus pour 5 cm\./)).toBeInTheDocument()
     expect(screen.getByText('Patron d’origine : 120 rangs, 60 mailles à la fin.')).toBeInTheDocument()
     expect(screen.getByText('/ 136')).toBeInTheDocument()
@@ -122,7 +129,8 @@ describe('patron adapté : écran', () => {
   it('bascule vers le patron d’origine, refait ou supprime l’adaptation', async () => {
     const user = userEvent.setup()
     const api = fakeApi()
-    renderProject(api, project(ADAPTATION))
+    renderProject(api, project(ADAPTATION), OVERVIEW)
+    await openFold('Patron adapté à moi')
     const panel = await screen.findByRole('region', { name: /Patron adapté à moi/ })
     expect(panel).toHaveTextContent('1 étape adaptée pour « 5 cm de plus aux manches ».')
 
@@ -167,7 +175,8 @@ describe('patron adapté : écran', () => {
     const user = userEvent.setup()
     const api = fakeApi()
     api.knitting.adaptPattern.mockRejectedValue(new AppError('L’adaptation du patron a échoué.'))
-    renderProject(api, { ...project(), myGauge: { stitches: null, rows: null } })
+    renderProject(api, { ...project(), myGauge: { stitches: null, rows: null } }, OVERVIEW)
+    await openFold('Patron adapté à moi')
     const panel = await screen.findByRole('region', { name: /Patron adapté à moi/ })
     expect(panel).toHaveTextContent('seules tes retouches seront appliquées')
     expect(within(panel).getByRole('button', { name: 'Adapter avec l’IA' })).toBeDisabled()

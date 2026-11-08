@@ -77,11 +77,14 @@ export interface ScreenAwake {
   setEnabled: (on: boolean) => void
 }
 
-/** Écran allumé avec un interrupteur : le choix est retenu sur le téléphone, allumé par défaut. */
-export function useScreenAwake(): ScreenAwake {
+/**
+ * Écran allumé avec un interrupteur : le choix est retenu sur le téléphone, allumé par défaut. `inUse` à faux relâche
+ * l'écran sans changer le choix (page affichée sans l'interrupteur).
+ */
+export function useScreenAwake(inUse = true): ScreenAwake {
   const supported = 'wakeLock' in navigator
   const [enabled, setEnabledState] = useState(readPreference)
-  const active = useWakeLock(enabled)
+  const active = useWakeLock(enabled && inUse)
   const setEnabled = useCallback((on: boolean) => {
     writePreference(on)
     setEnabledState(on)

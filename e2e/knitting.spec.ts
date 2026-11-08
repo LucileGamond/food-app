@@ -49,7 +49,10 @@ test('charge un patron PDF pour une taille, compte les rangs et retrouve son ava
   await expectNoA11yViolations(page)
   await page.getByRole('button', { name: 'Enregistrer le projet' }).click()
 
-  // Projet : première étape, puis la suivante
+  // Projet : liste des étapes, la première s'ouvre, puis la suivante
+  await expect(page.getByRole('navigation', { name: 'Étapes' }).getByRole('link')).toHaveCount(2)
+  await expectNoA11yViolations(page)
+  await page.getByRole('link', { name: /Dos – côtes/ }).click()
   await expect(page.getByRole('heading', { name: 'Dos – côtes' })).toBeVisible()
   await page.getByRole('button', { name: 'Étape terminée' }).click()
   await expect(page.getByRole('heading', { name: 'Emmanchures' })).toBeVisible()
@@ -80,6 +83,7 @@ test('charge un patron PDF pour une taille, compte les rangs et retrouve son ava
   }).toBe('Aiguilles 4,5')
   await expect(page.getByRole('heading', { name: 'Emmanchures' })).toBeVisible()
   await expect(page.getByText('Rangs 1 à 24 · prochaine fois : rang 6')).toBeVisible()
+  await page.getByRole('link', { name: 'Pull Bergamote' }).click()
   await expect(page.getByText('Taille M · 1 / 2 étapes')).toBeVisible()
 
   // Liste des projets, puis suppression
@@ -131,9 +135,9 @@ test('met un patron de côté, le commence, puis note la laine (étiquette) et s
   await page.getByRole('button', { name: 'Lire le patron' }).click()
   await expect(page.getByText(/échantillon 22 m\. × 30 rangs pour 10 cm/)).toBeVisible()
   await page.getByRole('button', { name: 'Enregistrer le projet' }).click()
-  await expect(page.getByRole('heading', { name: 'Dos – côtes' })).toBeVisible()
 
-  // Laine lue sur l'étiquette
+  // Laine lue sur l'étiquette (carte repliée sur la page du projet)
+  await page.getByRole('button', { name: 'Laine et échantillon' }).click()
   const panel = page.getByRole('region', { name: 'Laine et échantillon' })
   await panel.getByRole('button', { name: 'Ajouter une laine' }).click()
   const dialog = page.getByRole('dialog', { name: 'Ajouter une laine' })
@@ -154,11 +158,17 @@ test('met un patron de côté, le commence, puis note la laine (étiquette) et s
   await expect(gauge.getByLabel('Mailles du patron')).toHaveValue('22')
   await gauge.getByLabel('Tes mailles').fill('24')
   await gauge.getByRole('button', { name: 'Enregistrer l’échantillon' }).click()
+  await expect(gauge.getByRole('button', { name: 'Enregistrer l’échantillon' })).toBeDisabled()
+
+  // Gardé au rechargement
+  await page.reload()
+  await page.getByRole('button', { name: 'Laine et échantillon' }).click()
+  await expect(panel).toContainText('Phildar Partner 3.5')
+  await page.getByRole('link', { name: /Dos – côtes/ }).click()
   await expect(page.getByText(/64 mailles à la fin \(≈ 70 avec ton échantillon\)/)).toBeVisible()
 
-  // Gardé au rechargement ; la liste d'attente est vide
-  await page.reload()
-  await expect(page.getByRole('region', { name: 'Laine et échantillon' })).toContainText('Phildar Partner 3.5')
+  // La liste d'attente est vide
+  await page.getByRole('link', { name: 'Pull Bergamote' }).click()
   await page.getByRole('link', { name: 'Projets' }).click()
   await expect(page.getByText('Aucun patron en attente', { exact: false })).toBeVisible()
 })
@@ -225,6 +235,7 @@ test('suit un diagramme ajouté depuis une image, rang par rang', async ({ page 
   await login(page)
   await openNavPage(page, 'Tricot')
   await page.getByRole('link', { name: /Pull Torsadé/ }).click()
+  await page.getByRole('link', { name: /Dos – côtes/ }).click()
   await expect(page.getByRole('heading', { name: 'Dos – côtes' })).toBeVisible()
 
   // Image du diagramme (PNG d'un pixel), calée sur 6 lignes
@@ -278,19 +289,26 @@ test('aides pendant le tricot : abréviations, pesée de la laine et rangs compt
   })
   await api.knitting.saveProgress(project.steps[0]!.id, { rowCount: 100, done: true })
   await login(page)
+  // L'étape en cours s'ouvre depuis la page du projet
   await page.goto(`/tricot/${id}`)
+  await page.getByRole('link', { name: /Devant/ }).click()
   await expect(page.getByRole('heading', { name: 'Devant' })).toBeVisible()
 
   // Abréviations expliquées d'un toucher (le dos est fini : on est sur le devant) : celles du glossaire en base
   // (« jeté »), puis celles du patron (« C4F »). Le glossaire arrive après le texte : on l'attend avant de toucher.
   await page.getByRole('button', { name: 'jeté : explication' }).click()
-  await expect(page.getByText(/Passer le fil sur l’aiguille droite/)).toBeVisible()
+  await expect(page.getByRole('dialog').getByText(/Passer le fil sur l’aiguille droite/)).toBeVisible()
   await page.keyboard.press('Escape')
   await page.getByRole('button', { name: 'C4F : explication' }).click()
-  await expect(page.getByText('Torsade de 4 mailles devant.')).toBeVisible()
+  await expect(page.getByRole('dialog').getByText('Torsade de 4 mailles devant.')).toBeVisible()
   await page.keyboard.press('Escape')
+  // Rappel de toutes les abréviations de l'étape
+  await page.getByText('Abréviations de l’étape').click()
+  await expect(page.getByRole('term')).toHaveText(['jeté', 'C4F'])
 
-  // Pesée : 220 g restants pour la moitié du travail faite → il manque 2 pelotes
+  // Pesée (page du projet) : 220 g restants pour la moitié du travail faite → il manque 2 pelotes
+  await page.getByRole('link', { name: 'Pull Aides' }).click()
+  await page.getByRole('button', { name: 'Assez de laine pour finir ?' }).click()
   const card = page.getByRole('region', { name: 'Assez de laine pour finir ?' })
   await card.getByLabel('Laine restante (g)').fill('220')
   await card.getByRole('button', { name: 'Estimer' }).click()
@@ -298,6 +316,7 @@ test('aides pendant le tricot : abréviations, pesée de la laine et rangs compt
   await expectNoA11yViolations(page)
 
   // Hors ligne : les rangs comptés restent, et partent au retour du réseau
+  await page.getByRole('link', { name: /Devant/ }).click()
   await context.setOffline(true)
   await page.getByRole('button', { name: 'Ajouter 1 rang' }).click()
   await page.getByRole('button', { name: 'Ajouter 1 rang' }).click()

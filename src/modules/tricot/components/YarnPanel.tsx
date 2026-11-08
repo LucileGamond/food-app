@@ -29,6 +29,7 @@ import {
   type Yarn,
   type YarnDraft,
 } from '../lib/yarn'
+import { PanelFold } from './PanelFold'
 
 export interface ProjectInfo {
   yarns: Yarn[]
@@ -278,17 +279,17 @@ export function YarnPanel({ info, onSave }: { info: ProjectInfo; onSave: (info: 
     onSave({ ...info, yarns: editing === 'new' || editing === null ? [...info.yarns, yarn] : info.yarns.map((y, i) => (i === editing ? yarn : y)) })
 
   return (
-    <section aria-labelledby="knit-yarn" className="space-y-4 rounded-2xl border bg-background p-4 shadow-xs sm:p-5">
-      <div className="flex items-center justify-between gap-3">
-        <h2 id="knit-yarn" className="font-semibold">
-          Laine et échantillon
-        </h2>
-        {info.yarns.length < MAX_YARNS && (
+    <PanelFold
+      id="knit-yarn"
+      title="Laine et échantillon"
+      action={
+        info.yarns.length < MAX_YARNS && (
           <Button variant="outline" className="h-10" onClick={() => setEditing('new')}>
             <Plus /> Ajouter une laine
           </Button>
-        )}
-      </div>
+        )
+      }
+    >
 
       {info.yarns.length === 0 ? (
         <p className="text-sm text-muted-foreground">Aucune laine notée : marque, coloris, bain, métrage… pour racheter la même ou refaire le modèle.</p>
@@ -325,6 +326,6 @@ export function YarnPanel({ info, onSave }: { info: ProjectInfo; onSave: (info: 
         onSave={saveYarn}
         stash={stash.data ?? []}
       />
-    </section>
+    </PanelFold>
   )
 }

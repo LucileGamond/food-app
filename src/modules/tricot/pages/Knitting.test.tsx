@@ -8,6 +8,7 @@ import { EMPTY_YARN, type QueuedPattern, type StashItem } from '../lib/yarn'
 import { KnittingImportPage } from './KnittingImportPage'
 import { KnittingPage } from './KnittingPage'
 import { KnittingProjectPage } from './KnittingProjectPage'
+import { openFold } from '@/test/openFold'
 
 const step = (overrides: Partial<KnitStep>): KnitStep => ({
   id: 's1',
@@ -179,16 +180,41 @@ describe('KnittingImportPage', () => {
   })
 })
 
+/** Page du projet : liste des étapes et cartes repliées ; STEP : l'étape en cours (?etape vide). */
+const OVERVIEW = '/tricot/p1'
+const STEP = '/tricot/p1?etape'
+
 describe('KnittingProjectPage', () => {
-  function renderProject(api = fakeApi(), project: KnitProject | null = PROJECT) {
+  function renderProject(api = fakeApi(), project: KnitProject | null = PROJECT, route = STEP) {
     api.knitting.getProject.mockResolvedValue(project && structuredClone(project))
     return renderWithApp(<KnittingProjectPage />, {
       api,
-      route: '/tricot/p1',
+      route,
       path: '/tricot/:id',
       extraRoutes: <Route path="/tricot" element={<p>Liste des projets</p>} />,
     })
   }
+
+  it('page du projet : étapes à ouvrir, cartes repliées', async () => {
+    const user = userEvent.setup()
+    renderProject(fakeApi(), PROJECT, OVERVIEW)
+    const nav = await screen.findByRole('navigation', { name: 'Étapes' })
+    const links = within(nav).getAllByRole('link')
+    expect(links.map((l) => l.textContent)).toEqual(['Dos – côtes18 / 18 rangs(terminée)', '2Emmanchures8 / 30 rangsEn cours', '3Encolure'])
+    expect(links[1]).toHaveAttribute('aria-current', 'step')
+    expect(within(links[0]!).getByText('(terminée)')).toBeInTheDocument()
+    // Pas d'interrupteur d'écran ni de compteur ici ; les cartes sont repliées.
+    expect(screen.queryByRole('switch')).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Ajouter 1 rang' })).not.toBeInTheDocument()
+    for (const title of ['Laine et échantillon', 'Patron adapté à moi', 'Assez de laine pour finir ?', 'Notes et photos']) {
+      expect(screen.getByRole('button', { name: title })).toHaveAttribute('aria-expanded', 'false')
+    }
+
+    await user.click(links[2]!)
+    expect(await screen.findByRole('heading', { name: 'Encolure' })).toBeInTheDocument()
+    await user.click(screen.getByRole('link', { name: 'Pull Bergamote' }))
+    expect(await screen.findByRole('navigation', { name: 'Étapes' })).toBeInTheDocument()
+  })
 
   it('garde l’écran allumé tant que le projet est affiché', async () => {
     const release = vi.fn(async () => undefined)
@@ -378,20 +404,21 @@ describe('KnittingProjectPage', () => {
     await user.click(screen.getByRole('button', { name: 'Étape terminée' }))
     expect(api.knitting.saveProgress).toHaveBeenLastCalledWith('s2', { done: true })
     expect(await screen.findByRole('heading', { name: 'Encolure' })).toBeInTheDocument()
-    expect(screen.getByText('Pull Bergamote', { selector: 'h1' })).toBeInTheDocument()
+    await user.click(screen.getByRole('link', { name: 'Pull Bergamote' }))
+    expect(await screen.findByText('Pull Bergamote', { selector: 'h1' })).toBeInTheDocument()
     expect(screen.getByText('Taille M · 2 / 3 étapes')).toBeInTheDocument()
 
     // Une étape terminée se rouvre
     const nav = screen.getByRole('navigation', { name: 'Étapes' })
-    await user.click(within(nav).getByRole('button', { name: /Dos – côtes/ }))
-    await user.click(screen.getByRole('button', { name: 'Reprendre l’étape' }))
+    await user.click(within(nav).getByRole('link', { name: /Dos – côtes/ }))
+    await user.click(await screen.findByRole('button', { name: 'Reprendre l’étape' }))
     expect(api.knitting.saveProgress).toHaveBeenLastCalledWith('s1', { done: false })
     expect(screen.getByText('Tous les rangs de l’étape sont faits.')).toBeInTheDocument()
 
-    // Sur téléphone : liste déroulante et étape suivante / précédente
+    // Étape suivante / précédente
     await user.click(screen.getByRole('button', { name: 'Étape suivante' }))
     expect(screen.getByRole('heading', { name: 'Emmanchures' })).toBeInTheDocument()
-    await user.selectOptions(screen.getByRole('combobox', { name: 'Étape' }), 's3')
+    await user.click(screen.getByRole('button', { name: 'Étape suivante' }))
     expect(screen.getByRole('heading', { name: 'Encolure' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Étape suivante' })).toBeDisabled()
     await user.click(screen.getByRole('button', { name: 'Étape précédente' }))
@@ -427,7 +454,7 @@ describe('KnittingProjectPage', () => {
     const user = userEvent.setup()
     const tab = { location: { href: '' }, close: vi.fn() }
     const open = vi.spyOn(window, 'open').mockReturnValue(tab as unknown as Window)
-    const { api } = renderProject()
+    const { api } = renderProject(fakeApi(), PROJECT, OVERVIEW)
     await user.click(await screen.findByRole('button', { name: 'Voir le PDF' }))
     expect(open).toHaveBeenCalledWith('', '_blank')
     expect(api.knitting.pdfUrl).toHaveBeenCalledWith('u-lucile/abc.pdf')
@@ -453,23 +480,26 @@ describe('KnittingProjectPage', () => {
     const user = userEvent.setup()
     const api = fakeApi()
     api.knitting.getProject.mockRejectedValueOnce(new Error('réseau')).mockResolvedValue(structuredClone(PROJECT))
-    renderWithApp(<KnittingProjectPage />, { api, route: '/tricot/p1', path: '/tricot/:id' })
+    renderWithApp(<KnittingProjectPage />, { api, route: STEP, path: '/tricot/:id' })
     await user.click(await screen.findByRole('button', { name: 'Réessayer' }))
     expect(await screen.findByRole('heading', { name: 'Emmanchures' })).toBeInTheDocument()
   })
 })
 
 describe('laine et échantillon du projet', () => {
-  function renderProject(api = fakeApi(), project: KnitProject = PROJECT) {
+  /** Page du projet, carte « Laine et échantillon » ouverte. */
+  async function renderProject(api = fakeApi(), project: KnitProject = PROJECT) {
     api.knitting.getProject.mockResolvedValue(structuredClone(project))
-    return renderWithApp(<KnittingProjectPage />, { api, route: '/tricot/p1', path: '/tricot/:id' })
+    const result = renderWithApp(<KnittingProjectPage />, { api, route: OVERVIEW, path: '/tricot/:id' })
+    await openFold('Laine et échantillon')
+    return result
   }
 
   it('ajoute une laine lue sur la photo de l’étiquette', async () => {
     const user = userEvent.setup()
     const api = fakeApi()
     api.knitting.readYarnLabel.mockResolvedValue({ ...EMPTY_YARN, brand: 'Phildar', name: 'Partner 3.5', length_m: 125, needle_mm: 3.5 })
-    renderProject(api)
+    await renderProject(api)
     const panel = await screen.findByRole('region', { name: 'Laine et échantillon' })
     expect(within(panel).getByText(/Aucune laine notée/)).toBeInTheDocument()
     await user.click(within(panel).getByRole('button', { name: 'Ajouter une laine' }))
@@ -494,7 +524,7 @@ describe('laine et échantillon du projet', () => {
     const user = userEvent.setup()
     const api = fakeApi()
     api.knitting.readYarnLabel.mockRejectedValue(new AppError('Pas d’étiquette de laine sur cette photo.'))
-    renderProject(api)
+    await renderProject(api)
     await user.click(await screen.findByRole('button', { name: 'Ajouter une laine' }))
     const dialog = await screen.findByRole('dialog', { name: 'Ajouter une laine' })
     await user.upload(within(dialog).getByLabelText('Photo de l’étiquette'), new File(['img'], 'chat.jpg', { type: 'image/jpeg' }))
@@ -509,7 +539,7 @@ describe('laine et échantillon du projet', () => {
     const user = userEvent.setup()
     const api = fakeApi()
     const yarn = { ...EMPTY_YARN, brand: 'DROPS', name: 'Alpaca', length_m: 167, skeins: 4 }
-    renderProject(api, { ...PROJECT, yarns: [yarn] })
+    await renderProject(api, { ...PROJECT, yarns: [yarn] })
     const panel = await screen.findByRole('region', { name: 'Laine et échantillon' })
     expect(within(panel).getByText('DROPS Alpaca')).toBeInTheDocument()
     expect(within(panel).getByText('Environ 668 m de laine en tout.')).toBeInTheDocument()
@@ -526,11 +556,14 @@ describe('laine et échantillon du projet', () => {
   it('recalcule mailles et rangs avec l’échantillon de la tricoteuse', async () => {
     const user = userEvent.setup()
     const api = fakeApi()
-    renderProject(api, { ...PROJECT, patternGauge: { stitches: 22, rows: 30 }, myGauge: { stitches: 24, rows: 30 } })
+    await renderProject(api, { ...PROJECT, patternGauge: { stitches: 22, rows: 30 }, myGauge: { stitches: 24, rows: 30 } })
+    expect(screen.getByLabelText('Mailles du patron')).toHaveValue('22')
     // Étape en cours : 30 rangs, 56 mailles à la fin → 61 mailles à 24 m./10 cm, rangs inchangés.
+    await user.click(screen.getByRole('link', { name: /Emmanchures/ }))
     expect(await screen.findByText(/56 mailles à la fin \(≈ 61 avec ton échantillon\)/)).toBeInTheDocument()
     expect(screen.queryByText(/rangs avec ton échantillon/)).not.toBeInTheDocument()
-    expect(screen.getByLabelText('Mailles du patron')).toHaveValue('22')
+    await user.click(screen.getByRole('link', { name: 'Pull Bergamote' }))
+    await openFold('Laine et échantillon')
 
     const form = screen.getByRole('form', { name: 'Échantillon' })
     const save = within(form).getByRole('button', { name: 'Enregistrer l’échantillon' })
@@ -544,6 +577,8 @@ describe('laine et échantillon du projet', () => {
     api.knitting.getProject.mockResolvedValue({ ...structuredClone(PROJECT), patternGauge: { stitches: 22, rows: 30 }, myGauge: { stitches: 24, rows: 27 } })
     await user.click(save)
     expect(api.knitting.saveProjectInfo).toHaveBeenCalledWith('p1', { yarns: [], patternGauge: { stitches: 22, rows: 30 }, myGauge: { stitches: 24, rows: 27 } })
+    await waitFor(() => expect(api.knitting.getProject).toHaveBeenCalledTimes(2))
+    await user.click(screen.getByRole('link', { name: /Emmanchures/ }))
     expect(await screen.findByText('≈ 27 rangs avec ton échantillon')).toBeInTheDocument()
   })
 })
@@ -811,7 +846,8 @@ describe('stock de laine', () => {
     const api = fakeApi()
     api.knitting.listStash.mockResolvedValue(STASH)
     api.knitting.getProject.mockResolvedValue(structuredClone(PROJECT))
-    renderWithApp(<KnittingProjectPage />, { api, route: '/tricot/p1', path: '/tricot/:id' })
+    renderWithApp(<KnittingProjectPage />, { api, route: OVERVIEW, path: '/tricot/:id' })
+    await openFold('Laine et échantillon')
     await user.click(await screen.findByRole('button', { name: 'Ajouter une laine' }))
     const dialog = await screen.findByRole('dialog', { name: 'Ajouter une laine' })
     await user.selectOptions(await within(dialog).findByLabelText('Prendre dans mon stock'), 'st1')
@@ -852,7 +888,7 @@ describe('texte du patron et taille mise en valeur', () => {
     project.sizeIndex = 1
     project.steps[1]!.instructions = TEXT
     api.knitting.getProject.mockResolvedValue(project)
-    renderWithApp(<KnittingProjectPage />, { api, route: '/tricot/p1', path: '/tricot/:id' })
+    renderWithApp(<KnittingProjectPage />, { api, route: STEP, path: '/tricot/:id' })
     const article = (await screen.findByRole('heading', { name: 'Emmanchures' })).closest('article')!
     expect(within(article).getAllByText((_, el) => el?.tagName === 'MARK').map((m) => m.textContent)).toEqual(['64', '6'])
 
@@ -874,7 +910,7 @@ describe('texte du patron et taille mise en valeur', () => {
     project.sizes = ['S', 'M', 'L']
     project.sizeIndex = 1
     project.steps[1]!.instructions = TEXT
-    renderWithApp(<KnittingProjectPage />, { api: (api.knitting.getProject.mockResolvedValue(project), api), route: '/tricot/p1', path: '/tricot/:id' })
+    renderWithApp(<KnittingProjectPage />, { api: (api.knitting.getProject.mockResolvedValue(project), api), route: STEP, path: '/tricot/:id' })
     const article = (await screen.findByRole('heading', { name: 'Emmanchures' })).closest('article')!
     // Nombres surlignés (boutons enfoncés du texte en mode correction)
     const marks = () => within(article).getAllByRole('button', { pressed: true }).map((m) => m.textContent).filter((t) => /^\d/.test(t ?? ''))

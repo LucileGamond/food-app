@@ -6,6 +6,7 @@ import { cn } from '@/lib/utils'
 import type { KnitStep } from '../lib/pattern'
 import { parseDecimal, yarnTitle, type Yarn } from '../lib/yarn'
 import { projectRowsDone, yarnVerdict, type YarnCheck } from '../lib/yarnLeft'
+import { PanelFold } from './PanelFold'
 
 interface Props {
   /** Laines du projet : chaque coloris est une laine, pesée à part. */
@@ -25,11 +26,15 @@ const yarnLabel = (yarn: Yarn) => [yarnTitle(yarn), yarn.color].filter(Boolean).
 export function YarnCheckCard({ yarns, steps, checks, onSave }: Props) {
   const id = useId()
   return (
-    <section aria-labelledby={`${id}-title`} className="space-y-3 rounded-2xl border bg-background p-4 shadow-xs">
-      <div>
-        <h2 id={`${id}-title`} className="flex items-center gap-2 font-semibold">
+    <PanelFold
+      id={`${id}-title`}
+      title={
+        <>
           <Scale className="size-4 text-muted-foreground" aria-hidden /> Assez de laine pour finir ?
-        </h2>
+        </>
+      }
+    >
+      <div>
         <p className="text-sm text-muted-foreground">
           Pèse tout ce qui reste de chaque laine (pelote entamée et pelotes entières) : l’appli compare à ce qu’il reste à tricoter.
           {yarns.length > 1 && ' Pour un coloris qui n’est tricoté que par endroits, l’estimation est approximative.'}
@@ -48,7 +53,7 @@ export function YarnCheckCard({ yarns, steps, checks, onSave }: Props) {
           ))}
         </ul>
       )}
-    </section>
+    </PanelFold>
   )
 }
 

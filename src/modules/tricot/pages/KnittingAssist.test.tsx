@@ -4,6 +4,7 @@ import { fakeApi, renderWithApp } from '@/test/fakes'
 import { EMPTY_YARN } from '../lib/yarn'
 import type { KnitProject, KnitStep } from '../lib/pattern'
 import { KnittingProjectPage } from './KnittingProjectPage'
+import { openFold } from '@/test/openFold'
 
 const step = (overrides: Partial<KnitStep>): KnitStep => ({
   id: 's1',
@@ -38,9 +39,12 @@ const PROJECT: KnitProject = {
   yarnChecks: [],
 }
 
-function renderProject(project: KnitProject = PROJECT, api = fakeApi()) {
+const OVERVIEW = '/tricot/p1'
+
+/** Par défaut, l'étape en cours (?etape vide) ; OVERVIEW : la page du projet. */
+function renderProject(project: KnitProject = PROJECT, api = fakeApi(), route = '/tricot/p1?etape') {
   api.knitting.getProject.mockResolvedValue(structuredClone(project))
-  return { ...renderWithApp(<KnittingProjectPage />, { api, route: '/tricot/p1', path: '/tricot/:id' }), api }
+  return { ...renderWithApp(<KnittingProjectPage />, { api, route, path: '/tricot/:id' }), api }
 }
 
 beforeEach(() => localStorage.clear())
@@ -50,10 +54,18 @@ describe('abréviations expliquées', () => {
     const user = userEvent.setup()
     renderProject()
     await user.click(await screen.findByRole('button', { name: 'jeté : explication' }))
-    expect(await screen.findByText(/Passer le fil sur l’aiguille droite/)).toBeInTheDocument()
+    expect(await screen.findByRole('dialog')).toHaveTextContent(/Passer le fil sur l’aiguille droite/)
     await user.keyboard('{Escape}')
     await user.click(screen.getByRole('button', { name: 'C4F : explication' }))
-    expect(await screen.findByText('Torsade de 4 mailles croisées devant.')).toBeInTheDocument()
+    expect(await screen.findByRole('dialog')).toHaveTextContent('Torsade de 4 mailles croisées devant.')
+  })
+
+  it('rappelle les abréviations de l’étape, une fois chacune', async () => {
+    const user = userEvent.setup()
+    renderProject()
+    await user.click(await screen.findByText('Abréviations de l’étape'))
+    expect(screen.getAllByRole('term').map((dt) => dt.textContent)).toEqual(['2 m. ens.', 'jeté', 'C4F'])
+    expect(screen.getAllByRole('definition').at(-1)).toHaveTextContent('Torsade de 4 mailles croisées devant.')
   })
 })
 
@@ -132,7 +144,8 @@ describe('assez de laine pour finir ?', () => {
   it('pèse chaque laine à part et garde les pesées des autres', async () => {
     const user = userEvent.setup()
     const project = { ...WITH_YARN, yarnChecks: [{ yarn: 0, grams: 220, rowsDone: 100, at: '2026-11-08' }] }
-    const { api } = renderProject(project)
+    const { api } = renderProject(project, undefined, OVERVIEW)
+    await openFold('Assez de laine pour finir ?')
     const card = await screen.findByRole('region', { name: 'Assez de laine pour finir ?' })
     const contrast = within(card).getByRole('group', { name: 'DROPS Merino · Rouille' })
     await user.type(within(contrast).getByLabelText('Laine restante (g)'), 'beaucoup')
@@ -153,7 +166,8 @@ describe('assez de laine pour finir ?', () => {
         { yarn: 0, grams: 220, rowsDone: 100, at: '2026-11-08' },
         { yarn: 1, grams: 60, rowsDone: 100, at: '' },
       ],
-    })
+    }, undefined, OVERVIEW)
+    await openFold('Assez de laine pour finir ?')
     const card = await screen.findByRole('region', { name: 'Assez de laine pour finir ?' })
     const main = within(card).getByRole('group', { name: 'DROPS Merino · Ciel' })
     expect(within(main).getByRole('status')).toHaveTextContent('Il manque ≈ 120 m, soit 2 pelotes.')
@@ -163,13 +177,15 @@ describe('assez de laine pour finir ?', () => {
   })
 
   it('demande de compléter la laine', async () => {
-    renderProject({ ...PROJECT, yarns: [{ ...EMPTY_YARN, name: 'Alpaga' }], yarnChecks: [{ yarn: 0, grams: 50, rowsDone: 10, at: '' }] })
+    renderProject({ ...PROJECT, yarns: [{ ...EMPTY_YARN, name: 'Alpaga' }], yarnChecks: [{ yarn: 0, grams: 50, rowsDone: 10, at: '' }] }, undefined, OVERVIEW)
+    await openFold('Assez de laine pour finir ?')
     const card = await screen.findByRole('region', { name: 'Assez de laine pour finir ?' })
     expect(within(card).getByRole('status')).toHaveTextContent('Complète cette laine')
   })
 
   it('sans laine, propose de l’ajouter', async () => {
-    renderProject()
+    renderProject(PROJECT, undefined, OVERVIEW)
+    await openFold('Assez de laine pour finir ?')
     const card = await screen.findByRole('region', { name: 'Assez de laine pour finir ?' })
     expect(within(card).getByText(/Ajoute la laine du projet/)).toBeInTheDocument()
   })
@@ -206,7 +222,7 @@ describe('hors ligne', () => {
 
     const api = fakeApi()
     api.knitting.getProject.mockRejectedValue(new Error('réseau'))
-    renderWithApp(<KnittingProjectPage />, { api, route: '/tricot/p1', path: '/tricot/:id' })
+    renderWithApp(<KnittingProjectPage />, { api, route: '/tricot/p1?etape', path: '/tricot/:id' })
     expect(await screen.findByRole('heading', { name: 'Dos' })).toBeInTheDocument()
     expect(screen.getByText(/Hors ligne/)).toBeInTheDocument()
   })

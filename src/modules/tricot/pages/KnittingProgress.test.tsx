@@ -5,6 +5,7 @@ import { fakeApi, renderWithApp } from '@/test/fakes'
 import { describePhoto, formatPhotoDate, type ProgressPhoto } from '../lib/progress'
 import type { KnitProject, KnitStep } from '../lib/pattern'
 import { KnittingProjectPage } from './KnittingProjectPage'
+import { openFold } from '@/test/openFold'
 
 // Réduction des photos : sans canvas dans jsdom, la photo passe telle quelle (en JPEG).
 vi.mock('@/lib/image', async (importOriginal) => ({
@@ -64,6 +65,7 @@ describe('notes et photos d’avancement', () => {
     const api = fakeApi()
     api.knitting.getProgress.mockResolvedValue({ notes: 'Manches raccourcies', photos: [] })
     renderProject(api)
+    await openFold('Notes et photos')
     const notes = await screen.findByLabelText('Notes du projet')
     await waitFor(() => expect(notes).toHaveValue('Manches raccourcies'))
     expect(screen.getByText(/Aucune photo/)).toBeInTheDocument()
@@ -81,6 +83,7 @@ describe('notes et photos d’avancement', () => {
     const user = userEvent.setup()
     const api = fakeApi()
     renderProject(api)
+    await openFold('Notes et photos')
     const photo = new File(['img'], 'pull.jpg', { type: 'image/jpeg' })
     await screen.findByText(/Aucune photo/)
     api.knitting.getProgress.mockResolvedValue({ notes: '', photos: [{ ...PHOTO, stepId: 's2' }] })
@@ -96,6 +99,7 @@ describe('notes et photos d’avancement', () => {
     const api = fakeApi()
     api.knitting.getProgress.mockResolvedValue({ notes: '', photos: [PHOTO] })
     renderProject(api)
+    await openFold('Notes et photos')
     await user.click(await screen.findByRole('button', { name: 'Voir la photo : Dos – côtes · 8 nov. 2026' }))
     const dialog = await screen.findByRole('dialog')
     expect(within(dialog).getByRole('img')).toHaveAttribute('src', 'https://cdn.test/u-lucile/ph1.jpg')
@@ -116,6 +120,7 @@ describe('notes et photos d’avancement', () => {
     api.knitting.getProgress.mockRejectedValueOnce(new AppError('Impossible de charger les notes et photos.'))
     api.knitting.addProgressPhoto.mockRejectedValue(new AppError('Impossible d’envoyer la photo.'))
     renderProject(api)
+    await openFold('Notes et photos')
     expect(await screen.findByText('Impossible de charger les notes et photos.')).toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: 'Réessayer' }))
     await screen.findByText(/Aucune photo/)
