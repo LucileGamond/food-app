@@ -14,12 +14,12 @@ function setup() {
   return api
 }
 
-function renderPage(api = setup()) {
+function renderPage(api = setup(), route = '/') {
   return renderWithApp(
     <SettingsProvider>
       <HydrationPage today="2026-11-10" now={NOW} />
     </SettingsProvider>,
-    { api },
+    { api, route },
   )
 }
 
@@ -120,6 +120,30 @@ describe('HydrationPage', () => {
     await user.click(await screen.findByRole('button', { name: 'Supprimer le verre de 10:00' }))
     expect(await screen.findByRole('button', { name: 'Supprimer le verre de 10:00' })).toBeInTheDocument()
     expect(api.hydration.listIntakes).toHaveBeenCalledTimes(2)
+  })
+
+  it('raccourci de l’icône : note le plus petit contenant une seule fois', async () => {
+    const api = setup()
+    api.settings.getSettings.mockResolvedValue({
+      ...DEFAULT_SETTINGS,
+      disabledPages: [],
+      hydrationContainers: [
+        { name: 'Gourde', volumeMl: 750 },
+        { name: 'Tasse', volumeMl: 250 },
+      ],
+    })
+    renderPage(api, '/?boire')
+    expect(await screen.findByText('Noté : tasse (25 cl)')).toBeInTheDocument()
+    expect(api.hydration.addIntake).toHaveBeenCalledTimes(1)
+    expect(api.hydration.addIntake).toHaveBeenCalledWith(250)
+    expect(await screen.findByRole('button', { name: /Supprimer le verre de/ })).toBeInTheDocument()
+  })
+
+  it('sans raccourci, rien n’est noté à l’ouverture', async () => {
+    const api = setup()
+    renderPage(api)
+    await screen.findByText('Rien bu aujourd’hui pour l’instant.')
+    expect(api.hydration.addIntake).not.toHaveBeenCalled()
   })
 
   it('signale un verre non enregistré', async () => {

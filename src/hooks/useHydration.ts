@@ -10,7 +10,8 @@ export interface HydrationState {
   loading: boolean
   loadError: string | null
   reload: () => Promise<void>
-  add: (volumeMl: number) => Promise<void>
+  /** Vrai si le verre est enregistré. */
+  add: (volumeMl: number) => Promise<boolean>
   remove: (intake: WaterIntake) => Promise<void>
 }
 
@@ -48,8 +49,10 @@ export function useHydration(api: Api, today: IsoDate): HydrationState {
         const intake = await api.hydration.addIntake(volumeMl)
         requestId.current += 1 // un chargement en cours ne doit pas effacer ce verre
         setIntakes((list) => [...list, intake])
+        return true
       } catch (error) {
         toast.error(errorMessage(error))
+        return false
       }
     },
     [api],

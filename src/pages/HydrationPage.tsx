@@ -1,6 +1,7 @@
 import { BellRing, GlassWater, Milk, Trash2 } from 'lucide-react'
-import { useState } from 'react'
-import { Link } from 'react-router-dom'
+import { useEffect, useRef, useState } from 'react'
+import { Link, useSearchParams } from 'react-router-dom'
+import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { PageHeader } from '@/components/PageHeader'
@@ -17,7 +18,7 @@ export function HydrationPage({ today: fixedToday, now: fixedNow }: { today?: Is
   const today = useToday(fixedToday)
   const now = useNow(fixedNow)
   const api = useApi()
-  const { settings, notifications } = useSettings()
+  const { settings, ready, notifications } = useSettings()
   const hydration = useHydration(api, today)
   const [adding, setAdding] = useState(false)
 
@@ -32,9 +33,23 @@ export function HydrationPage({ today: fixedToday, now: fixedNow }: { today?: Is
 
   async function drink(volumeMl: number) {
     setAdding(true)
-    await hydration.add(volumeMl)
+    const added = await hydration.add(volumeMl)
     setAdding(false)
+    return added
   }
+
+  // Raccourci de l'icône (appui long → « Petit verre bu ») : /hydratation?boire note le plus petit contenant, une fois.
+  const [params, setParams] = useSearchParams()
+  const shortcutDone = useRef(false)
+  const fromShortcut = params.has('boire')
+  useEffect(() => {
+    if (!fromShortcut || !ready || hydration.loading || shortcutDone.current) return
+    shortcutDone.current = true
+    setParams({}, { replace: true })
+    const glass = containers.find((c) => c.volumeMl === smallest) ?? containers[0]!
+    void drink(glass.volumeMl).then((added) => added && toast.success(`Noté : ${glass.name.toLowerCase()} (${formatCl(glass.volumeMl)})`))
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- une seule fois, une fois réglages et verres chargés
+  }, [fromShortcut, ready, hydration.loading])
 
   return (
     <>

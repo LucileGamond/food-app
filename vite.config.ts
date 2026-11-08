@@ -46,6 +46,8 @@ export default defineConfig({
           enctype: 'multipart/form-data',
           params: { title: 'title', text: 'text', url: 'url', files: [{ name: 'photos', accept: ['image/*'] }] },
         },
+        // Appui long sur l'icône (Android) : noter un petit verre d'eau sans chercher la page.
+        shortcuts: [{ name: 'Petit verre bu', short_name: 'Petit verre', url: '/hydratation?boire', icons: [{ src: '/icons/icon-192.png', sizes: '192x192', type: 'image/png' }] }],
         icons: [
           { src: '/icons/icon-192.png', sizes: '192x192', type: 'image/png' },
           { src: '/icons/icon-512.png', sizes: '512x512', type: 'image/png' },
