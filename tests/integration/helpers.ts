@@ -41,7 +41,7 @@ export async function resetData(): Promise<void> {
   }
   const settings = await admin.from('user_settings').delete().neq('profile_id', nil)
   if (settings.error) throw settings.error
-  for (const bucket of ['recipe-photos', 'knit-patterns', 'plant-photos']) {
+  for (const bucket of ['recipe-photos', 'knit-patterns', 'knit-charts', 'knit-photos', 'plant-photos']) {
     const { data: files } = await admin.storage.from(bucket).list('', { limit: 1000 })
     for (const folder of files ?? []) {
       const { data: inner } = await admin.storage.from(bucket).list(folder.name, { limit: 1000 })

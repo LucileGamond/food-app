@@ -35,6 +35,7 @@ const step = (overrides: Partial<KnitStep>): KnitStep => ({
   notes: '',
   done: false,
   highlights: {},
+  translation: null,
   ...overrides,
 })
 
@@ -64,6 +65,8 @@ const PROJECT: KnitProject = {
   steps: [step({ id: 's1', done: true, rowCount: 40 }), step({ id: 's2', position: 1, title: 'Devant torsadé', rowCount: 8 })],
   charts: [TORSADE],
   chartHints: [],
+  abbreviations: [],
+  yarnCheck: null,
   sizes: [],
   sizeIndex: null,
 }

@@ -24,6 +24,7 @@ import type { ActivityEvent } from '@/lib/activity'
 import type { WaterInput } from '@/modules/plantes/api'
 import type { Plant, PlantPhoto, WateringEvent } from '@/modules/plantes/lib/plants'
 import type { KnitProject, KnitProjectSummary, ReadPattern } from '@/modules/tricot/lib/pattern'
+import type { ProjectProgress } from '@/modules/tricot/lib/progress'
 import { EMPTY_YARN, type QueuedPattern, type StashItem, type Yarn, type YarnIdea } from '@/modules/tricot/lib/yarn'
 import { DEFAULT_SETTINGS, type UserSettings } from '@/lib/settings'
 import type { AgendaEvent, CalendarSource } from '@/modules/agenda/lib/agenda'
@@ -178,12 +179,21 @@ export function fakeApi(): FakeApi {
       getQueued: vi.fn(async () => null as QueuedPattern | null),
       addToQueue: vi.fn(async () => 'new-queued'),
       deleteQueued: vi.fn(async () => undefined),
+      getProgress: vi.fn(async (): Promise<ProjectProgress> => ({ notes: '', photos: [] })),
+      saveProjectNotes: vi.fn(async () => undefined),
+      addProgressPhoto: vi.fn(async () => undefined),
+      saveCaption: vi.fn(async () => undefined),
+      deleteProgressPhoto: vi.fn(async () => undefined),
+      progressPhotoUrls: vi.fn(async (paths: string[]) => Object.fromEntries(paths.map((p) => [p, `https://cdn.test/${p}`]))),
       listStash: vi.fn(async () => [] as StashItem[]),
       saveStashItem: vi.fn(async () => undefined),
       deleteStashItem: vi.fn(async () => undefined),
       yarnIdeas: vi.fn(async () => [] as YarnIdea[]),
       downloadPdf: vi.fn(async (_path: string, name: string) => new File(['%PDF'], `${name}.pdf`, { type: 'application/pdf' })),
       addChart: vi.fn(async () => undefined),
+      askAboutStep: vi.fn(async () => 'Réponse du modèle.'),
+      translateText: vi.fn(async (text: string) => ({ text: `Traduit : ${text}`, numbersKept: true })),
+      saveYarnCheck: vi.fn(async () => undefined),
       setSizeIndex: vi.fn(async () => undefined),
       updateChart: vi.fn(async () => undefined),
       deleteChart: vi.fn(async () => undefined),

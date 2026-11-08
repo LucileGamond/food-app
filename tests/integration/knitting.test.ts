@@ -292,3 +292,32 @@ describe('taille mise en valeur', () => {
   })
 })
 
+
+describe('aides pendant le tricot', () => {
+  it('garde les abréviations du patron, la traduction d’une étape et la pesée de la laine', async () => {
+    const { api } = await signedInApi()
+    const abbreviations = [{ abbr: 'C4F', meaning: 'Torsade de 4 mailles devant.' }]
+    const id = await api.knitting.createProject({ title: 'Pull', size: 'M', pdf: null, steps: STEPS, abbreviations })
+    let project = (await api.knitting.getProject(id))!
+    expect(project).toMatchObject({ abbreviations, yarnCheck: null })
+    expect(project.steps[0]!.translation).toBeNull()
+
+    await api.knitting.saveProgress(project.steps[0]!.id, { translation: 'Monter 60 (64-68) m.' })
+    await api.knitting.saveYarnCheck(id, { grams: 82.5, rowsDone: 40, at: '2026-11-08T10:00:00.000Z' })
+    project = (await api.knitting.getProject(id))!
+    expect(project.steps[0]!.translation).toBe('Monter 60 (64-68) m.')
+    expect(project.yarnCheck).toEqual({ grams: 82.5, rowsDone: 40, at: '2026-11-08T10:00:00.000Z' })
+
+    await api.knitting.saveYarnCheck(id, null)
+    expect((await api.knitting.getProject(id))!.yarnCheck).toBeNull()
+    await expect(api.knitting.saveYarnCheck(id, { grams: -1, rowsDone: 0, at: '' })).rejects.toThrow('Certaines valeurs sont invalides.')
+  })
+
+  it('pose une question et traduit (sans clé d’analyse en local)', async () => {
+    const { api } = await signedInApi()
+    await expect(api.knitting.askAboutStep({ question: 'ssk ?', stepTitle: 'Dos', text: 'ssk', row: 3, size: 'M', abbreviations: [{ abbr: 'ssk', meaning: 'Surjet.' }] })).rejects.toThrow(
+      'Le service d’analyse est mal configuré.',
+    )
+    await expect(api.knitting.translateText('Knit to end.')).rejects.toThrow('Le service d’analyse est mal configuré.')
+  })
+})

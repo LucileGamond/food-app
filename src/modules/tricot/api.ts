@@ -4,8 +4,11 @@ import { AppError, functionError, toAppError } from '@/api/errors'
 import type { Json } from '@/lib/database.types'
 import type { AppSupabaseClient } from '@/api/client'
 import { compressForReading } from '@/lib/image'
+import type { ProgressPhoto, ProjectProgress } from './lib/progress'
 import { describeYarn, yarnFromJson, yarnMeters, yarnsFromJson, type Gauge, type QueueInput, type QueuedPattern, type QueuePriority, type StashItem, type Yarn, type YarnIdea } from './lib/yarn'
 import { sanitizeHighlights } from './lib/sizes'
+import { sanitizeAbbreviations, type Abbreviation } from './lib/glossary'
+import { sanitizeYarnCheck, type YarnCheck } from './lib/yarnLeft'
 import { sanitizeHints, sanitizeSetup, type ChartHint, type ChartSetup, type KnitChart } from './lib/chart'
 import { MAX_PDF_BYTES, type KnitProject, type KnitProjectSummary, type KnitStep, type PatternStep, type ReadPattern, sanitizeSections } from './lib/pattern'
 
@@ -14,8 +17,10 @@ const CHART_BUCKET = 'knit-charts'
 /** Lecture d'un long patron : jusqu'à 2 minutes côté modèle. */
 const READ_TIMEOUT_MS = 150_000
 const SIGNED_URL_TTL_SECONDS = 60 * 60
+/** Photos d'avancement : dossier par personne (<uid>/<uuid>.jpg). */
+const PROGRESS_BUCKET = 'knit-photos'
 
-export type StepProgress = Partial<Pick<KnitStep, 'rowCount' | 'notes' | 'done' | 'sections' | 'highlights'>>
+export type StepProgress = Partial<Pick<KnitStep, 'rowCount' | 'notes' | 'done' | 'sections' | 'highlights' | 'translation'>>
 
 /** Contenu du fichier en base64. */
 export async function fileToBase64(file: Blob): Promise<string> {
@@ -73,6 +78,7 @@ interface StepRow {
   notes: string
   done: boolean
   highlights: unknown
+  translation: string | null
 }
 
 function toStep(row: StepRow): KnitStep {
@@ -88,6 +94,7 @@ function toStep(row: StepRow): KnitStep {
     notes: row.notes,
     done: row.done,
     highlights: sanitizeHighlights(row.highlights),
+    translation: row.translation,
   }
 }
 
@@ -183,7 +190,7 @@ export function createKnittingApi(db: AppSupabaseClient) {
       const { data, error } = await db
         .from('knit_projects')
         .select(
-          `id, title, size, sizes, size_index, pdf_path, chart_hints, yarns, pattern_gauge_stitches, pattern_gauge_rows, my_gauge_stitches, my_gauge_rows, knit_steps(id, position, title, instructions, total_rows, stitches, sections, row_count, notes, done, highlights), knit_charts(${CHART_COLUMNS})`,
+          `id, title, size, sizes, size_index, pdf_path, chart_hints, abbreviations, yarn_check, yarns, pattern_gauge_stitches, pattern_gauge_rows, my_gauge_stitches, my_gauge_rows, knit_steps(id, position, title, instructions, total_rows, stitches, sections, row_count, notes, done, highlights, translation), knit_charts(${CHART_COLUMNS})`,
         )
         .eq('id', id)
         .order('position', { referencedTable: 'knit_steps' })
@@ -202,6 +209,8 @@ export function createKnittingApi(db: AppSupabaseClient) {
         steps: data.knit_steps.map(toStep),
         charts: await signCharts(data.knit_charts),
         chartHints: sanitizeHints(data.chart_hints),
+        abbreviations: sanitizeAbbreviations(data.abbreviations),
+        yarnCheck: sanitizeYarnCheck(data.yarn_check),
         yarns: yarnsFromJson(data.yarns),
         patternGauge: { stitches: data.pattern_gauge_stitches, rows: data.pattern_gauge_rows },
         myGauge: { stitches: data.my_gauge_stitches, rows: data.my_gauge_rows },
@@ -230,6 +239,8 @@ export function createKnittingApi(db: AppSupabaseClient) {
       /** Tailles du patron et celle à mettre en valeur dans le texte des étapes. */
       sizes?: string[]
       sizeIndex?: number | null
+      /** Abréviations expliquées par le patron. */
+      abbreviations?: Abbreviation[]
     }): Promise<string> {
       // PDF du patron en attente déjà envoyé ; sinon celui choisi, envoyé maintenant.
       const reused = input.queued?.pdfPath ?? null
@@ -258,11 +269,13 @@ export function createKnittingApi(db: AppSupabaseClient) {
       }
       // Simple confort : un échec ici n'empêche pas de tricoter (diagrammes ajoutés à la main, texte sans mise en valeur).
       const sizes = input.sizes ?? []
-      if (input.chartHints?.length || sizes.length) {
+      const abbreviations = input.abbreviations ?? []
+      if (input.chartHints?.length || sizes.length || abbreviations.length) {
         await db
           .from('knit_projects')
           .update({
             chart_hints: (input.chartHints ?? []) as unknown as Json[],
+            abbreviations: abbreviations as unknown as Json[],
             sizes,
             size_index: input.sizeIndex !== undefined && input.sizeIndex !== null && input.sizeIndex < sizes.length ? input.sizeIndex : null,
           })
@@ -280,6 +293,7 @@ export function createKnittingApi(db: AppSupabaseClient) {
           done: progress.done,
           sections: progress.sections as unknown as NonNullable<Json> | undefined,
           highlights: progress.highlights as unknown as NonNullable<Json> | undefined,
+          translation: progress.translation,
         })
         .eq('id', stepId)
       if (error) throw toAppError(error, 'Impossible d’enregistrer l’avancée.')
@@ -315,6 +329,39 @@ export function createKnittingApi(db: AppSupabaseClient) {
         (d) => typeof d === 'object',
       )
       return { ...read, skeins: null }
+    },
+
+    /** Question sur le rang en cours : réponse courte du modèle, avec le texte de l'étape en contexte. */
+    async askAboutStep(input: { question: string; stepTitle: string; text: string; row: number | null; size: string; abbreviations: Abbreviation[] }): Promise<string> {
+      const { answer } = await invokeKnit<{ answer: string }>(
+        {
+          question: {
+            question: input.question,
+            step_title: input.stepTitle,
+            text: input.text,
+            row: input.row,
+            size: input.size,
+            abbreviations: input.abbreviations.map((a) => `${a.abbr} : ${a.meaning}`).join('\n'),
+          },
+        },
+        'La réponse a échoué.',
+        (d) => typeof d.answer === 'string',
+      )
+      return answer
+    },
+
+    /** Texte d'une étape traduit en français ; `numbersKept` : les nombres des tailles sont restés ceux du patron. */
+    async translateText(text: string): Promise<{ text: string; numbersKept: boolean }> {
+      return invokeKnit<{ text: string; numbersKept: boolean }>({ translate: { text } }, 'La traduction a échoué.', (d) => typeof d.text === 'string', READ_TIMEOUT_MS)
+    },
+
+    /** Pesée de la laine principale (null : l'effacer). */
+    async saveYarnCheck(projectId: string, check: YarnCheck | null): Promise<void> {
+      const { error } = await db
+        .from('knit_projects')
+        .update({ yarn_check: check && { grams: check.grams, rows_done: check.rowsDone, at: check.at } })
+        .eq('id', projectId)
+      if (error) throw toAppError(error, 'Impossible d’enregistrer la pesée.')
     },
 
     async listQueue(): Promise<QueuedPattern[]> {
@@ -397,6 +444,58 @@ export function createKnittingApi(db: AppSupabaseClient) {
       const { data, error } = await db.storage.from(PATTERN_BUCKET).download(path)
       if (error) throw new AppError('Impossible de récupérer le PDF du patron.')
       return new File([data], `${name}.pdf`, { type: 'application/pdf' })
+    },
+
+    /** Notes du projet et photos d'avancement (les plus récentes d'abord). */
+    async getProgress(projectId: string): Promise<ProjectProgress> {
+      const [project, photos] = await Promise.all([
+        db.from('knit_projects').select('notes').eq('id', projectId).single(),
+        db.from('knit_progress_photos').select('id, storage_path, caption, step_id, taken_at').eq('project_id', projectId).order('taken_at', { ascending: false }),
+      ])
+      if (project.error || photos.error) throw toAppError(project.error ?? photos.error, 'Impossible de charger les notes et photos.')
+      return {
+        notes: project.data.notes,
+        photos: photos.data.map((p) => ({ id: p.id, storagePath: p.storage_path, caption: p.caption, stepId: p.step_id, takenAt: p.taken_at })),
+      }
+    },
+
+    async saveProjectNotes(projectId: string, notes: string): Promise<void> {
+      const { error } = await db.from('knit_projects').update({ notes }).eq('id', projectId)
+      if (error) throw toAppError(error, 'Impossible d’enregistrer les notes.')
+    },
+
+    /** Photo d'avancement (déjà réduite, en JPEG), rattachée à l'étape en cours. */
+    async addProgressPhoto(projectId: string, image: Blob, input: { stepId: string | null; caption: string }): Promise<void> {
+      const { data: session } = await db.auth.getSession()
+      const userId = session.session?.user.id
+      if (!userId) throw toAppError({ code: '42501' })
+      const path = `${userId}/${crypto.randomUUID()}.jpg`
+      const { error: uploadError } = await db.storage.from(PROGRESS_BUCKET).upload(path, image, { contentType: 'image/jpeg' })
+      if (uploadError) throw new AppError('Impossible d’envoyer la photo.')
+      const { error } = await db.from('knit_progress_photos').insert({ project_id: projectId, step_id: input.stepId, storage_path: path, caption: input.caption })
+      if (error) {
+        await db.storage.from(PROGRESS_BUCKET).remove([path])
+        throw toAppError(error, 'Impossible d’enregistrer la photo.')
+      }
+    },
+
+    async saveCaption(photoId: string, caption: string): Promise<void> {
+      const { error } = await db.from('knit_progress_photos').update({ caption }).eq('id', photoId)
+      if (error) throw toAppError(error, 'Impossible d’enregistrer la légende.')
+    },
+
+    async deleteProgressPhoto(photo: Pick<ProgressPhoto, 'id' | 'storagePath'>): Promise<void> {
+      const { error } = await db.from('knit_progress_photos').delete().eq('id', photo.id)
+      if (error) throw toAppError(error, 'Impossible de supprimer la photo.')
+      // Un fichier qui resterait est supprimé par le ménage de nuit.
+      await db.storage.from(PROGRESS_BUCKET).remove([photo.storagePath])
+    },
+
+    /** URL temporaires des photos d'avancement. */
+    async progressPhotoUrls(paths: string[]): Promise<Record<string, string>> {
+      const { data, error } = await db.storage.from(PROGRESS_BUCKET).createSignedUrls(paths, SIGNED_URL_TTL_SECONDS)
+      if (error) throw new AppError('Impossible de charger les photos.')
+      return Object.fromEntries(data.flatMap((item) => (item.path && item.signedUrl ? [[item.path, item.signedUrl]] : [])))
     },
 
     async deleteProject(project: Pick<KnitProject, 'id' | 'pdfPath'> & { charts?: Pick<KnitChart, 'imagePath'>[] }): Promise<void> {

@@ -115,7 +115,8 @@ export interface HighlightPart {
   state: 'chosen' | 'other' | 'plain'
 }
 
-const ANY_NUMBER = new RegExp(`(${NUMBER})`)
+// Un chiffre collé derrière une lettre fait partie d'un mot (« k2tog », « C4F ») : ce n'est pas un nombre à surligner.
+const ANY_NUMBER = new RegExp(String.raw`(?<!\p{L})(${NUMBER})`, 'u')
 
 /** Clé des corrections pour la taille mise en valeur. */
 export const highlightKey = (sizeIndex: number | null): string => (sizeIndex === null ? 'none' : String(sizeIndex))

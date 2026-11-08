@@ -1,4 +1,4 @@
-import { ArrowRight, BellRing, Check, SearchX, ChevronLeft, ChevronRight, FileText, Minus, MoreHorizontal, Plus, Sun, Trash2, Undo2 } from 'lucide-react'
+import { ArrowRight, BellRing, Check, SearchX, ChevronLeft, ChevronRight, CloudOff, FileText, Minus, MoreHorizontal, Plus, Sun, Trash2, Undo2 } from 'lucide-react'
 import { useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { toast } from 'sonner'
@@ -18,8 +18,12 @@ import { useWakeLock } from '@/hooks/useWakeLock'
 import { cn } from '@/lib/utils'
 import { openInNewTab } from '@/lib/openInNewTab'
 import { SizePicker, StepText } from '../components/SizedText'
+import { StepQuestion } from '../components/StepQuestion'
+import { YarnCheckCard } from '../components/YarnCheckCard'
+import type { YarnCheck } from '../lib/yarnLeft'
 import { StepCharts } from '../components/StepCharts'
 import { StepSections } from '../components/StepSections'
+import { ProgressPanel } from '../components/ProgressPanel'
 import { YarnPanel, type ProjectInfo } from '../components/YarnPanel'
 import { adjustCount, type Gauge } from '../lib/yarn'
 import { useKnitProject } from '../hooks/useKnitProject'
@@ -104,7 +108,7 @@ export function KnittingProjectPage() {
   const { id = '' } = useParams()
   const api = useApi()
   const navigate = useNavigate()
-  const { project, loading, loadError, reload, saveStep, countRows } = useKnitProject(api, id)
+  const { project, loading, loadError, reload, saveStep, countRows, offline, pending } = useKnitProject(api, id)
   const [selected, setSelected] = useState<string | null>(null)
   const [confirmDelete, setConfirmDelete] = useState(false)
   // Aiguilles en main : l'écran ne s'éteint pas tant que le projet est affiché.
@@ -169,6 +173,28 @@ export function KnittingProjectPage() {
     }
   }
 
+  /** Texte de l'étape (patron en anglais) traduit en français, gardé avec l'étape. */
+  async function translateStep(stepId: string, text: string) {
+    try {
+      const translated = await api.knitting.translateText(text)
+      if (!translated.numbersKept) toast.warning('Vérifie les nombres : la traduction en a changé certains.')
+      await saveStep(stepId, { translation: translated.text })
+    } catch (error) {
+      toast.error(errorMessage(error))
+    }
+  }
+
+  async function saveYarnCheck(check: YarnCheck): Promise<boolean> {
+    try {
+      await api.knitting.saveYarnCheck(project!.id, check)
+      await reload()
+      return true
+    } catch (error) {
+      toast.error(errorMessage(error))
+      return false
+    }
+  }
+
   async function changeSize(sizeIndex: number | null) {
     try {
       await api.knitting.setSizeIndex(project!.id, sizeIndex)
@@ -222,6 +248,14 @@ export function KnittingProjectPage() {
       {awake && (
         <p className="-mt-2 mb-3 flex items-center gap-1.5 text-sm text-muted-foreground">
           <Sun className="size-4" aria-hidden /> L’écran reste allumé.
+        </p>
+      )}
+      {(offline || pending > 0) && (
+        <p role="status" className="-mt-1 mb-3 flex items-start gap-1.5 rounded-xl bg-muted/50 p-3 text-sm">
+          <CloudOff className="mt-0.5 size-4 shrink-0" aria-hidden />
+          {offline
+            ? 'Hors ligne : tu tricotes sur la version gardée sur ce téléphone. Ton avancée sera envoyée au retour du réseau.'
+            : 'Avancée en attente d’envoi : elle partira dès que possible.'}
         </p>
       )}
 
@@ -290,6 +324,19 @@ export function KnittingProjectPage() {
               sizeIndex={project.sizeIndex}
               highlights={step.highlights}
               onChange={(highlights) => void saveStep(step.id, { highlights })}
+              abbreviations={project.abbreviations ?? []}
+              translation={step.translation ?? null}
+              onTranslate={() => translateStep(step.id, step.instructions)}
+            />
+          )}
+          {step.instructions && (
+            <StepQuestion
+              key={step.id}
+              stepTitle={step.title}
+              text={step.translation || step.instructions}
+              row={step.totalRows !== null && step.rowCount >= step.totalRows ? null : step.rowCount + 1}
+              size={(project.sizeIndex !== null ? project.sizes[project.sizeIndex] : undefined) ?? project.size}
+              abbreviations={project.abbreviations ?? []}
             />
           )}
           <RowCounter step={step} gauges={gauges} onCount={(delta) => void countRows(step.id, delta)} />
@@ -312,6 +359,14 @@ export function KnittingProjectPage() {
 
       <div className="mt-4">
         <YarnPanel info={{ yarns: project.yarns, patternGauge: project.patternGauge, myGauge: project.myGauge }} onSave={saveInfo} />
+      </div>
+
+      <div className="mt-4">
+        <YarnCheckCard yarn={project.yarns[0]} steps={steps} check={project.yarnCheck ?? null} onSave={saveYarnCheck} />
+      </div>
+
+      <div className="mt-4">
+        <ProgressPanel projectId={project.id} currentStepId={steps[currentStepIndex(steps)]?.id ?? null} stepTitle={(id) => steps.find((s) => s.id === id)?.title} />
       </div>
 
       <ConfirmDialog

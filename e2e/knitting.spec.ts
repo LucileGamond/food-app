@@ -261,3 +261,44 @@ test('suit un diagramme ajouté depuis une image, rang par rang', async ({ page 
   await page.getByRole('button', { name: 'Supprimer', exact: true }).click()
   await expect(page.getByRole('region', { name: 'Torsade' })).toHaveCount(0)
 })
+
+test('aides pendant le tricot : abréviations, pesée de la laine et rangs comptés hors ligne', async ({ page, context }) => {
+  const { api } = await signedInApi()
+  await api.settings.saveSettings({ ...DEFAULT_SETTINGS, disabledPages: [] })
+  const steps = [
+    { title: 'Dos', instructions: 'Comme le devant.', totalRows: 100, stitches: null, sections: [] },
+    { title: 'Devant', instructions: 'Tricoter 1 jeté, puis C4F.', totalRows: 100, stitches: null, sections: [] },
+  ]
+  const id = await api.knitting.createProject({ title: 'Pull Aides', size: 'M', pdf: null, steps, abbreviations: [{ abbr: 'C4F', meaning: 'Torsade de 4 mailles devant.' }] })
+  const project = (await api.knitting.getProject(id))!
+  await api.knitting.saveProjectInfo(id, {
+    yarns: [{ brand: 'DROPS', name: 'Merino', color: null, dye_lot: null, composition: null, weight_g: 50, length_m: 100, skeins: 10, needle_mm: 4 }],
+    patternGauge: { stitches: null, rows: null },
+    myGauge: { stitches: null, rows: null },
+  })
+  await api.knitting.saveProgress(project.steps[0]!.id, { rowCount: 100, done: true })
+  await login(page)
+  await page.goto(`/tricot/${id}`)
+  await expect(page.getByRole('heading', { name: 'Devant' })).toBeVisible()
+
+  // Abréviation du patron expliquée d'un toucher (le dos est fini : on est sur le devant)
+  await page.getByRole('button', { name: 'C4F : explication' }).click()
+  await expect(page.getByText('Torsade de 4 mailles devant.')).toBeVisible()
+  await page.keyboard.press('Escape')
+
+  // Pesée : 220 g restants pour la moitié du travail faite → il manque 2 pelotes
+  const card = page.getByRole('region', { name: 'Assez de laine pour finir ?' })
+  await card.getByLabel('Laine restante (g)').fill('220')
+  await card.getByRole('button', { name: 'Estimer' }).click()
+  await expect(card.getByRole('status')).toContainText('Il manque ≈ 120 m, soit 2 pelotes.')
+  await expectNoA11yViolations(page)
+
+  // Hors ligne : les rangs comptés restent, et partent au retour du réseau
+  await context.setOffline(true)
+  await page.getByRole('button', { name: 'Ajouter 1 rang' }).click()
+  await page.getByRole('button', { name: 'Ajouter 1 rang' }).click()
+  await expect(page.getByText(/Hors ligne : tu tricotes sur la version gardée/)).toBeVisible()
+  await context.setOffline(false)
+  await expect.poll(async () => (await api.knitting.getProject(id))!.steps[1]!.rowCount).toBe(2)
+  await expect(page.getByText(/Hors ligne/)).toHaveCount(0)
+})

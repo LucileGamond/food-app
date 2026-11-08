@@ -7,8 +7,10 @@
 // Le compteur compte les rangs terminés : ce qui est annoncé concerne le rang à tricoter (rangs faits + 1).
 
 import type { ChartHint, KnitChart } from './chart'
+import type { Abbreviation } from './glossary'
 import type { Highlights } from './sizes'
 import type { Gauge, Yarn } from './yarn'
+import type { YarnCheck } from './yarnLeft'
 
 export type SectionKind = 'rows' | 'repeat'
 
@@ -52,6 +54,8 @@ export interface KnitStep {
   done: boolean
   /** Surlignage des nombres corrigé à la main, par taille. */
   highlights: Highlights
+  /** Traduction en français du texte (patron en anglais), nombres inchangés ; null si pas traduit. */
+  translation?: string | null
 }
 
 export interface KnitProjectSummary {
@@ -76,6 +80,10 @@ export interface KnitProject {
   charts: KnitChart[]
   /** Diagrammes repérés à la lecture du patron, proposés à l'ajout depuis le PDF. */
   chartHints: ChartHint[]
+  /** Abréviations expliquées par le patron (sa légende). */
+  abbreviations?: Abbreviation[]
+  /** Dernière pesée de la laine principale (« assez de laine pour finir ? »). */
+  yarnCheck?: YarnCheck | null
   yarns: Yarn[]
   /** Échantillon du patron (lu avec le patron, ou saisi) et celui de la tricoteuse. */
   patternGauge: Gauge
@@ -95,6 +103,8 @@ export interface ReadPattern {
   gauge?: Gauge | null
   /** Diagrammes repérés (page du PDF, calage proposé). */
   charts?: ChartHint[]
+  /** Abréviations expliquées par le patron. */
+  abbreviations?: Abbreviation[]
 }
 
 /** Sections lues en base : seules celles bien formées sont gardées (une donnée abîmée ne fait pas planter l'écran). */

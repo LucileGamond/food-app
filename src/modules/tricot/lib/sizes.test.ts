@@ -83,6 +83,12 @@ describe('corrections du surlignage', () => {
     expect(parts.map((p) => p.text).join('')).toBe(TEXT)
   })
 
+  it('laisse les chiffres collés à un mot (« k2tog », « C4F »)', () => {
+    const parts = highlightParts('k2tog, C4F puis 3 rangs', 0, null)
+    expect(parts.filter((p) => p.kind === 'number').map((p) => p.text)).toEqual(['3'])
+    expect(parts.map((p) => p.text).join('')).toBe('k2tog, C4F puis 3 rangs')
+  })
+
   it('applique les corrections de la taille mise en valeur', () => {
     const highlights = { '1': { '11': false, '14': true, '26': true }, '2': { '7': true } }
     expect(show(highlightParts(TEXT, 3, 1, highlights))).toBe('Monter {60} (<64>-[68]) m. puis [12] rangs')

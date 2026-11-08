@@ -1,9 +1,43 @@
-import { Check, Highlighter, Undo2 } from 'lucide-react'
+import { Check, Highlighter, Languages, Loader2, Undo2 } from 'lucide-react'
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { NativeSelect } from '@/components/ui/native-select'
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { cn } from '@/lib/utils'
+import { abbreviationParts, looksEnglish, mergeGlossary, type Abbreviation } from '../lib/glossary'
 import { highlightKey, highlightParts, toggleHighlight, type HighlightPart, type Highlights } from '../lib/sizes'
+
+/** Texte simple : ses abréviations deviennent des boutons qui en donnent le sens. */
+function Glossed({ text, glossary }: { text: string; glossary: Abbreviation[] }) {
+  if (glossary.length === 0) return <>{text}</>
+  return (
+    <>
+      {abbreviationParts(text, glossary).map((part, i) =>
+        part.kind === 'text' ? (
+          part.text
+        ) : (
+          <Popover key={i}>
+            <PopoverTrigger
+              render={
+                <button
+                  type="button"
+                  aria-label={`${part.text} : explication`}
+                  className="rounded underline decoration-brand/60 decoration-dotted underline-offset-4 hover:bg-muted focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none"
+                />
+              }
+            >
+              {part.text}
+            </PopoverTrigger>
+            <PopoverContent className="w-64">
+              <p className="font-medium">{part.text}</p>
+              <p className="text-muted-foreground">{part.meaning}</p>
+            </PopoverContent>
+          </Popover>
+        ),
+      )}
+    </>
+  )
+}
 
 interface Props {
   text: string
@@ -14,20 +48,22 @@ interface Props {
   highlights?: Highlights
   /** Mode correction : chaque nombre devient un bouton qui le surligne ou non. */
   onToggle?: (part: HighlightPart, found: HighlightPart['state']) => void
+  /** Abréviations expliquées d'un toucher (hors mode correction). */
+  glossary?: Abbreviation[]
   className?: string
 }
 
 const CHOSEN = 'rounded bg-brand/15 px-0.5 font-semibold text-foreground'
 
 /** Texte du patron recopié tel quel : nombres de la taille choisie surlignés, ceux des autres tailles estompés. */
-export function SizedText({ text, sizes, sizeIndex, highlights = {}, onToggle, className }: Props) {
+export function SizedText({ text, sizes, sizeIndex, highlights = {}, onToggle, glossary = [], className }: Props) {
   const parts = highlightParts(text, sizes.length, sizeIndex, highlights)
   // Surlignage calculé, sans corrections : sert à savoir si une correction revient au calcul.
   const found = onToggle ? highlightParts(text, sizes.length, sizeIndex) : parts
   return (
     <p className={cn('text-sm whitespace-pre-line', onToggle && 'leading-7', className)}>
       {parts.map((part, i) => {
-        if (part.kind === 'text') return part.text
+        if (part.kind === 'text') return onToggle ? part.text : <Glossed key={i} text={part.text} glossary={glossary} />
         if (onToggle) {
           return (
             <button
@@ -70,23 +106,66 @@ interface StepTextProps {
   highlights: Highlights
   /** Corrections modifiées (enregistrées avec l'étape). */
   onChange: (highlights: Highlights) => void
+  /** Abréviations expliquées par le patron (le glossaire de base complète). */
+  abbreviations?: Abbreviation[]
+  /** Traduction en français déjà faite, et demande de traduction (patron en anglais). */
+  translation?: string | null
+  onTranslate?: () => Promise<void>
 }
 
-/** Texte d'une étape, avec la correction du surlignage nombre par nombre. */
-export function StepText({ text, sizes, sizeIndex, highlights, onChange }: StepTextProps) {
+/**
+ * Texte d'une étape : abréviations expliquées d'un toucher, correction du surlignage nombre par nombre, et pour un
+ * patron en anglais, traduction en français (affichée d'abord, le texte d'origine reste à côté).
+ */
+export function StepText({ text, sizes, sizeIndex, highlights, onChange, abbreviations = [], translation = null, onTranslate }: StepTextProps) {
   const [editing, setEditing] = useState(false)
+  const [translating, setTranslating] = useState(false)
   const fixed = Object.keys(highlights[highlightKey(sizeIndex)] ?? {}).length > 0
+  const english = looksEnglish(text)
+  const original = (
+    <SizedText
+      text={text}
+      sizes={sizes}
+      sizeIndex={sizeIndex}
+      highlights={highlights}
+      glossary={mergeGlossary(abbreviations, english)}
+      onToggle={editing ? (part, found) => onChange(toggleHighlight(highlights, sizeIndex, part, found)) : undefined}
+    />
+  )
+
+  async function translate() {
+    if (!onTranslate) return
+    setTranslating(true)
+    try {
+      await onTranslate()
+    } finally {
+      setTranslating(false)
+    }
+  }
+
   return (
     <div className="space-y-2">
-      <SizedText
-        text={text}
-        sizes={sizes}
-        sizeIndex={sizeIndex}
-        highlights={highlights}
-        onToggle={editing ? (part, found) => onChange(toggleHighlight(highlights, sizeIndex, part, found)) : undefined}
-      />
+      {translation && !editing ? (
+        <>
+          <section aria-label="Traduction en français">
+            <SizedText text={translation} sizes={sizes} sizeIndex={sizeIndex} glossary={mergeGlossary(abbreviations, false)} />
+          </section>
+          <details className="rounded-lg bg-muted/40 px-3 py-2 text-sm">
+            <summary className="cursor-pointer text-muted-foreground">Texte d’origine (anglais)</summary>
+            <div className="mt-2">{original}</div>
+          </details>
+        </>
+      ) : (
+        original
+      )}
       {editing && <p className="text-xs text-muted-foreground">Touche un nombre pour le surligner ou retirer son surlignage.</p>}
       <div className="flex flex-wrap gap-2">
+        {english && !translation && onTranslate && !editing && (
+          <Button type="button" variant="outline" size="sm" disabled={translating} onClick={() => void translate()}>
+            {translating ? <Loader2 className="animate-spin" aria-hidden /> : <Languages />}
+            {translating ? 'Traduction…' : 'Traduire en français'}
+          </Button>
+        )}
         <Button type="button" variant={editing ? 'default' : 'outline'} size="sm" onClick={() => setEditing((e) => !e)}>
           {editing ? <Check /> : <Highlighter />}
           {editing ? 'Terminé' : 'Corriger le surlignage'}

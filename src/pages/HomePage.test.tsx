@@ -20,12 +20,15 @@ const step = (overrides: Partial<KnitStep>): KnitStep => ({
   notes: '',
   done: false,
   highlights: {},
+  translation: null,
   ...overrides,
 })
 
 const PROJECT: KnitProject = {
   charts: [],
   chartHints: [],
+  abbreviations: [],
+  yarnCheck: null,
   sizes: [],
   sizeIndex: null,
   yarns: [],

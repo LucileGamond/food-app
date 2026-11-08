@@ -63,6 +63,14 @@ export interface ChartHint {
 
 export const MAX_CHARTS = 30
 
+/** Abréviation du patron et sa signification (« ssk » : « glisser 2 m. à l'endroit, les tricoter ensemble »). */
+export interface Abbreviation {
+  abbr: string
+  meaning: string
+}
+
+export const MAX_ABBREVIATIONS = 200
+
 export interface ReadPattern {
   title: string
   sizes: string[]
@@ -71,6 +79,8 @@ export interface ReadPattern {
   steps: PatternStep[]
   gauge: Gauge | null
   charts: ChartHint[]
+  /** Abréviations expliquées dans le patron (sa légende), pour les expliquer dans le texte des étapes. */
+  abbreviations: Abbreviation[]
 }
 
 function str(value: unknown, max: number): string {
@@ -175,8 +185,20 @@ export const TOOL: Tool = {
           required: ['page', 'title', 'last_row', 'odd_only', 'flat', 'step'],
         },
       },
+      abbreviations: {
+        type: 'array',
+        description: 'Abréviations et symboles expliqués par le patron (sa légende), tels qu’écrits ; vide s’il n’y en a pas.',
+        items: {
+          type: 'object',
+          properties: {
+            abbr: { type: 'string', description: 'L’abréviation telle qu’écrite dans le texte (« ssk », « 2 m. ens. », « jeté »).' },
+            meaning: { type: 'string', description: 'Sa signification, en français, en une phrase.' },
+          },
+          required: ['abbr', 'meaning'],
+        },
+      },
     },
-    required: ['title', 'sizes', 'size_found', 'steps', 'charts'],
+    required: ['title', 'sizes', 'size_found', 'steps', 'charts', 'abbreviations'],
   },
 }
 
@@ -203,6 +225,7 @@ export function systemPrompt(size: string): string {
     'Mesure en centimètres (« 5 cm », « tous les 5 cm ») : rows ou every à null, la tricoteuse la convertira en rangs selon sa laine.',
     'Repère les diagrammes (grilles de symboles ou de couleurs) dans charts : page du PDF, nom, plus grand numéro de rang de la grille,',
     'rangs endroit seuls ou non, à plat ou en rond, et l’étape où il se tricote ; un diagramme propre à une autre taille est ignoré.',
+    'Relève dans abbreviations les abréviations expliquées par le patron (sa légende), telles qu’écrites, avec leur sens en français.',
     'Relève l’échantillon du patron (mailles et rangs pour 10 cm) dans gauge ; ignore la liste du matériel et les abréviations, sauf s’ils servent à une étape.',
     'Si la taille choisie ne fait pas partie du patron, mets size_found à false et steps vide.',
   ].join('\n')
@@ -269,6 +292,21 @@ export function sanitizeGauge(value: unknown): Gauge | null {
   return gauge.stitches === null && gauge.rows === null ? null : gauge
 }
 
+/** Abréviations lues, bornées, une fois chacune. */
+export function sanitizeAbbreviations(value: unknown): Abbreviation[] {
+  const seen = new Set<string>()
+  return (Array.isArray(value) ? value : [])
+    .flatMap((v): Abbreviation[] => {
+      const a = asRecord(v)
+      const abbr = str(a.abbr, 40)
+      const meaning = str(a.meaning, 300)
+      if (!abbr || !meaning || seen.has(abbr)) return []
+      seen.add(abbr)
+      return [{ abbr, meaning }]
+    })
+    .slice(0, MAX_ABBREVIATIONS)
+}
+
 /** Position de la taille choisie : celle donnée par le modèle, sinon la même écriture dans la liste (« m » = « M »). */
 function sizeIndex(value: unknown, sizes: string[], size: string): number | null {
   const number = int(value, 1, sizes.length)
@@ -312,6 +350,7 @@ export function sanitizePattern(input: unknown, size: string): ReadPattern {
     steps,
     gauge: sanitizeGauge(data.gauge),
     charts: sanitizeCharts(data.charts, steps.length),
+    abbreviations: sanitizeAbbreviations(data.abbreviations),
   }
 }
 

@@ -12,6 +12,7 @@ import { QueueForm } from '../components/QueueForm'
 import { SizedText, SizePicker } from '../components/SizedText'
 import { cn } from '@/lib/utils'
 import { describeHint } from '../lib/chart'
+import { looksEnglish, mergeGlossary } from '../lib/glossary'
 import { sizeIndexOf } from '../lib/sizes'
 import { describeSection, MAX_PDF_BYTES, type ReadPattern } from '../lib/pattern'
 import { formatGauge, type QueuedPattern } from '../lib/yarn'
@@ -91,7 +92,7 @@ export function KnittingImportPage() {
     if (!pattern) return
     setSaving(true)
     try {
-      const id = await api.knitting.createProject({ title: title.trim() || pattern.title, size: readSize(pattern), pdf, steps: pattern.steps, gauge: pattern.gauge ?? null, queued, chartHints: pattern.charts ?? [], sizes: pattern.sizes, sizeIndex })
+      const id = await api.knitting.createProject({ title: title.trim() || pattern.title, size: readSize(pattern), pdf, steps: pattern.steps, gauge: pattern.gauge ?? null, queued, chartHints: pattern.charts ?? [], sizes: pattern.sizes, sizeIndex, abbreviations: pattern.abbreviations ?? [] })
       toast.success('Projet enregistré')
       navigate(`/tricot/${id}`)
     } catch (e) {
@@ -120,7 +121,7 @@ export function KnittingImportPage() {
                 <p className="font-medium">
                   {index + 1}. {step.title}
                 </p>
-                {step.instructions && <SizedText text={step.instructions} sizes={pattern.sizes} sizeIndex={sizeIndex} className="mt-1" />}
+                {step.instructions && <SizedText text={step.instructions} sizes={pattern.sizes} sizeIndex={sizeIndex} glossary={mergeGlossary(pattern.abbreviations ?? [], looksEnglish(step.instructions))} className="mt-1" />}
                 {(step.totalRows || step.stitches) && (
                   <p className="mt-2 text-xs text-muted-foreground">
                     {[step.totalRows && `${step.totalRows} rangs`, step.stitches && `${step.stitches} mailles`].filter(Boolean).join(' · ')}

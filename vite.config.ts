@@ -59,6 +59,20 @@ export default defineConfig({
         globPatterns: ['**/*.{js,css,html,svg,png,woff2}'],
         // pdf.js (diagrammes de tricot) : chargé seulement quand on ouvre un PDF, pas installé avec l'application.
         globIgnores: ['**/pdf-*.js', '**/pdf.worker*'],
+        // Tricot hors ligne : images des diagrammes gardées une fois vues. L'adresse signée change à chaque chargement :
+        // elle est comparée sans ses paramètres (le jeton).
+        runtimeCaching: [
+          {
+            urlPattern: ({ url }) => url.pathname.includes('/storage/v1/object/sign/knit-charts/'),
+            handler: 'CacheFirst',
+            options: {
+              cacheName: 'tricot-diagrammes',
+              matchOptions: { ignoreSearch: true },
+              cacheableResponse: { statuses: [0, 200] },
+              expiration: { maxEntries: 100, maxAgeSeconds: 60 * 60 * 24 * 90 },
+            },
+          },
+        ],
       },
     }),
   ],

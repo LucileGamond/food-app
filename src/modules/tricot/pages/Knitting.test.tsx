@@ -21,12 +21,15 @@ const step = (overrides: Partial<KnitStep>): KnitStep => ({
   notes: '',
   done: false,
   highlights: {},
+  translation: null,
   ...overrides,
 })
 
 const PROJECT: KnitProject = {
   charts: [],
   chartHints: [],
+  abbreviations: [],
+  yarnCheck: null,
   sizes: [],
   sizeIndex: null,
   yarns: [],
@@ -61,6 +64,9 @@ const PATTERN: ReadPattern = {
   gauge: { stitches: 22, rows: 30 },
   steps: PROJECT.steps.map(({ title, instructions, totalRows, stitches, sections }) => ({ title, instructions, totalRows, stitches, sections })),
 }
+
+// Le projet est gardé sur le téléphone (hors ligne) : chaque test repart sans copie.
+beforeEach(() => localStorage.clear())
 
 describe('KnittingPage', () => {
   it('liste les projets avec leur avancée', async () => {
@@ -132,7 +138,7 @@ describe('KnittingImportPage', () => {
     await user.clear(screen.getByLabelText('Nom du projet'))
     await user.type(screen.getByLabelText('Nom du projet'), 'Pull de Noël')
     await user.click(screen.getByRole('button', { name: 'Enregistrer le projet' }))
-    expect(api.knitting.createProject).toHaveBeenCalledWith({ title: 'Pull de Noël', size: 'M', pdf: file, steps: PATTERN.steps, gauge: { stitches: 22, rows: 30 }, queued: null, chartHints: charts, sizes: ['S', 'M', 'L'], sizeIndex: 1 })
+    expect(api.knitting.createProject).toHaveBeenCalledWith({ title: 'Pull de Noël', size: 'M', pdf: file, steps: PATTERN.steps, gauge: { stitches: 22, rows: 30 }, queued: null, chartHints: charts, sizes: ['S', 'M', 'L'], sizeIndex: 1, abbreviations: [] })
     expect(await screen.findByText('Projet ouvert')).toBeInTheDocument()
   })
 
