@@ -10,6 +10,7 @@ import { Label } from '@/components/ui/label'
 import { PageHeader } from '@/components/PageHeader'
 import { QueueForm } from '../components/QueueForm'
 import { SizedText, SizePicker } from '../components/SizedText'
+import { SizeAdvice } from '../components/SizeAdvice'
 import { cn } from '@/lib/utils'
 import { describeHint } from '../lib/chart'
 import { useBaseGlossary } from '../hooks/useBaseGlossary'
@@ -71,15 +72,22 @@ export function KnittingImportPage() {
     event.preventDefault()
     if (!pdf) return setError('Choisis le PDF du patron.')
     if (pdf.size > MAX_PDF_BYTES) return setError('PDF trop lourd (20 Mo au plus).')
+    await readFor(pdf, size.trim())
+  }
+
+  /** Lit le patron pour une taille ; relu pour la taille conseillée, le nom du projet donné est gardé. */
+  async function readFor(file: File, chosenSize: string) {
     setError(null)
     setReading(true)
     try {
-      const read = await api.knitting.readPattern(pdf, size.trim())
+      const read = await api.knitting.readPattern(file, chosenSize)
+      setSize(chosenSize)
+      setTitle((current) => (pattern && current.trim() && current !== pattern.title ? current : read.title))
       setPattern(read)
-      setTitle(read.title)
-      setSizeIndex(read.sizeIndex ?? sizeIndexOf(read.sizes, size))
+      setSizeIndex(read.sizeIndex ?? sizeIndexOf(read.sizes, chosenSize))
     } catch (e) {
-      setError(errorMessage(e))
+      if (pattern) toast.error(errorMessage(e))
+      else setError(errorMessage(e))
     } finally {
       setReading(false)
     }
@@ -116,6 +124,9 @@ export function KnittingImportPage() {
             <Label htmlFor="knit-title">Nom du projet</Label>
             <Input id="knit-title" className="h-10" value={title} onChange={(e) => setTitle(e.target.value)} maxLength={200} />
           </div>
+          {pattern.sizeChart && pdf && (
+            <SizeAdvice chart={pattern.sizeChart} sizes={pattern.sizes} readIndex={pattern.sizeIndex ?? null} rereading={reading} onReread={(s) => void readFor(pdf, s)} />
+          )}
           <SizePicker id="knit-size-index" sizes={pattern.sizes} sizeIndex={sizeIndex} onChange={setSizeIndex} />
           <ol aria-label="Étapes lues" className="space-y-2">
             {pattern.steps.map((step, index) => (

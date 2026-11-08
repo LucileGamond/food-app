@@ -6,6 +6,7 @@
 // Les rangs de chaque section se calculent à la suite (rangs 1 à 4, puis 5 à 28…).
 // Le compteur compte les rangs terminés : ce qui est annoncé concerne le rang à tricoter (rangs faits + 1).
 
+import type { SizeChart } from './sizing'
 import type { Adaptation } from './adapt'
 import type { ChartHint, KnitChart } from './chart'
 import type { Abbreviation } from './glossary'
@@ -108,6 +109,8 @@ export interface ReadPattern {
   charts?: ChartHint[]
   /** Abréviations expliquées par le patron. */
   abbreviations?: Abbreviation[]
+  /** Tableau des mesures par taille, pour conseiller une taille selon ses mesures. */
+  sizeChart?: SizeChart | null
 }
 
 /** Sections lues en base : seules celles bien formées sont gardées (une donnée abîmée ne fait pas planter l'écran). */

@@ -163,6 +163,30 @@ describe('résultat du modèle', () => {
     expect(systemPrompt('M')).toContain('diagrammes')
   })
 
+  it('relève le tableau des mesures, aligné sur les tailles', () => {
+    const chart = {
+      kind: 'finished',
+      ease_cm: 8,
+      rows: [
+        { label: 'Tour de poitrine', measure: 'chest', values_cm: [92, 101.25, 110, 999] },
+        { label: 'Longueur totale', measure: 'length', values_cm: [58, 'x'] },
+        { label: '', measure: 'chest', values_cm: [1] },
+        { label: 'Vide', measure: 'hip', values_cm: [] },
+      ],
+    }
+    expect(sanitizePattern({ ...PATTERN, size_chart: chart }, 'M').sizeChart).toEqual({
+      kind: 'finished',
+      easeCm: 8,
+      rows: [
+        { label: 'Tour de poitrine', measure: 'chest', values: [92, 101.3, 110] },
+        { label: 'Longueur totale', measure: 'other', values: [58, null, null] },
+      ],
+    })
+    expect(sanitizePattern({ ...PATTERN, size_chart: null }, 'M').sizeChart).toBeNull()
+    expect(sanitizePattern({ ...PATTERN, size_chart: { kind: 'autre', rows: chart.rows } }, 'M').sizeChart).toBeNull()
+    expect(systemPrompt('M')).toContain('size_chart')
+  })
+
   it('signale une taille introuvable avec les tailles du patron', () => {
     expect(() => sanitizePattern({ ...PATTERN, size_found: false, steps: [] }, 'XXL')).toThrow('Taille « XXL » introuvable. Tailles du patron : S, M, L.')
     expect(() => sanitizePattern({ size_found: false }, 'XXL')).toThrow('Taille « XXL » introuvable dans ce patron.')

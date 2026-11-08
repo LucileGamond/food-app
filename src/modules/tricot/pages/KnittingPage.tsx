@@ -12,6 +12,7 @@ import { cn } from '@/lib/utils'
 import { FoldHeader } from '../components/FoldHeader'
 import { QueueList } from '../components/QueueList'
 import { StashSection } from '../components/StashSection'
+import { MeasuresSection } from '../components/MeasuresSection'
 
 /** Module Tricot : projets en cours (un patron suivi pour une taille), stock de laine et patrons à faire plus tard. */
 export function KnittingPage() {
@@ -60,6 +61,7 @@ export function KnittingPage() {
       )}
 
       <StashSection queue={queue.data ?? []} />
+      <MeasuresSection />
 
       <section aria-labelledby="knit-queue" className="mt-8 space-y-3">
         <FoldHeader

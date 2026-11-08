@@ -71,6 +71,19 @@ export interface Abbreviation {
 
 export const MAX_ABBREVIATIONS = 200
 
+/** Mesure d'une ligne du tableau des mesures (« other » : longueur totale, carrure…). */
+export type ChartMeasure = 'chest' | 'waist' | 'hip' | 'arm' | 'head' | 'other'
+const CHART_MEASURES = new Set<string>(['chest', 'waist', 'hip', 'arm', 'head', 'other'])
+
+/** Tableau des mesures du patron : une valeur (cm) par taille, dans l'ordre de `sizes`. */
+export interface SizeChart {
+  /** « finished » : vêtement fini ; « body » : mesures du corps à qui chaque taille convient. */
+  kind: 'finished' | 'body'
+  /** Aisance conseillée par le patron (cm). */
+  easeCm: number | null
+  rows: { label: string; measure: ChartMeasure; values: (number | null)[] }[]
+}
+
 export interface ReadPattern {
   title: string
   sizes: string[]
@@ -81,6 +94,8 @@ export interface ReadPattern {
   charts: ChartHint[]
   /** Abréviations expliquées dans le patron (sa légende), pour les expliquer dans le texte des étapes. */
   abbreviations: Abbreviation[]
+  /** Tableau des mesures (pour conseiller une taille selon ses mesures), s'il y en a un. */
+  sizeChart: SizeChart | null
 }
 
 function str(value: unknown, max: number): string {
@@ -185,6 +200,35 @@ export const TOOL: Tool = {
           required: ['page', 'title', 'last_row', 'odd_only', 'flat', 'step'],
         },
       },
+      size_chart: {
+        type: ['object', 'null'],
+        description: 'Tableau des mesures par taille (null s’il n’y en a pas), en centimètres.',
+        properties: {
+          kind: {
+            type: 'string',
+            enum: ['finished', 'body'],
+            description: 'finished : mesures du vêtement fini ; body : mesures du corps à qui chaque taille convient.',
+          },
+          ease_cm: { type: ['number', 'null'], description: 'Aisance conseillée par le patron, en cm (null si non indiquée).' },
+          rows: {
+            type: 'array',
+            items: {
+              type: 'object',
+              properties: {
+                label: { type: 'string', description: 'Nom de la mesure tel qu’écrit (« Tour de poitrine », « Longueur totale »).' },
+                measure: {
+                  type: 'string',
+                  enum: ['chest', 'waist', 'hip', 'arm', 'head', 'other'],
+                  description: 'chest : tour de poitrine ; waist : tour de taille ; hip : tour de hanches ; arm : longueur de manche ou de bras ; head : tour de tête ; other : le reste.',
+                },
+                values_cm: { type: 'array', items: { type: ['number', 'null'] }, description: 'Une valeur en cm par taille, dans l’ordre de sizes (null si absente).' },
+              },
+              required: ['label', 'measure', 'values_cm'],
+            },
+          },
+        },
+        required: ['kind', 'ease_cm', 'rows'],
+      },
       abbreviations: {
         type: 'array',
         description: 'Abréviations et symboles expliqués par le patron (sa légende), tels qu’écrits ; vide s’il n’y en a pas.',
@@ -225,6 +269,8 @@ export function systemPrompt(size: string): string {
     'Mesure en centimètres (« 5 cm », « tous les 5 cm ») : rows ou every à null, la tricoteuse la convertira en rangs selon sa laine.',
     'Repère les diagrammes (grilles de symboles ou de couleurs) dans charts : page du PDF, nom, plus grand numéro de rang de la grille,',
     'rangs endroit seuls ou non, à plat ou en rond, et l’étape où il se tricote ; un diagramme propre à une autre taille est ignoré.',
+    'Relève dans size_chart le tableau des mesures par taille (tour de poitrine, longueur…), converti en cm, une valeur par taille dans l’ordre de sizes,',
+    'en précisant s’il s’agit des mesures du vêtement fini ou du corps, et l’aisance conseillée si le patron la donne.',
     'Relève dans abbreviations les abréviations expliquées par le patron (sa légende), telles qu’écrites, avec leur sens en français.',
     'Relève l’échantillon du patron (mailles et rangs pour 10 cm) dans gauge ; ignore la liste du matériel et les abréviations, sauf s’ils servent à une étape.',
     'Si la taille choisie ne fait pas partie du patron, mets size_found à false et steps vide.',
@@ -308,6 +354,28 @@ export function sanitizeAbbreviations(value: unknown): Abbreviation[] {
     .slice(0, MAX_ABBREVIATIONS)
 }
 
+function cm(value: unknown, max: number): number | null {
+  return typeof value === 'number' && Number.isFinite(value) && value > 0 && value <= max ? Math.round(value * 10) / 10 : null
+}
+
+/** Tableau des mesures lu, aligné sur les tailles ; null s'il est absent ou vide. */
+export function sanitizeSizeChart(value: unknown, sizeCount: number): SizeChart | null {
+  const c = asRecord(value)
+  if (sizeCount === 0 || (c.kind !== 'finished' && c.kind !== 'body')) return null
+  const rows = (Array.isArray(c.rows) ? c.rows : [])
+    .flatMap((v): SizeChart['rows'] => {
+      const r = asRecord(v)
+      const label = str(r.label, 80)
+      const measure = typeof r.measure === 'string' && CHART_MEASURES.has(r.measure) ? (r.measure as ChartMeasure) : 'other'
+      const values = Array.from({ length: sizeCount }, (_, i) => cm(Array.isArray(r.values_cm) ? r.values_cm[i] : null, 400))
+      return label && values.some((x) => x !== null) ? [{ label, measure, values }] : []
+    })
+    .slice(0, 20)
+  if (rows.length === 0) return null
+  const ease = typeof c.ease_cm === 'number' && Number.isFinite(c.ease_cm) && c.ease_cm >= -20 && c.ease_cm <= 60 ? Math.round(c.ease_cm * 10) / 10 : null
+  return { kind: c.kind, easeCm: ease, rows }
+}
+
 /** Position de la taille choisie : celle donnée par le modèle, sinon la même écriture dans la liste (« m » = « M »). */
 function sizeIndex(value: unknown, sizes: string[], size: string): number | null {
   const number = int(value, 1, sizes.length)
@@ -352,6 +420,7 @@ export function sanitizePattern(input: unknown, size: string): ReadPattern {
     gauge: sanitizeGauge(data.gauge),
     charts: sanitizeCharts(data.charts, steps.length),
     abbreviations: sanitizeAbbreviations(data.abbreviations),
+    sizeChart: sanitizeSizeChart(data.size_chart, sizes.length),
   }
 }
 

@@ -10,6 +10,7 @@ import { sanitizeHighlights } from './lib/sizes'
 import { adaptationToJson, sanitizeAdaptation, type Adaptation, type AdaptedStep } from './lib/adapt'
 import { sanitizeAbbreviations, type Abbreviation, type BaseGlossary } from './lib/glossary'
 import { sanitizeYarnChecks, type YarnCheck } from './lib/yarnLeft'
+import { sanitizeSizeChart, type MeasureProfile } from './lib/sizing'
 import { sanitizeHints, sanitizeSetup, type ChartHint, type ChartSetup, type KnitChart } from './lib/chart'
 import { MAX_PDF_BYTES, type KnitProject, type KnitProjectSummary, type KnitStep, type PatternStep, type ReadPattern, sanitizeSections } from './lib/pattern'
 
@@ -230,7 +231,8 @@ export function createKnittingApi(db: AppSupabaseClient) {
     /** Lit le patron (PDF) pour la taille choisie, sans rien enregistrer. */
     async readPattern(pdf: File, size: string): Promise<ReadPattern> {
       checkPdf(pdf)
-      return invokeKnit<ReadPattern>({ pdf: await fileToBase64(pdf), size }, 'La lecture du patron a échoué.', (d) => Array.isArray(d.steps), READ_TIMEOUT_MS)
+      const read = await invokeKnit<ReadPattern>({ pdf: await fileToBase64(pdf), size }, 'La lecture du patron a échoué.', (d) => Array.isArray(d.steps), READ_TIMEOUT_MS)
+      return { ...read, sizeChart: sanitizeSizeChart(read.sizeChart, read.sizes.length) }
     },
 
     /**
@@ -469,6 +471,27 @@ export function createKnittingApi(db: AppSupabaseClient) {
     async deleteStashItem(id: string): Promise<void> {
       const { error } = await db.from('knit_stash').delete().eq('id', id)
       if (error) throw toAppError(error, 'Impossible de retirer la laine.')
+    },
+
+    /** Fiches de mesures (la sienne, celles des proches). */
+    async listMeasures(): Promise<MeasureProfile[]> {
+      const { data, error } = await db.from('knit_measures').select('id, name, chest, waist, hip, arm, head').order('created_at')
+      if (error) throw toAppError(error, 'Impossible de charger les fiches de mesures.')
+      return data.map(({ id, name, ...m }) => ({ id, name, measures: { chest: m.chest, waist: m.waist, hip: m.hip, arm: m.arm, head: m.head } }))
+    },
+
+    /** Ajoute (sans `id`) ou modifie une fiche de mesures. */
+    async saveMeasures(input: { id: string | null; name: string; measures: MeasureProfile['measures'] }): Promise<void> {
+      const row = { name: input.name.trim(), ...input.measures }
+      const { error } = input.id
+        ? await db.from('knit_measures').update({ ...row, updated_at: new Date().toISOString() }).eq('id', input.id)
+        : await db.from('knit_measures').insert(row)
+      if (error) throw toAppError(error, 'Impossible d’enregistrer la fiche de mesures.')
+    },
+
+    async deleteMeasures(id: string): Promise<void> {
+      const { error } = await db.from('knit_measures').delete().eq('id', id)
+      if (error) throw toAppError(error, 'Impossible de supprimer la fiche de mesures.')
     },
 
     /** Idées de modèles pour une laine, avec de vrais patrons trouvés sur internet (aucun patron mis de côté ne convient). */

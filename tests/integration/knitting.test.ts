@@ -182,6 +182,28 @@ describe('stock de laine', () => {
   })
 })
 
+describe('fiches de mesures', () => {
+  it('ajoute, modifie et supprime des fiches, chacun les siennes', async () => {
+    const { api } = await signedInApi()
+    const eric = await signedInApi(ERIC.email)
+    for (const fiche of await api.knitting.listMeasures()) await api.knitting.deleteMeasures(fiche.id)
+    const measures = { chest: 92.5, waist: null, hip: 98, arm: null, head: null }
+    await api.knitting.saveMeasures({ id: null, name: ' Léa ', measures })
+    let list = await api.knitting.listMeasures()
+    expect(list).toEqual([{ id: expect.any(String), name: 'Léa', measures }])
+    expect(await eric.api.knitting.listMeasures()).toEqual([])
+
+    await api.knitting.saveMeasures({ id: list[0]!.id, name: 'Léa', measures: { ...measures, head: 55 } })
+    list = await api.knitting.listMeasures()
+    expect(list[0]!.measures.head).toBe(55)
+    await expect(api.knitting.saveMeasures({ id: null, name: 'Moi', measures: { ...measures, chest: 5 } })).rejects.toThrow()
+
+    await api.knitting.deleteMeasures(list[0]!.id)
+    expect(await api.knitting.listMeasures()).toEqual([])
+    await expect(createKnittingApi(anonClient()).listMeasures()).rejects.toThrow()
+  })
+})
+
 describe('diagrammes', () => {
   const SETUP = { stepId: null, title: 'Torsade', gridTop: 0.1, gridBottom: 0.9, rows: 24, startRow: 1, repeats: true, flat: true, oddOnly: true }
   const image = () => new Blob([new Uint8Array([0xff, 0xd8, 0xff, 0xd9])], { type: 'image/jpeg' })

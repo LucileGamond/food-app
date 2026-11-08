@@ -1,4 +1,5 @@
 import { TEST_GLOSSARY } from './knitGlossary'
+import type { MeasureProfile } from '@/modules/tricot/lib/sizing'
 import { render, type RenderOptions } from '@testing-library/react'
 import type { ReactElement, ReactNode } from 'react'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
@@ -173,6 +174,9 @@ export function fakeApi(): FakeApi {
     },
     knitting: {
       getGlossary: vi.fn(async () => TEST_GLOSSARY),
+      listMeasures: vi.fn(async (): Promise<MeasureProfile[]> => []),
+      saveMeasures: vi.fn(async () => undefined),
+      deleteMeasures: vi.fn(async () => undefined),
       listProjects: vi.fn(async () => [] as KnitProjectSummary[]),
       getProject: vi.fn(async () => null as KnitProject | null),
       readPattern: vi.fn(async (): Promise<ReadPattern> => ({ title: 'Patron lu', sizes: [], steps: [] })),

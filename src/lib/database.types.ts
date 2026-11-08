@@ -229,6 +229,26 @@ isOneToOne: false
                   Relationships: [
                     
                   ]
+                },"knit_measures": {
+                  Row: {
+                    "arm": number | null,"chest": number | null,"created_at": string,"head": number | null,"hip": number | null,"id": string,"name": string,"profile_id": string,"updated_at": string,"waist": number | null
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "arm"?: number | null,"chest"?: number | null,"created_at"?: string,"head"?: number | null,"hip"?: number | null,"id"?: string,"name": string,"profile_id"?: string,"updated_at"?: string,"waist"?: number | null
+                  }
+                  Update: {
+                    "arm"?: number | null,"chest"?: number | null,"created_at"?: string,"head"?: number | null,"hip"?: number | null,"id"?: string,"name"?: string,"profile_id"?: string,"updated_at"?: string,"waist"?: number | null
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "knit_measures_profile_id_fkey"
+      columns: ["profile_id"]
+isOneToOne: false
+      referencedRelation: "profiles"
+      referencedColumns: ["id"]
+    }
+                  ]
                 },"knit_progress_photos": {
                   Row: {
                     "caption": string,"id": string,"project_id": string,"step_id": string | null,"storage_path": string,"taken_at": string
