@@ -96,8 +96,8 @@ describe('BookScanPage', { timeout: 20_000 }, () => {
     expect(api.recipes.importFromPhotos).toHaveBeenCalledWith([expect.any(Blob)], ['dessert'])
     expect(api.recipes.saveRecipe).toHaveBeenCalledWith(expect.objectContaining({ source: 'Pâtisserie maison' }))
     await waitFor(() => expect(screen.getByText('2 pages · 1 enregistrée · 1 sans recette')).toBeInTheDocument())
-    // Pendant la prise, pas de relecture proposée : c'est au récapitulatif.
-    expect(screen.queryByRole('button', { name: /C’est une recette/ })).not.toBeInTheDocument()
+    // Relecture proposée dès la prise, sans attendre le récapitulatif.
+    expect(screen.getByRole('button', { name: 'C’est une recette : relire' })).toBeInTheDocument()
 
     await user.click(screen.getByRole('button', { name: 'Terminer' }))
     expect(await screen.findByRole('heading', { name: 'Scan terminé' })).toBeInTheDocument()
@@ -111,6 +111,47 @@ describe('BookScanPage', { timeout: 20_000 }, () => {
     await waitFor(() => expect(within(results()).getByRole('link', { name: 'Galettes' })).toBeInTheDocument())
     expect(api.recipes.importFromPhotos).toHaveBeenLastCalledWith([expect.any(Blob)], ['dessert'], { insist: true })
     expect(screen.queryByRole('button', { name: /C’est une recette/ })).not.toBeInTheDocument()
+  })
+
+  it('page toujours sans recette après la relecture : reprise de la photo tout de suite, relue en insistant', async () => {
+    const { user, api } = setup()
+    const none = new AppError('Pas une recette', 'import-422')
+    api.recipes.importFromPhotos.mockRejectedValueOnce(none).mockRejectedValueOnce(none)
+    await open(user)
+    await user.click(screen.getByRole('button', { name: 'Prendre la photo' }))
+    await screen.findByTestId('batch-item')
+    await wait()
+    await user.click(await screen.findByRole('button', { name: 'C’est une recette : relire' }))
+    await user.click(await screen.findByRole('button', { name: 'Reprendre la photo' }))
+    expect(screen.getByRole('status')).toHaveTextContent('Remets la page de la photo 1 devant la caméra, puis prends la photo')
+
+    // Annulable, puis relancée.
+    await user.click(screen.getByRole('button', { name: 'Annuler la reprise' }))
+    expect(screen.getByRole('status')).toHaveTextContent('Tiens le téléphone immobile')
+    await user.click(screen.getByRole('button', { name: 'Reprendre la photo' }))
+
+    api.recipes.importFromPhotos.mockResolvedValueOnce(read('Kouign-amann'))
+    await user.click(screen.getByRole('button', { name: 'Prendre la photo' }))
+    await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent('Tiens le téléphone immobile'))
+    await wait()
+    await waitFor(() => expect(within(results()).getByRole('link', { name: 'Kouign-amann' })).toBeInTheDocument())
+    expect(api.recipes.importFromPhotos).toHaveBeenLastCalledWith([expect.any(Blob)], ['dessert'], { insist: true })
+    // La photo reprise remplace la page : toujours une seule ligne.
+    expect(within(results()).getAllByTestId('batch-item')).toHaveLength(1)
+  })
+
+  it('reprise demandée au récapitulatif : retour à la caméra', async () => {
+    const { user, api } = setup()
+    const none = new AppError('Pas une recette', 'import-422')
+    api.recipes.importFromPhotos.mockRejectedValueOnce(none).mockRejectedValueOnce(none)
+    await open(user)
+    await user.click(screen.getByRole('button', { name: 'Prendre la photo' }))
+    await screen.findByTestId('batch-item')
+    await user.click(screen.getByRole('button', { name: 'Terminer' }))
+    await user.click(await screen.findByRole('button', { name: 'C’est une recette : relire' }))
+    await user.click(await screen.findByRole('button', { name: 'Reprendre la photo' }))
+    expect(await screen.findByLabelText('Aperçu de la caméra')).toBeInTheDocument()
+    await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent('Remets la page de la photo 1'))
   })
 
   it('annule la dernière photo tant qu’elle n’est pas partie', async () => {

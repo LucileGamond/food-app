@@ -10,7 +10,10 @@ import {
   resumeSession,
   retryErrors,
   canInsist,
+  canRetake,
   insistOnRecipe,
+  retakePhoto,
+  cancelRetake,
   scanCounts,
   startNewRecipe,
   undoLast,
@@ -144,5 +147,30 @@ describe('session de scan', () => {
     session = updateGroup(session, 'g1', { status: 'skipped' })
     expect(canInsist(session.groups[0]!)).toBe(false)
     expect(insistOnRecipe(session, 'g1').groups[0]!.status).toBe('skipped')
+  })
+
+  it('reprendre la photo : après 2 lectures sans recette, la photo suivante remplace la page, relue en insistant', () => {
+    let session = shoot(newSession('Livre', false), [['a'], ['b']])
+    session = updateGroup(session, 'g1', { status: 'skipped', message: 'Pas une recette' })
+    expect(canRetake(session.groups[0]!)).toBe(false)
+    session = updateGroup(insistOnRecipe(session, 'g1'), 'g1', { status: 'skipped', message: 'Toujours aucune recette lisible : reprends la photo' })
+    expect(session.groups.map(canRetake)).toEqual([true, false])
+    expect(retakePhoto(session, 'g2').retake).toBeUndefined()
+
+    session = retakePhoto(session, 'g1')
+    expect(session.retake).toBe('g1')
+    expect(cancelRetake(session).retake).toBeUndefined()
+    const retaken = addCapture(session, ['a2'], 5000, ids())
+    expect(retaken.retake).toBeUndefined()
+    expect(retaken.groups.map((g) => g.id)).toEqual(['g1', 'g2'])
+    expect(retaken.groups[0]).toMatchObject({ images: ['a2'], status: 'pending', insist: true, closed: true, readyAt: 5000 + UNDO_DELAY_MS })
+    expect(retaken.groups[0]!.message).toBeUndefined()
+    expect(pageCount(retaken)).toBe(3)
+
+    // Annulée avant la lecture : la page d'avant revient, toujours sans recette.
+    const undone = undoLast(retaken)!
+    expect(undone.removed).toEqual(['a2'])
+    expect(undone.session.groups[0]).toMatchObject({ images: ['a'], status: 'skipped', message: 'Toujours aucune recette lisible : reprends la photo' })
+    expect(canRetake(undone.session.groups[0]!)).toBe(true)
   })
 })

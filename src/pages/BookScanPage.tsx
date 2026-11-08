@@ -1,4 +1,4 @@
-import { ArrowLeft, Camera, Flashlight, Pause, Play, Plus, RotateCcw, Square, Undo2 } from 'lucide-react'
+import { ArrowLeft, Camera, Flashlight, Pause, Play, Plus, RotateCcw, Square, Undo2, X } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { toast } from 'sonner'
@@ -14,7 +14,9 @@ import { BATCH_CONCURRENCY, mergeRetry, type BatchResult } from '@/lib/batchImpo
 import {
   addCapture,
   allRead,
+  cancelRetake,
   canInsist,
+  canRetake,
   closeAll,
   insistOnRecipe,
   MAX_SCAN_PAGES,
@@ -23,6 +25,7 @@ import {
   OFFLINE_RETRY_MS,
   readyToRead,
   resumeSession,
+  retakePhoto,
   retryErrors,
   scanCounts,
   startNewRecipe,
@@ -56,11 +59,26 @@ const newId = () => crypto.randomUUID()
 
 const plural = (n: number, word: string) => `${n} ${word}${n > 1 ? 's' : ''}`
 
+/** Nom court d'un groupe dans les messages (« photo 3 », « recette 2 »). */
+const groupName = (index: number, multi: boolean) => `${multi ? 'recette' : 'photo'} ${index + 1}`
+
+interface GroupActions {
+  onInsist: (id: string) => void
+  onRetake: (id: string) => void
+}
+
+/** Action proposée sur une page sans recette : la relire en insistant, puis, toujours rien, la reprendre en photo. */
+function groupAction(group: ScanGroup, actions: GroupActions): BatchResultItem['action'] {
+  if (canInsist(group)) return { label: 'C’est une recette : relire', onClick: () => actions.onInsist(group.id) }
+  if (canRetake(group)) return { label: 'Reprendre la photo', onClick: () => actions.onRetake(group.id) }
+  return undefined
+}
+
 /**
- * Ligne de résultat d'un groupe de photos. Au récapitulatif, une page ignorée montre sa miniature et peut être relue
- * (« C'est une recette ») ; `onInsist` absent pendant la prise.
+ * Ligne de résultat d'un groupe de photos. Une page ignorée peut être relue (« C'est une recette »), puis reprise en
+ * photo ; au récapitulatif, elle montre sa miniature.
  */
-function resultItem(group: ScanGroup, index: number, multi: boolean, onInsist?: (id: string) => void, thumbnail?: string): BatchResultItem {
+function resultItem(group: ScanGroup, index: number, multi: boolean, actions: GroupActions, thumbnail?: string): BatchResultItem {
   const label = multi
     ? `Recette ${index + 1} · ${plural(group.images.length, 'page')}`
     : `Photo ${index + 1}${group.images.length > 1 ? ' · double page' : ''}`
@@ -70,7 +88,7 @@ function resultItem(group: ScanGroup, index: number, multi: boolean, onInsist?: 
     status: group.status,
     message: group.closed ? group.message : 'Prends les pages suivantes',
     recipes: group.recipes,
-    action: onInsist && canInsist(group) ? { label: 'C’est une recette : relire', onClick: () => onInsist(group.id) } : undefined,
+    action: groupAction(group, actions),
     thumbnail,
   }
 }
@@ -78,6 +96,9 @@ function resultItem(group: ScanGroup, index: number, multi: boolean, onInsist?: 
 interface CameraProps {
   multi: boolean
   full: boolean
+  /** Reprise d'une page (« photo 3 ») : photo automatique arrêtée, la prochaine photo la remplace. */
+  retaking: string | null
+  onCancelRetake: () => void
   feedback: () => void
   onCapture: (pages: Blob[]) => Promise<void>
   onNewRecipe: (keepLastPage: boolean) => void
@@ -87,7 +108,7 @@ interface CameraProps {
 }
 
 /** Caméra ouverte : photo automatique quand la page est nette, immobile et nouvelle ; boutons de la prise. */
-function ScanCamera({ multi, full, feedback, onCapture, onNewRecipe, onUndo, onFinish, children }: CameraProps) {
+function ScanCamera({ multi, full, retaking, onCancelRetake, feedback, onCapture, onNewRecipe, onUndo, onFinish, children }: CameraProps) {
   const video = useRef<HTMLVideoElement>(null)
   const camera = useRef<CameraSession | null>(null)
   const scan = useRef(initialScanState())
@@ -96,7 +117,8 @@ function ScanCamera({ multi, full, feedback, onCapture, onNewRecipe, onUndo, onF
   const [ready, setReady] = useState(false)
   const [failed, setFailed] = useState(false)
   // Réglage d'abord (position, zoom, lumière) : aucune photo avant « Lancer le scan ».
-  const [launched, setLaunched] = useState(false)
+  // Retour du récapitulatif pour reprendre une page : pas d'étape de réglage.
+  const [launched, setLaunched] = useState(() => retaking !== null)
   const [paused, setPaused] = useState(false)
   const [hint, setHint] = useState<ScanHint>('moving')
   const [double, setDouble] = useState(false)
@@ -155,7 +177,7 @@ function ScanCamera({ multi, full, feedback, onCapture, onNewRecipe, onUndo, onF
 
   // Analyse de l'image ~8 fois par seconde : la photo part toute seule quand la page est prête.
   useEffect(() => {
-    if (!ready || !launched || paused || full) return
+    if (!ready || !launched || paused || full || retaking) return
     const timer = setInterval(() => {
       const session = camera.current
       if (!session || busy.current) return
@@ -169,7 +191,7 @@ function ScanCamera({ multi, full, feedback, onCapture, onNewRecipe, onUndo, onF
       if (step.capture) void shootRef.current(false)
     }, ANALYSIS_INTERVAL_MS)
     return () => clearInterval(timer)
-  }, [ready, launched, paused, full, debug])
+  }, [ready, launched, paused, full, retaking, debug])
 
   async function undo() {
     if (!(await onUndo())) toast.error('Trop tard : cette photo est déjà en lecture.')
@@ -198,7 +220,9 @@ function ScanCamera({ multi, full, feedback, onCapture, onNewRecipe, onUndo, onF
       ? `${MAX_SCAN_PAGES} pages : c’est le maximum pour une session. Termine pour lire les dernières recettes.`
       : !ready
         ? 'Ouverture de la caméra…'
-        : !launched
+        : retaking
+          ? `Remets la page de la ${retaking} devant la caméra, puis prends la photo.`
+          : !launched
           ? 'Règle le téléphone (position, zoom, lumière), puis lance le scan : aucune photo avant.'
           : paused
           ? 'En pause : la photo automatique est arrêtée.'
@@ -240,6 +264,10 @@ function ScanCamera({ multi, full, feedback, onCapture, onNewRecipe, onUndo, onF
       {!launched ? (
         <Button className="h-14 w-full text-base" onClick={launch} disabled={!ready || full}>
           <Play /> Lancer le scan
+        </Button>
+      ) : retaking ? (
+        <Button variant="outline" className="h-14 w-full text-base" onClick={onCancelRetake}>
+          <X /> Annuler la reprise
         </Button>
       ) : (
         multi && (
@@ -457,7 +485,7 @@ export function BookScanPage() {
   }
 
   function finish() {
-    setSession((s) => s && closeAll(s, Date.now()))
+    setSession((s) => s && closeAll(cancelRetake(s), Date.now()))
     setPhase('review')
   }
 
@@ -472,17 +500,34 @@ export function BookScanPage() {
   }
 
   const counts = session ? scanCounts(session) : null
-  const full = (counts?.pages ?? 0) >= MAX_SCAN_PAGES
-  const insist = (id: string) => {
-    // Relecture : les liens entre recettes seront refaits une fois tout lu.
-    linked.current = false
-    setSession((s) => s && insistOnRecipe(s, id))
+  // Une page à reprendre passe même au-delà du maximum : elle en remplace une.
+  const full = (counts?.pages ?? 0) >= MAX_SCAN_PAGES && !session?.retake
+  const actions: GroupActions = {
+    onInsist: (id) => {
+      // Relecture : les liens entre recettes seront refaits une fois tout lu.
+      linked.current = false
+      setSession((s) => s && insistOnRecipe(s, id))
+    },
+    onRetake: (id) => {
+      linked.current = false
+      setSession((s) => s && retakePhoto(s, id))
+      // L'ancienne miniature ne vaut plus pour la photo reprise.
+      const { [id]: old, ...rest } = thumbsRef.current
+      if (old) {
+        URL.revokeObjectURL(old)
+        thumbsRef.current = rest
+        setThumbs(rest)
+      }
+      setPhase('camera')
+    },
   }
   const review = phase === 'review'
+  const retakeIndex = session?.retake ? session.groups.findIndex((g) => g.id === session.retake) : -1
+  const retaking = session && retakeIndex >= 0 ? groupName(retakeIndex, session.multi) : null
   const results = session ? (
     <BatchResults
       label="Recettes scannées"
-      items={session.groups.map((g, i) => (review ? resultItem(g, i, session.multi, insist, thumbs[g.id]) : resultItem(g, i, session.multi)))}
+      items={session.groups.map((g, i) => resultItem(g, i, session.multi, actions, review ? thumbs[g.id] : undefined))}
     />
   ) : null
   const summary = counts
@@ -558,6 +603,8 @@ export function BookScanPage() {
         <ScanCamera
           multi={session.multi}
           full={full}
+          retaking={retaking}
+          onCancelRetake={() => setSession((s) => s && cancelRetake(s))}
           feedback={() => feedback.current()}
           onCapture={capture}
           onNewRecipe={(keep) => setSession((s) => s && startNewRecipe(s, Date.now(), newId, keep))}

@@ -33,8 +33,10 @@ export interface ScanSession {
   /** Recettes sur plusieurs photos : le bouton « Nouvelle recette » ferme le groupe en cours. Sinon, 1 photo = 1 recette. */
   multi: boolean
   groups: ScanGroup[]
-  /** Photos prises, la dernière à la fin (pour l'annuler) : groupe et images ajoutées. */
-  history: { group: string; images: string[] }[]
+  /** Photos prises, la dernière à la fin (pour l'annuler) : groupe et images ajoutées (et, pour une reprise, ce qu'elles remplacent). */
+  history: { group: string; images: string[]; replaced?: { images: string[]; message?: string } }[]
+  /** Groupe dont la prochaine photo remplace la page (« Reprendre la photo »). */
+  retake?: string
 }
 
 export const newSession = (book: string, multi: boolean): ScanSession => ({ book, multi, groups: [], history: [] })
@@ -59,6 +61,17 @@ const openGroup = (session: ScanSession) => session.groups.find((g) => !g.closed
  * suivant reprend sa dernière page (la recette continue).
  */
 export function addCapture(session: ScanSession, images: string[], now: number, newId: () => string): ScanSession {
+  const target = session.retake ? session.groups.find((g) => g.id === session.retake) : undefined
+  if (target) {
+    const replaced = { images: target.images, message: target.message }
+    const retaken: ScanGroup = { ...group(target.id, images, true, now), insist: true }
+    return {
+      ...session,
+      retake: undefined,
+      groups: session.groups.map((g) => (g.id === target.id ? retaken : g)),
+      history: [...session.history, { group: target.id, images, replaced }],
+    }
+  }
   const current = session.multi ? openGroup(session) : undefined
   if (current && current.images.length + images.length <= MAX_GROUP_IMAGES) {
     return {
@@ -107,6 +120,12 @@ export function undoLast(session: ScanSession): { session: ScanSession; removed:
   const target = session.groups.find((g) => g.id === last.group)
   if (!target || target.status !== 'pending') return null
   const history = session.history.slice(0, -1)
+  if (last.replaced) {
+    // Reprise annulée : la page d'avant revient, toujours sans recette.
+    const { images, message } = last.replaced
+    const groups = session.groups.map((g) => (g.id === target.id ? { ...g, images, message, status: 'skipped' as const } : g))
+    return { session: { ...session, groups, history }, removed: last.images }
+  }
   const images = target.images.slice(0, target.images.length - last.images.length)
   // Recette qui ne garde que la page reprise de la précédente : supprimée aussi.
   const kept = history.some((h) => h.group === target.id) && images.length > 0
@@ -152,6 +171,17 @@ export function insistOnRecipe(session: ScanSession, id: string): ScanSession {
 
 /** Le groupe peut être relu en insistant : jugé sans recette, pas encore relu. */
 export const canInsist = (group: ScanGroup): boolean => group.status === 'skipped' && !group.insist
+
+/** Toujours rien après la relecture : la page peut être reprise en photo. */
+export const canRetake = (group: ScanGroup): boolean => group.status === 'skipped' && group.insist === true
+
+/** « Reprendre la photo » : la prochaine photo remplacera la page du groupe. */
+export const retakePhoto = (session: ScanSession, id: string): ScanSession => {
+  const target = session.groups.find((g) => g.id === id)
+  return target && canRetake(target) ? { ...session, retake: id } : session
+}
+
+export const cancelRetake = (session: ScanSession): ScanSession => ({ ...session, retake: undefined })
 
 export interface ScanCounts extends ReturnType<typeof tally> {
   pages: number
