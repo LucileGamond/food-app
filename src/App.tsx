@@ -38,6 +38,8 @@ const PlantFormPage = lazy(() => import('@/modules/plantes/pages/PlantFormPage')
 const PlantDetailPage = lazy(() => import('@/modules/plantes/pages/PlantDetailPage').then((m) => ({ default: m.PlantDetailPage })))
 const AgendaPage = lazy(() => import('@/modules/agenda/pages/AgendaPage').then((m) => ({ default: m.AgendaPage })))
 const AgendaSourcesPage = lazy(() => import('@/modules/agenda/pages/AgendaSourcesPage').then((m) => ({ default: m.AgendaSourcesPage })))
+// Planifier la semaine (section Repas) : présence d'après l'agenda, plats placés par l'IA.
+const WeekPlanPage = lazy(() => import('@/modules/repas/pages/WeekPlanPage').then((m) => ({ default: m.WeekPlanPage })))
 const RecipeFormPage = lazy(() => import('@/pages/RecipeFormPage').then((m) => ({ default: m.RecipeFormPage })))
 
 export function App({ api, auth }: { api: Api; auth: AuthClient }) {
@@ -70,6 +72,7 @@ export function App({ api, auth }: { api: Api; auth: AuthClient }) {
               <Route element={<Layout />}>
                 <Route path="/" element={<HomePage />} />
                 <Route path="/planning" element={<PlanningPage />} />
+                <Route path="/planning/semaine" element={<WeekPlanPage />} />
                 <Route path="/recettes" element={<RecipesPage />} />
                 <Route path="/recettes/nouvelle" element={<RecipeFormPage />} />
                 <Route path="/recettes/import-serie" element={<RecipeBatchImportPage />} />

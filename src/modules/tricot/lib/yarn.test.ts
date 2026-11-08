@@ -138,7 +138,12 @@ describe('quel patron pour ma laine', () => {
     expect(yarnMeters({ ...PARTNER, length_m: null })).toBeNull()
     expect(describeYarn(PARTNER)).toBe('Phildar Partner 3.5, coloris 0012 Ciel · bain 4471 · 50 % laine · 50 g / 125 m · aiguilles 3,5 mm')
     expect(patternSearchUrl('ribbed beanie')).toBe('https://www.ravelry.com/patterns/search#craft=knitting&query=ribbed%20beanie')
-    expect(patternSearchUrl('cabled cowl', 'dk')).toBe('https://www.ravelry.com/patterns/search#craft=knitting&weight=dk&query=cabled%20cowl')
+    expect(patternSearchUrl('cabled cowl', { weight: 'dk' })).toBe('https://www.ravelry.com/patterns/search#craft=knitting&weight=dk&query=cabled%20cowl')
+    // Métrage disponible en yards, aiguilles Ravelry à 0,5 mm près
+    expect(patternSearchUrl('hat', { meters: 750, needleMm: 3.5 })).toBe(
+      'https://www.ravelry.com/patterns/search#craft=knitting&yardage=0%7C820&needles=3.0mm%7C3.25mm%7C3.5mm%7C3.75mm%7C4.0mm&query=hat',
+    )
+    expect(patternSearchUrl('hat', { meters: 0, needleMm: 40 })).toBe('https://www.ravelry.com/patterns/search#craft=knitting&query=hat')
     expect(siteOf('https://www.garnstudio.com/pattern.php?id=1')).toBe('garnstudio.com')
     expect(siteOf('pas une adresse')).toBe('pas une adresse')
     expect(parseMeters('350')).toBe(350)

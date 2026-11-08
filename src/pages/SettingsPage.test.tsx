@@ -134,4 +134,9 @@ describe('SettingsPage', () => {
     expect(screen.getByText('Disponibles seulement dans l’application installée sur le téléphone.')).toBeInTheDocument()
     expect(api.settings.saveSettings).not.toHaveBeenCalled()
   })
+
+  it('affiche la consommation IA du foyer', async () => {
+    renderPage()
+    expect(await screen.findByRole('region', { name: 'Consommation IA' })).toBeInTheDocument()
+  })
 })

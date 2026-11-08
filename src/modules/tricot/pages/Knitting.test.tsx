@@ -29,7 +29,7 @@ const PROJECT: KnitProject = {
   charts: [],
   chartHints: [],
   abbreviations: [],
-  yarnCheck: null,
+  yarnChecks: [],
   sizes: [],
   sizeIndex: null,
   yarns: [],
@@ -196,8 +196,8 @@ describe('KnittingProjectPage', () => {
     Object.defineProperty(navigator, 'wakeLock', { value: { request }, configurable: true })
     try {
       const { unmount } = renderProject()
-      expect(await screen.findByText('L’écran reste allumé.')).toBeInTheDocument()
-      expect(request).toHaveBeenCalledWith('screen')
+      expect(await screen.findByRole('switch', { name: 'Écran toujours allumé' })).toBeChecked()
+      await waitFor(() => expect(request).toHaveBeenCalledWith('screen'))
       unmount()
       expect(release).toHaveBeenCalled()
     } finally {
@@ -784,11 +784,11 @@ describe('stock de laine', () => {
     const ideas = await within(dialog).findByRole('list', { name: 'Idées de modèles' })
     expect(ideas).toHaveTextContent('Snood torsadé')
     expect(ideas).toHaveTextContent('Mérinos doux. · ≈ 300 m · aiguilles 4,5 mm')
-    // Vrai patron trouvé sur internet, puis recherche Ravelry filtrée (tricot, grosseur)
+    // Vrai patron trouvé sur internet, puis recherche Ravelry filtrée (tricot, grosseur, métrage en yards, aiguilles à 0,5 mm près)
     expect(within(ideas).getByRole('link', { name: 'Cabled Cowl par Jane · ravelry.com' })).toHaveAttribute('href', 'https://www.ravelry.com/patterns/library/cabled-cowl')
     expect(within(ideas).getByRole('link', { name: 'Plus de patrons sur Ravelry' })).toHaveAttribute(
       'href',
-      'https://www.ravelry.com/patterns/search#craft=knitting&weight=worsted&query=cabled%20cowl',
+      'https://www.ravelry.com/patterns/search#craft=knitting&weight=worsted&yardage=0%7C918&needles=3.5mm%7C3.75mm%7C4.0mm%7C4.5mm&query=cabled%20cowl',
     )
   })
 

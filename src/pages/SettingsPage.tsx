@@ -8,7 +8,9 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { BuildInfo } from '@/components/BuildInfo'
 import { PageHeader } from '@/components/PageHeader'
 import { LoadError } from '@/components/LoadError'
+import { LlmUsageSettings } from '@/components/LlmUsageSettings'
 import { useSettings } from '@/app/SettingsContext'
+import { MealRulesSettings } from '@/modules/repas/components/MealRulesSettings'
 import { CONTAINER_NAME_MAX, MAX_CONTAINERS, parseContainers, toContainerDraft, type ContainerDraft, type WaterContainer } from '@/lib/hydration'
 import { isPageEnabled, NOTIFICATION_TOPICS, PAGES, parseGoalLiters, toggleNotification, togglePage, MAX_GOAL_ML, MIN_GOAL_ML } from '@/lib/settings'
 
@@ -253,6 +255,8 @@ export function SettingsPage() {
           </ul>
         </Section>
 
+        {isPageEnabled(settings, 'planning') && <MealRulesSettings />}
+
         {isPageEnabled(settings, 'hydratation') && (
           <Section title="Eau" description="Objectif du jour, et contenants proposés sur la page Eau et dans le rappel (les deux premiers).">
             <div className="space-y-5">
@@ -265,6 +269,8 @@ export function SettingsPage() {
             </div>
           </Section>
         )}
+
+        <LlmUsageSettings />
       </div>
     </>
   )

@@ -101,6 +101,7 @@ jobs:
           supabase functions deploy import-recipe --project-ref "${{ secrets.SUPABASE_PROJECT_REF }}" --use-api
           supabase functions deploy tidy-shopping --project-ref "${{ secrets.SUPABASE_PROJECT_REF }}" --use-api
           supabase functions deploy suggest-meals --project-ref "${{ secrets.SUPABASE_PROJECT_REF }}" --use-api
+          supabase functions deploy plan-week --project-ref "${{ secrets.SUPABASE_PROJECT_REF }}" --use-api
           supabase functions deploy estimate-nutrition --project-ref "${{ secrets.SUPABASE_PROJECT_REF }}" --use-api
           supabase functions deploy knit-pattern --project-ref "${{ secrets.SUPABASE_PROJECT_REF }}" --use-api
           supabase functions deploy notify-shopping --project-ref "${{ secrets.SUPABASE_PROJECT_REF }}" --use-api --no-verify-jwt

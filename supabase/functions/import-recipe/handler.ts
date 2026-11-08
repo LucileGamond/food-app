@@ -19,6 +19,8 @@ import { detectRotation, ROTATIONS } from './orient.ts'
 import { checkPublicUrl, resolvesToPublic, type ResolveDns } from './url.ts'
 import { fetchYoutubeVideo, findWrittenRecipe, INSTAGRAM_CAPTION, isInstagram, NOT_WRITTEN, videoText, youtubeId } from './video.ts'
 import { asRecord } from '../_shared/sanitize.ts'
+import type { SignedInCheck } from '../_shared/auth.ts'
+import { trackUsage, type RecordUsage } from '../_shared/usage.ts'
 
 export const MAX_PAGE_BYTES = 3_000_000
 export const MAX_IMAGE_BYTES = 3_000_000
@@ -57,7 +59,9 @@ export interface Deps {
   /** Résolution DNS (Deno.resolveDns) : refuse les noms qui pointent vers une adresse privée. */
   resolveDns?: ResolveDns
   /** Vrai si l'en-tête Authorization correspond à un utilisateur connecté. */
-  isSignedIn: (authorization: string | null) => Promise<boolean>
+  isSignedIn: SignedInCheck
+  /** Enregistre la consommation de chaque appel (voir _shared/usage.ts). */
+  recordUsage?: RecordUsage
 }
 
 /** Télécharge une ressource publique : redirections vérifiées une à une, taille et durée bornées. */
@@ -329,11 +333,12 @@ export async function orientPhoto(body: unknown, deps: Deps): Promise<{ rotation
   return detectRotation(candidates, { apiKey: deps.apiKey, model: deps.model, fetch: deps.fetchModel })
 }
 
-export function createHandler(deps: Deps) {
+export function createHandler(baseDeps: Deps) {
   return async (request: Request): Promise<Response> => {
     if (request.method === 'OPTIONS') return new Response('ok', { headers: CORS_HEADERS })
     if (request.method !== 'POST') return json({ error: 'Méthode non autorisée.' }, 405)
-    if (!(await deps.isSignedIn(request.headers.get('authorization')))) return json({ error: 'Connexion requise.' }, 401)
+    const signedIn = await baseDeps.isSignedIn(request.headers.get('authorization'))
+    if (!signedIn) return json({ error: 'Connexion requise.' }, 401)
     let body: unknown
     try {
       body = await request.json()
@@ -341,16 +346,21 @@ export function createHandler(deps: Deps) {
       return json({ error: 'Requête invalide.' }, 400)
     }
     const started = Date.now()
+    const tracked = trackUsage(baseDeps.fetchModel, baseDeps.model)
+    const deps: Deps = { ...baseDeps, fetchModel: tracked.fetch }
+    const mode = (body as { mode?: unknown } | null)?.mode
+    let ok = false
     try {
-      const mode = (body as { mode?: unknown } | null)?.mode
       if (mode === 'title') return json(await fetchTitle(body, deps))
       if (mode === 'orient') {
         const { usage, rotation } = await orientPhoto(body, deps)
+        ok = true
         deps.log?.('sens détecté', { rotation, ms: Date.now() - started, ...usage })
         return json({ rotation })
       }
       const { usage, ...result } =
         mode === 'photos' ? await importPhotos(body, deps) : mode === 'text' ? await importText(body, deps) : await importRecipe(body, deps)
+      ok = true
       deps.log?.('import réussi', { source: result.source, ms: Date.now() - started, ...usage })
       return json(result)
     } catch (error) {
@@ -360,6 +370,12 @@ export function createHandler(deps: Deps) {
       }
       deps.log?.('import en erreur', { error: String(error) })
       return json({ error: 'L’import a échoué.' }, 500)
+    } finally {
+      const total = tracked.total()
+      if (total) {
+        const user_id = typeof signedIn === 'string' ? signedIn : null
+        await deps.recordUsage?.({ user_id, mode: typeof mode === 'string' ? mode : 'url', ok, ...total })
+      }
     }
   }
 }

@@ -4,7 +4,7 @@ import type { AppSupabaseClient } from '@/api/client'
 import { toAppError } from './errors'
 import { subscribeTables } from './realtime'
 
-const MEAL_COLUMNS = 'id, meal_date, slot, people, created_at, recipe:recipes!inner(id, is_saved, title, notes, url, tags)'
+const MEAL_COLUMNS = 'id, meal_date, slot, people, cook_id, created_at, recipe:recipes!inner(id, is_saved, title, notes, url, tags)'
 
 function sourceParams(source: MealRecipeSource) {
   if (source.kind === 'saved') return { p_recipe_id: source.recipeId }
@@ -65,6 +65,13 @@ export function createMealsApi(db: AppSupabaseClient) {
       const { data, error } = await db.rpc('duplicate_meal', { p_meal_id: id, p_meal_date: date, p_slot: slot })
       if (error) throw toAppError(error, 'Impossible de dupliquer le repas.')
       return data
+    },
+
+    /** Qui cuisine (null : personne de désigné). */
+    async setCook(id: string, cookId: string | null): Promise<void> {
+      const { data, error } = await db.from('meals').update({ cook_id: cookId }).eq('id', id).select('id')
+      if (error) throw toAppError(error, 'Impossible de changer qui cuisine.')
+      if (data.length === 0) throw toAppError({ code: 'P0002' })
     },
 
     async deleteMeal(id: string): Promise<void> {

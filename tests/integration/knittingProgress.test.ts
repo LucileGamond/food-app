@@ -60,3 +60,36 @@ describe('notes et photos d’avancement', () => {
     await expect(api.knitting.deleteProgressPhoto({ id: crypto.randomUUID(), storagePath: 'perdu/perdu.jpg' })).resolves.toBeUndefined()
   })
 })
+
+describe('patron adapté', () => {
+  it('enregistre, relit, bascule et supprime l’adaptation ; chacun ses projets', async () => {
+    const { api } = await signedInApi()
+    const eric = await signedInApi(ERIC.email)
+    const id = await api.knitting.createProject({ title: 'Pull', size: 'M', pdf: null, steps: STEPS })
+    const stepId = (await api.knitting.getProject(id))!.steps[0]!.id
+    expect((await api.knitting.getProject(id))!.adaptation).toBeNull()
+
+    const adaptation = {
+      request: '5 cm de plus',
+      active: true,
+      at: '2026-11-08T10:00:00.000Z',
+      steps: [{ stepId, totalRows: 34, stitches: 70, sections: [{ kind: 'rows' as const, rows: 34, every: null, times: null, text: 'jersey', pattern: null }], note: '16 rangs de plus.' }],
+    }
+    await api.knitting.saveAdaptation(id, adaptation)
+    const read = await api.knitting.getProject(id)
+    expect(read!.adaptation).toEqual(adaptation)
+    // Le patron d'origine n'est pas touché
+    expect(read!.steps[0]).toMatchObject({ totalRows: 18, stitches: 64 })
+
+    await api.knitting.saveAdaptation(id, { ...adaptation, active: false })
+    expect((await api.knitting.getProject(id))!.adaptation!.active).toBe(false)
+
+    // Eric ne voit pas le projet : sa mise à jour ne touche rien
+    await eric.api.knitting.saveAdaptation(id, null)
+    expect((await api.knitting.getProject(id))!.adaptation).not.toBeNull()
+
+    await expect(api.knitting.saveAdaptation(id, { ...adaptation, request: 'x'.repeat(1001) })).rejects.toThrow()
+    await api.knitting.saveAdaptation(id, null)
+    expect((await api.knitting.getProject(id))!.adaptation).toBeNull()
+  })
+})

@@ -5,6 +5,7 @@ import { NativeSelect } from '@/components/ui/native-select'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { cn } from '@/lib/utils'
 import { abbreviationParts, looksEnglish, mergeGlossary, type Abbreviation } from '../lib/glossary'
+import { useBaseGlossary } from '../hooks/useBaseGlossary'
 import { highlightKey, highlightParts, toggleHighlight, type HighlightPart, type Highlights } from '../lib/sizes'
 
 /** Texte simple : ses abréviations deviennent des boutons qui en donnent le sens. */
@@ -122,13 +123,14 @@ export function StepText({ text, sizes, sizeIndex, highlights, onChange, abbrevi
   const [translating, setTranslating] = useState(false)
   const fixed = Object.keys(highlights[highlightKey(sizeIndex)] ?? {}).length > 0
   const english = looksEnglish(text)
+  const base = useBaseGlossary()
   const original = (
     <SizedText
       text={text}
       sizes={sizes}
       sizeIndex={sizeIndex}
       highlights={highlights}
-      glossary={mergeGlossary(abbreviations, english)}
+      glossary={mergeGlossary(abbreviations, base, english)}
       onToggle={editing ? (part, found) => onChange(toggleHighlight(highlights, sizeIndex, part, found)) : undefined}
     />
   )
@@ -148,7 +150,7 @@ export function StepText({ text, sizes, sizeIndex, highlights, onChange, abbrevi
       {translation && !editing ? (
         <>
           <section aria-label="Traduction en français">
-            <SizedText text={translation} sizes={sizes} sizeIndex={sizeIndex} glossary={mergeGlossary(abbreviations, false)} />
+            <SizedText text={translation} sizes={sizes} sizeIndex={sizeIndex} glossary={mergeGlossary(abbreviations, base, false)} />
           </section>
           <details className="rounded-lg bg-muted/40 px-3 py-2 text-sm">
             <summary className="cursor-pointer text-muted-foreground">Texte d’origine (anglais)</summary>

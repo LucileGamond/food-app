@@ -167,26 +167,55 @@ describe('CookingPage', () => {
   it('garde l’écran allumé et le redemande au retour sur l’onglet', async () => {
     const { request, sentinels } = mockWakeLock()
     const { user } = renderCooking()
-    expect(await screen.findByText('L’écran reste allumé.')).toBeInTheDocument()
-    expect(request).toHaveBeenCalledWith('screen')
+    expect(await screen.findByRole('switch', { name: 'Écran toujours allumé' })).toBeChecked()
+    await waitFor(() => expect(request).toHaveBeenCalledWith('screen'))
 
     // Onglet caché : le navigateur relâche le verrou ; au retour, il est redemandé.
     act(() => sentinels[0]!.fire())
-    expect(screen.queryByText('L’écran reste allumé.')).not.toBeInTheDocument()
     await act(async () => document.dispatchEvent(new Event('visibilitychange')))
     expect(request).toHaveBeenCalledTimes(2)
-    expect(await screen.findByText('L’écran reste allumé.')).toBeInTheDocument()
 
     await user.click(screen.getAllByRole('link', { name: 'Quitter le mode cuisine' })[0]!)
     expect(await screen.findByText('Fiche recette')).toBeInTheDocument()
     expect(sentinels[1]!.release).toHaveBeenCalled()
   })
 
-  it('sans maintien de l’écran possible, rien n’est affiché', async () => {
-    Object.defineProperty(navigator, 'wakeLock', { value: { request: vi.fn(async () => Promise.reject(new Error('refusé'))) }, configurable: true })
+  it('l’interrupteur éteint et rallume le maintien de l’écran, et retient le choix', async () => {
+    localStorage.clear()
+    const { request, sentinels } = mockWakeLock()
+    const { user } = renderCooking()
+    const toggle = await screen.findByRole('switch', { name: 'Écran toujours allumé' })
+    await waitFor(() => expect(request).toHaveBeenCalledTimes(1))
+
+    await user.click(toggle)
+    expect(toggle).not.toBeChecked()
+    expect(sentinels[0]!.release).toHaveBeenCalled()
+    expect(localStorage.getItem('life:ecran-allume')).toBe('non')
+    await act(async () => document.dispatchEvent(new Event('visibilitychange')))
+    expect(request).toHaveBeenCalledTimes(1)
+
+    await user.click(toggle)
+    expect(toggle).toBeChecked()
+    await waitFor(() => expect(request).toHaveBeenCalledTimes(2))
+    expect(localStorage.getItem('life:ecran-allume')).toBeNull()
+  })
+
+  it('choix retenu : l’écran n’est pas maintenu allumé', async () => {
+    localStorage.setItem('life:ecran-allume', 'non')
+    try {
+      const { request } = mockWakeLock()
+      renderCooking()
+      expect(await screen.findByRole('switch', { name: 'Écran toujours allumé' })).not.toBeChecked()
+      expect(request).not.toHaveBeenCalled()
+    } finally {
+      localStorage.clear()
+    }
+  })
+
+  it('sans maintien de l’écran possible, pas d’interrupteur', async () => {
     renderCooking()
     await screen.findByRole('heading', { name: 'Tarte aux pommes' })
-    expect(screen.queryByText('L’écran reste allumé.')).not.toBeInTheDocument()
+    expect(screen.queryByRole('switch', { name: 'Écran toujours allumé' })).not.toBeInTheDocument()
   })
 
   it('erreur de chargement, réessai, recette introuvable', async () => {

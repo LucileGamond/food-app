@@ -1,3 +1,4 @@
+import { TEST_GLOSSARY } from './knitGlossary'
 import { render, type RenderOptions } from '@testing-library/react'
 import type { ReactElement, ReactNode } from 'react'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
@@ -25,9 +26,13 @@ import type { WaterInput } from '@/modules/plantes/api'
 import type { Plant, PlantPhoto, WateringEvent } from '@/modules/plantes/lib/plants'
 import type { KnitProject, KnitProjectSummary, ReadPattern } from '@/modules/tricot/lib/pattern'
 import type { ProjectProgress } from '@/modules/tricot/lib/progress'
+import type { AdaptedStep } from '@/modules/tricot/lib/adapt'
 import { EMPTY_YARN, type QueuedPattern, type StashItem, type Yarn, type YarnIdea } from '@/modules/tricot/lib/yarn'
 import { DEFAULT_SETTINGS, type UserSettings } from '@/lib/settings'
 import type { AgendaEvent, CalendarSource } from '@/modules/agenda/lib/agenda'
+import { DEFAULT_RULE, type PresenceRule } from '@/modules/repas/lib/presence'
+import type { Dish } from '@/modules/repas/lib/weekPlan'
+import type { UsageRow } from '@/lib/llmUsage'
 
 export const LUCILE: Profile = { id: 'u-lucile', display_name: 'Lucile' }
 export const ERIC: Profile = { id: 'u-eric', display_name: 'Eric' }
@@ -68,6 +73,7 @@ export function fakeApi(): FakeApi {
       updateMeal: vi.fn(async () => undefined),
       moveMeal: vi.fn(async () => undefined),
       duplicateMeal: vi.fn(async () => 'dup-meal'),
+      setCook: vi.fn(async () => undefined),
       deleteMeal: vi.fn(async () => undefined),
       subscribe: vi.fn(() => () => undefined),
     },
@@ -166,6 +172,7 @@ export function fakeApi(): FakeApi {
       subscribe: vi.fn(() => () => undefined),
     },
     knitting: {
+      getGlossary: vi.fn(async () => TEST_GLOSSARY),
       listProjects: vi.fn(async () => [] as KnitProjectSummary[]),
       getProject: vi.fn(async () => null as KnitProject | null),
       readPattern: vi.fn(async (): Promise<ReadPattern> => ({ title: 'Patron lu', sizes: [], steps: [] })),
@@ -193,7 +200,9 @@ export function fakeApi(): FakeApi {
       addChart: vi.fn(async () => undefined),
       askAboutStep: vi.fn(async () => 'Réponse du modèle.'),
       translateText: vi.fn(async (text: string) => ({ text: `Traduit : ${text}`, numbersKept: true })),
-      saveYarnCheck: vi.fn(async () => undefined),
+      saveYarnChecks: vi.fn(async () => undefined),
+      adaptPattern: vi.fn(async (): Promise<AdaptedStep[]> => []),
+      saveAdaptation: vi.fn(async () => undefined),
       setSizeIndex: vi.fn(async () => undefined),
       updateChart: vi.fn(async () => undefined),
       deleteChart: vi.fn(async () => undefined),
@@ -230,9 +239,22 @@ export function fakeApi(): FakeApi {
       syncNow: vi.fn(async () => undefined),
       subscribe: vi.fn(() => () => undefined),
     },
+    llmUsage: {
+      summary: vi.fn(async () => [] as UsageRow[]),
+    },
     activity: {
       listRecent: vi.fn(async () => [] as ActivityEvent[]),
       subscribe: vi.fn(() => () => undefined),
+    },
+    weekPlan: {
+      listRules: vi.fn(async () => [] as PresenceRule[]),
+      getMyRule: vi.fn(async () => DEFAULT_RULE),
+      saveMyRule: vi.fn(async () => undefined),
+      listDishes: vi.fn(async (items: InboxItem[]) =>
+        items.map((i): Dish => ({ id: i.id, title: i.title, recipeId: i.recipe_id, minutes: null, servings: null, ingredients: [] })),
+      ),
+      proposePlan: vi.fn(async (): Promise<unknown> => ({ meals: [] })),
+      saveWeek: vi.fn(async () => 0),
     },
     food: {
       listPlan: vi.fn(async () => [] as PlanItem[]),

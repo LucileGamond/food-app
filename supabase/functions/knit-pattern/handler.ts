@@ -8,11 +8,14 @@
 //   → 200 { answer }
 // POST { translate: { text } }   (texte d'une étape traduit en français, nombres inchangés)
 //   → 200 { text, numbersKept }
+// POST { adapt: { request, size, pattern_gauge, my_gauge, steps: [{ title, instructions, total_rows, stitches, sections }] } }
+//   → 200 { steps: [{ index, totalRows, stitches, sections, note }] }   (patron adapté : seulement les étapes qui changent)
 // POST { ideas: { yarn: description, meters, needle_mm } }   (idées de modèles pour une laine du stock)
 //   → 200 { ideas: [{ title, why, meters, needleMm, search, patterns: [{ title, url }] }], weight }   (recherche web)
 //   → 4xx/5xx { error: message lisible }
 // Comme estimate-nutrition : verify_jwt, plus `isSignedIn` pour refuser la clé publique anonyme.
 
+import { adaptPattern, parseAdaptInput, type AdaptInput } from './adapt.ts'
 import { createModelHandler, type ModelDeps } from '../_shared/handler.ts'
 import { answerQuestion, parseQuestionInput, parseTranslateInput, translateStep, type QuestionInput, type TranslateInput } from './assist.ts'
 import { parseInput, readPattern, type PatternInput } from './pattern.ts'
@@ -27,12 +30,15 @@ type Input =
   | { kind: 'ideas'; ideas: IdeasInput }
   | { kind: 'question'; question: QuestionInput }
   | { kind: 'translate'; translate: TranslateInput }
+  | { kind: 'adapt'; adapt: AdaptInput }
 
 function parse(body: unknown): Input {
   const question = parseQuestionInput(body)
   if (question) return { kind: 'question', question }
   const translate = parseTranslateInput(body)
   if (translate) return { kind: 'translate', translate }
+  const adapt = parseAdaptInput(body)
+  if (adapt) return { kind: 'adapt', adapt }
   const ideas = parseIdeasInput(body)
   if (ideas) return { kind: 'ideas', ideas }
   const label = parseLabelInput(body)
@@ -50,6 +56,10 @@ export function createHandler(deps: Deps) {
       if (input.kind === 'translate') {
         const { text, numbersKept, usage } = await translateStep(input.translate, options)
         return { body: { text, numbersKept }, log: { translate: true, chars: input.translate.text.length, numbersKept, ...usage } }
+      }
+      if (input.kind === 'adapt') {
+        const { steps, usage } = await adaptPattern(input.adapt, options)
+        return { body: { steps }, log: { adapt: true, steps: input.adapt.steps.length, changed: steps.length, ...usage } }
       }
       if (input.kind === 'ideas') {
         const { ideas, weight, searches, usage } = await suggestIdeas(input.ideas, options)

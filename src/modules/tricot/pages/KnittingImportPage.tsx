@@ -12,6 +12,7 @@ import { QueueForm } from '../components/QueueForm'
 import { SizedText, SizePicker } from '../components/SizedText'
 import { cn } from '@/lib/utils'
 import { describeHint } from '../lib/chart'
+import { useBaseGlossary } from '../hooks/useBaseGlossary'
 import { looksEnglish, mergeGlossary } from '../lib/glossary'
 import { sizeIndexOf } from '../lib/sizes'
 import { describeSection, MAX_PDF_BYTES, type ReadPattern } from '../lib/pattern'
@@ -27,6 +28,7 @@ type Mode = 'start' | 'later'
  */
 export function KnittingImportPage() {
   const api = useApi()
+  const glossary = useBaseGlossary()
   const navigate = useNavigate()
   const [params] = useSearchParams()
   const queuedId = params.get('patron')
@@ -121,7 +123,7 @@ export function KnittingImportPage() {
                 <p className="font-medium">
                   {index + 1}. {step.title}
                 </p>
-                {step.instructions && <SizedText text={step.instructions} sizes={pattern.sizes} sizeIndex={sizeIndex} glossary={mergeGlossary(pattern.abbreviations ?? [], looksEnglish(step.instructions))} className="mt-1" />}
+                {step.instructions && <SizedText text={step.instructions} sizes={pattern.sizes} sizeIndex={sizeIndex} glossary={mergeGlossary(pattern.abbreviations ?? [], glossary, looksEnglish(step.instructions))} className="mt-1" />}
                 {(step.totalRows || step.stitches) && (
                   <p className="mt-2 text-xs text-muted-foreground">
                     {[step.totalRows && `${step.totalRows} rangs`, step.stitches && `${step.stitches} mailles`].filter(Boolean).join(' · ')}

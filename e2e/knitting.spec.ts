@@ -215,7 +215,7 @@ test('stock de laine : quel patron pour ma laine (mes patrons d’abord, puis de
   await match.getByRole('button', { name: 'Des idées avec l’IA' }).click()
   await expect(match.getByRole('list', { name: 'Idées de modèles' })).toContainText('Snood torsadé')
   await expect(match.getByRole('link', { name: 'Cabled Cowl · ravelry.com' })).toHaveAttribute('href', 'https://www.ravelry.com/patterns/library/cabled-cowl')
-  await expect(match.getByRole('link', { name: 'Plus de patrons sur Ravelry' })).toHaveAttribute('href', 'https://www.ravelry.com/patterns/search#craft=knitting&weight=worsted&query=cabled%20cowl')
+  await expect(match.getByRole('link', { name: 'Plus de patrons sur Ravelry' })).toHaveAttribute('href', 'https://www.ravelry.com/patterns/search#craft=knitting&weight=worsted&yardage=0%7C918&needles=3.5mm%7C3.75mm%7C4.0mm%7C4.5mm&query=cabled%20cowl')
 })
 
 test('suit un diagramme ajouté depuis une image, rang par rang', async ({ page }) => {
@@ -281,7 +281,11 @@ test('aides pendant le tricot : abréviations, pesée de la laine et rangs compt
   await page.goto(`/tricot/${id}`)
   await expect(page.getByRole('heading', { name: 'Devant' })).toBeVisible()
 
-  // Abréviation du patron expliquée d'un toucher (le dos est fini : on est sur le devant)
+  // Abréviations expliquées d'un toucher (le dos est fini : on est sur le devant) : celles du glossaire en base
+  // (« jeté »), puis celles du patron (« C4F »). Le glossaire arrive après le texte : on l'attend avant de toucher.
+  await page.getByRole('button', { name: 'jeté : explication' }).click()
+  await expect(page.getByText(/Passer le fil sur l’aiguille droite/)).toBeVisible()
+  await page.keyboard.press('Escape')
   await page.getByRole('button', { name: 'C4F : explication' }).click()
   await expect(page.getByText('Torsade de 4 mailles devant.')).toBeVisible()
   await page.keyboard.press('Escape')

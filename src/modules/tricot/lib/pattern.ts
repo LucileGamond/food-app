@@ -6,6 +6,7 @@
 // Les rangs de chaque section se calculent à la suite (rangs 1 à 4, puis 5 à 28…).
 // Le compteur compte les rangs terminés : ce qui est annoncé concerne le rang à tricoter (rangs faits + 1).
 
+import type { Adaptation } from './adapt'
 import type { ChartHint, KnitChart } from './chart'
 import type { Abbreviation } from './glossary'
 import type { Highlights } from './sizes'
@@ -83,11 +84,13 @@ export interface KnitProject {
   /** Abréviations expliquées par le patron (sa légende). */
   abbreviations?: Abbreviation[]
   /** Dernière pesée de la laine principale (« assez de laine pour finir ? »). */
-  yarnCheck?: YarnCheck | null
+  yarnChecks?: YarnCheck[]
   yarns: Yarn[]
   /** Échantillon du patron (lu avec le patron, ou saisi) et celui de la tricoteuse. */
   patternGauge: Gauge
   myGauge: Gauge
+  /** « Patron adapté à moi » (facultatif) : étapes recalculées, le patron d'origine reste tel quel. */
+  adaptation?: Adaptation | null
 }
 
 /** Étape telle que lue dans le patron (avant enregistrement). */

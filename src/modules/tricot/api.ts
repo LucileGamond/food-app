@@ -7,8 +7,9 @@ import { compressForReading } from '@/lib/image'
 import type { ProgressPhoto, ProjectProgress } from './lib/progress'
 import { describeYarn, yarnFromJson, yarnMeters, yarnsFromJson, type Gauge, type QueueInput, type QueuedPattern, type QueuePriority, type StashItem, type Yarn, type YarnIdea } from './lib/yarn'
 import { sanitizeHighlights } from './lib/sizes'
-import { sanitizeAbbreviations, type Abbreviation } from './lib/glossary'
-import { sanitizeYarnCheck, type YarnCheck } from './lib/yarnLeft'
+import { adaptationToJson, sanitizeAdaptation, type Adaptation, type AdaptedStep } from './lib/adapt'
+import { sanitizeAbbreviations, type Abbreviation, type BaseGlossary } from './lib/glossary'
+import { sanitizeYarnChecks, type YarnCheck } from './lib/yarnLeft'
 import { sanitizeHints, sanitizeSetup, type ChartHint, type ChartSetup, type KnitChart } from './lib/chart'
 import { MAX_PDF_BYTES, type KnitProject, type KnitProjectSummary, type KnitStep, type PatternStep, type ReadPattern, sanitizeSections } from './lib/pattern'
 
@@ -186,11 +187,19 @@ export function createKnittingApi(db: AppSupabaseClient) {
       }))
     },
 
+    /** Glossaire des abréviations classiques, par langue des patrons. */
+    async getGlossary(): Promise<BaseGlossary> {
+      const { data, error } = await db.from('knit_glossary').select('lang, abbr, meaning').order('abbr')
+      if (error) throw toAppError(error, 'Impossible de charger le glossaire.')
+      const of = (lang: string) => sanitizeAbbreviations(data.filter((a) => a.lang === lang))
+      return { fr: of('fr'), en: of('en') }
+    },
+
     async getProject(id: string): Promise<KnitProject | null> {
       const { data, error } = await db
         .from('knit_projects')
         .select(
-          `id, title, size, sizes, size_index, pdf_path, chart_hints, abbreviations, yarn_check, yarns, pattern_gauge_stitches, pattern_gauge_rows, my_gauge_stitches, my_gauge_rows, knit_steps(id, position, title, instructions, total_rows, stitches, sections, row_count, notes, done, highlights, translation), knit_charts(${CHART_COLUMNS})`,
+          `id, title, size, sizes, size_index, pdf_path, chart_hints, abbreviations, yarn_checks, yarns, pattern_gauge_stitches, pattern_gauge_rows, my_gauge_stitches, my_gauge_rows, adaptation, knit_steps(id, position, title, instructions, total_rows, stitches, sections, row_count, notes, done, highlights, translation), knit_charts(${CHART_COLUMNS})`,
         )
         .eq('id', id)
         .order('position', { referencedTable: 'knit_steps' })
@@ -210,10 +219,11 @@ export function createKnittingApi(db: AppSupabaseClient) {
         charts: await signCharts(data.knit_charts),
         chartHints: sanitizeHints(data.chart_hints),
         abbreviations: sanitizeAbbreviations(data.abbreviations),
-        yarnCheck: sanitizeYarnCheck(data.yarn_check),
+        yarnChecks: sanitizeYarnChecks(data.yarn_checks),
         yarns: yarnsFromJson(data.yarns),
         patternGauge: { stitches: data.pattern_gauge_stitches, rows: data.pattern_gauge_rows },
         myGauge: { stitches: data.my_gauge_stitches, rows: data.my_gauge_rows },
+        adaptation: sanitizeAdaptation(data.adaptation),
       }
     },
 
@@ -320,6 +330,40 @@ export function createKnittingApi(db: AppSupabaseClient) {
       if (error) throw toAppError(error, 'Impossible d’enregistrer la laine et l’échantillon.')
     },
 
+    /**
+     * « Patron adapté à moi » : étapes recalculées pour l'échantillon et les retouches, sans rien enregistrer
+     * (seulement celles qui changent).
+     */
+    async adaptPattern(input: { request: string; size: string; patternGauge: Gauge; myGauge: Gauge; steps: KnitStep[] }): Promise<AdaptedStep[]> {
+      const { steps } = await invokeKnit<{ steps: { index: number; totalRows: number | null; stitches: number | null; sections: unknown; note: string }[] }>(
+        {
+          adapt: {
+            request: input.request,
+            size: input.size,
+            pattern_gauge: input.patternGauge,
+            my_gauge: input.myGauge,
+            steps: input.steps.map((s) => ({ title: s.title, instructions: s.translation || s.instructions, total_rows: s.totalRows, stitches: s.stitches, sections: s.sections })),
+          },
+        },
+        'L’adaptation du patron a échoué.',
+        (d) => Array.isArray(d.steps),
+        READ_TIMEOUT_MS,
+      )
+      return steps.flatMap((a) => {
+        const step = input.steps[a.index]
+        return step ? [{ stepId: step.id, totalRows: a.totalRows, stitches: a.stitches, sections: sanitizeSections(a.sections), note: a.note }] : []
+      })
+    },
+
+    /** Enregistre l'adaptation (null : la supprime, le patron d'origine reste). */
+    async saveAdaptation(projectId: string, adaptation: Adaptation | null): Promise<void> {
+      const { error } = await db
+        .from('knit_projects')
+        .update({ adaptation: adaptation && (adaptationToJson(adaptation) as unknown as Json) })
+        .eq('id', projectId)
+      if (error) throw toAppError(error, 'Impossible d’enregistrer le patron adapté.')
+    },
+
     /** Lit l'étiquette d'une pelote en photo, sans rien enregistrer. */
     async readYarnLabel(photo: File): Promise<Yarn> {
       const image = await compressForReading(photo)
@@ -355,11 +399,11 @@ export function createKnittingApi(db: AppSupabaseClient) {
       return invokeKnit<{ text: string; numbersKept: boolean }>({ translate: { text } }, 'La traduction a échoué.', (d) => typeof d.text === 'string', READ_TIMEOUT_MS)
     },
 
-    /** Pesée de la laine principale (null : l'effacer). */
-    async saveYarnCheck(projectId: string, check: YarnCheck | null): Promise<void> {
+    /** Pesées des laines du projet (la dernière de chacune). */
+    async saveYarnChecks(projectId: string, checks: YarnCheck[]): Promise<void> {
       const { error } = await db
         .from('knit_projects')
-        .update({ yarn_check: check && { grams: check.grams, rows_done: check.rowsDone, at: check.at } })
+        .update({ yarn_checks: checks.map((c) => ({ yarn: c.yarn, grams: c.grams, rows_done: c.rowsDone, at: c.at })) })
         .eq('id', projectId)
       if (error) throw toAppError(error, 'Impossible d’enregistrer la pesée.')
     },

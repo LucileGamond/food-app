@@ -9,7 +9,9 @@ import {
   type DragEndEvent,
   type DragStartEvent,
 } from '@dnd-kit/core'
-import { CalendarPlus, ChevronLeft, ChevronRight, Copy, MoveRight, ShoppingCart, Sparkles } from 'lucide-react'
+import { CalendarCheck, CalendarPlus, ChevronLeft, ChevronRight, Copy, MoveRight, ShoppingCart, Sparkles } from 'lucide-react'
+import { toast } from 'sonner'
+import { errorMessage } from '@/api'
 import { useCallback, useMemo, useState } from 'react'
 import { useToday } from '@/hooks/useToday'
 import { useNavigate } from 'react-router-dom'
@@ -93,7 +95,20 @@ export function PlanningPage({ today: fixedToday }: { today?: IsoDate }) {
     setDialog({ kind: 'form', target, meal })
   }
 
+  async function setCook(meal: Meal, cookId: string | null) {
+    try {
+      await api.meals.setCook(meal.id, cookId)
+      void planning.reload()
+    } catch (error) {
+      toast.error(errorMessage(error))
+    }
+  }
+
   function handleAction(action: MealAction, meal: Meal) {
+    if (action.startsWith('cook:')) {
+      void setCook(meal, action.slice('cook:'.length) || null)
+      return
+    }
     switch (action) {
       case 'edit':
         openForm({ date: meal.meal_date, slot: meal.slot }, meal)
@@ -154,6 +169,10 @@ export function PlanningPage({ today: fixedToday }: { today?: IsoDate }) {
         actions={
           // Téléphone étroit (360 px) : boutons resserrés pour que l'en-tête tienne sur une ligne.
           <div className="flex items-center gap-1 sm:gap-2">
+            <Button variant="outline" className="h-11 px-2.5 shadow-xs sm:px-3" aria-label="Planifier la semaine" onClick={() => navigate('/planning/semaine')}>
+              <CalendarCheck />
+              <span className="max-sm:hidden">Semaine</span>
+            </Button>
             <Button variant="outline" className="h-11 px-2.5 shadow-xs sm:px-3" aria-label="Idées de repas" onClick={() => setDialog({ kind: 'ideas' })}>
               <Sparkles />
               <span className="max-sm:hidden">Idées</span>
@@ -161,13 +180,13 @@ export function PlanningPage({ today: fixedToday }: { today?: IsoDate }) {
             {isEnabled('courses') && (
               <Button
                 variant="outline"
-                className="h-11 px-3 shadow-xs"
+                className="h-11 px-2.5 shadow-xs sm:px-3"
                 aria-label="Liste de courses"
                 onClick={() => setDialog({ kind: 'shopping' })}
                 disabled={planning.loading || Boolean(planning.loadError)}
               >
                 <ShoppingCart />
-                <span className="sm:hidden">Courses</span>
+                {/* Téléphone : icône seule, comme « Idées » et « Semaine ». */}
                 <span className="max-sm:hidden">Liste de courses</span>
               </Button>
             )}

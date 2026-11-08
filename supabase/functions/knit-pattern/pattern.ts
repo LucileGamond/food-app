@@ -231,7 +231,8 @@ export function systemPrompt(size: string): string {
   ].join('\n')
 }
 
-function section(value: unknown): PatternSection | null {
+/** Section bien formée (bornée), ou null. */
+export function sanitizeSection(value: unknown): PatternSection | null {
   const r = asRecord(value)
   const text = str(r.text, 200)
   const pattern = str(r.pattern, 100) || null
@@ -338,7 +339,7 @@ export function sanitizePattern(input: unknown, size: string): ReadPattern {
         instructions: str(s.instructions, MAX_INSTRUCTIONS),
         totalRows: int(s.total_rows, 1, 2000),
         stitches: int(s.stitches, 1, 5000),
-        sections: (Array.isArray(s.sections) ? s.sections : []).map(section).filter((r): r is PatternSection => r !== null).slice(0, 30),
+        sections: (Array.isArray(s.sections) ? s.sections : []).map(sanitizeSection).filter((r): r is PatternSection => r !== null).slice(0, 30),
       }
     })
     .filter((s) => s.title)

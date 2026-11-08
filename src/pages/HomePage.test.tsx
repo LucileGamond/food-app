@@ -28,7 +28,7 @@ const PROJECT: KnitProject = {
   charts: [],
   chartHints: [],
   abbreviations: [],
-  yarnCheck: null,
+  yarnChecks: [],
   sizes: [],
   sizeIndex: null,
   yarns: [],

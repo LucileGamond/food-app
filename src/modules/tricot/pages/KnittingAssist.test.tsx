@@ -35,7 +35,7 @@ const PROJECT: KnitProject = {
   charts: [],
   chartHints: [],
   abbreviations: [{ abbr: 'C4F', meaning: 'Torsade de 4 mailles croisées devant.' }],
-  yarnCheck: null,
+  yarnChecks: [],
 }
 
 function renderProject(project: KnitProject = PROJECT, api = fakeApi()) {
@@ -125,33 +125,53 @@ describe('question sur le rang', () => {
 })
 
 describe('assez de laine pour finir ?', () => {
-  const YARN = { ...EMPTY_YARN, brand: 'DROPS', name: 'Merino', weight_g: 50, length_m: 100, skeins: 10 }
-  const WITH_YARN = { ...PROJECT, yarns: [YARN], steps: [step({ id: 's1', totalRows: 100, rowCount: 100, done: true }), step({ id: 's2', title: 'Devant', totalRows: 100 })] }
+  const YARN = { ...EMPTY_YARN, brand: 'DROPS', name: 'Merino', color: 'Ciel', weight_g: 50, length_m: 100, skeins: 10 }
+  const CONTRAST = { ...EMPTY_YARN, brand: 'DROPS', name: 'Merino', color: 'Rouille', weight_g: 50, length_m: 100, skeins: 2 }
+  const WITH_YARN = { ...PROJECT, yarns: [YARN, CONTRAST], steps: [step({ id: 's1', totalRows: 100, rowCount: 100, done: true }), step({ id: 's2', title: 'Devant', totalRows: 100 })] }
 
-  it('enregistre une pesée avec les rangs faits', async () => {
+  it('pèse chaque laine à part et garde les pesées des autres', async () => {
     const user = userEvent.setup()
-    const { api } = renderProject(WITH_YARN)
+    const project = { ...WITH_YARN, yarnChecks: [{ yarn: 0, grams: 220, rowsDone: 100, at: '2026-11-08' }] }
+    const { api } = renderProject(project)
     const card = await screen.findByRole('region', { name: 'Assez de laine pour finir ?' })
-    await user.type(within(card).getByLabelText('Laine restante (g)'), 'beaucoup')
-    await user.click(within(card).getByRole('button', { name: 'Estimer' }))
-    expect(within(card).getByRole('alert')).toHaveTextContent('Indique le poids en grammes')
-    await user.clear(within(card).getByLabelText('Laine restante (g)'))
-    await user.type(within(card).getByLabelText('Laine restante (g)'), '220,5')
-    await user.click(within(card).getByRole('button', { name: 'Estimer' }))
-    await waitFor(() => expect(api.knitting.saveYarnCheck).toHaveBeenCalledWith('p1', expect.objectContaining({ grams: 220.5, rowsDone: 100 })))
+    const contrast = within(card).getByRole('group', { name: 'DROPS Merino · Rouille' })
+    await user.type(within(contrast).getByLabelText('Laine restante (g)'), 'beaucoup')
+    await user.click(within(contrast).getByRole('button', { name: 'Estimer' }))
+    expect(within(contrast).getByRole('alert')).toHaveTextContent('Indique le poids en grammes')
+    await user.clear(within(contrast).getByLabelText('Laine restante (g)'))
+    await user.type(within(contrast).getByLabelText('Laine restante (g)'), '40,5')
+    await user.click(within(contrast).getByRole('button', { name: 'Estimer' }))
+    await waitFor(() =>
+      expect(api.knitting.saveYarnChecks).toHaveBeenCalledWith('p1', [project.yarnChecks[0], expect.objectContaining({ yarn: 1, grams: 40.5, rowsDone: 100 })]),
+    )
   })
 
-  it('dit s’il en manque, ou ce qu’il faut compléter', async () => {
-    renderProject({ ...WITH_YARN, yarnCheck: { grams: 220, rowsDone: 100, at: '2026-11-08' } })
+  it('dit pour chaque laine s’il en manque', async () => {
+    renderProject({
+      ...WITH_YARN,
+      yarnChecks: [
+        { yarn: 0, grams: 220, rowsDone: 100, at: '2026-11-08' },
+        { yarn: 1, grams: 60, rowsDone: 100, at: '' },
+      ],
+    })
     const card = await screen.findByRole('region', { name: 'Assez de laine pour finir ?' })
-    expect(within(card).getByRole('status')).toHaveTextContent('Il manque ≈ 120 m, soit 2 pelotes.')
-    expect(within(card).getByRole('status')).toHaveTextContent('≈ 440 m restants · ≈ 560 m pour finir · pesée à 100 rangs')
+    const main = within(card).getByRole('group', { name: 'DROPS Merino · Ciel' })
+    expect(within(main).getByRole('status')).toHaveTextContent('Il manque ≈ 120 m, soit 2 pelotes.')
+    expect(within(main).getByRole('status')).toHaveTextContent('≈ 440 m restants · ≈ 560 m pour finir · pesée à 100 rangs')
+    // Rouille : 60 g = 120 m restants, 80 m tricotés pour la moitié → 80 m pour finir
+    expect(within(within(card).getByRole('group', { name: 'DROPS Merino · Rouille' })).getByRole('status')).toHaveTextContent('Ça passe.')
   })
 
-  it('demande de compléter la laine du projet', async () => {
-    renderProject({ ...PROJECT, yarnCheck: { grams: 50, rowsDone: 10, at: '' } })
+  it('demande de compléter la laine', async () => {
+    renderProject({ ...PROJECT, yarns: [{ ...EMPTY_YARN, name: 'Alpaga' }], yarnChecks: [{ yarn: 0, grams: 50, rowsDone: 10, at: '' }] })
     const card = await screen.findByRole('region', { name: 'Assez de laine pour finir ?' })
-    expect(within(card).getByRole('status')).toHaveTextContent('Complète la laine du projet')
+    expect(within(card).getByRole('status')).toHaveTextContent('Complète cette laine')
+  })
+
+  it('sans laine, propose de l’ajouter', async () => {
+    renderProject()
+    const card = await screen.findByRole('region', { name: 'Assez de laine pour finir ?' })
+    expect(within(card).getByText(/Ajoute la laine du projet/)).toBeInTheDocument()
   })
 })
 

@@ -1,14 +1,18 @@
-// Module Tricot : « assez de laine pour finir ? » d'après une pesée de la laine principale.
+// Module Tricot : « assez de laine pour finir ? » d'après une pesée de chaque laine du projet (un coloris = une laine).
 //
-// On pèse tout ce qui reste de la laine principale (pelote entamée et pelotes entières). Avec le métrage d'une pelote
+// On pèse tout ce qui reste d'une laine (pelote entamée et pelotes entières). Avec le métrage d'une pelote
 // et son poids, on en déduit les mètres restants ; avec les pelotes de départ, les mètres déjà tricotés. Rapportés au
 // travail déjà fait (rangs, pondérés par les mailles quand elles sont connues), ils donnent ce qu'il faut pour finir.
 
 import type { KnitStep } from './pattern'
 import type { Yarn } from './yarn'
 
-/** Pesée enregistrée : grammes restants, et travail fait à ce moment-là (en rangs, comme le compteur). */
+/**
+ * Pesée enregistrée d'une laine (sa place dans les laines du projet) : grammes restants, et travail fait à ce
+ * moment-là (en rangs, comme le compteur).
+ */
 export interface YarnCheck {
+  yarn: number
   grams: number
   rowsDone: number
   at: string
@@ -91,8 +95,21 @@ export function yarnVerdict(yarn: Yarn | undefined, steps: Step[], check: YarnCh
 export function sanitizeYarnCheck(raw: unknown): YarnCheck | null {
   if (typeof raw !== 'object' || raw === null) return null
   const c = raw as Record<string, unknown>
+  const yarn = typeof c.yarn === 'number' && Number.isInteger(c.yarn) && c.yarn >= 0 ? c.yarn : null
   const grams = typeof c.grams === 'number' && Number.isFinite(c.grams) && c.grams >= 0 ? c.grams : null
   const rowsDone = typeof c.rows_done === 'number' && Number.isInteger(c.rows_done) && c.rows_done >= 0 ? c.rows_done : null
-  if (grams === null || rowsDone === null) return null
-  return { grams, rowsDone, at: typeof c.at === 'string' ? c.at : '' }
+  if (yarn === null || grams === null || rowsDone === null) return null
+  return { yarn, grams, rowsDone, at: typeof c.at === 'string' ? c.at : '' }
+}
+
+/** Pesées lues en base : une par laine au plus, les abîmées écartées. */
+export function sanitizeYarnChecks(raw: unknown): YarnCheck[] {
+  if (!Array.isArray(raw)) return []
+  const checks = raw.map(sanitizeYarnCheck).filter((c): c is YarnCheck => c !== null)
+  return checks.filter((c, i) => checks.findIndex((o) => o.yarn === c.yarn) === i)
+}
+
+/** Pesées après une nouvelle pesée : elle remplace la précédente de la même laine. */
+export function withYarnCheck(checks: YarnCheck[], check: YarnCheck): YarnCheck[] {
+  return [...checks.filter((c) => c.yarn !== check.yarn), check].sort((a, b) => a.yarn - b.yarn)
 }

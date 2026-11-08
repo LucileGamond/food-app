@@ -25,6 +25,8 @@ export interface Meal {
   meal_date: IsoDate
   slot: MealSlot
   people: string[]
+  /** Qui cuisine ; absent ou null : personne de désigné. */
+  cook_id?: string | null
   recipe: RecipeSummary
 }
 

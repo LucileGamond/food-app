@@ -1,5 +1,5 @@
 import { useDraggable } from '@dnd-kit/core'
-import { BookmarkCheck, BookmarkPlus, Copy, MoreHorizontal, MoveRight, Pencil, Trash2, Users } from 'lucide-react'
+import { BookmarkCheck, BookmarkPlus, ChefHat, Copy, MoreHorizontal, MoveRight, Pencil, Trash2, Users } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 import {
@@ -14,7 +14,8 @@ import { peopleLabel, type Meal, type Profile } from '@/lib/meals'
 import { cn } from '@/lib/utils'
 import { useSettings } from '@/app/SettingsContext'
 
-export type MealAction = 'edit' | 'move' | 'duplicate' | 'save' | 'delete'
+/** `cook:<id>` : cette personne cuisine ; `cook:` : personne de désigné. */
+export type MealAction = 'edit' | 'move' | 'duplicate' | 'save' | 'delete' | `cook:${string}`
 
 interface Props {
   meal: Meal
@@ -29,6 +30,7 @@ export function MealItem({ meal, profiles, disabled, onAction }: Props) {
   const { recipe } = meal
   const recipes = useSettings().isEnabled('recettes')
   const details = [recipe.notes, recipe.url].filter(Boolean).join('\n')
+  const cook = profiles.find((p) => p.id === meal.cook_id)
 
   return (
     <li
@@ -65,6 +67,12 @@ export function MealItem({ meal, profiles, disabled, onAction }: Props) {
           <p className="mt-1.5 flex items-center gap-1 text-xs text-muted-foreground">
             <Users className="size-3" aria-hidden />
             {peopleLabel(meal.people, profiles)}
+            {cook && (
+              <span className="ml-1.5 flex items-center gap-1">
+                <ChefHat className="size-3" aria-hidden />
+                <span>{cook.display_name} cuisine</span>
+              </span>
+            )}
           </p>
         )}
       </div>
@@ -108,6 +116,19 @@ export function MealItem({ meal, profiles, disabled, onAction }: Props) {
             {!recipe.is_saved && recipes && (
               <DropdownMenuItem onClick={() => onAction('save', meal)}>
                 <BookmarkPlus /> Enregistrer la recette
+              </DropdownMenuItem>
+            )}
+            <DropdownMenuSeparator />
+            {profiles
+              .filter((p) => p.id !== meal.cook_id)
+              .map((p) => (
+                <DropdownMenuItem key={p.id} onClick={() => onAction(`cook:${p.id}`, meal)}>
+                  <ChefHat /> {p.display_name} cuisine
+                </DropdownMenuItem>
+              ))}
+            {cook && (
+              <DropdownMenuItem onClick={() => onAction('cook:', meal)}>
+                <ChefHat /> Personne de désigné
               </DropdownMenuItem>
             )}
             <DropdownMenuSeparator />

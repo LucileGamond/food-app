@@ -134,7 +134,7 @@ function MatchDialog({ item, queue, onOpenChange }: { item: StashItem | null; qu
                   )}
                   {idea.search && (
                     <a
-                      href={patternSearchUrl(idea.search, idea.weight)}
+                      href={patternSearchUrl(idea.search, { weight: idea.weight, meters, needleMm: yarn?.needle_mm ?? null })}
                       target="_blank"
                       rel="noreferrer"
                       className="mt-1 inline-flex items-center gap-1 text-muted-foreground underline-offset-4 hover:underline"

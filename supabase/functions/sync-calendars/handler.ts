@@ -12,7 +12,7 @@ export const MANUAL_STALE_MS = 60_000
 export interface HandlerDeps extends SyncDeps {
   secret: string | undefined
   /** Le jeton appartient à une personne connectée (voir _shared/auth.ts). */
-  isSignedIn: (authorization: string | null) => Promise<boolean>
+  isSignedIn: (authorization: string | null) => Promise<string | boolean | null>
 }
 
 async function caller(deps: HandlerDeps, request: Request): Promise<'cron' | 'user' | null> {

@@ -286,3 +286,25 @@ describe('import-recipe — photos', () => {
     expect(await call(noKey, { mode: 'photos', images: [PHOTO] })).toMatchObject({ status: 500 })
   })
 })
+
+describe('import-recipe : consommation', () => {
+  it('enregistre la consommation de l’import (mode url par défaut) avec la personne', async () => {
+    const { deps } = setup()
+    const recordUsage = vi.fn(async () => {})
+    const handle = createHandler({ ...deps, isSignedIn: async () => 'u1', recordUsage })
+    expect((await call(handle, { url: PAGE_URL })).status).toBe(200)
+    expect(recordUsage).toHaveBeenCalledWith(expect.objectContaining({ user_id: 'u1', mode: 'url', ok: true, requests: 1, input_tokens: 300, output_tokens: 120 }))
+  })
+
+  it('enregistre le mode demandé, même en échec, et rien sans appel au modèle', async () => {
+    const { deps } = setup()
+    const recordUsage = vi.fn(async () => {})
+    const handle = createHandler({ ...deps, recordUsage })
+    const four = Array.from({ length: 4 }, () => ({ data: 'aGVsbG8=', type: 'image/png' }))
+    await call(handle, { mode: 'orient', images: four })
+    expect(recordUsage).toHaveBeenCalledWith(expect.objectContaining({ user_id: null, mode: 'orient', requests: 1 }))
+    recordUsage.mockClear()
+    await call(handle, { mode: 'orient', images: [] })
+    expect(recordUsage).not.toHaveBeenCalled()
+  })
+})

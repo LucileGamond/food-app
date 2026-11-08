@@ -46,7 +46,8 @@ describe('App', () => {
     const logos = screen.getAllByRole('link', { name: 'Life, accueil' })
     expect(logos.length).toBeGreaterThan(0)
     await user.click(logos[0]!)
-    expect(await screen.findByRole('heading', { name: 'Aujourd’hui' })).toBeInTheDocument()
+    // Accueil chargé à la demande : plus d'une seconde quand toute la suite tourne en parallèle.
+    expect(await screen.findByRole('heading', { name: 'Aujourd’hui' }, { timeout: 5000 })).toBeInTheDocument()
   })
 
   it('redirige les adresses inconnues vers l’accueil', async () => {

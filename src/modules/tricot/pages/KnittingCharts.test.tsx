@@ -66,7 +66,7 @@ const PROJECT: KnitProject = {
   charts: [TORSADE],
   chartHints: [],
   abbreviations: [],
-  yarnCheck: null,
+  yarnChecks: [],
   sizes: [],
   sizeIndex: null,
 }

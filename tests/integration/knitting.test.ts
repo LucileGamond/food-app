@@ -299,18 +299,31 @@ describe('aides pendant le tricot', () => {
     const abbreviations = [{ abbr: 'C4F', meaning: 'Torsade de 4 mailles devant.' }]
     const id = await api.knitting.createProject({ title: 'Pull', size: 'M', pdf: null, steps: STEPS, abbreviations })
     let project = (await api.knitting.getProject(id))!
-    expect(project).toMatchObject({ abbreviations, yarnCheck: null })
+    expect(project).toMatchObject({ abbreviations, yarnChecks: [] })
     expect(project.steps[0]!.translation).toBeNull()
 
     await api.knitting.saveProgress(project.steps[0]!.id, { translation: 'Monter 60 (64-68) m.' })
-    await api.knitting.saveYarnCheck(id, { grams: 82.5, rowsDone: 40, at: '2026-11-08T10:00:00.000Z' })
+    const checks = [
+      { yarn: 0, grams: 82.5, rowsDone: 40, at: '2026-11-08T10:00:00.000Z' },
+      { yarn: 1, grams: 30, rowsDone: 40, at: '2026-11-08T10:00:00.000Z' },
+    ]
+    await api.knitting.saveYarnChecks(id, checks)
     project = (await api.knitting.getProject(id))!
     expect(project.steps[0]!.translation).toBe('Monter 60 (64-68) m.')
-    expect(project.yarnCheck).toEqual({ grams: 82.5, rowsDone: 40, at: '2026-11-08T10:00:00.000Z' })
+    expect(project.yarnChecks).toEqual(checks)
 
-    await api.knitting.saveYarnCheck(id, null)
-    expect((await api.knitting.getProject(id))!.yarnCheck).toBeNull()
-    await expect(api.knitting.saveYarnCheck(id, { grams: -1, rowsDone: 0, at: '' })).rejects.toThrow('Certaines valeurs sont invalides.')
+    await api.knitting.saveYarnChecks(id, [])
+    expect((await api.knitting.getProject(id))!.yarnChecks).toEqual([])
+    await expect(api.knitting.saveYarnChecks(id, [{ yarn: 0, grams: -1, rowsDone: 0, at: '' }])).rejects.toThrow('Certaines valeurs sont invalides.')
+    await expect(api.knitting.saveYarnChecks(id, [checks[0]!, checks[0]!])).rejects.toThrow('Certaines valeurs sont invalides.')
+  })
+
+  it('lit le glossaire des abréviations classiques, par langue', async () => {
+    const { api } = await signedInApi()
+    const glossary = await api.knitting.getGlossary()
+    expect(glossary.en.find((a) => a.abbr === 'k2tog')?.meaning).toMatch(/2 mailles ensemble/)
+    expect(glossary.fr.find((a) => a.abbr === 'jeté')).toBeDefined()
+    expect(glossary.fr.find((a) => a.abbr === 'k2tog')).toBeUndefined()
   })
 
   it('pose une question et traduit (sans clé d’analyse en local)', async () => {

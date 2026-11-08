@@ -3,6 +3,7 @@
 // YOUTUBE_API_KEY (vidéos YouTube : sans elle, l'import d'une vidéo est refusé).
 
 import { createSignedInCheck } from '../_shared/auth.ts'
+import { createUsageRecorder } from '../_shared/usage.ts'
 import { createHandler } from './handler.ts'
 
 Deno.serve(
@@ -15,5 +16,6 @@ Deno.serve(
     resolveDns: (host, type) => Deno.resolveDns(host, type),
     log: (message, data) => console.log(JSON.stringify({ message, ...data })),
     isSignedIn: createSignedInCheck(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_ANON_KEY')!),
+    recordUsage: createUsageRecorder(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY'), 'import-recipe'),
   }),
 )

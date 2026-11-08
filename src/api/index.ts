@@ -4,6 +4,7 @@ import { createFoodApi } from './food'
 import { createHydrationApi } from './hydration'
 import { createIdeasApi } from './ideas'
 import { createInboxApi } from './inbox'
+import { createLlmUsageApi } from './llmUsage'
 import { createMealsApi } from './meals'
 import { createPhotosApi } from './photos'
 import { createPushApi } from './push'
@@ -14,6 +15,7 @@ import { createWeightsApi } from './weights'
 import { createAgendaApi } from '@/modules/agenda/api'
 import { createPlantsApi } from '@/modules/plantes/api'
 import { createKnittingApi } from '@/modules/tricot/api'
+import { createWeekPlanApi } from '@/modules/repas/api'
 
 export function createApi(db: AppSupabaseClient) {
   return {
@@ -32,6 +34,8 @@ export function createApi(db: AppSupabaseClient) {
     plants: createPlantsApi(db),
     agenda: createAgendaApi(db),
     activity: createActivityApi(db),
+    weekPlan: createWeekPlanApi(db),
+    llmUsage: createLlmUsageApi(db),
   }
 }
 

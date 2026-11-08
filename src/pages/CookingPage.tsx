@@ -1,4 +1,4 @@
-import { Check, CheckCheck, Loader2, Sun, Timer as TimerIcon, X } from 'lucide-react'
+import { Check, CheckCheck, Loader2, Timer as TimerIcon, X } from 'lucide-react'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { toast } from 'sonner'
@@ -11,7 +11,8 @@ import { RecipeNotFound } from '@/components/recipes/RecipeNotFound'
 import { useApi } from '@/app/ApiContext'
 import { errorMessage } from '@/api'
 import { useTimers } from '@/hooks/useTimers'
-import { useWakeLock } from '@/hooks/useWakeLock'
+import { useScreenAwake } from '@/hooks/useWakeLock'
+import { ScreenAwakeToggle } from '@/components/ScreenAwakeToggle'
 import { NO_PROGRESS, splitSteps, toggle, type CookingProgress } from '@/lib/cooking'
 import { formatTimerDuration } from '@/lib/timers'
 import { formatIngredient, groupBySection, ingredientsFor, SERVINGS_MAX, servingsFromParam, type Recipe } from '@/lib/recipes'
@@ -32,7 +33,7 @@ function Cooking({ id }: { id: string }) {
   const navigate = useNavigate()
   const [progress, setProgress] = useState<CookingProgress>(NO_PROGRESS)
   const [finishing, setFinishing] = useState(false)
-  const awake = useWakeLock()
+  const awake = useScreenAwake()
   const timers = useTimers(id)
   const [newTimer, setNewTimer] = useState(false)
   const [resumePeople, setResumePeople] = useState<number | null>(null)
@@ -183,11 +184,7 @@ function Cooking({ id }: { id: string }) {
             onClose={() => setNewTimer(false)}
           />
         )}
-        {awake && (
-          <p className="flex items-center gap-1.5 text-sm text-muted-foreground">
-            <Sun className="size-4" aria-hidden /> L’écran reste allumé.
-          </p>
-        )}
+        <ScreenAwakeToggle awake={awake} className="self-start" />
         <VoiceControl steps={steps} progress={progress} ingredients={ingredients} timers={timers} onUpdate={update} />
 
         <section aria-labelledby="cooking-ingredients">

@@ -215,6 +215,20 @@ isOneToOne: false
       referencedColumns: ["id"]
     }
                   ]
+                },"knit_glossary": {
+                  Row: {
+                    "abbr": string,"lang": string,"meaning": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "abbr": string,"lang": string,"meaning": string
+                  }
+                  Update: {
+                    "abbr"?: string,"lang"?: string,"meaning"?: string
+                  }
+                  Relationships: [
+                    
+                  ]
                 },"knit_progress_photos": {
                   Row: {
                     "caption": string,"id": string,"project_id": string,"step_id": string | null,"storage_path": string,"taken_at": string
@@ -243,14 +257,14 @@ isOneToOne: false
                   ]
                 },"knit_projects": {
                   Row: {
-                    "abbreviations": NonNullable<Json>,"chart_hints": NonNullable<Json>,"created_at": string,"id": string,"my_gauge_rows": number | null,"my_gauge_stitches": number | null,"notes": string,"pattern_gauge_rows": number | null,"pattern_gauge_stitches": number | null,"pdf_path": string | null,"profile_id": string,"size": string,"size_index": number | null,"sizes": (string)[],"title": string,"updated_at": string,"yarn_check": Json | null,"yarns": NonNullable<Json>
+                    "abbreviations": NonNullable<Json>,"adaptation": Json | null,"chart_hints": NonNullable<Json>,"created_at": string,"id": string,"my_gauge_rows": number | null,"my_gauge_stitches": number | null,"notes": string,"pattern_gauge_rows": number | null,"pattern_gauge_stitches": number | null,"pdf_path": string | null,"profile_id": string,"size": string,"size_index": number | null,"sizes": (string)[],"title": string,"updated_at": string,"yarn_checks": NonNullable<Json>,"yarns": NonNullable<Json>
                   }
                   ComputedFields: never
                   Insert: {
-                    "abbreviations"?: NonNullable<Json>,"chart_hints"?: NonNullable<Json>,"created_at"?: string,"id"?: string,"my_gauge_rows"?: number | null,"my_gauge_stitches"?: number | null,"notes"?: string,"pattern_gauge_rows"?: number | null,"pattern_gauge_stitches"?: number | null,"pdf_path"?: string | null,"profile_id"?: string,"size": string,"size_index"?: number | null,"sizes"?: (string)[],"title": string,"updated_at"?: string,"yarn_check"?: Json | null,"yarns"?: NonNullable<Json>
+                    "abbreviations"?: NonNullable<Json>,"adaptation"?: Json | null,"chart_hints"?: NonNullable<Json>,"created_at"?: string,"id"?: string,"my_gauge_rows"?: number | null,"my_gauge_stitches"?: number | null,"notes"?: string,"pattern_gauge_rows"?: number | null,"pattern_gauge_stitches"?: number | null,"pdf_path"?: string | null,"profile_id"?: string,"size": string,"size_index"?: number | null,"sizes"?: (string)[],"title": string,"updated_at"?: string,"yarn_checks"?: NonNullable<Json>,"yarns"?: NonNullable<Json>
                   }
                   Update: {
-                    "abbreviations"?: NonNullable<Json>,"chart_hints"?: NonNullable<Json>,"created_at"?: string,"id"?: string,"my_gauge_rows"?: number | null,"my_gauge_stitches"?: number | null,"notes"?: string,"pattern_gauge_rows"?: number | null,"pattern_gauge_stitches"?: number | null,"pdf_path"?: string | null,"profile_id"?: string,"size"?: string,"size_index"?: number | null,"sizes"?: (string)[],"title"?: string,"updated_at"?: string,"yarn_check"?: Json | null,"yarns"?: NonNullable<Json>
+                    "abbreviations"?: NonNullable<Json>,"adaptation"?: Json | null,"chart_hints"?: NonNullable<Json>,"created_at"?: string,"id"?: string,"my_gauge_rows"?: number | null,"my_gauge_stitches"?: number | null,"notes"?: string,"pattern_gauge_rows"?: number | null,"pattern_gauge_stitches"?: number | null,"pdf_path"?: string | null,"profile_id"?: string,"size"?: string,"size_index"?: number | null,"sizes"?: (string)[],"title"?: string,"updated_at"?: string,"yarn_checks"?: NonNullable<Json>,"yarns"?: NonNullable<Json>
                   }
                   Relationships: [
                     {
@@ -321,19 +335,65 @@ isOneToOne: false
       referencedColumns: ["id"]
     }
                   ]
-                },"meals": {
+                },"llm_usage": {
                   Row: {
-                    "created_at": string,"created_by": string | null,"id": string,"meal_date": string,"people": (string)[],"recipe_id": string,"slot": Database["public"]['Enums']["meal_slot"],"updated_at": string
+                    "cache_creation_tokens": number,"cache_read_tokens": number,"created_at": string,"function": string,"id": number,"input_tokens": number,"mode": string | null,"model": string,"ok": boolean,"output_tokens": number,"requests": number,"user_id": string | null,"web_searches": number
                   }
                   ComputedFields: never
                   Insert: {
-                    "created_at"?: string,"created_by"?: string | null,"id"?: string,"meal_date": string,"people": (string)[],"recipe_id": string,"slot": Database["public"]['Enums']["meal_slot"],"updated_at"?: string
+                    "cache_creation_tokens"?: number,"cache_read_tokens"?: number,"created_at"?: string,"function": string,"id"?: never,"input_tokens"?: number,"mode"?: string | null,"model": string,"ok"?: boolean,"output_tokens"?: number,"requests"?: number,"user_id"?: string | null,"web_searches"?: number
                   }
                   Update: {
-                    "created_at"?: string,"created_by"?: string | null,"id"?: string,"meal_date"?: string,"people"?: (string)[],"recipe_id"?: string,"slot"?: Database["public"]['Enums']["meal_slot"],"updated_at"?: string
+                    "cache_creation_tokens"?: number,"cache_read_tokens"?: number,"created_at"?: string,"function"?: string,"id"?: never,"input_tokens"?: number,"mode"?: string | null,"model"?: string,"ok"?: boolean,"output_tokens"?: number,"requests"?: number,"user_id"?: string | null,"web_searches"?: number
                   }
                   Relationships: [
                     {
+      foreignKeyName: "llm_usage_user_id_fkey"
+      columns: ["user_id"]
+isOneToOne: false
+      referencedRelation: "profiles"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"meal_presence_rules": {
+                  Row: {
+                    "ignored_keywords": (string)[],"profile_id": string,"updated_at": string,"weekday_lunch_at_work": boolean
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "ignored_keywords"?: (string)[],"profile_id"?: string,"updated_at"?: string,"weekday_lunch_at_work"?: boolean
+                  }
+                  Update: {
+                    "ignored_keywords"?: (string)[],"profile_id"?: string,"updated_at"?: string,"weekday_lunch_at_work"?: boolean
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "meal_presence_rules_profile_id_fkey"
+      columns: ["profile_id"]
+isOneToOne: true
+      referencedRelation: "profiles"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"meals": {
+                  Row: {
+                    "cook_id": string | null,"created_at": string,"created_by": string | null,"id": string,"meal_date": string,"people": (string)[],"recipe_id": string,"slot": Database["public"]['Enums']["meal_slot"],"updated_at": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "cook_id"?: string | null,"created_at"?: string,"created_by"?: string | null,"id"?: string,"meal_date": string,"people": (string)[],"recipe_id": string,"slot": Database["public"]['Enums']["meal_slot"],"updated_at"?: string
+                  }
+                  Update: {
+                    "cook_id"?: string | null,"created_at"?: string,"created_by"?: string | null,"id"?: string,"meal_date"?: string,"people"?: (string)[],"recipe_id"?: string,"slot"?: Database["public"]['Enums']["meal_slot"],"updated_at"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "meals_cook_id_fkey"
+      columns: ["cook_id"]
+isOneToOne: false
+      referencedRelation: "profiles"
+      referencedColumns: ["id"]
+    },{
       foreignKeyName: "meals_created_by_fkey"
       columns: ["created_by"]
 isOneToOne: false
@@ -805,6 +865,9 @@ isOneToOne: false
               "containers": Json,"drunk_ml": number,"goal_ml": number,"profile_id": string
             }[]
                            },
+"knit_yarn_checks_are_valid":
+{ Args: { "p_checks": Json }; Returns: boolean
+                           },
 "knit_yarns_are_valid":
 { Args: { "p_yarns": Json }; Returns: boolean
                            },
@@ -813,6 +876,11 @@ isOneToOne: false
                            },
 "linkable_recipe":
 { Args: { "p_linked_recipe_id": string,"p_recipe_id": string }; Returns: string
+                           },
+"llm_usage_summary":
+{ Args: { "p_since"?: string,"p_until"?: string }; Returns: {
+              "cache_creation_tokens": number,"cache_read_tokens": number,"calls": number,"failures": number,"function": string,"input_tokens": number,"mode": string,"model": string,"output_tokens": number,"requests": number,"user_id": string,"web_searches": number
+            }[]
                            },
 "months_are_valid":
 { Args: { "p_months": (number)[] }; Returns: boolean
@@ -823,10 +891,16 @@ isOneToOne: false
 "plan_inbox_item":
 { Args: { "p_item_id": string,"p_meal_date": string,"p_people": (string)[],"p_slot": Database["public"]['Enums']["meal_slot"] }; Returns: string
                            },
+"plan_week":
+{ Args: { "p_meals": Json }; Returns: number
+                           },
 "plant_reminders_due":
 { Args: { "p_now"?: string }; Returns: {
               "profile_id": string
             }[]
+                           },
+"purge_llm_usage":
+{ Args: Record<PropertyKey, never>; Returns: undefined
                            },
 "recent_activity":
 { Args: { "p_since"?: string }; Returns: {

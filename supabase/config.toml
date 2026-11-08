@@ -423,6 +423,9 @@ verify_jwt = true
 [functions.suggest-meals]
 verify_jwt = true
 
+[functions.plan-week]
+verify_jwt = true
+
 [functions.estimate-nutrition]
 verify_jwt = true
 

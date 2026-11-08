@@ -1,4 +1,4 @@
-import { ArrowRight, BellRing, Check, SearchX, ChevronLeft, ChevronRight, CloudOff, FileText, Minus, MoreHorizontal, Plus, Sun, Trash2, Undo2 } from 'lucide-react'
+import { ArrowRight, BellRing, Check, SearchX, ChevronLeft, ChevronRight, CloudOff, FileText, Minus, MoreHorizontal, Plus, Trash2, Undo2, Wand2 } from 'lucide-react'
 import { useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { toast } from 'sonner'
@@ -14,20 +14,23 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { Textarea } from '@/components/ui/textarea'
 import { NativeSelect } from '@/components/ui/native-select'
 import { LoadError } from '@/components/LoadError'
-import { useWakeLock } from '@/hooks/useWakeLock'
+import { useScreenAwake } from '@/hooks/useWakeLock'
+import { ScreenAwakeToggle } from '@/components/ScreenAwakeToggle'
 import { cn } from '@/lib/utils'
 import { openInNewTab } from '@/lib/openInNewTab'
 import { SizePicker, StepText } from '../components/SizedText'
 import { StepQuestion } from '../components/StepQuestion'
 import { YarnCheckCard } from '../components/YarnCheckCard'
-import type { YarnCheck } from '../lib/yarnLeft'
+import { withYarnCheck, type YarnCheck } from '../lib/yarnLeft'
 import { StepCharts } from '../components/StepCharts'
 import { StepSections } from '../components/StepSections'
 import { ProgressPanel } from '../components/ProgressPanel'
+import { AdaptPanel } from '../components/AdaptPanel'
+import { applyAdaptation, withAdaptedSections, type ShownStep } from '../lib/adapt'
 import { YarnPanel, type ProjectInfo } from '../components/YarnPanel'
 import { adjustCount, type Gauge } from '../lib/yarn'
 import { useKnitProject } from '../hooks/useKnitProject'
-import { alertsAt, currentStepIndex, describeSection, MAX_ROW_COUNT, type KnitStep } from '../lib/pattern'
+import { alertsAt, currentStepIndex, describeSection, MAX_ROW_COUNT, type KnitStep, type StepSection } from '../lib/pattern'
 
 function RowCounter({ step, gauges, onCount }: { step: KnitStep; gauges: { pattern: Gauge; mine: Gauge }; onCount: (delta: number) => void }) {
   const adjustedRows = adjustCount(step.totalRows, gauges.pattern.rows, gauges.mine.rows)
@@ -112,7 +115,7 @@ export function KnittingProjectPage() {
   const [selected, setSelected] = useState<string | null>(null)
   const [confirmDelete, setConfirmDelete] = useState(false)
   // Aiguilles en main : l'écran ne s'éteint pas tant que le projet est affiché.
-  const awake = useWakeLock()
+  const awake = useScreenAwake()
 
   const back = (
     <Link to="/tricot" className="mb-2 inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
@@ -151,7 +154,11 @@ export function KnittingProjectPage() {
     )
   }
 
-  const steps = project.steps
+  // Patron adapté suivi : ses rangs, mailles et sections remplacent ceux du patron d'origine (gardé tel quel).
+  const adaptation = project.adaptation ?? null
+  const following = adaptation?.active === true
+  const steps: ShownStep[] = applyAdaptation(project.steps, adaptation)
+  const followedSize = (project.sizeIndex !== null ? project.sizes[project.sizeIndex] : undefined) ?? project.size
   const step = steps.find((s) => s.id === selected) ?? steps[currentStepIndex(steps)]!
   const index = steps.indexOf(step)
 
@@ -159,7 +166,9 @@ export function KnittingProjectPage() {
     await openInNewTab(() => api.knitting.pdfUrl(project!.pdfPath!)).catch((error: unknown) => toast.error(errorMessage(error)))
   }
 
-  const gauges = { pattern: project.patternGauge, mine: project.myGauge }
+  // L'estimation (≈) d'après l'échantillon n'a plus lieu d'être quand le patron adapté est suivi.
+  const noGauge = { stitches: null, rows: null }
+  const gauges = following ? { pattern: noGauge, mine: noGauge } : { pattern: project.patternGauge, mine: project.myGauge }
   const adjustedStitches = adjustCount(step.stitches, gauges.pattern.stitches, gauges.mine.stitches)
 
   async function saveInfo(info: ProjectInfo): Promise<boolean> {
@@ -186,7 +195,20 @@ export function KnittingProjectPage() {
 
   async function saveYarnCheck(check: YarnCheck): Promise<boolean> {
     try {
-      await api.knitting.saveYarnCheck(project!.id, check)
+      await api.knitting.saveYarnChecks(project!.id, withYarnCheck(project!.yarnChecks ?? [], check))
+      await reload()
+      return true
+    } catch (error) {
+      toast.error(errorMessage(error))
+      return false
+    }
+  }
+
+  /** Sections modifiées : dans l'adaptation pour une étape adaptée, sinon dans l'étape du patron. */
+  async function saveSections(target: ShownStep, sections: StepSection[]): Promise<boolean> {
+    if (!target.adapted || !adaptation) return saveStep(target.id, { sections })
+    try {
+      await api.knitting.saveAdaptation(project!.id, withAdaptedSections(adaptation, target.id, sections))
       await reload()
       return true
     } catch (error) {
@@ -245,11 +267,7 @@ export function KnittingProjectPage() {
         }
       />
 
-      {awake && (
-        <p className="-mt-2 mb-3 flex items-center gap-1.5 text-sm text-muted-foreground">
-          <Sun className="size-4" aria-hidden /> L’écran reste allumé.
-        </p>
-      )}
+      <ScreenAwakeToggle awake={awake} className="-mt-2 mb-2" />
       {(offline || pending > 0) && (
         <p role="status" className="-mt-1 mb-3 flex items-start gap-1.5 rounded-xl bg-muted/50 p-3 text-sm">
           <CloudOff className="mt-0.5 size-4 shrink-0" aria-hidden />
@@ -315,6 +333,17 @@ export function KnittingProjectPage() {
             <h2 id="step-title" className="text-lg font-semibold">
               {step.title}
             </h2>
+            {step.adapted && (
+              <p className="mt-1 flex items-start gap-1.5 rounded-xl bg-brand/10 p-2 text-sm">
+                <Wand2 className="mt-0.5 size-4 shrink-0 text-brand" aria-hidden />
+                <span>
+                  Patron adapté{step.adapted.note && ` : ${step.adapted.note}`}
+                  <span className="block text-xs text-muted-foreground">
+                    Patron d’origine : {step.adapted.original.totalRows ?? '?'} rangs, {step.adapted.original.stitches ?? '?'} mailles à la fin.
+                  </span>
+                </span>
+              </p>
+            )}
           </header>
           <SizePicker id="knit-size-index" sizes={project.sizes} sizeIndex={project.sizeIndex} onChange={(i) => void changeSize(i)} />
           {step.instructions && (
@@ -335,13 +364,13 @@ export function KnittingProjectPage() {
               stepTitle={step.title}
               text={step.translation || step.instructions}
               row={step.totalRows !== null && step.rowCount >= step.totalRows ? null : step.rowCount + 1}
-              size={(project.sizeIndex !== null ? project.sizes[project.sizeIndex] : undefined) ?? project.size}
+              size={followedSize}
               abbreviations={project.abbreviations ?? []}
             />
           )}
           <RowCounter step={step} gauges={gauges} onCount={(delta) => void countRows(step.id, delta)} />
           <StepCharts projectId={project.id} pdfPath={project.pdfPath} step={step} steps={steps} charts={project.charts} hints={project.chartHints} onCount={(delta) => void countRows(step.id, delta)} onChanged={reload} />
-          <StepSections step={step} onChange={(sections) => saveStep(step.id, { sections })} onCount={(delta) => void countRows(step.id, delta)} />
+          <StepSections step={step} onChange={(sections) => saveSections(step, sections)} onCount={(delta) => void countRows(step.id, delta)} />
           <Notes step={step} onSave={(notes) => void saveStep(step.id, { notes })} />
           <div className="flex flex-wrap gap-2">
             {step.done ? (
@@ -362,7 +391,11 @@ export function KnittingProjectPage() {
       </div>
 
       <div className="mt-4">
-        <YarnCheckCard yarn={project.yarns[0]} steps={steps} check={project.yarnCheck ?? null} onSave={saveYarnCheck} />
+        <AdaptPanel project={project} size={followedSize} onSaved={reload} />
+      </div>
+
+      <div className="mt-4">
+        <YarnCheckCard yarns={project.yarns} steps={steps} checks={project.yarnChecks ?? []} onSave={saveYarnCheck} />
       </div>
 
       <div className="mt-4">

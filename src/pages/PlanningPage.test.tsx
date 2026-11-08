@@ -12,7 +12,12 @@ function renderPlanning(api = fakeApi()) {
     api,
     route: '/planning',
     path: '/planning',
-    extraRoutes: <Route path="/recettes/:id/modifier" element={<p>Formulaire recette</p>} />,
+    extraRoutes: (
+      <>
+        <Route path="/recettes/:id/modifier" element={<p>Formulaire recette</p>} />
+        <Route path="/planning/semaine" element={<p>Planifier la semaine</p>} />
+      </>
+    ),
   })
 }
 
@@ -26,6 +31,33 @@ async function openMenu(user: ReturnType<typeof userEvent.setup>, title: string)
 }
 
 describe('PlanningPage', () => {
+  it('ouvre « Planifier la semaine »', async () => {
+    const user = userEvent.setup()
+    renderPlanning()
+    await screen.findAllByTestId('day-card')
+    await user.click(screen.getByRole('button', { name: 'Planifier la semaine' }))
+    expect(await screen.findByText('Planifier la semaine')).toBeInTheDocument()
+  })
+
+  it('affiche qui cuisine et le change depuis le menu', async () => {
+    const user = userEvent.setup()
+    const api = fakeApi()
+    api.meals.listMeals.mockResolvedValue([mealFixture({ meal_date: TODAY, people: [ERIC.id, LUCILE.id], cook_id: ERIC.id })])
+    renderPlanning(api)
+    expect(await screen.findByText('Eric cuisine')).toBeInTheDocument()
+
+    let menu = await openMenu(user, 'Pâtes tomate')
+    expect(within(menu).queryByRole('menuitem', { name: 'Eric cuisine' })).not.toBeInTheDocument()
+    await user.click(within(menu).getByRole('menuitem', { name: 'Lucile cuisine' }))
+    await waitFor(() => expect(api.meals.setCook).toHaveBeenCalledWith('m1', LUCILE.id))
+
+    menu = await openMenu(user, 'Pâtes tomate')
+    api.meals.setCook.mockRejectedValueOnce(new AppError('Impossible de changer qui cuisine.'))
+    await user.click(within(menu).getByRole('menuitem', { name: 'Personne de désigné' }))
+    await waitFor(() => expect(api.meals.setCook).toHaveBeenLastCalledWith('m1', null))
+    expect(await screen.findByText('Impossible de changer qui cuisine.')).toBeInTheDocument()
+  })
+
   it('affiche 7 jours à partir d’aujourd’hui avec les créneaux Midi et Soir', async () => {
     const { api } = renderPlanning()
     expect(await screen.findAllByTestId('day-card')).toHaveLength(7)

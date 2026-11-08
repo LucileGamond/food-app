@@ -3,6 +3,7 @@
 // WEB_SEARCH_TOOL (facultatif : type de l'outil de recherche web, web_search_20250305 par défaut).
 
 import { createSignedInCheck } from '../_shared/auth.ts'
+import { createUsageRecorder } from '../_shared/usage.ts'
 import { createHandler } from './handler.ts'
 
 Deno.serve(
@@ -13,5 +14,6 @@ Deno.serve(
     fetchModel: fetch,
     log: (message, data) => console.log(JSON.stringify({ message, ...data })),
     isSignedIn: createSignedInCheck(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_ANON_KEY')!),
+    recordUsage: createUsageRecorder(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY'), 'suggest-meals'),
   }),
 )

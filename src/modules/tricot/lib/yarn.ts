@@ -307,12 +307,39 @@ export function describeYarn(yarn: Yarn): string {
   return [yarnTitle(yarn), yarnDetails({ ...yarn, skeins: null })].filter(Boolean).join(', ')
 }
 
+/** Tailles d'aiguilles du filtre « needles » de Ravelry, en mm. */
+export const RAVELRY_NEEDLES_MM = [
+  0.5, 0.75, 1, 1.25, 1.5, 1.75, 2, 2.25, 2.5, 2.75, 3, 3.25, 3.5, 3.75, 4, 4.5, 5, 5.5, 6, 6.5, 7, 7.5, 8, 9, 10, 12.75, 15, 19, 25,
+]
+const METERS_PER_YARD = 0.9144
+
+export interface PatternSearchFilters {
+  /** Grosseur de la laine (catégorie Ravelry). */
+  weight?: string | null
+  /** Métrage disponible : patrons qui en demandent au plus autant. */
+  meters?: number | null
+  /** Taille d'aiguilles de la laine : tailles Ravelry à 0,5 mm près. */
+  needleMm?: number | null
+}
+
+/** 4 → « 4.0mm », 3.75 → « 3.75mm » (valeurs du filtre Ravelry). */
+function ravelryNeedle(mm: number): string {
+  return `${Number.isInteger(mm) ? mm.toFixed(1) : String(mm)}mm`
+}
+
 /**
- * Recherche de patrons sur Ravelry : tricot seulement, grosseur de la laine (catégorie Ravelry, si connue) et
- * mots-clés proposés par le modèle.
+ * Recherche de patrons sur Ravelry : tricot seulement, mots-clés proposés par le modèle et, si connus, grosseur de
+ * la laine, métrage disponible (en yards pour Ravelry) et aiguilles proches de celles de la laine.
  */
-export function patternSearchUrl(search: string, weight: string | null = null): string {
-  const filters = ['craft=knitting', weight && `weight=${encodeURIComponent(weight)}`, `query=${encodeURIComponent(search)}`]
+export function patternSearchUrl(search: string, { weight = null, meters = null, needleMm = null }: PatternSearchFilters = {}): string {
+  const needles = needleMm === null ? [] : RAVELRY_NEEDLES_MM.filter((mm) => Math.abs(mm - needleMm) <= NEEDLE_TOLERANCE_MM + 1e-9)
+  const filters = [
+    'craft=knitting',
+    weight && `weight=${encodeURIComponent(weight)}`,
+    meters !== null && meters > 0 && `yardage=0%7C${Math.floor(meters / METERS_PER_YARD)}`,
+    needles.length > 0 && `needles=${needles.map(ravelryNeedle).join('%7C')}`,
+    `query=${encodeURIComponent(search)}`,
+  ]
   return `https://www.ravelry.com/patterns/search#${filters.filter(Boolean).join('&')}`
 }
 
