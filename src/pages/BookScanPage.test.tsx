@@ -140,7 +140,7 @@ describe('BookScanPage', { timeout: 20_000 }, () => {
     expect(within(results()).getAllByTestId('batch-item')).toHaveLength(1)
   })
 
-  it('reprise demandée au récapitulatif : retour à la caméra', async () => {
+  it('reprise demandée au récapitulatif : caméra le temps d’une photo, puis retour au récapitulatif', async () => {
     const { user, api } = setup()
     const none = new AppError('Pas une recette', 'import-422')
     api.recipes.importFromPhotos.mockRejectedValueOnce(none).mockRejectedValueOnce(none)
@@ -152,6 +152,62 @@ describe('BookScanPage', { timeout: 20_000 }, () => {
     await user.click(await screen.findByRole('button', { name: 'Reprendre la photo' }))
     expect(await screen.findByLabelText('Aperçu de la caméra')).toBeInTheDocument()
     await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent('Remets la page de la photo 1'))
+
+    // Annulée : retour au récapitulatif, sans scan automatique.
+    await user.click(screen.getByRole('button', { name: 'Annuler la reprise' }))
+    expect(await screen.findByRole('heading', { name: 'Scan terminé' })).toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: 'Reprendre la photo' }))
+    api.recipes.importFromPhotos.mockResolvedValueOnce(read('Far breton'))
+    await user.click(await screen.findByRole('button', { name: 'Prendre la photo' }))
+    expect(await screen.findByRole('heading', { name: /Lecture en cours|Scan terminé/ })).toBeInTheDocument()
+    expect(screen.queryByLabelText('Aperçu de la caméra')).not.toBeInTheDocument()
+    await wait()
+    await waitFor(() => expect(within(results()).getByRole('link', { name: 'Far breton' })).toBeInTheDocument())
+    expect(api.recipes.importFromPhotos).toHaveBeenLastCalledWith([expect.any(Blob)], ['dessert'], { insist: true })
+
+    // « Reprendre le scan » repasse par le réglage : aucune photo avant « Lancer le scan ».
+    await user.click(screen.getByRole('button', { name: 'Reprendre le scan' }))
+    expect(await screen.findByRole('button', { name: 'Lancer le scan' })).toBeInTheDocument()
+  })
+
+  it('erreur imprévue pendant la lecture : la photo passe en erreur au lieu de rester en lecture', async () => {
+    const { user, api } = setup()
+    // Recette mal formée : la conversion échoue.
+    api.recipes.importFromPhotos.mockResolvedValueOnce({ recipe: { title: 'Cassée' }, source: 'photo', image: null } as unknown as RecipeImport)
+    await open(user)
+    await user.click(screen.getByRole('button', { name: 'Prendre la photo' }))
+    await screen.findByTestId('batch-item')
+    await wait()
+    await waitFor(() => expect(within(results()).getByText(/^Erreur/)).toBeInTheDocument())
+    expect(within(results()).queryByText(/Lecture…/)).not.toBeInTheDocument()
+  })
+
+  it('hors ligne pendant la lecture : la photo attend et repart au retour du réseau', async () => {
+    const { user, api } = setup()
+    const onLine = vi.spyOn(navigator, 'onLine', 'get')
+    api.recipes.importFromPhotos
+      .mockImplementationOnce(async () => {
+        onLine.mockReturnValue(false)
+        throw new AppError('Pas de connexion internet.', 'network')
+      })
+      .mockResolvedValueOnce(read('Crêpes'))
+    try {
+      await open(user)
+      await user.click(screen.getByRole('button', { name: 'Prendre la photo' }))
+      await screen.findByTestId('batch-item')
+      await wait()
+      expect(await within(results()).findByText(/Hors ligne : nouvel essai au retour du réseau/)).toBeInTheDocument()
+      expect(api.recipes.importFromPhotos).toHaveBeenCalledTimes(1)
+
+      onLine.mockReturnValue(true)
+      act(() => void window.dispatchEvent(new Event('online')))
+      await wait(5100)
+      await waitFor(() => expect(within(results()).getByRole('link', { name: 'Crêpes' })).toBeInTheDocument())
+      expect(api.recipes.importFromPhotos).toHaveBeenCalledTimes(2)
+    } finally {
+      onLine.mockRestore()
+    }
   })
 
   it('annule la dernière photo tant qu’elle n’est pas partie', async () => {

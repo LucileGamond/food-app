@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react'
 
+const NO_URLS: Record<string, string> = {}
+
 /** Les liens durent 1 h (src/api/photos.ts) : on les redemande un peu avant. */
 export const SIGNED_URLS_REFRESH_MS = 50 * 60 * 1000
 
@@ -12,10 +14,7 @@ export function useSignedUrls(signedUrls: (paths: string[]) => Promise<Record<st
   const key = paths.join('|')
 
   useEffect(() => {
-    if (key === '') {
-      setUrls({})
-      return
-    }
+    if (key === '') return
     let active = true
     let fetchedAt = 0
     const load = () => {
@@ -38,5 +37,6 @@ export function useSignedUrls(signedUrls: (paths: string[]) => Promise<Record<st
     }
   }, [signedUrls, key])
 
-  return urls
+  // Plus aucune photo : rien à afficher (sans attendre un nouveau rendu).
+  return key === '' ? NO_URLS : urls
 }

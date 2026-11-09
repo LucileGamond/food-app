@@ -36,6 +36,7 @@ export function MealItem({ meal, profiles, disabled, onAction }: Props) {
     <li
       ref={move.setNodeRef}
       // Appui long (tactile) ou glisser (souris) pour déplacer ; au clavier : menu « Déplacer… ».
+      // oxlint-disable-next-line react/refs -- écouteurs d'événements de dnd-kit (pas une ref lue au rendu)
       {...move.listeners}
       data-testid="meal-item"
       className={cn(
@@ -88,7 +89,9 @@ export function MealItem({ meal, profiles, disabled, onAction }: Props) {
         <button
           ref={copy.setNodeRef}
           type="button"
+          // oxlint-disable-next-line react/refs -- attributs et écouteurs d'événements de dnd-kit (pas une ref lue au rendu)
           {...copy.attributes}
+          // oxlint-disable-next-line react/refs -- écouteurs d'événements de dnd-kit (pas une ref lue au rendu)
           {...copy.listeners}
           aria-label={`Glisser pour dupliquer ${recipe.title}`}
           title="Glisser pour dupliquer"

@@ -21,15 +21,16 @@ import { SizePicker, StepText } from '../components/SizedText'
 import { StepQuestion } from '../components/StepQuestion'
 import { StepAbbreviations } from '../components/StepAbbreviations'
 import { YarnCheckCard } from '../components/YarnCheckCard'
-import { withYarnCheck, type YarnCheck } from '../lib/yarnLeft'
+import { withoutYarn, withYarnCheck, type YarnCheck } from '../lib/yarnLeft'
 import { StepCharts } from '../components/StepCharts'
 import { StepSections } from '../components/StepSections'
 import { ProgressPanel } from '../components/ProgressPanel'
 import { AdaptPanel } from '../components/AdaptPanel'
-import { applyAdaptation, withAdaptedSections, type ShownStep } from '../lib/adapt'
+import { adaptationPaused, applyAdaptation, withAdaptedSections, type ShownStep } from '../lib/adapt'
 import { YarnPanel, type ProjectInfo } from '../components/YarnPanel'
 import { adjustCount, type Gauge } from '../lib/yarn'
 import { useKnitProject } from '../hooks/useKnitProject'
+import { forgetProject } from '../lib/offline'
 import { alertsAt, currentStepIndex, describeSection, MAX_ROW_COUNT, type KnitStep, type StepSection } from '../lib/pattern'
 
 function RowCounter({ step, gauges, onCount }: { step: KnitStep; gauges: { pattern: Gauge; mine: Gauge }; onCount: (delta: number) => void }) {
@@ -158,9 +159,9 @@ export function KnittingProjectPage() {
 
   // Patron adapté suivi : ses rangs, mailles et sections remplacent ceux du patron d'origine (gardé tel quel).
   const adaptation = project.adaptation ?? null
-  const following = adaptation?.active === true
-  const steps: ShownStep[] = applyAdaptation(project.steps, adaptation)
   const followedSize = (project.sizeIndex !== null ? project.sizes[project.sizeIndex] : undefined) ?? project.size
+  const following = adaptation?.active === true && !adaptationPaused(adaptation, followedSize)
+  const steps: ShownStep[] = applyAdaptation(project.steps, adaptation, followedSize)
   const current = steps[currentStepIndex(steps)]
   const step = steps.find((s) => s.id === stepParam) ?? current
   const index = step ? steps.indexOf(step) : -1
@@ -175,9 +176,12 @@ export function KnittingProjectPage() {
   const noGauge = { stitches: null, rows: null }
   const gauges = following ? { pattern: noGauge, mine: noGauge } : { pattern: project.patternGauge, mine: project.myGauge }
 
-  async function saveInfo(info: ProjectInfo): Promise<boolean> {
+  async function saveInfo(info: ProjectInfo, removedYarn?: number): Promise<boolean> {
     try {
       await api.knitting.saveProjectInfo(project!.id, info)
+      // Laine retirée : les pesées restent liées à la bonne laine.
+      const checks = project!.yarnChecks ?? []
+      if (removedYarn !== undefined && checks.some((c) => c.yarn >= removedYarn)) await api.knitting.saveYarnChecks(project!.id, withoutYarn(checks, removedYarn))
       await reload()
       return true
     } catch (error) {
@@ -238,6 +242,8 @@ export function KnittingProjectPage() {
   async function remove() {
     try {
       await api.knitting.deleteProject(project!)
+      // Plus de copie sur le téléphone ni d'avancée en attente pour ce projet.
+      forgetProject(project!.id)
       toast.success('Projet supprimé')
       navigate('/tricot')
     } catch (error) {

@@ -65,14 +65,14 @@ isOneToOne: true
                   ]
                 },"calendar_sources": {
                   Row: {
-                    "created_at": string,"id": string,"last_error": string | null,"last_synced_at": string | null,"name": string,"owner_id": string,"provider": string
+                    "created_at": string,"id": string,"last_error": string | null,"last_synced_at": string | null,"name": string,"owner_id": string,"provider": string,"sync_started_at": string | null
                   }
                   ComputedFields: never
                   Insert: {
-                    "created_at"?: string,"id"?: string,"last_error"?: string | null,"last_synced_at"?: string | null,"name": string,"owner_id"?: string,"provider": string
+                    "created_at"?: string,"id"?: string,"last_error"?: string | null,"last_synced_at"?: string | null,"name": string,"owner_id"?: string,"provider": string,"sync_started_at"?: string | null
                   }
                   Update: {
-                    "created_at"?: string,"id"?: string,"last_error"?: string | null,"last_synced_at"?: string | null,"name"?: string,"owner_id"?: string,"provider"?: string
+                    "created_at"?: string,"id"?: string,"last_error"?: string | null,"last_synced_at"?: string | null,"name"?: string,"owner_id"?: string,"provider"?: string,"sync_started_at"?: string | null
                   }
                   Relationships: [
                     {

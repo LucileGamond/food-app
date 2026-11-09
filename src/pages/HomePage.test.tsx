@@ -89,6 +89,19 @@ describe('HomePage', () => {
     await waitFor(() => expect(api.knitting.saveProgress).toHaveBeenCalledWith('s2', { rowCount: 24 }))
   })
 
+  it('un double appui sur un verre n’en note qu’un', async () => {
+    const { api, user } = setup()
+    let finish: () => void = () => undefined
+    api.hydration.addIntake.mockImplementation(
+      (volumeMl: number) => new Promise((resolve) => (finish = () => resolve({ id: 'w-1', volume_ml: volumeMl, drunk_at: new Date().toISOString() }))),
+    )
+    const glass = await within(await screen.findByRole('region', { name: 'Eau' })).findByRole('button', { name: /^Grand verre/ })
+    await user.dblClick(glass)
+    expect(api.hydration.addIntake).toHaveBeenCalledTimes(1)
+    finish()
+    await waitFor(() => expect(glass).toBeEnabled())
+  })
+
   it('seulement les pages affichées ; rien à arroser ni tricot en cours', async () => {
     const { api } = setup(['planning', 'hydratation'])
     api.plants.listPlants.mockResolvedValue([])

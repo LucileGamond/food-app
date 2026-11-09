@@ -1,4 +1,4 @@
-import AxeBuilder from '@axe-core/playwright'
+import { axeFor } from './support/a11y'
 import { DEFAULT_SETTINGS } from '../src/lib/settings'
 import { signedInApi } from '../tests/integration/helpers'
 import { expect, login, test } from './fixtures'
@@ -32,7 +32,7 @@ test('notes et photos d’avancement d’un projet de tricot', async ({ page }) 
   const photos = panel.getByRole('list', { name: 'Photos d’avancement' })
   await expect(photos.getByRole('listitem')).toHaveCount(1)
   await expect(photos).toContainText('Dos – côtes')
-  expect((await new AxeBuilder({ page }).exclude('[data-sonner-toaster]').analyze()).violations).toEqual([])
+  expect((await (await axeFor(page)).exclude('[data-sonner-toaster]').analyze()).violations).toEqual([])
 
   // Agrandie, légendée
   await photos.getByRole('button', { name: /^Voir la photo/ }).click()

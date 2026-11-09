@@ -1,4 +1,4 @@
-import AxeBuilder from '@axe-core/playwright'
+import { axeFor } from './support/a11y'
 import { MONTH_NAMES } from '../src/lib/season'
 import { SEASON_CALENDAR } from '../src/lib/seasonCalendar'
 import { signedInApi } from '../tests/integration/helpers'
@@ -32,5 +32,5 @@ test('recettes de saison : badge, filtre, fiche et page « Ce mois-ci »', async
   await expect(page.getByRole('heading', { name: new RegExp(`^${MONTH_NAMES[month - 1]}$`, 'i') })).toBeVisible()
   await page.getByRole('button', { name: new RegExp(`^${fresh.name} ?·`) }).click()
   await expect(page.getByRole('link', { name: /poêlée du mois/ })).toBeVisible()
-  expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([])
+  expect((await (await axeFor(page)).analyze()).violations).toEqual([])
 })

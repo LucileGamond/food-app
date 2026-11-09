@@ -109,6 +109,11 @@ export function sanitizeYarnChecks(raw: unknown): YarnCheck[] {
   return checks.filter((c, i) => checks.findIndex((o) => o.yarn === c.yarn) === i)
 }
 
+/** Pesées après le retrait d'une laine : la sienne disparaît, celles des laines suivantes suivent leur laine. */
+export function withoutYarn(checks: YarnCheck[], removed: number): YarnCheck[] {
+  return checks.filter((c) => c.yarn !== removed).map((c) => (c.yarn > removed ? { ...c, yarn: c.yarn - 1 } : c))
+}
+
 /** Pesées après une nouvelle pesée : elle remplace la précédente de la même laine. */
 export function withYarnCheck(checks: YarnCheck[], check: YarnCheck): YarnCheck[] {
   return [...checks.filter((c) => c.yarn !== check.yarn), check].sort((a, b) => a.yarn - b.yarn)

@@ -1,4 +1,4 @@
-import AxeBuilder from '@axe-core/playwright'
+import { axeFor } from './support/a11y'
 import { expect, login, test } from './fixtures'
 
 // Image PNG 1×1 : le contenu n'importe pas, la lecture par le modèle est simulée (aucun appel réel).
@@ -52,7 +52,7 @@ test('importe en série les recettes d’un livre, une image par page', async ({
     { name: 'page-148.png', mimeType: 'image/png', buffer: PNG_1PX },
   ])
   await expect(page.getByText('3 images · de « page-146.png » à « page-148.png »')).toBeVisible()
-  const results = await new AxeBuilder({ page }).exclude('[data-sonner-toaster]').withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa']).analyze()
+  const results = await (await axeFor(page)).exclude('[data-sonner-toaster]').withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa']).analyze()
   expect(results.violations.map((v) => v.id)).toEqual([])
 
   await page.getByRole('button', { name: 'Lancer l’import (3)' }).click()

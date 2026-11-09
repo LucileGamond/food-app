@@ -1,6 +1,6 @@
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(43);
+select plan(45);
 
 -- Tests indépendants des données locales (annulés en fin de transaction)
 delete from public.calendar_sources;
@@ -139,6 +139,11 @@ select is((select count(*)::int from public.agenda_reminders_due('2026-11-11T06:
 update public.user_settings set muted_notifications = '{agenda}';
 select is((select count(*)::int from public.agenda_reminders_due('2026-11-11T06:10:00Z')), 0, 'résumé coupé dans les réglages');
 
+select has_column('public', 'calendar_sources', 'sync_started_at', 'début de la dernière tentative de synchronisation');
+set local role authenticated;
+set local request.jwt.claims = '{"sub":"22222222-2222-2222-2222-222222222222","role":"authenticated"}';
+select throws_ok($$update public.calendar_sources set sync_started_at = now()$$, '42501', null, 'tentative de synchronisation réservée au serveur');
+reset role;
 select ok(exists (select 1 from cron.job where jobname = 'sync-calendars'), 'synchronisation planifiée');
 select ok(exists (select 1 from cron.job where jobname = 'notify-agenda'), 'résumé planifié');
 

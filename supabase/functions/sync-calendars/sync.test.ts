@@ -17,6 +17,7 @@ function setup(fetchOccurrences: CalendarProvider<IcalCredentials>['fetchOccurre
       { id: 's1', provider: 'ical' as const },
       { id: 's2', provider: 'ical' as const },
     ]),
+    markStarted: vi.fn(async (_sourceId: string) => undefined),
     loadCredentials: vi.fn(async (id: string): Promise<IcalCredentials | null> => ({ provider: 'ical', url: urlOf(id) })),
     saveOccurrences: vi.fn(async () => undefined),
     recordFailure: vi.fn(async () => undefined),
@@ -61,6 +62,29 @@ describe('synchronisation', () => {
     deps.loadCredentials.mockResolvedValueOnce(null)
     expect(await syncCalendars(deps, NOW)).toEqual({ synced: 1, failed: 1 })
     expect(deps.recordFailure).toHaveBeenCalledWith('s1', expect.stringContaining('Accès à l’agenda manquant'))
+  })
+})
+
+describe('ordre des sources', () => {
+  it('la tentative est notée avant le téléchargement : une source qui fait tomber la fonction ne bloque plus les autres', async () => {
+    const order: string[] = []
+    const deps = setup(async ({ url }) => {
+      order.push(`télécharge ${url === urlOf('s1') ? 's1' : 's2'}`)
+      return [rdv]
+    })
+    deps.markStarted.mockImplementation(async (id) => {
+      order.push(`tentative ${id}`)
+    })
+    await syncCalendars(deps, NOW)
+    expect(order).toEqual(['tentative s1', 'télécharge s1', 'tentative s2', 'télécharge s2'])
+  })
+
+  it('tentative impossible à noter : la source est en erreur, sans téléchargement', async () => {
+    const deps = setup()
+    deps.markStarted.mockRejectedValueOnce(new Error('base indisponible'))
+    expect(await syncCalendars(deps, NOW)).toEqual({ synced: 1, failed: 1 })
+    expect(deps.providers.ical.fetchOccurrences).toHaveBeenCalledTimes(1)
+    expect(deps.recordFailure).toHaveBeenCalledWith('s1', 'Synchronisation impossible pour le moment.')
   })
 })
 

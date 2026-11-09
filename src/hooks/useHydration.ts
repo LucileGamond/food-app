@@ -38,6 +38,7 @@ export function useHydration(api: Api, today: IsoDate): HydrationState {
   }, [api, today])
 
   useEffect(() => {
+    // oxlint-disable-next-line react/set-state-in-effect -- chargement depuis Supabase : l'état n'est modifié qu'après la réponse
     void reload()
   }, [reload])
   // Verres notés sur un autre appareil : la page suit en direct.
@@ -48,7 +49,8 @@ export function useHydration(api: Api, today: IsoDate): HydrationState {
       try {
         const intake = await api.hydration.addIntake(volumeMl)
         requestId.current += 1 // un chargement en cours ne doit pas effacer ce verre
-        setIntakes((list) => [...list, intake])
+        // Déjà là si le rechargement temps réel est arrivé avant la réponse : pas de verre en double.
+        setIntakes((list) => (list.some((i) => i.id === intake.id) ? list : [...list, intake]))
         return true
       } catch (error) {
         toast.error(errorMessage(error))

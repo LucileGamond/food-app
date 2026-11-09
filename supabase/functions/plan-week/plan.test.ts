@@ -99,6 +99,10 @@ describe('sanitizePlan', () => {
       { slot: '2026-11-09|LUNCH', dishId: 'd1', cookId: null, why: 'Restes' },
     ])
     expect(sanitizePlan(null, INPUT)).toEqual([])
+    // Cuisinier inconnu : laissé à l'application (pas pris pour des restes).
+    expect(sanitizePlan({ repas: [{ creneau: '2026-11-09|DINNER', plat_id: 'd1', cuisinier_id: 'qui ?', raison: '' }] }, INPUT)).toEqual([
+      { slot: '2026-11-09|DINNER', dishId: 'd1', why: '' },
+    ])
   })
 })
 

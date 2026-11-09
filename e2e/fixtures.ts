@@ -112,11 +112,32 @@ export async function dragTo(page: Page, source: Locator, target: Locator, isMob
   await touch('touchEnd', end.x, end.y)
 }
 
-/** Chaque test part d'une base vide (comptes conservés). */
+/** Millisecondes avant le prochain minuit à Paris. */
+export function msUntilParisMidnight(now = new Date()): number {
+  const parts = Object.fromEntries(
+    new Intl.DateTimeFormat('en-GB', { timeZone: 'Europe/Paris', hour: 'numeric', minute: 'numeric', second: 'numeric', hourCycle: 'h23' })
+      .formatToParts(now)
+      .map((p) => [p.type, Number(p.value)]),
+  )
+  const elapsed = ((parts.hour * 60 + parts.minute) * 60 + parts.second) * 1000 + now.getMilliseconds()
+  return 86_400_000 - elapsed
+}
+
+/**
+ * Chaque test part d'une base vide (comptes conservés) et ne chevauche pas minuit : les dates calculées par le test
+ * (« aujourd'hui », « dans 3 jours »), par l'application et par Supabase doivent tomber le même jour. L'horloge n'est
+ * pas figée dans le navigateur, car la base et les fonctions Supabase, elles, gardent l'heure réelle.
+ */
 export const test = base.extend<{ cleanDb: void }>({
   cleanDb: [
     // oxlint-disable-next-line no-empty-pattern -- signature imposée par Playwright
-    async ({}, use) => {
+    async ({}, use, testInfo) => {
+      const beforeMidnight = msUntilParisMidnight()
+      if (beforeMidnight < testInfo.timeout + 10_000) {
+        const wait = beforeMidnight + 2_000
+        testInfo.setTimeout(testInfo.timeout + wait)
+        await new Promise((resolve) => setTimeout(resolve, wait))
+      }
       await resetData()
       await use()
     },

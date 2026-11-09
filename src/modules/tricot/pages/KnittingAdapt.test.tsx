@@ -2,7 +2,7 @@ import { screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { AppError } from '@/api'
 import { fakeApi, renderWithApp } from '@/test/fakes'
-import { adaptationToJson, applyAdaptation, describeChange, sanitizeAdaptation, withAdaptedSections, type Adaptation } from '../lib/adapt'
+import { adaptationPaused, adaptationToJson, applyAdaptation, describeChange, sanitizeAdaptation, withAdaptedSections, type Adaptation } from '../lib/adapt'
 import type { KnitProject, KnitStep, StepSection } from '../lib/pattern'
 import { KnittingProjectPage } from './KnittingProjectPage'
 import { openFold } from '@/test/openFold'
@@ -47,6 +47,7 @@ const ADAPTATION: Adaptation = {
   request: '5 cm de plus aux manches',
   active: true,
   at: '2026-11-08T10:00:00Z',
+  size: 'M',
   steps: [{ stepId: 's1', totalRows: 136, stitches: 66, sections: [ADAPTED_REPEAT], note: '16 rangs de plus pour 5 cm.' }],
 }
 
@@ -62,9 +63,14 @@ function renderProject(api = fakeApi(), value = project(), route = '/tricot/p1?e
 describe('patron adapté : logique', () => {
   it('superpose l’adaptation suivie aux étapes, garde l’origine', () => {
     const steps = project().steps
-    expect(applyAdaptation(steps, null)).toBe(steps)
-    expect(applyAdaptation(steps, { ...ADAPTATION, active: false })).toBe(steps)
-    const [sleeve, collar] = applyAdaptation(steps, ADAPTATION)
+    expect(applyAdaptation(steps, null, 'M')).toBe(steps)
+    expect(applyAdaptation(steps, { ...ADAPTATION, active: false }, 'M')).toBe(steps)
+    // Faite pour M, la taille L est suivie : en pause ; une adaptation d'avant (taille non notée) reste suivie
+    expect(applyAdaptation(steps, ADAPTATION, 'L')).toBe(steps)
+    expect(adaptationPaused(ADAPTATION, 'L')).toBe(true)
+    expect(adaptationPaused({ ...ADAPTATION, size: null }, 'L')).toBe(false)
+    expect(applyAdaptation(steps, { ...ADAPTATION, size: null }, 'L')).not.toBe(steps)
+    const [sleeve, collar] = applyAdaptation(steps, ADAPTATION, 'M')
     expect(sleeve).toMatchObject({ totalRows: 136, stitches: 66, sections: [ADAPTED_REPEAT], adapted: { note: '16 rangs de plus pour 5 cm.', original: { totalRows: 120, stitches: 60 } } })
     expect(collar).toBe(steps[1])
     expect(withAdaptedSections(ADAPTATION, 's1', [REPEAT]).steps[0]!.sections).toEqual([REPEAT])
@@ -83,6 +89,7 @@ describe('patron adapté : logique', () => {
       request: '',
       active: true,
       at: '',
+      size: null,
       steps: [{ stepId: 's1', totalRows: null, stitches: null, sections: [], note: '' }],
     })
   })
@@ -115,7 +122,7 @@ describe('patron adapté : écran', () => {
     api.knitting.getProject.mockResolvedValue(project(ADAPTATION))
     await user.click(within(dialog).getByRole('button', { name: 'Suivre ce patron adapté' }))
     await waitFor(() =>
-      expect(api.knitting.saveAdaptation).toHaveBeenCalledWith('p1', { request: '5 cm de plus aux manches', active: true, at: expect.any(String), steps: ADAPTATION.steps }),
+      expect(api.knitting.saveAdaptation).toHaveBeenCalledWith('p1', { request: '5 cm de plus aux manches', active: true, at: expect.any(String), size: 'M', steps: ADAPTATION.steps }),
     )
     // L'étape suit le patron adapté, l'origine reste visible
     await user.click(await screen.findByRole('link', { name: /Manches/ }))
@@ -132,10 +139,17 @@ describe('patron adapté : écran', () => {
     renderProject(api, project(ADAPTATION), OVERVIEW)
     await openFold('Patron adapté à moi')
     const panel = await screen.findByRole('region', { name: /Patron adapté à moi/ })
-    expect(panel).toHaveTextContent('1 étape adaptée pour « 5 cm de plus aux manches ».')
+    expect(panel).toHaveTextContent('1 étape adaptée pour « 5 cm de plus aux manches » (taille M).')
 
-    await user.click(within(panel).getByRole('checkbox', { name: 'Suivre le patron adapté' }))
-    await waitFor(() => expect(api.knitting.saveAdaptation).toHaveBeenCalledWith('p1', { ...ADAPTATION, active: false }))
+    // Pendant l'enregistrement, la case est désactivée (pas deux écritures croisées)
+    let saved!: () => void
+    api.knitting.saveAdaptation.mockImplementationOnce(() => new Promise<void>((resolve) => (saved = resolve)))
+    const follow = within(panel).getByRole('checkbox', { name: 'Suivre le patron adapté' })
+    await user.click(follow)
+    expect(api.knitting.saveAdaptation).toHaveBeenCalledWith('p1', { ...ADAPTATION, active: false })
+    expect(follow).toHaveAttribute('aria-disabled', 'true')
+    saved()
+    await waitFor(() => expect(follow).not.toHaveAttribute('aria-disabled', 'true'))
 
     await user.click(within(panel).getByRole('button', { name: 'Refaire l’adaptation' }))
     expect(within(panel).getByLabelText('Retouches (facultatif)')).toHaveValue('5 cm de plus aux manches')
@@ -144,6 +158,20 @@ describe('patron adapté : écran', () => {
     await user.click(within(panel).getByRole('button', { name: 'Supprimer l’adaptation' }))
     await user.click(within(await screen.findByRole('alertdialog')).getByRole('button', { name: 'Supprimer' }))
     await waitFor(() => expect(api.knitting.saveAdaptation).toHaveBeenCalledWith('p1', null))
+  })
+
+  it('adaptation faite pour une autre taille : en pause, à refaire pour la taille suivie', async () => {
+    const user = userEvent.setup()
+    const api = fakeApi()
+    renderProject(api, { ...project(ADAPTATION), sizes: ['M', 'L'], sizeIndex: 1 })
+    // L'étape suit le patron d'origine (pas les chiffres de M)
+    expect(await screen.findByText('/ 120')).toBeInTheDocument()
+    expect(screen.queryByText(/Patron adapté :/)).not.toBeInTheDocument()
+    await user.click(screen.getByRole('link', { name: /Pull Bergamote/ }))
+    await openFold('Patron adapté à moi')
+    const panel = await screen.findByRole('region', { name: /Patron adapté à moi/ })
+    expect(within(panel).getByRole('status')).toHaveTextContent('Adaptation en pause : elle a été faite pour la taille M, tu suis maintenant la taille L. Refais l’adaptation pour la taille L.')
+    expect(within(panel).getByRole('checkbox', { name: 'Suivre le patron adapté' })).toHaveAttribute('aria-disabled', 'true')
   })
 
   it('patron d’origine suivi : étapes d’origine et estimations (≈) gardées', async () => {

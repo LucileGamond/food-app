@@ -268,7 +268,8 @@ function GaugeForm({ info, onSave }: { info: ProjectInfo; onSave: (patternGauge:
 }
 
 /** Laine et échantillon du projet, enregistrés ensemble. */
-export function YarnPanel({ info, onSave }: { info: ProjectInfo; onSave: (info: ProjectInfo) => Promise<boolean> }) {
+/** `removedYarn` : position de la laine retirée (ses pesées partent avec elle). */
+export function YarnPanel({ info, onSave }: { info: ProjectInfo; onSave: (info: ProjectInfo, removedYarn?: number) => Promise<boolean> }) {
   const api = useApi()
   const [editing, setEditing] = useState<number | 'new' | null>(null)
   // Stock de laine, pour prendre une laine du stock (sans erreur bloquante : le stock est un plus).
@@ -304,7 +305,7 @@ export function YarnPanel({ info, onSave }: { info: ProjectInfo; onSave: (info: 
               <Button variant="ghost" size="icon" aria-label={`Modifier ${yarnTitle(yarn)}`} onClick={() => setEditing(index)}>
                 <Pencil />
               </Button>
-              <Button variant="ghost" size="icon" aria-label={`Retirer ${yarnTitle(yarn)}`} onClick={() => void onSave({ ...info, yarns: info.yarns.filter((_, i) => i !== index) })}>
+              <Button variant="ghost" size="icon" aria-label={`Retirer ${yarnTitle(yarn)}`} onClick={() => void onSave({ ...info, yarns: info.yarns.filter((_, i) => i !== index) }, index)}>
                 <Trash2 />
               </Button>
             </li>

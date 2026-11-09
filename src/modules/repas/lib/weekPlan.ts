@@ -13,6 +13,8 @@ export const LONG_MINUTES = 45
 export const MAX_LEFTOVER_DAYS = 2
 /** Un plat aux ingrédients fragiles se place dans les 3 premiers jours. */
 export const FRAGILE_DAYS = 3
+/** Plats envoyés à l'IA au plus (limite de la fonction plan-week). */
+export const MAX_PLAN_DISHES = 40
 
 /** Ingrédients qui se gardent peu (recherchés sans accents dans les ingrédients et le titre). */
 const FRAGILE_WORDS = [
@@ -58,8 +60,8 @@ export function isFragile(dish: Pick<Dish, 'title' | 'ingredients'>): boolean {
   return FRAGILE_WORDS.some((word) => text.includes(word))
 }
 
-/** Créneaux à remplir : quelqu'un mange à la maison et rien n'est encore prévu. */
-export const openSlots = (slots: readonly PlanSlot[]) => slots.filter((s) => s.people.length > 0 && s.taken.length === 0)
+/** Créneaux à remplir : pas encore passés, quelqu'un mange à la maison et rien n'est encore prévu. */
+export const openSlots = (slots: readonly PlanSlot[]) => slots.filter((s) => !s.past && s.people.length > 0 && s.taken.length === 0)
 
 const sameSlot = (a: SlotRef, b: SlotRef) => a.date === b.date && a.slot === b.slot
 const daysBetween = (from: IsoDate, to: IsoDate) => Math.round((Date.parse(to) - Date.parse(from)) / 86_400_000)
@@ -69,7 +71,7 @@ export function buildPlanRequest(start: IsoDate, slots: readonly PlanSlot[], dis
     start,
     people: profiles.map((p) => ({ id: p.id, name: p.display_name })),
     slots: openSlots(slots).map((s) => ({ key: slotKey(s), day: formatDay(s.date), slot: s.slot, people: s.people, freeCooks: s.freeCooks })),
-    dishes: dishes.map((d) => ({
+    dishes: dishes.slice(0, MAX_PLAN_DISHES).map((d) => ({
       id: d.id,
       title: d.title,
       minutes: d.minutes,
@@ -123,10 +125,11 @@ export function draftWarnings(entries: readonly DraftEntry[], slots: readonly Pl
     if (!first) continue
     const firstSlot = slotOf(first)
     // Le premier repas se cuisine : il faut quelqu'un de présent, et du temps pour un plat long.
-    if (first.cookId && firstSlot && !firstSlot.people.includes(first.cookId)) warn(first, `${name(first.cookId)} n’est pas là`)
+    if (first.cookId === null) warn(first, 'Personne ne cuisine : c’est le premier repas de ce plat')
+    else if (firstSlot && !firstSlot.people.includes(first.cookId)) warn(first, `${name(first.cookId)} n’est pas là`)
     else if (isLong(dish) && firstSlot) {
       if (firstSlot.freeCooks.length === 0) warn(first, 'Plat long : personne n’a le temps de cuisiner')
-      else if (first.cookId && !firstSlot.freeCooks.includes(first.cookId)) warn(first, `Plat long : ${name(first.cookId)} n’a pas le temps de cuisiner`)
+      else if (!firstSlot.freeCooks.includes(first.cookId)) warn(first, `Plat long : ${name(first.cookId)} n’a pas le temps de cuisiner`)
     }
     if (start && isFragile(dish) && daysBetween(start, first.date) >= FRAGILE_DAYS) warn(first, 'Ingrédients fragiles : plutôt en début de semaine')
 

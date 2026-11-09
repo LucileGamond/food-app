@@ -20,10 +20,15 @@ Deno.serve(
       const { data, error } = await db
         .from('calendar_sources')
         .select('id, provider')
-        .or(`last_synced_at.is.null,last_synced_at.lt.${staleBefore.toISOString()}`)
+        .or(`sync_started_at.is.null,sync_started_at.lt.${staleBefore.toISOString()}`)
+        .order('sync_started_at', { nullsFirst: true })
         .order('created_at')
       if (error) throw error
       return (data as { id: string; provider: CalendarProviderKind }[]).map(({ id, provider }) => ({ id, provider }))
+    },
+    async markStarted(sourceId) {
+      const { error } = await db.from('calendar_sources').update({ sync_started_at: new Date().toISOString() }).eq('id', sourceId)
+      if (error) throw error
     },
     async loadCredentials(sourceId) {
       const { data, error } = await db.from('calendar_source_credentials').select('ical_url').eq('source_id', sourceId).maybeSingle()

@@ -1,4 +1,4 @@
-import { computePresence, matchesKeyword, parisInstant, parseKeywords, type PresenceEvent, type PresenceRule } from './presence'
+import { computePresence, keywordsTooLong, matchesKeyword, MAX_KEYWORDS_CHARS, parisInstant, parseKeywords, type PresenceEvent, type PresenceRule } from './presence'
 
 const LUCILE = '11111111-1111-1111-1111-111111111111'
 const ERIC = '22222222-2222-2222-2222-222222222222'
@@ -37,6 +37,14 @@ describe('computePresence', () => {
   it('donne deux créneaux par jour, midi puis soir', () => {
     const result = computePresence({ days: [MONDAY, SATURDAY], profiles: PROFILES, rules: [], events: [] })
     expect(result.map((s) => `${s.date} ${s.slot}`)).toEqual([`${MONDAY} LUNCH`, `${MONDAY} DINNER`, `${SATURDAY} LUNCH`, `${SATURDAY} DINNER`])
+  })
+
+  it('créneau déjà fini (fin du repas passée) : marqué passé, personne à remplir', () => {
+    // Lundi 9 à 20 h à Paris : le midi est passé, le soir (jusqu'à 21 h) non.
+    const now = Date.parse('2026-11-09T19:00:00Z')
+    const result = computePresence({ days: [MONDAY, SATURDAY], profiles: PROFILES, rules: [], events: [], now })
+    expect(result.map((s) => s.past)).toEqual([true, false, false, false])
+    expect(slot(computePresence({ days: [MONDAY], profiles: PROFILES, rules: [], events: [] }), MONDAY, 'LUNCH').past).toBe(false)
   })
 
   it('sans règle ni rendez-vous : tout le monde à la maison et libre pour cuisiner', () => {
@@ -99,5 +107,12 @@ describe('parseKeywords', () => {
     expect(parseKeywords(' escalade, Yoga ,, Escalade ; piscine\n')).toEqual(['escalade', 'Yoga', 'piscine'])
     expect(parseKeywords('')).toEqual([])
     expect(parseKeywords(Array.from({ length: 25 }, (_, i) => `k${i}`).join(','))).toHaveLength(20)
+  })
+
+  it('signale des mots-clés trop longs pour être enregistrés', () => {
+    const long = Array.from({ length: 12 }, (_, i) => `${'x'.repeat(38)}${i}`)
+    expect(keywordsTooLong(long)).toBe(true)
+    expect(keywordsTooLong(['escalade', 'yoga'])).toBe(false)
+    expect(MAX_KEYWORDS_CHARS).toBe(400)
   })
 })

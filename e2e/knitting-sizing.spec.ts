@@ -1,4 +1,4 @@
-import AxeBuilder from '@axe-core/playwright'
+import { axeFor } from './support/a11y'
 import { DEFAULT_SETTINGS } from '../src/lib/settings'
 import { signedInApi } from '../tests/integration/helpers'
 import { expect, login, openNavPage, test } from './fixtures'
@@ -42,7 +42,7 @@ test('choisit la taille d’un patron selon une fiche de mesures', async ({ page
   await expect(card.getByRole('status')).toContainText('Taille conseillée : M')
   await card.getByRole('button', { name: 'Ample' }).click()
   await expect(card.getByRole('status')).toContainText('Taille conseillée : L')
-  expect((await new AxeBuilder({ page }).exclude('[data-sonner-toaster]').withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa']).analyze()).violations).toEqual([])
+  expect((await (await axeFor(page)).exclude('[data-sonner-toaster]').withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa']).analyze()).violations).toEqual([])
   await card.getByRole('button', { name: 'Relire pour la taille L' }).click()
   await expect(card.getByRole('button', { name: /Relire/ })).toHaveCount(0)
   expect(sizes).toEqual(['', 'L'])

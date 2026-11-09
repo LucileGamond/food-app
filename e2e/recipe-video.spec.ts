@@ -1,4 +1,4 @@
-import AxeBuilder from '@axe-core/playwright'
+import { axeFor } from './support/a11y'
 import { expect, login, test } from './fixtures'
 
 // Fonction d'import simulée : la lecture de YouTube et le modèle sont couverts par les tests de la fonction.
@@ -32,7 +32,7 @@ test('importe une recette depuis la légende d’un reel Instagram', async ({ pa
   await page.getByLabel('Lien de la recette à importer').fill(reel)
   const caption = page.getByLabel('Légende du reel')
   await expect(caption).toBeVisible()
-  expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([])
+  expect((await (await axeFor(page)).analyze()).violations).toEqual([])
 
   await caption.fill('Barres framboise 🍓\n100 g de flocons d’avoine, 200 g de framboises…')
   await page.getByRole('button', { name: 'Préremplir avec la légende' }).click()
@@ -81,7 +81,7 @@ test('importe une recette depuis des captures de la légende d’un reel Instagr
     { name: 'capture-3.png', mimeType: 'image/png', buffer: png },
   ])
   await expect(page.getByRole('list', { name: 'Captures à lire' }).getByRole('img')).toHaveCount(3)
-  expect((await new AxeBuilder({ page }).exclude('[data-sonner-toaster]').analyze()).violations).toEqual([])
+  expect((await (await axeFor(page)).exclude('[data-sonner-toaster]').analyze()).violations).toEqual([])
   await page.getByRole('button', { name: 'Lire la recette' }).click()
   await expect(page.getByRole('status')).toContainText('Recette préremplie depuis tes captures')
   expect(requested.mode).toBe('photos')

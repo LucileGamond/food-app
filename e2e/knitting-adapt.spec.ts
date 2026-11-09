@@ -1,4 +1,4 @@
-import AxeBuilder from '@axe-core/playwright'
+import { axeFor } from './support/a11y'
 import { DEFAULT_SETTINGS } from '../src/lib/settings'
 import { signedInApi } from '../tests/integration/helpers'
 import { expect, login, test } from './fixtures'
@@ -34,7 +34,7 @@ test('patron adapté à moi : échantillon et retouches, avant / après, bascule
   await panel.getByRole('button', { name: 'Adapter avec l’IA' }).click()
   const dialog = page.getByRole('dialog', { name: 'Patron adapté' })
   await expect(dialog.getByRole('list', { name: 'Étapes adaptées' })).toContainText('120 → 136 rangs · 60 → 66 mailles')
-  expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([])
+  expect((await (await axeFor(page)).analyze()).violations).toEqual([])
   await dialog.getByRole('button', { name: 'Suivre ce patron adapté' }).click()
 
   await expect(page.getByRole('link', { name: /Manches/ })).toContainText('0 / 136 rangs')

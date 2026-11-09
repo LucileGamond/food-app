@@ -3,7 +3,7 @@ import userEvent from '@testing-library/user-event'
 import { useState } from 'react'
 import { TagInput } from './TagInput'
 
-function Harness({ initial = [] as string[], onChange = (_: string[]) => undefined }) {
+function Harness({ initial = [] as string[], onChange = (() => undefined) as (tags: string[]) => void }) {
   const [tags, setTags] = useState(initial)
   return (
     <TagInput

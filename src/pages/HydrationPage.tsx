@@ -18,7 +18,7 @@ export function HydrationPage({ today: fixedToday, now: fixedNow }: { today?: Is
   const today = useToday(fixedToday)
   const now = useNow(fixedNow)
   const api = useApi()
-  const { settings, ready, notifications } = useSettings()
+  const { settings, ready, loadError: settingsError, reload: reloadSettings, notifications } = useSettings()
   const hydration = useHydration(api, today)
   const [adding, setAdding] = useState(false)
 
@@ -39,21 +39,48 @@ export function HydrationPage({ today: fixedToday, now: fixedNow }: { today?: Is
   }
 
   // Raccourci de l'icône (appui long → « Petit verre bu ») : /hydratation?boire note le plus petit contenant, une fois.
+  // `?boire` n'est retiré qu'une fois le verre noté : en cas d'échec (hors ligne, réglages non chargés), un encadré
+  // le dit et permet de réessayer.
   const [params, setParams] = useSearchParams()
   const shortcutDone = useRef(false)
+  const [shortcutFailed, setShortcutFailed] = useState(false)
   const fromShortcut = params.has('boire')
+
+  function drinkFromShortcut() {
+    if (adding) return
+    const glass = containers.find((c) => c.volumeMl === smallest) ?? containers[0]!
+    void drink(glass.volumeMl).then((added) => {
+      setShortcutFailed(!added)
+      if (!added) return
+      setParams({}, { replace: true })
+      toast.success(`Noté : ${glass.name.toLowerCase()} (${formatCl(glass.volumeMl)})`)
+    })
+  }
+
   useEffect(() => {
     if (!fromShortcut || !ready || hydration.loading || shortcutDone.current) return
     shortcutDone.current = true
-    setParams({}, { replace: true })
-    const glass = containers.find((c) => c.volumeMl === smallest) ?? containers[0]!
-    void drink(glass.volumeMl).then((added) => added && toast.success(`Noté : ${glass.name.toLowerCase()} (${formatCl(glass.volumeMl)})`))
+    drinkFromShortcut()
     // eslint-disable-next-line react-hooks/exhaustive-deps -- une seule fois, une fois réglages et verres chargés
   }, [fromShortcut, ready, hydration.loading])
+
+  const shortcutProblem = !fromShortcut
+    ? null
+    : !ready && settingsError
+      ? 'Réglages non chargés : le petit verre du raccourci n’est pas noté.'
+      : shortcutFailed
+        ? 'Le petit verre du raccourci n’est pas noté.'
+        : null
 
   return (
     <>
       <PageHeader title="Eau" description={`Objectif : ${formatLiters(goal)} par jour · rien que pour toi`} />
+
+      {shortcutProblem && (
+        <div className="mb-4">
+          <LoadError message={shortcutProblem} onRetry={() => (ready ? drinkFromShortcut() : void reloadSettings())} />
+        </div>
+      )}
 
       {hydration.loadError ? (
         <LoadError message={hydration.loadError} onRetry={() => void hydration.reload()} />

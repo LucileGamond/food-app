@@ -39,6 +39,8 @@ export interface SlotPresence {
   freeCooks: string[]
   /** Raison affichée par personne : absence, rendez-vous ignoré, ou occupée avant le repas. */
   notes: Record<string, string>
+  /** Le repas est déjà fini : rien à y planifier. */
+  past?: boolean
 }
 
 const PARIS = 'Europe/Paris'
@@ -71,11 +73,14 @@ export function computePresence({
   profiles,
   rules,
   events,
+  now,
 }: {
   days: IsoDate[]
   profiles: readonly Profile[]
   rules: readonly PresenceRule[]
   events: readonly PresenceEvent[]
+  /** Instant présent : un créneau dont le repas est fini est marqué passé. */
+  now?: number
 }): SlotPresence[] {
   const timedEvents = events.filter((e): e is Extract<PresenceEvent, { allDay: false }> => !e.allDay)
   return days.flatMap((date) =>
@@ -108,10 +113,15 @@ export function computePresence({
         else if (before) notes[id] = `Occupé avant : ${label(before)}`
         if (!before) freeCooks.push(id)
       }
-      return { date, slot, people, freeCooks, notes }
+      return { date, slot, people, freeCooks, notes, past: now !== undefined && mealTo <= now }
     }),
   )
 }
+
+/** Limite de la base : caractères de tous les mots-clés mis bout à bout. */
+export const MAX_KEYWORDS_CHARS = 400
+
+export const keywordsTooLong = (keywords: readonly string[]) => keywords.join('').length > MAX_KEYWORDS_CHARS
 
 /** « escalade, Yoga ,, escalade » → ['escalade', 'Yoga'] (sans doublon ni vide, 20 au plus). */
 export function parseKeywords(text: string): string[] {

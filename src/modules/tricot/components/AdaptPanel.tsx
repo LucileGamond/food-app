@@ -13,7 +13,7 @@ import { Checkbox } from '@/components/ui/checkbox'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogTitle } from '@/components/ui/dialog'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
-import { ADAPT_REQUEST_MAX, describeChange, type Adaptation, type AdaptedStep } from '../lib/adapt'
+import { ADAPT_REQUEST_MAX, adaptationPaused, describeChange, type Adaptation, type AdaptedStep } from '../lib/adapt'
 import type { KnitProject } from '../lib/pattern'
 import { formatGauge, gaugeDiffers } from '../lib/yarn'
 import { PanelFold } from './PanelFold'
@@ -33,6 +33,8 @@ export function AdaptPanel({ project, size, onSaved }: Props) {
   const [working, setWorking] = useState(false)
   const [preview, setPreview] = useState<AdaptedStep[] | null>(null)
   const [removing, setRemoving] = useState(false)
+  const [saving, setSaving] = useState(false)
+  const paused = adaptationPaused(adaptation, size)
 
   const gaugeChanged = gaugeDiffers(project.patternGauge, project.myGauge)
   const myGauge = formatGauge(project.myGauge)
@@ -51,6 +53,7 @@ export function AdaptPanel({ project, size, onSaved }: Props) {
   }
 
   async function save(next: Adaptation | null, message?: string) {
+    setSaving(true)
     try {
       await api.knitting.saveAdaptation(project.id, next)
       if (message) toast.success(message)
@@ -59,12 +62,14 @@ export function AdaptPanel({ project, size, onSaved }: Props) {
     } catch (error) {
       toast.error(errorMessage(error))
       return false
+    } finally {
+      setSaving(false)
     }
   }
 
   async function accept() {
     if (!preview) return
-    if (await save({ request: request.trim(), active: true, at: new Date().toISOString(), steps: preview }, 'Tu suis maintenant le patron adapté')) {
+    if (await save({ request: request.trim(), active: true, at: new Date().toISOString(), size, steps: preview }, 'Tu suis maintenant le patron adapté')) {
       setPreview(null)
       setEditing(false)
     }
@@ -83,12 +88,19 @@ export function AdaptPanel({ project, size, onSaved }: Props) {
         <div className="space-y-3">
           <p className="text-sm">
             {adaptation.steps.length} étape{adaptation.steps.length > 1 ? 's' : ''} adaptée{adaptation.steps.length > 1 ? 's' : ''}
-            {adaptation.request && <> pour « {adaptation.request} »</>}.
+            {adaptation.request && <> pour « {adaptation.request} »</>}
+            {adaptation.size && <> (taille {adaptation.size})</>}.
           </p>
+          {paused && (
+            <p role="status" className="rounded-xl bg-muted/50 p-3 text-sm">
+              Adaptation en pause : elle a été faite pour la taille {adaptation.size}, tu suis maintenant la taille {size}. Refais l’adaptation pour la taille {size}.
+            </p>
+          )}
           <div className="flex items-center gap-2">
             <Checkbox
               id="knit-adapt-active"
               checked={adaptation.active}
+              disabled={saving || paused}
               onCheckedChange={(checked) => void save({ ...adaptation, active: checked === true })}
             />
             <Label htmlFor="knit-adapt-active">Suivre le patron adapté</Label>

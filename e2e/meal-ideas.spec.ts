@@ -1,4 +1,4 @@
-import AxeBuilder from '@axe-core/playwright'
+import { axeFor } from './support/a11y'
 import { expect, login, test } from './fixtures'
 
 test('propose des idées de repas et ajoute celles choisies à « À planifier »', async ({ page, isMobile }) => {
@@ -27,7 +27,7 @@ test('propose des idées de repas et ajoute celles choisies à « À planifier �
   expect(Array.isArray(sent.candidates)).toBe(true)
   // Fruits et légumes du mois envoyés avec la demande (calendrier ADEME).
   expect(sent.produce?.length).toBeGreaterThan(5)
-  const results = await new AxeBuilder({ page }).include('[role="dialog"]').withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa']).analyze()
+  const results = await (await axeFor(page)).include('[role="dialog"]').withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa']).analyze()
   expect(results.violations.map((v) => v.id)).toEqual([])
   await page.screenshot({ path: `test-results/layout/idees-repas-${test.info().project.name}.png`, fullPage: true })
 

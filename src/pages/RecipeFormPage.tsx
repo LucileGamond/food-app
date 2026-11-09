@@ -112,7 +112,8 @@ export function RecipeFormPage() {
   const [submitted, setSubmitted] = useState(false)
   const [saving, setSaving] = useState(false)
   // Recette sauvegardée qui a déjà le même lien (le lien est unique parmi les recettes sauvegardées).
-  const [duplicate, setDuplicate] = useState<{ id: string; title: string } | null>(null)
+  // Recette qui a déjà ce lien, gardée avec le lien vérifié : l'alerte disparaît dès que le lien change.
+  const [duplicateHit, setDuplicateHit] = useState<{ url: string; recipe: { id: string; title: string } } | null>(null)
   const [switching, setSwitching] = useState(false)
   // Points à vérifier après un import, et le formulaire tel que l'import l'a rempli (pour savoir ce qui a été corrigé).
   // Recettes lues sur une même photo, en attendant que la personne choisisse celle à préremplir.
@@ -178,15 +179,13 @@ export function RecipeFormPage() {
 
   // Vérifie, peu après la saisie, si le lien est déjà celui d'une autre recette sauvegardée.
   const url = values.url.trim()
+  const duplicate = duplicateHit?.url === url ? duplicateHit.recipe : null
   useEffect(() => {
-    if (status !== 'ready' || !isValidUrl(url)) {
-      setDuplicate(null)
-      return
-    }
+    if (status !== 'ready' || !isValidUrl(url)) return
     let active = true
     const timer = setTimeout(() => {
       api.recipes.findSavedByUrl(url, savedId.current).then(
-        (existing) => active && setDuplicate(existing),
+        (existing) => active && setDuplicateHit(existing ? { url, recipe: existing } : null),
         () => undefined,
       )
     }, 400)
@@ -247,10 +246,11 @@ export function RecipeFormPage() {
   const knownTags = async () => (tagSuggestions.length > 0 ? tagSuggestions : api.recipes.listTags().catch(() => [] as string[]))
 
   /** Recette déjà enregistrée avec ce lien : inutile de l'analyser (et de consommer des tokens). */
-  async function assertUrlNotSaved(url: string) {
-    const existing = await api.recipes.findSavedByUrl(url, savedId.current)
+  async function assertUrlNotSaved(importUrl: string) {
+    const existing = await api.recipes.findSavedByUrl(importUrl, savedId.current)
     if (!existing) return
-    setDuplicate(existing)
+    // Alerte gardée tant que le champ « Lien » n'est pas modifié (il peut être vide : lien saisi dans l'encadré d'import).
+    setDuplicateHit({ url, recipe: existing })
     throw new DuplicateRecipeUrlError(existing)
   }
 
@@ -361,7 +361,7 @@ export function RecipeFormPage() {
       if (from) navigate(from, { replace: true })
       else navigate(`/recettes/${recipeId}`, { replace: true, state: { offerLinks: true } satisfies NavState })
     } catch (e) {
-      if (e instanceof DuplicateRecipeUrlError) setDuplicate(e.existing)
+      if (e instanceof DuplicateRecipeUrlError) setDuplicateHit({ url, recipe: e.existing })
       toast.error(errorMessage(e))
     } finally {
       setSaving(false)

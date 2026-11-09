@@ -575,9 +575,10 @@ describe('RecipeFormPage — lien déjà enregistré', () => {
     expect(await screen.findByText('Cette recette est déjà enregistrée : « Curry maison ».')).toBeInTheDocument()
     expect(api.recipes.saveRecipe).not.toHaveBeenCalled()
 
-    // Un autre lien fait disparaître l'avertissement
+    // Un autre lien fait disparaître l'avertissement tout de suite, sans attendre la vérification du nouveau lien
     await user.type(screen.getByLabelText('Lien', { selector: '#recipe-url' }), '-bis')
-    await waitFor(() => expect(screen.queryByRole('alert')).not.toBeInTheDocument(), { timeout: 2000 })
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+    expect(screen.queryByText('Lien déjà utilisé par une autre recette')).not.toBeInTheDocument()
   })
 
   it('n’analyse pas une page déjà enregistrée', async () => {

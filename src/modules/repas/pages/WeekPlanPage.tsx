@@ -2,12 +2,11 @@
 // modifiable), puis les plats « À planifier » placés par l'IA (ou à la main), modifiables avant de créer les repas.
 
 import { AlertTriangle, ArrowLeft, CalendarCheck, ChefHat, Loader2, Sparkles } from 'lucide-react'
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { toast } from 'sonner'
-import { errorMessage } from '@/api'
+import { AppError, errorMessage } from '@/api'
 import { useApi } from '@/app/ApiContext'
-import { useAuth } from '@/auth/AuthProvider'
 import { LoadError } from '@/components/LoadError'
 import { PageHeader } from '@/components/PageHeader'
 import { Button, buttonVariants } from '@/components/ui/button'
@@ -21,6 +20,7 @@ import { computePresence, type PresenceEvent, type PresenceRule } from '../lib/p
 import {
   buildPlanRequest,
   draftWarnings,
+  MAX_PLAN_DISHES,
   openSlots,
   parsePlan,
   setEntry,
@@ -32,6 +32,7 @@ import {
 } from '../lib/weekPlan'
 
 interface Loaded {
+  profiles: Profile[]
   rules: PresenceRule[]
   events: PresenceEvent[]
   agendaFailed: boolean
@@ -44,11 +45,15 @@ function useWeekData(start: IsoDate, end: IsoDate) {
   const [data, setData] = useState<Loaded | null>(null)
   const [error, setError] = useState<string | null>(null)
 
+  // Une réponse arrivée après un changement de semaine (minuit) ou un nouvel essai est ignorée.
+  const request = useRef(0)
   const load = useCallback(async () => {
+    const id = ++request.current
     setError(null)
     setData(null)
     try {
-      const [rules, events, meals, items] = await Promise.all([
+      const [profiles, rules, events, meals, items] = await Promise.all([
+        api.meals.listProfiles(),
         api.weekPlan.listRules(),
         api.agenda.listEvents(start, end).then(
           (list) => ({ list, failed: false }),
@@ -57,15 +62,17 @@ function useWeekData(start: IsoDate, end: IsoDate) {
         api.meals.listMeals(start, end),
         api.inbox.listItems('plan'),
       ])
+      if (profiles.length === 0) throw new AppError('Impossible de charger le foyer.')
       const dishes = await api.weekPlan.listDishes(items)
+      if (id !== request.current) return
       const taken = new Map<string, string[]>()
       for (const meal of meals) {
         const key = slotKey({ date: meal.meal_date, slot: meal.slot })
         taken.set(key, [...(taken.get(key) ?? []), meal.recipe.title])
       }
-      setData({ rules, events: events.list, agendaFailed: events.failed, taken, dishes })
+      setData({ profiles, rules, events: events.list, agendaFailed: events.failed, taken, dishes })
     } catch (e) {
-      setError(errorMessage(e))
+      if (id === request.current) setError(errorMessage(e))
     }
   }, [api, start, end])
 
@@ -78,22 +85,37 @@ function useWeekData(start: IsoDate, end: IsoDate) {
 
 const ordered = (ids: string[], profiles: readonly Profile[]) => profiles.map((p) => p.id).filter((id) => ids.includes(id))
 
-export function WeekPlanPage({ today: fixedToday }: { today?: IsoDate }) {
+const NO_PROFILES: Profile[] = []
+
+/** `today` et `now` : imposés par les tests. */
+export function WeekPlanPage({ today: fixedToday, now = Date.now }: { today?: IsoDate; now?: () => number }) {
   const today = useToday(fixedToday)
   const days = useMemo(() => weekDays(today), [today])
   const api = useApi()
   const navigate = useNavigate()
-  const { profiles } = useAuth()
   const { data, error, reload } = useWeekData(days[0]!, days[6]!)
+  const profiles = data?.profiles ?? NO_PROFILES
   /** Présence corrigée à la main, par créneau. */
   const [overrides, setOverrides] = useState<Record<string, string[]>>({})
   const [entries, setEntries] = useState<DraftEntry[] | null>(null)
   const [busy, setBusy] = useState<'propose' | 'save' | null>(null)
   const [actionError, setActionError] = useState<string | null>(null)
+  // Passage à minuit (application restée ouverte) : brouillon et corrections de la veille abandonnés.
+  const [draftStart, setDraftStart] = useState(days[0])
+  const start = useRef(days[0])
+  useEffect(() => {
+    start.current = days[0]
+  })
+  if (draftStart !== days[0]) {
+    setDraftStart(days[0])
+    setOverrides({})
+    setEntries(null)
+    setActionError(null)
+  }
 
   const slots: PlanSlot[] = useMemo(() => {
     if (!data) return []
-    return computePresence({ days, profiles, rules: data.rules, events: data.events }).map((s) => {
+    return computePresence({ days, profiles, rules: data.rules, events: data.events, now: now() }).map((s) => {
       const key = slotKey(s)
       const manual = overrides[key]
       const people = manual ? ordered(manual, profiles) : s.people
@@ -101,7 +123,7 @@ export function WeekPlanPage({ today: fixedToday }: { today?: IsoDate }) {
       const freeCooks = manual ? people.filter((id) => s.freeCooks.includes(id) || !s.people.includes(id)) : s.freeCooks
       return { ...s, people, freeCooks, taken: data.taken.get(key) ?? [] }
     })
-  }, [data, days, profiles, overrides])
+  }, [data, days, profiles, overrides, now])
 
   const open = openSlots(slots)
   const dishes = data?.dishes ?? []
@@ -117,9 +139,11 @@ export function WeekPlanPage({ today: fixedToday }: { today?: IsoDate }) {
   async function propose() {
     setBusy('propose')
     setActionError(null)
+    const from = days[0]
     try {
       const response = await api.weekPlan.proposePlan(buildPlanRequest(days[0]!, slots, dishes, profiles))
-      setEntries(parsePlan(response, slots, dishes))
+      // La semaine a changé pendant la réponse : elle ne vaut plus.
+      if (start.current === from) setEntries(parsePlan(response, slots, dishes))
     } catch (e) {
       setActionError(errorMessage(e))
     } finally {
@@ -155,7 +179,7 @@ export function WeekPlanPage({ today: fixedToday }: { today?: IsoDate }) {
       </>
     )
   }
-  if (!data || profiles.length === 0) {
+  if (!data) {
     return (
       <>
         <PageHeader title="Planifier la semaine" actions={back} />
@@ -240,6 +264,9 @@ export function WeekPlanPage({ today: fixedToday }: { today?: IsoDate }) {
                 ? 'Rien dans « À planifier » : ajoute des plats depuis le planning.'
                 : `${dishes.length > 1 ? `${dishes.length} plats à planifier` : '1 plat à planifier'} · ${open.length} créneaux à remplir`}
             </p>
+            {dishes.length > MAX_PLAN_DISHES && (
+              <p className="w-full text-sm text-amber-700 dark:text-amber-400">Seuls les {MAX_PLAN_DISHES} premiers plats sont proposés à l’IA.</p>
+            )}
             <Button variant="outline" className="h-11" onClick={() => setEntries([])} disabled={busy !== null || dishes.length === 0 || open.length === 0}>
               Placer moi-même
             </Button>
@@ -254,7 +281,10 @@ export function WeekPlanPage({ today: fixedToday }: { today?: IsoDate }) {
   )
 }
 
+const PAST = <p className="px-1 text-sm text-muted-foreground">Repas passé</p>
+
 function PresenceSlot({ slot, profiles, onToggle }: { slot: PlanSlot; profiles: readonly Profile[]; onToggle: (id: string) => void }) {
+  if (slot.past) return PAST
   if (slot.taken.length > 0) return <p className="px-1 text-sm text-muted-foreground">Déjà prévu : {slot.taken.join(', ')}</p>
   return (
     <>
@@ -302,6 +332,7 @@ function DraftSlot({
   onChange: (patch: Partial<Pick<DraftEntry, 'dishId' | 'cookId'>> | null) => void
 }) {
   if (slot.taken.length > 0) return <p className="px-1 text-sm text-muted-foreground">Déjà prévu : {slot.taken.join(', ')}</p>
+  if (slot.past) return PAST
   if (slot.people.length === 0) return <p className="px-1 text-sm text-muted-foreground">Personne à la maison</p>
   return (
     <div className="grid gap-1.5">

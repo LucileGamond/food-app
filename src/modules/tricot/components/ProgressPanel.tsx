@@ -45,7 +45,8 @@ export function ProgressPanel({ projectId, currentStepId, stepTitle }: Props) {
     try {
       await api.knitting.saveProjectNotes(projectId, notes)
       progress.setData((d) => d && { ...d, notes })
-      setNotes(null)
+      // Ce qui a été tapé pendant l'enregistrement reste dans le champ.
+      setNotes((typed) => (typed === notes ? null : typed))
     } catch (error) {
       toast.error(errorMessage(error))
     }

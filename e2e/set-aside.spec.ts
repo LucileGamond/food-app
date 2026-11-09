@@ -1,4 +1,4 @@
-import AxeBuilder from '@axe-core/playwright'
+import { axeFor } from './support/a11y'
 import { expect, login, test } from './fixtures'
 
 // Fonction d'import simulée : l'analyse (modèle) est couverte par les tests de la fonction.
@@ -27,14 +27,14 @@ test('partage d’un lien : mis de côté, puis prérempli et enregistré depuis
   await login(page)
   await page.goto(`/partage?url=${encodeURIComponent('https://cuisine.exemple.fr/curry')}`)
   await expect(page.getByRole('heading', { name: 'Recette partagée' })).toBeVisible()
-  expect((await new AxeBuilder({ page }).exclude('[data-sonner-toaster]').analyze()).violations).toEqual([])
+  expect((await (await axeFor(page)).exclude('[data-sonner-toaster]').analyze()).violations).toEqual([])
   await page.getByRole('button', { name: 'Mettre de côté' }).click()
 
   // Écran Recettes : la section « De côté », sans analyse.
   const aside = page.getByRole('region', { name: /De côté/ })
   await expect(aside.getByTestId('aside-item')).toContainText('Curry coco express')
   expect(analysed).toBe(0)
-  expect((await new AxeBuilder({ page }).exclude('[data-sonner-toaster]').analyze()).violations).toEqual([])
+  expect((await (await axeFor(page)).exclude('[data-sonner-toaster]').analyze()).violations).toEqual([])
 
   await aside.getByRole('button', { name: 'Préremplir et enregistrer « Curry coco express »' }).click()
   await expect(page.getByRole('status')).toContainText('Recette préremplie depuis cuisine.exemple.fr')

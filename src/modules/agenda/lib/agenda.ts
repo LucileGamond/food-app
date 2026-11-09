@@ -2,7 +2,8 @@
 
 import { occurrencesOn, type CalendarOccurrence } from '@agenda/occurrence.ts'
 import { inScope, type AgendaScope } from '@agenda/scope.ts'
-import type { CalendarProviderKind } from '@agenda/provider.ts'
+import { SYNC_DAYS_AFTER, SYNC_DAYS_BEFORE, type CalendarProviderKind } from '@agenda/provider.ts'
+import { daysBetween } from '@watering/civil-date.ts'
 import type { IsoDate } from '@/lib/dates'
 
 export interface CalendarSource {
@@ -48,4 +49,13 @@ export function scopeOptions(otherName: string): { value: AgendaScope; label: st
 /** Recherche du lieu dans Google Maps (adresse, ou nom d'un endroit). */
 export function mapsUrl(location: string): string {
   return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(location)}`
+}
+
+/**
+ * Jour couvert par la synchronisation (la semaine passée et les deux mois à venir, voir provider.ts) : au-delà,
+ * l'absence de rendez-vous ne veut rien dire. Les jours limites, synchronisés en partie, sont exclus.
+ */
+export function isSyncedDay(day: IsoDate, today: IsoDate): boolean {
+  const offset = daysBetween(today, day)
+  return offset > -SYNC_DAYS_BEFORE && offset < SYNC_DAYS_AFTER
 }

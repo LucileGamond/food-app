@@ -2,7 +2,7 @@ import { eventFixture } from '@/test/agenda'
 import { mealFixture } from '@/test/fakes'
 import { plantFixture } from '@/test/plants'
 import type { PlantStatus, UpcomingWatering } from '@/modules/plantes/lib/status'
-import { eventsByDay, eventsInScope, mapsUrl, scopeOptions, sourceStatus } from './agenda'
+import { eventsByDay, eventsInScope, isSyncedDay, mapsUrl, scopeOptions, sourceStatus } from './agenda'
 import { formatMonth, periodOf, sameMonth, shift, startOfWeek, weekdayIndex } from './calendar'
 import { mealExtras, wateringExtras } from './extras'
 
@@ -84,5 +84,11 @@ describe('périodes', () => {
 describe('lieu', () => {
   it('recherche Google Maps', () => {
     expect(mapsUrl('12 rue des Lilas, Lyon')).toBe('https://www.google.com/maps/search/?api=1&query=12%20rue%20des%20Lilas%2C%20Lyon')
+  })
+})
+
+describe('période synchronisée', () => {
+  it('de la semaine passée aux deux mois à venir, jours limites exclus', () => {
+    expect(['2026-11-03', '2026-11-04', '2026-11-10', '2027-01-08', '2027-01-09'].map((d) => isSyncedDay(d, '2026-11-10'))).toEqual([false, true, true, true, false])
   })
 })

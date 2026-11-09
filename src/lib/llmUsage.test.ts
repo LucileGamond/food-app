@@ -39,6 +39,7 @@ describe('costEur', () => {
     expect(costEur(row({ model: 'claude-sonnet-5-5', outputTokens: 1_000_000 }))).toBeCloseTo(10 * 0.86)
     expect(costEur(row({ model: 'claude-opus-5-5', inputTokens: 1_000_000 }))).toBeCloseTo(4 * 0.86)
     expect(costEur(row({ model: 'claude-fable-5-1', inputTokens: 1_000_000 }))).toBeCloseTo(10 * 0.86)
+    expect(costEur(row({ model: 'claude-opus-5-5-20261001', inputTokens: 1_000_000 }))).toBeCloseTo(4 * 0.86)
     expect(costEur(row({ model: 'gpt-9' }))).toBeNull()
   })
 })

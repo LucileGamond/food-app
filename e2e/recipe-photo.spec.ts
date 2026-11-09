@@ -1,4 +1,4 @@
-import AxeBuilder from '@axe-core/playwright'
+import { axeFor } from './support/a11y'
 import { expect, login, test } from './fixtures'
 
 // Image PNG 1×1 : le contenu n'importe pas, la lecture par le modèle est simulée (aucun appel réel).
@@ -39,7 +39,7 @@ test('crée une recette à partir de la photo d’une page de livre', async ({ p
     { name: 'page-147.png', mimeType: 'image/png', buffer: PNG_1PX },
   ])
   await expect(page.getByRole('list', { name: 'Pages à lire' }).getByRole('img')).toHaveCount(2)
-  const results = await new AxeBuilder({ page }).exclude('[data-sonner-toaster]').withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa']).analyze()
+  const results = await (await axeFor(page)).exclude('[data-sonner-toaster]').withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa']).analyze()
   expect(results.violations.map((v) => v.id)).toEqual([])
 
   await page.getByRole('button', { name: 'Lire la recette' }).click()

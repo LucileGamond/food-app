@@ -73,6 +73,7 @@ describe('patron adapté', () => {
       request: '5 cm de plus',
       active: true,
       at: '2026-11-08T10:00:00.000Z',
+      size: 'M',
       steps: [{ stepId, totalRows: 34, stitches: 70, sections: [{ kind: 'rows' as const, rows: 34, every: null, times: null, text: 'jersey', pattern: null }], note: '16 rangs de plus.' }],
     }
     await api.knitting.saveAdaptation(id, adaptation)

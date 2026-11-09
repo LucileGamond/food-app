@@ -1,3 +1,4 @@
+import ICAL from 'ical.js'
 import { createIcalProvider, MAX_ICS_CHARS } from './ical-provider.ts'
 import { parseIcs, plainText } from './ics.ts'
 import { CalendarSyncError, syncWindow } from './provider.ts'
@@ -131,12 +132,51 @@ describe('lecture iCal', () => {
     expect(parseIcs(ics, WINDOW).map((o) => o.title)).toEqual(['Seule'])
   })
 
+  it('plusieurs exceptions d’une même série reçues sans elle : chacune garde son propre uid', () => {
+    // Invitée à trois réunions isolées de la série hebdomadaire d'un collègue.
+    const ics = calendar(
+      ...['20261110', '20261117', '20261124'].map((day) =>
+        vevent(`UID:serie-collegue
+          RECURRENCE-ID:${day}T080000Z
+          DTSTART:${day}T090000Z
+          DTEND:${day}T100000Z
+          SUMMARY:Point d'équipe`),
+      ),
+    )
+    const uids = parseIcs(ics, WINDOW).map((o) => o.uid)
+    expect(uids).toEqual(['serie-collegue#2026-11-10T08:00:00Z', 'serie-collegue#2026-11-17T08:00:00Z', 'serie-collegue#2026-11-24T08:00:00Z'])
+    expect(new Set(uids).size).toBe(3)
+  })
+
+  it('série ancienne : les répétitions passées ne sont pas détaillées, sauf celle déplacée dans la période', () => {
+    const ics = calendar(
+      vevent(`UID:quotidien
+        DTSTART:19900101T070000Z
+        DTEND:19900101T073000Z
+        RRULE:FREQ=DAILY
+        SUMMARY:Café`),
+      // Répétition de 2025 déplacée dans la période
+      vevent(`UID:quotidien
+        RECURRENCE-ID:20250101T070000Z
+        DTSTART:20261105T150000Z
+        DTEND:20261105T153000Z
+        SUMMARY:Café rattrapé`),
+    )
+    const details = vi.spyOn(ICAL.Event.prototype, 'getOccurrenceDetails')
+    const occurrences = parseIcs(ics, WINDOW)
+    // 28 jours de la période (et l'exception) : pas les ~13 000 répétitions depuis 1990
+    expect(details.mock.calls.length).toBeLessThan(40)
+    expect(occurrences.filter((o) => o.title === 'Café')).toHaveLength(28)
+    expect(occurrences.find((o) => o.title === 'Café rattrapé')).toMatchObject({ uid: 'quotidien#2025-01-01T07:00:00Z', startsAt: '2026-11-05T15:00:00.000Z' })
+    details.mockRestore()
+  })
+
   it('description en texte simple, même quand Google y met du HTML', () => {
     const ics = calendar(
       vevent(`UID:visio
         DTSTART:20261110T080000Z
         SUMMARY:Visio
-        DESCRIPTION:Ordre du jour :<br>1. Budget<br/><b>2. Vacances</b><br><a href="https://meet.google.com/abc">Rejoindre</a> &amp\; merci`),
+        DESCRIPTION:Ordre du jour :<br>1. Budget<br/><b>2. Vacances</b><br><a href="https://meet.google.com/abc">Rejoindre</a> &amp\\; merci`),
     )
     expect(parseIcs(ics, WINDOW)[0]!.description).toBe('Ordre du jour :\n1. Budget\n2. Vacances\nRejoindre (https://meet.google.com/abc) & merci')
     expect(plainText('<a href="https://x.test">https://x.test</a>')).toBe('https://x.test')

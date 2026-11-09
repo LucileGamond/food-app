@@ -1,11 +1,11 @@
-import AxeBuilder from '@axe-core/playwright'
+import { axeFor } from './support/a11y'
 import type { Page } from '@playwright/test'
 import { DEFAULT_SETTINGS } from '../src/lib/settings'
 import { signedInApi } from '../tests/integration/helpers'
 import { expect, login, openNavPage, test } from './fixtures'
 
 async function expectNoA11yViolations(page: Page) {
-  const results = await new AxeBuilder({ page }).exclude('[data-sonner-toaster]').withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa']).analyze()
+  const results = await (await axeFor(page)).exclude('[data-sonner-toaster]').withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa']).analyze()
   expect(results.violations.map((v) => `${v.id}: ${v.nodes.map((n) => n.target.join(' ')).join(', ')}`)).toEqual([])
 }
 
@@ -73,14 +73,17 @@ test('charge un patron PDF pour une taille, compte les rangs et retrouve son ava
   for (let i = 0; i < 5; i++) await page.getByRole('button', { name: 'Ajouter 1 rang' }).click()
   await expect(page.getByRole('status')).toHaveText('Rang 6 à tricoter1 diminution de chaque côté (1/4)')
   await page.getByLabel('Notes', { exact: true }).fill('Aiguilles 4,5')
+  // Recharger avant la fin de l'enregistrement des notes (parti au blur) l'annulerait : on attend la réponse.
+  const notesSaved = page.waitForResponse(
+    (r) => r.request().method() === 'PATCH' && r.url().includes('/rest/v1/knit_steps') && (r.request().postData() ?? '').includes('Aiguilles 4,5'),
+  )
   await page.getByLabel('Notes', { exact: true }).blur()
+  expect((await notesSaved).ok()).toBe(true)
   await expectNoA11yViolations(page)
 
   // Avancée enregistrée
-  await expect.poll(async () => {
-    await page.reload()
-    return page.getByLabel('Notes', { exact: true }).inputValue()
-  }).toBe('Aiguilles 4,5')
+  await page.reload()
+  await expect(page.getByLabel('Notes', { exact: true })).toHaveValue('Aiguilles 4,5')
   await expect(page.getByRole('heading', { name: 'Emmanchures' })).toBeVisible()
   await expect(page.getByText('Rangs 1 à 24 · prochaine fois : rang 6')).toBeVisible()
   await page.getByRole('link', { name: 'Pull Bergamote' }).click()

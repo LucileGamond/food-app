@@ -1,4 +1,4 @@
-import AxeBuilder from '@axe-core/playwright'
+import { axeFor } from './support/a11y'
 import { createAppClient } from '../src/api/client'
 import { createUsageRecorder } from '../supabase/functions/_shared/usage'
 import { LOCAL_SERVICE_KEY, LOCAL_URL } from '../tests/integration/helpers'
@@ -24,7 +24,7 @@ test('affiche la consommation IA du foyer dans les réglages', async ({ page }) 
   await section.getByLabel('Période').selectOption({ label: 'Le mois dernier' })
   await expect(section.getByText('Aucun appel sur cette période.')).toBeVisible()
 
-  const results = await new AxeBuilder({ page }).include('#section-conso-ia').withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa']).analyze()
+  const results = await (await axeFor(page)).include('#section-conso-ia').withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa']).analyze()
   expect(results.violations.map((v) => v.id)).toEqual([])
   await admin.from('llm_usage').delete().gte('id', 0)
 })

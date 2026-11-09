@@ -1,7 +1,7 @@
 // Cartes de l'accueil « Aujourd’hui » : l'essentiel du jour de chaque section, avec les gestes les plus fréquents.
 
 import { CheckCircle2, Droplets, Loader2, Plus } from 'lucide-react'
-import type { ReactNode } from 'react'
+import { useState, type ReactNode } from 'react'
 import { Link } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -76,8 +76,15 @@ export function WaterCard({ today }: { today: IsoDate }) {
   const api = useApi()
   const { settings } = useSettings()
   const hydration = useHydration(api, today)
+  // Un verre à la fois : un double appui ne note pas deux verres.
+  const [adding, setAdding] = useState(false)
   const total = totalMl(hydration.intakes)
   const goal = settings.hydrationGoalMl
+  async function drink(volumeMl: number) {
+    setAdding(true)
+    await hydration.add(volumeMl)
+    setAdding(false)
+  }
   return (
     <HomeCard id="home-water" title="Eau" aside={<span className="text-muted-foreground">{formatLiters(total)} sur {formatLiters(goal)}</span>} to="/hydratation" linkLabel="Détail">
       <div className="h-2 overflow-hidden rounded-full bg-water-soft" role="progressbar" aria-label="Eau bue aujourd’hui" aria-valuemin={0} aria-valuemax={goal} aria-valuenow={total}>
@@ -89,8 +96,8 @@ export function WaterCard({ today }: { today: IsoDate }) {
             key={index}
             variant="outline"
             className="h-auto min-h-11 min-w-0 flex-col gap-0 py-1.5"
-            disabled={hydration.loading}
-            onClick={() => void hydration.add(container.volumeMl)}
+            disabled={hydration.loading || adding}
+            onClick={() => void drink(container.volumeMl)}
           >
             <span className="max-w-full truncate">{container.name}</span>
             <span className="text-xs font-normal text-muted-foreground">{formatCl(container.volumeMl)}</span>

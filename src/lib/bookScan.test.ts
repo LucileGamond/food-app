@@ -154,7 +154,7 @@ describe('session de scan', () => {
     session = updateGroup(session, 'g1', { status: 'skipped', message: 'Pas une recette' })
     expect(canRetake(session.groups[0]!)).toBe(false)
     session = updateGroup(insistOnRecipe(session, 'g1'), 'g1', { status: 'skipped', message: 'Toujours aucune recette lisible : reprends la photo' })
-    expect(session.groups.map(canRetake)).toEqual([true, false])
+    expect(session.groups.map((g) => canRetake(g))).toEqual([true, false])
     expect(retakePhoto(session, 'g2').retake).toBeUndefined()
 
     session = retakePhoto(session, 'g1')
@@ -172,5 +172,17 @@ describe('session de scan', () => {
     expect(undone.removed).toEqual(['a2'])
     expect(undone.session.groups[0]).toMatchObject({ images: ['a'], status: 'skipped', message: 'Toujours aucune recette lisible : reprends la photo' })
     expect(canRetake(undone.session.groups[0]!)).toBe(true)
+  })
+
+  it('plusieurs photos par recette : reprise réservée aux recettes d’une seule page (les autres seraient perdues)', () => {
+    const newId = ids()
+    let session = shoot(newSession('Livre', true), [['p1'], ['p2']], newId)
+    session = startNewRecipe(session, 2000, newId, false)
+    session = addCapture(session, ['q1'], 3000, newId)
+    session = startNewRecipe(session, 4000, newId, false)
+    for (const id of ['g1', 'g2']) session = updateGroup(session, id, { status: 'skipped', insist: true })
+    expect(session.groups.map((g) => canRetake(g, true))).toEqual([false, true])
+    expect(retakePhoto(session, 'g1').retake).toBeUndefined()
+    expect(retakePhoto(session, 'g2').retake).toBe('g2')
   })
 })

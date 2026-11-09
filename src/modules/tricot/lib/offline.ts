@@ -42,6 +42,14 @@ export function forgetProjectCopy(id: string): void {
   write(PROJECT_KEY(id), null)
 }
 
+/** Projet supprimé : sa copie et son avancée en attente sont oubliées. */
+export function forgetProject(id: string): void {
+  forgetProjectCopy(id)
+  const pending = pendingProgress()
+  for (const [stepId, p] of Object.entries(pending)) if (p.projectId === id) delete pending[stepId]
+  write(PENDING_KEY, Object.keys(pending).length ? pending : null)
+}
+
 export function pendingProgress(): PendingProgress {
   return read<PendingProgress>(PENDING_KEY) ?? {}
 }
@@ -58,6 +66,24 @@ export function clearProgress(stepId: string, sent: StepProgress): void {
   const pending = pendingProgress()
   if (JSON.stringify(pending[stepId]?.progress) !== JSON.stringify(sent)) return
   delete pending[stepId]
+  write(PENDING_KEY, Object.keys(pending).length ? pending : null)
+}
+
+/**
+ * Une avancée enregistrée en ligne remplace ce qui attendait pour les mêmes champs (une valeur comptée hors ligne,
+ * plus ancienne, ne doit pas être renvoyée ensuite). `queuedAtSend` : l'attente de l'étape au moment de l'envoi ;
+ * un champ remis en attente pendant l'envoi est gardé.
+ */
+export function settleProgress(stepId: string, sent: StepProgress, queuedAtSend: StepProgress | undefined): void {
+  const pending = pendingProgress()
+  const entry = pending[stepId]
+  if (!entry) return
+  const rest: Record<string, unknown> = { ...entry.progress }
+  for (const key of Object.keys(sent)) {
+    if (JSON.stringify(rest[key]) === JSON.stringify(queuedAtSend?.[key as keyof StepProgress])) delete rest[key]
+  }
+  if (Object.keys(rest).length) pending[stepId] = { ...entry, progress: rest as StepProgress }
+  else delete pending[stepId]
   write(PENDING_KEY, Object.keys(pending).length ? pending : null)
 }
 

@@ -1,4 +1,5 @@
-import { screen, waitFor, within } from '@testing-library/react'
+import { act, screen, waitFor, within } from '@testing-library/react'
+import { useEffect, useState } from 'react'
 import userEvent from '@testing-library/user-event'
 import { Route } from 'react-router-dom'
 import { AppError } from '@/api'
@@ -7,12 +8,26 @@ import { ERIC, LUCILE, fakeApi, fakeAuth, mealFixture, renderWithApp } from '@/t
 import type { InboxItem } from '@/lib/inbox'
 import { WeekPlanPage } from './WeekPlanPage'
 
-// Lundi 9 novembre 2026 → dimanche 15.
+// Lundi 9 novembre 2026 → dimanche 15, à 8 h à Paris (aucun repas encore passé).
 const TODAY = '2026-11-09'
+const MORNING = () => Date.parse('2026-11-09T07:00:00Z')
 
 const item = (id: string, title: string, recipeId: string | null = null): InboxItem => ({ id, title, url: null, recipe_id: recipeId, created_at: '2026-11-01T10:00:00Z', list: 'plan' })
 
-function setup({ items = [item('i1', 'Lasagnes', 'r1'), item('i2', 'Salade de saumon')], eventsError = false }: { items?: InboxItem[]; eventsError?: boolean } = {}) {
+function setup({
+  items = [item('i1', 'Lasagnes', 'r1'), item('i2', 'Salade de saumon')],
+  eventsError = false,
+  now = MORNING,
+}: { items?: InboxItem[]; eventsError?: boolean; now?: () => number } = {}) {
+  // Le jour peut changer en cours de test (passage à minuit).
+  const clock = { changeDay: (_day: string) => undefined as void }
+  function Clock() {
+    const [day, setDay] = useState(TODAY)
+    useEffect(() => {
+      clock.changeDay = setDay
+    }, [])
+    return <WeekPlanPage today={day} now={now} />
+  }
   const api = fakeApi()
   api.weekPlan.listRules.mockResolvedValue([{ profileId: LUCILE.id, weekdayLunchAtWork: true, ignoredKeywords: ['escalade'] }])
   api.agenda.listEvents.mockResolvedValue([
@@ -34,14 +49,14 @@ function setup({ items = [item('i1', 'Lasagnes', 'r1'), item('i2', 'Salade de sa
     })),
   )
   const auth = fakeAuth({ userId: LUCILE.id })
-  const result = renderWithApp(<WeekPlanPage today={TODAY} />, {
+  const result = renderWithApp(<Clock />, {
     api,
     auth,
     route: '/planning/semaine',
     path: '/planning/semaine',
     extraRoutes: <Route path="/planning" element={<p>Page planning</p>} />,
   })
-  return { ...result, api }
+  return { ...result, api, setToday: (day: string) => act(() => clock.changeDay(day)) }
 }
 
 const slot = (name: string) => screen.findByRole('group', { name })
@@ -88,6 +103,36 @@ describe('WeekPlanPage — qui mange à la maison', () => {
       ['i1', true, false],
       ['i2', false, true],
     ])
+  })
+
+  it('repas déjà passés du jour : affichés comme tels, pas proposés à l’IA', async () => {
+    const user = userEvent.setup()
+    // Lundi 20 h à Paris : le midi est fini, le soir pas encore.
+    const { api } = setup({ now: () => Date.parse('2026-11-09T19:00:00Z') })
+    expect(within(await slot('Lundi 9 novembre — Midi')).getByText('Repas passé')).toBeInTheDocument()
+    expect(within(await slot('Lundi 9 novembre — Soir')).getByRole('button', { name: 'Eric' })).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'Proposer avec l’IA' }))
+    await waitFor(() => expect(api.weekPlan.proposePlan).toHaveBeenCalled())
+    expect(api.weekPlan.proposePlan.mock.calls[0]![0].slots.map((s) => s.key)).not.toContain('2026-11-09|LUNCH')
+  })
+
+  it('plus de 40 plats : seuls les 40 premiers partent à l’IA, et on le dit', async () => {
+    const user = userEvent.setup()
+    const { api } = setup({ items: Array.from({ length: 45 }, (_, i) => item(`x${i}`, `Plat ${i}`)) })
+    expect(await screen.findByText('Seuls les 40 premiers plats sont proposés à l’IA.')).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'Proposer avec l’IA' }))
+    await waitFor(() => expect(api.weekPlan.proposePlan).toHaveBeenCalled())
+    expect(api.weekPlan.proposePlan.mock.calls[0]![0].dishes).toHaveLength(40)
+  })
+
+  it('foyer introuvable : erreur et nouvel essai, pas de chargement sans fin', async () => {
+    const user = userEvent.setup()
+    const api = fakeApi()
+    api.meals.listProfiles.mockResolvedValueOnce([])
+    renderWithApp(<WeekPlanPage today={TODAY} now={MORNING} />, { api, auth: fakeAuth({ userId: LUCILE.id }), route: '/planning/semaine', path: '/planning/semaine' })
+    expect(await screen.findByText('Impossible de charger le foyer.')).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'Réessayer' }))
+    expect(await screen.findAllByRole('group', { name: / — Midi$/ })).toHaveLength(7)
   })
 
   it('rien à planifier : on le dit, et l’IA n’est pas proposée', async () => {
@@ -170,11 +215,38 @@ describe('WeekPlanPage — proposition', () => {
     expect(await screen.findByText('Un plat n’est plus dans la liste « À planifier » : recharge la page.')).toBeInTheDocument()
   })
 
+  it('passage à minuit : brouillon de la veille abandonné, réponse tardive de l’IA ignorée', async () => {
+    const user = userEvent.setup()
+    const { api, setToday } = setup()
+    let answer: (value: unknown) => void = () => undefined
+    api.weekPlan.proposePlan.mockImplementationOnce(() => new Promise((resolve) => (answer = resolve)))
+    await user.click(within(await slot('Mardi 10 novembre — Soir')).getByRole('button', { name: 'Lucile' }))
+    await user.click(screen.getByRole('button', { name: 'Proposer avec l’IA' }))
+    await waitFor(() => expect(api.weekPlan.proposePlan).toHaveBeenCalled())
+
+    setToday('2026-11-10')
+    answer({ meals: [{ slot: '2026-11-10|DINNER', dishId: 'i2', cookId: ERIC.id, why: '' }] })
+    const tuesday = await slot('Mardi 10 novembre — Soir')
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Proposer avec l’IA' })).toBeEnabled())
+    expect(within(tuesday).queryByRole('combobox', { name: 'Plat' })).not.toBeInTheDocument()
+    expect(within(tuesday).getByRole('button', { name: 'Lucile' })).toHaveAttribute('aria-pressed', 'true')
+    expect(api.agenda.listEvents).toHaveBeenLastCalledWith('2026-11-10', '2026-11-16')
+
+    // Proposition et validation repartent du nouveau jour, sans la correction de la veille.
+    api.weekPlan.proposePlan.mockResolvedValue({ meals: [{ slot: '2026-11-10|DINNER', dishId: 'i2', cookId: LUCILE.id, why: '' }] })
+    await user.click(screen.getByRole('button', { name: 'Proposer avec l’IA' }))
+    await user.click(await screen.findByRole('button', { name: 'Valider la semaine' }))
+    await waitFor(() => expect(api.weekPlan.saveWeek).toHaveBeenCalled())
+    expect(api.weekPlan.saveWeek.mock.calls[0]![0]).toEqual([
+      { item_id: 'i2', meal_date: '2026-11-10', slot: 'DINNER', people: [LUCILE.id], cook_id: LUCILE.id },
+    ])
+  })
+
   it('erreur de chargement : message et nouvel essai', async () => {
     const user = userEvent.setup()
     const api = fakeApi()
     api.weekPlan.listRules.mockRejectedValueOnce(new AppError('Impossible de charger les règles des repas.'))
-    renderWithApp(<WeekPlanPage today={TODAY} />, { api, auth: fakeAuth({ userId: LUCILE.id }), route: '/planning/semaine', path: '/planning/semaine' })
+    renderWithApp(<WeekPlanPage today={TODAY} now={MORNING} />, { api, auth: fakeAuth({ userId: LUCILE.id }), route: '/planning/semaine', path: '/planning/semaine' })
     expect(await screen.findByText('Impossible de charger les règles des repas.')).toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: 'Réessayer' }))
     expect(await screen.findAllByRole('group', { name: / — Midi$/ })).toHaveLength(7)

@@ -139,6 +139,30 @@ describe('HydrationPage', () => {
     expect(await screen.findByRole('button', { name: /Supprimer le verre de/ })).toBeInTheDocument()
   })
 
+  it('raccourci hors ligne : le dit, et le verre est noté en réessayant', async () => {
+    const user = userEvent.setup()
+    const api = setup()
+    api.hydration.addIntake.mockRejectedValueOnce(new Error('réseau'))
+    renderPage(api, '/?boire')
+    expect(await screen.findByText('Le petit verre du raccourci n’est pas noté.')).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'Réessayer' }))
+    expect((await screen.findAllByText(/^Noté : /)).length).toBeGreaterThan(0)
+    expect(api.hydration.addIntake).toHaveBeenCalledTimes(2)
+    expect(screen.queryByText('Le petit verre du raccourci n’est pas noté.')).not.toBeInTheDocument()
+  })
+
+  it('raccourci sans réglages chargés : le dit, et note le verre une fois les réglages rechargés', async () => {
+    const user = userEvent.setup()
+    const api = setup()
+    api.settings.getSettings.mockRejectedValueOnce(new Error('réseau'))
+    renderPage(api, '/?boire')
+    expect(await screen.findByText('Réglages non chargés : le petit verre du raccourci n’est pas noté.')).toBeInTheDocument()
+    expect(api.hydration.addIntake).not.toHaveBeenCalled()
+    await user.click(screen.getByRole('button', { name: 'Réessayer' }))
+    expect((await screen.findAllByText(/^Noté : /)).length).toBeGreaterThan(0)
+    expect(api.hydration.addIntake).toHaveBeenCalledTimes(1)
+  })
+
   it('sans raccourci, rien n’est noté à l’ouverture', async () => {
     const api = setup()
     renderPage(api)

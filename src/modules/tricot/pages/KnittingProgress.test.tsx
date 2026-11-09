@@ -79,6 +79,24 @@ describe('notes et photos d’avancement', () => {
     expect(api.knitting.saveProjectNotes).toHaveBeenCalledTimes(1)
   })
 
+  it('garde ce qui est tapé pendant l’enregistrement des notes', async () => {
+    const user = userEvent.setup()
+    const api = fakeApi()
+    let saved!: () => void
+    api.knitting.saveProjectNotes.mockImplementationOnce(() => new Promise<void>((resolve) => (saved = resolve)))
+    renderProject(api)
+    await openFold('Notes et photos')
+    const notes = await screen.findByLabelText('Notes du projet')
+    await user.type(notes, 'Manches')
+    await user.tab()
+    expect(api.knitting.saveProjectNotes).toHaveBeenCalledWith('p1', 'Manches')
+    await user.type(notes, ' raccourcies')
+    saved()
+    await waitFor(() => expect(api.knitting.saveProjectNotes).toHaveBeenCalledTimes(1))
+    await new Promise((r) => setTimeout(r, 0))
+    expect(notes).toHaveValue('Manches raccourcies')
+  })
+
   it('ajoute une photo rattachée à l’étape en cours', async () => {
     const user = userEvent.setup()
     const api = fakeApi()

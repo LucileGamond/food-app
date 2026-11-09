@@ -1,4 +1,4 @@
-import AxeBuilder from '@axe-core/playwright'
+import { axeFor } from './support/a11y'
 import { signedInApi } from '../tests/integration/helpers'
 import { expect, login, test } from './fixtures'
 
@@ -27,7 +27,7 @@ test('cuisine une recette : ingrédients et étapes à cocher, en plein écran',
   await expect(page.getByRole('navigation', { name: 'Navigation principale' })).toHaveCount(0)
   await expect(page.getByRole('checkbox', { name: '5 pommes' })).toBeVisible()
   await expect(page.getByRole('checkbox', { name: /^Étape/ })).toHaveCount(3)
-  expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([])
+  expect((await (await axeFor(page)).analyze()).violations).toEqual([])
 
   await page.getByRole('checkbox', { name: '5 pommes' }).click()
   await page.getByRole('checkbox', { name: 'Étape 1 faite' }).click()
@@ -72,7 +72,7 @@ test('minuteurs du mode cuisine, et fiche à imprimer', async ({ page }) => {
   const bar = page.getByRole('region', { name: 'Minuteurs' })
   await expect(bar.getByText('Étape 2 · 25 min')).toBeVisible()
   await expect(bar.getByText(/^(24:5\d|25:00)$/)).toBeVisible()
-  expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([])
+  expect((await (await axeFor(page)).analyze()).violations).toEqual([])
 
   // Rechargement : le minuteur continue.
   await bar.getByRole('button', { name: 'Mettre en pause : Étape 2 · 25 min' }).click()
@@ -88,7 +88,7 @@ test('minuteurs du mode cuisine, et fiche à imprimer', async ({ page }) => {
   await expect(page.getByRole('heading', { name: 'Riz au lait' })).toBeVisible()
   await expect(page.getByText('125 g riz rond')).toBeVisible()
   await expect.poll(() => page.evaluate(() => (window as Window & { printed?: number }).printed)).toBe(1)
-  expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([])
+  expect((await (await axeFor(page)).analyze()).violations).toEqual([])
 })
 
 test('mode vocal : étapes et minuteur à la voix', async ({ page }) => {
@@ -139,7 +139,7 @@ test('mode vocal : étapes et minuteur à la voix', async ({ page }) => {
   await page.getByRole('button', { name: 'Activer le mode vocal' }).click()
   await expect.poll(lastSpoken).toBe('Mode vocal activé. Étape 1. Faire bouillir l’eau.')
   await expect(page.getByRole('region', { name: 'Mode vocal' })).toContainText('J’écoute')
-  expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([])
+  expect((await (await axeFor(page)).analyze()).violations).toEqual([])
 
   await say('étape suivante')
   await expect.poll(lastSpoken).toBe('Étape 2. Cuire les pâtes 10 min.')

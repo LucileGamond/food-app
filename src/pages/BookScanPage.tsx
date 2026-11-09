@@ -2,6 +2,7 @@ import { ArrowLeft, Camera, Flashlight, Pause, Play, Plus, RotateCcw, Square, Un
 import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { toast } from 'sonner'
+import { errorMessage } from '@/api'
 import { useApi } from '@/app/ApiContext'
 import { PageHeader } from '@/components/PageHeader'
 import { BatchResults, type BatchResultItem } from '@/components/recipes/BatchResults'
@@ -68,9 +69,9 @@ interface GroupActions {
 }
 
 /** Action proposée sur une page sans recette : la relire en insistant, puis, toujours rien, la reprendre en photo. */
-function groupAction(group: ScanGroup, actions: GroupActions): BatchResultItem['action'] {
+function groupAction(group: ScanGroup, multi: boolean, actions: GroupActions): BatchResultItem['action'] {
   if (canInsist(group)) return { label: 'C’est une recette : relire', onClick: () => actions.onInsist(group.id) }
-  if (canRetake(group)) return { label: 'Reprendre la photo', onClick: () => actions.onRetake(group.id) }
+  if (canRetake(group, multi)) return { label: 'Reprendre la photo', onClick: () => actions.onRetake(group.id) }
   return undefined
 }
 
@@ -88,7 +89,7 @@ function resultItem(group: ScanGroup, index: number, multi: boolean, actions: Gr
     status: group.status,
     message: group.closed ? group.message : 'Prends les pages suivantes',
     recipes: group.recipes,
-    action: groupAction(group, actions),
+    action: groupAction(group, multi, actions),
     thumbnail,
   }
 }
@@ -261,13 +262,13 @@ function ScanCamera({ multi, full, retaking, onCancelRetake, feedback, onCapture
           <span className="w-10 text-right text-sm text-muted-foreground tabular-nums">×{zoom.value.toFixed(1)}</span>
         </div>
       )}
-      {!launched ? (
-        <Button className="h-14 w-full text-base" onClick={launch} disabled={!ready || full}>
-          <Play /> Lancer le scan
-        </Button>
-      ) : retaking ? (
+      {retaking ? (
         <Button variant="outline" className="h-14 w-full text-base" onClick={onCancelRetake}>
           <X /> Annuler la reprise
+        </Button>
+      ) : !launched ? (
+        <Button className="h-14 w-full text-base" onClick={launch} disabled={!ready || full}>
+          <Play /> Lancer le scan
         </Button>
       ) : (
         multi && (
@@ -277,7 +278,7 @@ function ScanCamera({ multi, full, retaking, onCancelRetake, feedback, onCapture
         )
       )}
       <div className="flex flex-wrap justify-center gap-2">
-        {launched && (
+        {(launched || retaking) && (
           <>
             <Button variant="outline" className="h-10 px-3" onClick={() => setPaused((p) => !p)} disabled={!ready || full}>
               {paused ? <Play /> : <Pause />} {paused ? 'Reprendre' : 'Pause'}
@@ -326,6 +327,8 @@ export function BookScanPage() {
   const linked = useRef(false)
   const feedback = useRef<() => void>(() => undefined)
   const current = useRef<ScanSession | null>(null)
+  /** Reprise de photo lancée depuis le récapitulatif : y revenir ensuite. */
+  const retakeFromReview = useRef(false)
 
   useEffect(() => {
     current.current = session
@@ -411,6 +414,9 @@ export function BookScanPage() {
         return patch({ status: 'pending', readyAt: Date.now() + OFFLINE_RETRY_MS, message: 'Hors ligne : nouvel essai au retour du réseau' })
       }
       patch({ message: undefined, ...mergeRetry(group.recipes, result) })
+    } catch (e) {
+      // Erreur imprévue (recette mal formée…) : le groupe ne reste pas « en lecture » pour toujours.
+      patch({ status: 'error', message: errorMessage(e) })
     } finally {
       started.current.delete(group.id)
     }
@@ -471,8 +477,21 @@ export function BookScanPage() {
   async function capture(pages: Blob[]) {
     const ids = pages.map(() => newId())
     await Promise.all(ids.map((id, i) => store.putImage(id, pages[i]!)))
+    const retaken = Boolean(current.current?.retake)
     setSession((s) => s && addCapture(s, ids, Date.now(), newId))
     setLastPhoto(URL.createObjectURL(pages[0]!))
+    // Reprise demandée au récapitulatif : on y revient, le scan automatique ne repart pas.
+    if (retaken && retakeFromReview.current) leaveRetake()
+  }
+
+  function leaveRetake() {
+    retakeFromReview.current = false
+    setPhase('review')
+  }
+
+  function cancelRetaking() {
+    setSession((s) => s && cancelRetake(s))
+    if (retakeFromReview.current) leaveRetake()
   }
 
   async function undo(): Promise<boolean> {
@@ -518,6 +537,7 @@ export function BookScanPage() {
         thumbsRef.current = rest
         setThumbs(rest)
       }
+      retakeFromReview.current = phase === 'review'
       setPhase('camera')
     },
   }
@@ -604,7 +624,7 @@ export function BookScanPage() {
           multi={session.multi}
           full={full}
           retaking={retaking}
-          onCancelRetake={() => setSession((s) => s && cancelRetake(s))}
+          onCancelRetake={cancelRetaking}
           feedback={() => feedback.current()}
           onCapture={capture}
           onNewRecipe={(keep) => setSession((s) => s && startNewRecipe(s, Date.now(), newId, keep))}

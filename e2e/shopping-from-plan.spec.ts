@@ -1,11 +1,11 @@
-import AxeBuilder from '@axe-core/playwright'
+import { axeFor } from './support/a11y'
 import type { Page } from '@playwright/test'
 import { addDays, todayIso } from '../src/lib/dates'
 import { signedInApi } from '../tests/integration/helpers'
 import { ERIC, LUCILE, expect, login, test } from './fixtures'
 
 async function expectNoA11yViolations(page: Page) {
-  const results = await new AxeBuilder({ page }).exclude('[data-sonner-toaster]').withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa']).analyze()
+  const results = await (await axeFor(page)).exclude('[data-sonner-toaster]').withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa']).analyze()
   expect(results.violations.map((v) => `${v.id}: ${v.nodes.map((n) => n.target.join(' ')).join(', ')}`)).toEqual([])
 }
 

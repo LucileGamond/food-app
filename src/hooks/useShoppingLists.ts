@@ -37,6 +37,7 @@ export function useShoppingLists(api: Api): ShoppingListsState {
   }, [api])
 
   useEffect(() => {
+    // oxlint-disable-next-line react/set-state-in-effect -- chargement depuis Supabase : l'état n'est modifié qu'après la réponse
     void reload()
   }, [reload])
   useRealtimeReload(api.shopping.subscribe, reload)

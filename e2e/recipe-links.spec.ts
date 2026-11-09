@@ -1,4 +1,4 @@
-import AxeBuilder from '@axe-core/playwright'
+import { axeFor } from './support/a11y'
 import { expect, login, test } from './fixtures'
 
 // Image PNG 1×1 : le contenu n'importe pas, la lecture par le modèle est simulée (aucun appel réel).
@@ -44,7 +44,7 @@ test('importe la recette à laquelle renvoie un ingrédient, puis la lie', async
   // Proposition après l'enregistrement
   const offer = page.getByRole('dialog', { name: 'Recettes liées' })
   await expect(offer.getByRole('listitem')).toHaveCount(2)
-  const results = await new AxeBuilder({ page }).include('[role="dialog"]').withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa']).analyze()
+  const results = await (await axeFor(page)).include('[role="dialog"]').withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa']).analyze()
   expect(results.violations.map((v) => v.id)).toEqual([])
   await offer.getByRole('button', { name: 'Importer pâte sucrée' }).click()
 

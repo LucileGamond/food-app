@@ -20,6 +20,7 @@ export interface ShoppingListState {
 }
 
 const TEMP_PREFIX = 'tmp-'
+const NO_ITEMS: ShoppingItem[] = []
 
 /** Article tout juste ajouté, pas encore enregistré (identifiant provisoire) : on attend avant de le modifier. */
 function isSaving(item: ShoppingItem): boolean {
@@ -35,7 +36,9 @@ function isSaving(item: ShoppingItem): boolean {
 export function useShoppingList(api: Api, listId: string): ShoppingListState {
   const [name, setName] = useState<string | null>(null)
   const [items, setItems] = useState<ShoppingItem[]>([])
-  const [loading, setLoading] = useState(true)
+  // Liste dont les données sont affichées : en changeant de liste, l'ancienne n'est pas montrée sous le nouveau nom.
+  const [loadedId, setLoadedId] = useState<string | null>(null)
+  const loading = loadedId !== listId
   const [notFound, setNotFound] = useState(false)
   const [loadError, setLoadError] = useState<string | null>(null)
   const requestId = useRef(0)
@@ -67,12 +70,12 @@ export function useShoppingList(api: Api, listId: string): ShoppingListState {
     } catch (error) {
       if (id === requestId.current) setLoadError(errorMessage(error))
     } finally {
-      if (id === requestId.current) setLoading(false)
+      if (id === requestId.current) setLoadedId(listId)
     }
   }, [api, listId])
 
   useEffect(() => {
-    setLoading(true)
+    // oxlint-disable-next-line react/set-state-in-effect -- chargement depuis Supabase : l'état n'est modifié qu'après la réponse
     void reload()
   }, [reload])
   useRealtimeReload(api.shopping.subscribe, reload)
@@ -185,5 +188,5 @@ export function useShoppingList(api: Api, listId: string): ShoppingListState {
     )
   }, [api, listId, write])
 
-  return { name, items, loading, notFound, loadError, reload, add, toggle, update, remove, clearChecked }
+  return { name: loading ? null : name, items: loading ? NO_ITEMS : items, loading, notFound, loadError, reload, add, toggle, update, remove, clearChecked }
 }

@@ -172,13 +172,17 @@ export function insistOnRecipe(session: ScanSession, id: string): ScanSession {
 /** Le groupe peut être relu en insistant : jugé sans recette, pas encore relu. */
 export const canInsist = (group: ScanGroup): boolean => group.status === 'skipped' && !group.insist
 
-/** Toujours rien après la relecture : la page peut être reprise en photo. */
-export const canRetake = (group: ScanGroup): boolean => group.status === 'skipped' && group.insist === true
+/**
+ * Toujours rien après la relecture : la page peut être reprise en photo. Une recette sur plusieurs photos ne se reprend
+ * que si elle tient sur une page : la photo reprise remplace tout le groupe.
+ */
+export const canRetake = (group: ScanGroup, multi = false): boolean =>
+  group.status === 'skipped' && group.insist === true && (!multi || group.images.length === 1)
 
 /** « Reprendre la photo » : la prochaine photo remplacera la page du groupe. */
 export const retakePhoto = (session: ScanSession, id: string): ScanSession => {
   const target = session.groups.find((g) => g.id === id)
-  return target && canRetake(target) ? { ...session, retake: id } : session
+  return target && canRetake(target, session.multi) ? { ...session, retake: id } : session
 }
 
 export const cancelRetake = (session: ScanSession): ScanSession => ({ ...session, retake: undefined })

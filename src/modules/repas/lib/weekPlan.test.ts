@@ -3,6 +3,7 @@ import {
   draftWarnings,
   isFragile,
   isLong,
+  MAX_PLAN_DISHES,
   openSlots,
   parsePlan,
   setEntry,
@@ -70,6 +71,10 @@ describe('openSlots', () => {
     expect(openSlots(SLOTS).map((s) => `${s.date} ${s.slot}`)).not.toContain('2026-11-14 DINNER')
     expect(openSlots(SLOTS)).toHaveLength(7)
   })
+
+  it('écarte les créneaux déjà passés', () => {
+    expect(openSlots([{ ...SLOTS[0]!, past: true }, SLOTS[1]!]).map((s) => s.slot)).toEqual(['DINNER'])
+  })
 })
 
 describe('buildPlanRequest', () => {
@@ -86,6 +91,13 @@ describe('buildPlanRequest', () => {
       { id: 'lasagnes', title: 'lasagnes', minutes: 90, servings: 4, ingredients: ['pâtes', 'bœuf haché', 'tomate'], long: true, fragile: true },
       { id: 'soupe', title: 'soupe', minutes: 30, servings: null, ingredients: [], long: false, fragile: false },
     ])
+  })
+
+  it(`borne les plats à ${MAX_PLAN_DISHES} (limite de la fonction)`, () => {
+    const many = Array.from({ length: MAX_PLAN_DISHES + 5 }, (_, i) => dish(`d${i}`))
+    const request = buildPlanRequest('2026-11-09', SLOTS, many, PROFILES)
+    expect(request.dishes).toHaveLength(MAX_PLAN_DISHES)
+    expect(request.dishes.at(-1)!.id).toBe(`d${MAX_PLAN_DISHES - 1}`)
   })
 })
 
@@ -154,6 +166,12 @@ describe('draftWarnings', () => {
 
   it('cuisinier absent', () => {
     expect(warnings([entry('2026-11-09', 'LUNCH', 'soupe', L)])['2026-11-09|LUNCH']).toEqual(['Lucile n’est pas là'])
+  })
+
+  it('premier repas d’un plat sans cuisinier : il faut quelqu’un pour le préparer', () => {
+    expect(warnings([entry('2026-11-09', 'DINNER', 'soupe', null), entry('2026-11-10', 'LUNCH', 'soupe')])).toEqual({
+      '2026-11-09|DINNER': ['Personne ne cuisine : c’est le premier repas de ce plat'],
+    })
   })
 
   it('ingrédients fragiles trop tard dans la semaine', () => {

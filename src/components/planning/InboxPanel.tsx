@@ -40,6 +40,7 @@ function InboxCard({ item, onPlan, onRename, onRemove, onSetAside }: CardProps) 
     <li
       ref={drag.setNodeRef}
       // Glisser (souris) ou appui long (tactile) vers un créneau ; sinon bouton « Planifier ».
+      // oxlint-disable-next-line react/refs -- écouteurs d'événements de dnd-kit (pas une ref lue au rendu)
       {...drag.listeners}
       data-testid="inbox-item"
       className={cn(

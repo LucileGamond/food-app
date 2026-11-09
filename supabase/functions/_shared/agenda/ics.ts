@@ -70,17 +70,25 @@ function isCancelled(event: IcalEvent): boolean {
 
 function single(event: IcalEvent, window: SyncWindow): CalendarOccurrence[] {
   if (isCancelled(event) || !event.startDate) return []
-  const occurrence = toOccurrence(event.uid, event, event.startDate, event.endDate)
+  // Exception reçue sans sa série (invitation à une seule réunion d'une série) : uid de la répétition, comme pour une
+  // série, sinon plusieurs exceptions de la même série partageraient le même uid et une seule serait gardée.
+  const uid = event.isRecurrenceException() ? `${event.uid}#${event.recurrenceId.toString()}` : event.uid
+  const occurrence = toOccurrence(uid, event, event.startDate, event.endDate)
   return overlaps(occurrence, window) ? [occurrence] : []
 }
 
 function expand(event: IcalEvent, window: SyncWindow): CalendarOccurrence[] {
   if (isCancelled(event)) return []
   const occurrences: CalendarOccurrence[] = []
+  // Répétitions passées : sautées sans les détailler (une série quotidienne depuis des années reste rapide), sauf
+  // celles déplacées par une exception, qui peuvent tomber dans la période.
+  const duration = event.endDate ? Math.max(0, instantMs(event.endDate) - instantMs(event.startDate)) : 0
+  const moved = new Set(Object.values(event.exceptions as unknown as Record<string, IcalEvent>).map((e) => e.recurrenceId.toString()))
   const iterator = event.iterator()
   for (let i = 0; i < MAX_ITERATIONS; i++) {
     const next = iterator.next()
     if (!next || instantMs(next) >= window.to.getTime()) break
+    if (instantMs(next) + duration < window.from.getTime() && !moved.has(next.toString())) continue
     const details = event.getOccurrenceDetails(next)
     if (isCancelled(details.item)) continue
     const occurrence = toOccurrence(`${event.uid}#${details.recurrenceId.toString()}`, details.item, details.startDate, details.endDate)

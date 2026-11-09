@@ -54,10 +54,10 @@ export function buildAgendaMessage(entries: AgendaEntry[], day: CivilDate, recip
 }
 
 export async function notifyAgenda(deps: AgendaNotifyDeps): Promise<RunReport> {
-  const recipients = await deps.claimAgendaReminders()
-  if (recipients.length === 0) return { groups: 0, sent: 0, failed: 0, removed: 0 }
+  // Lecture d'abord : si elle échoue, personne n'est réservé et le résumé repart au passage suivant (une heure après).
   const day = toCivilDate(new Date(deps.now()), AGENDA_TIME_ZONE)
   const entries = await deps.loadAgendaDay(day)
+  const recipients = await deps.claimAgendaReminders()
   // Rien de prévu : la personne est quand même notée comme prévenue (un rendez-vous ajouté dans la journée ne réveille pas).
   const messages = recipients.flatMap((recipient) => {
     const payload = buildAgendaMessage(entries, day, recipient)

@@ -1,4 +1,4 @@
-import AxeBuilder from '@axe-core/playwright'
+import { axeFor } from './support/a11y'
 import { signedInApi } from '../tests/integration/helpers'
 import { LUCILE, expect, login, test } from './fixtures'
 
@@ -55,7 +55,7 @@ test('trie et filtre les recettes, montre l’historique et enregistre un avis',
   await page.getByRole('combobox', { name: 'Filtrer par source' }).selectOption({ label: 'Ottolenghi' })
   await expect(cards).toHaveCount(1)
 
-  const results = await new AxeBuilder({ page }).analyze()
+  const results = await (await axeFor(page)).analyze()
   expect(results.violations).toEqual([])
 
   // Fiche : historique, avis ; au retour, la liste est comme on l'a laissée.
@@ -66,7 +66,7 @@ test('trie et filtre les recettes, montre l’historique et enregistre un avis',
   const reviews = page.getByRole('region', { name: 'Avis' })
   await reviews.getByRole('button', { name: '4 sur 5' }).click()
   await reviews.getByRole('textbox', { name: 'Mon commentaire' }).fill('Eric adore')
-  expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([])
+  expect((await (await axeFor(page)).analyze()).violations).toEqual([])
   await reviews.getByRole('button', { name: 'Enregistrer mon avis' }).click()
   await expect(page.getByText('Avis enregistré')).toBeVisible()
 

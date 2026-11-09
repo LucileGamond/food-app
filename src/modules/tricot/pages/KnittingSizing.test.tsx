@@ -151,6 +151,17 @@ describe('taille selon les mesures, après la lecture', () => {
     expect(await screen.findByText('Page Tricot')).toBeInTheDocument()
   })
 
+  it('fiches illisibles : message et nouvel essai', async () => {
+    const api = fakeApi()
+    api.knitting.listMeasures.mockRejectedValueOnce(new AppError('Impossible de charger les fiches de mesures.')).mockResolvedValue([LEA])
+    api.knitting.readPattern.mockResolvedValue(PATTERN)
+    const { user, card } = await readPattern(api)
+    expect(await within(card).findByText('Impossible de charger les fiches de mesures.')).toBeInTheDocument()
+    expect(within(card).queryByLabelText('Pour qui')).not.toBeInTheDocument()
+    await user.click(within(card).getByRole('button', { name: /Réessayer/ }))
+    expect(await within(card).findByRole('status')).toHaveTextContent('Taille conseillée : M')
+  })
+
   it('sans tableau des mesures dans le patron, rien n’est proposé', async () => {
     const api = fakeApi()
     api.knitting.readPattern.mockResolvedValue({ ...PATTERN, sizeChart: null })

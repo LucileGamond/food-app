@@ -20,7 +20,8 @@ export interface PlanInput {
 export interface PlannedMeal {
   slot: string
   dishId: string
-  cookId: string | null
+  /** null : restes ; absent : cuisinier inconnu, choisi par l'application. */
+  cookId?: string | null
   why: string
 }
 
@@ -139,7 +140,8 @@ export function sanitizePlan(output: unknown, input: PlanInput): PlannedMeal[] {
     const dish = input.dishes.find((d) => d.id === str(item.plat_id, 64))
     if (!slot || !dish || meals.some((m) => m.slot === slot.key)) continue
     const cook = str(item.cuisinier_id, 64)
-    meals.push({ slot: slot.key, dishId: dish.id, cookId: input.people.some((p) => p.id === cook) ? cook : null, why: str(item.raison, 160) })
+    const cookId = item.cuisinier_id === null ? { cookId: null } : input.people.some((p) => p.id === cook) ? { cookId: cook } : {}
+    meals.push({ slot: slot.key, dishId: dish.id, ...cookId, why: str(item.raison, 160) })
   }
   return meals
 }

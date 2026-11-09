@@ -1,4 +1,4 @@
-import AxeBuilder from '@axe-core/playwright'
+import { axeFor } from './support/a11y'
 import type { Page } from '@playwright/test'
 import { DEFAULT_SETTINGS } from '../src/lib/settings'
 import { signedInApi } from '../tests/integration/helpers'
@@ -145,14 +145,14 @@ test('accessibilité des écrans des plantes', async ({ page }) => {
   for (const path of ['/plantes', '/plantes?vue=toutes', '/plantes/nouvelle']) {
     await page.goto(path)
     await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
-    const results = await new AxeBuilder({ page }).exclude('[data-sonner-toaster]').withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa']).analyze()
+    const results = await (await axeFor(page)).exclude('[data-sonner-toaster]').withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa']).analyze()
     expect(results.violations.map((v) => `${path} ${v.id}: ${v.nodes.map((n) => n.target.join(' ')).join(', ')}`)).toEqual([])
   }
   // Fiche d'une plante (avec photo)
   await page.goto('/plantes?vue=toutes')
   await page.getByRole('list', { name: 'Liste des plantes' }).getByRole('link', { name: /Cactus/ }).click()
   await expect(page.getByRole('heading', { name: 'Cactus', level: 1 })).toBeVisible()
-  const results = await new AxeBuilder({ page }).exclude('[data-sonner-toaster]').withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa']).analyze()
+  const results = await (await axeFor(page)).exclude('[data-sonner-toaster]').withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa']).analyze()
   expect(results.violations.map((v) => v.id)).toEqual([])
 })
 

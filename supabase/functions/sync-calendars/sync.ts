@@ -12,8 +12,10 @@ export interface SourceToSync {
 export interface SyncDeps {
   now: () => Date
   providers: CalendarProviders
-  /** Sources non synchronisées depuis `staleBefore`. */
+  /** Sources sans tentative depuis `staleBefore`, la plus anciennement tentée d'abord. */
   loadSources: (staleBefore: Date) => Promise<SourceToSync[]>
+  /** Note le début de la tentative (avant le téléchargement, qui peut ne jamais finir). */
+  markStarted: (sourceId: string) => Promise<void>
   loadCredentials: (sourceId: string) => Promise<CalendarCredentials | null>
   /** Remplace les occurrences de la source et note la synchronisation réussie. */
   saveOccurrences: (sourceId: string, occurrences: CalendarOccurrence[]) => Promise<void>
@@ -35,6 +37,7 @@ export async function syncCalendars(deps: SyncDeps, staleBefore: Date): Promise<
   // Une source à la fois : une erreur sur l'une n'empêche pas les autres.
   for (const source of await deps.loadSources(staleBefore)) {
     try {
+      await deps.markStarted(source.id)
       const occurrences = await fetchSource(deps, source, window)
       await deps.saveOccurrences(source.id, occurrences)
       report.synced += 1

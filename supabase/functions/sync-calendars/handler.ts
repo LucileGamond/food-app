@@ -1,6 +1,7 @@
 // Point d'entrée HTTP de sync-calendars, indépendant de Deno pour pouvoir être testé. Deux appelants :
-//   - pg_cron, toutes les 15 minutes (en-tête x-cron-secret) : les sources non synchronisées depuis 10 minutes ;
-//   - l'application, bouton « Synchroniser » (personne connectée) : celles qui ne l'ont pas été depuis 1 minute.
+//   - pg_cron, toutes les 15 minutes (en-tête x-cron-secret) : les sources sans tentative depuis 10 minutes (la plus anciennement
+//     tentée d'abord) ;
+//   - l'application, bouton « Synchroniser » (personne connectée) : celles sans tentative depuis 1 minute.
 
 import { CORS_HEADERS, json } from '../_shared/anthropic.ts'
 import { sameSecret } from '../_shared/secret.ts'

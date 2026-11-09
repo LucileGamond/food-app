@@ -5,6 +5,7 @@ import { Loader2, RefreshCw, Ruler } from 'lucide-react'
 import { useId, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useApi } from '@/app/ApiContext'
+import { LoadError } from '@/components/LoadError'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -81,7 +82,9 @@ export function SizeAdvice({ chart, sizes, readIndex, onReread, rereading }: Pro
         </table>
       </div>
 
-      {profiles.data && list.length === 0 ? (
+      {profiles.error ? (
+        <LoadError message={profiles.error} onRetry={profiles.reload} />
+      ) : profiles.data && list.length === 0 ? (
         <p className="text-sm text-muted-foreground">
           Aucune fiche de mesures : ajoute-la dans{' '}
           <Link to="/tricot" className="font-medium text-foreground underline underline-offset-4">

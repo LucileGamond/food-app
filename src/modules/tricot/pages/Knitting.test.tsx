@@ -466,6 +466,8 @@ describe('KnittingProjectPage', () => {
     await user.click(await screen.findByRole('button', { name: 'Supprimer' }))
     expect(api.knitting.deleteProject).toHaveBeenCalledWith(expect.objectContaining({ id: 'p1', pdfPath: 'u-lucile/abc.pdf' }))
     expect(await screen.findByText('Liste des projets')).toBeInTheDocument()
+    // Copie hors ligne et avancée en attente oubliées
+    expect(localStorage.getItem('life:tricot:projet:p1')).toBeNull()
   })
 
   it('signale un projet introuvable ou illisible', async () => {
@@ -551,6 +553,33 @@ describe('laine et échantillon du projet', () => {
     await waitFor(() => expect(api.knitting.saveProjectInfo).toHaveBeenLastCalledWith('p1', expect.objectContaining({ yarns: [{ ...yarn, color: '0100 Écru' }] })))
     await user.click(within(panel).getByRole('button', { name: 'Retirer DROPS Alpaca' }))
     await waitFor(() => expect(api.knitting.saveProjectInfo).toHaveBeenLastCalledWith('p1', expect.objectContaining({ yarns: [] })))
+  })
+
+  it('retirer une laine retire sa pesée et garde les autres sur leur laine', async () => {
+    const user = userEvent.setup()
+    const api = fakeApi()
+    const alpaca = { ...EMPTY_YARN, brand: 'DROPS', name: 'Alpaca' }
+    const merino = { ...EMPTY_YARN, brand: 'DROPS', name: 'Merino' }
+    const kid = { ...EMPTY_YARN, brand: 'DROPS', name: 'Kid-Silk' }
+    const checks = [
+      { yarn: 0, grams: 50, rowsDone: 10, at: '' },
+      { yarn: 1, grams: 40, rowsDone: 10, at: '' },
+      { yarn: 2, grams: 20, rowsDone: 10, at: '' },
+    ]
+    await renderProject(api, { ...PROJECT, yarns: [alpaca, merino, kid], yarnChecks: checks })
+    const panel = await screen.findByRole('region', { name: 'Laine et échantillon' })
+    await user.click(within(panel).getByRole('button', { name: 'Retirer DROPS Merino' }))
+    await waitFor(() =>
+      expect(api.knitting.saveYarnChecks).toHaveBeenCalledWith('p1', [
+        { yarn: 0, grams: 50, rowsDone: 10, at: '' },
+        { yarn: 1, grams: 20, rowsDone: 10, at: '' },
+      ]),
+    )
+    // La dernière laine retirée sans pesée derrière elle : rien à décaler
+    api.knitting.saveYarnChecks.mockClear()
+    await user.click(within(panel).getByRole('button', { name: 'Retirer DROPS Kid-Silk' }))
+    await waitFor(() => expect(api.knitting.saveProjectInfo).toHaveBeenLastCalledWith('p1', expect.objectContaining({ yarns: [alpaca, merino] })))
+    expect(api.knitting.saveYarnChecks).toHaveBeenCalledWith('p1', [{ yarn: 0, grams: 50, rowsDone: 10, at: '' }, { yarn: 1, grams: 40, rowsDone: 10, at: '' }])
   })
 
   it('recalcule mailles et rangs avec l’échantillon de la tricoteuse', async () => {

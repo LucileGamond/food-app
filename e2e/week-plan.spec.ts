@@ -1,4 +1,4 @@
-import AxeBuilder from '@axe-core/playwright'
+import { axeFor } from './support/a11y'
 import { createAppClient } from '../src/api/client'
 import { LOCAL_SERVICE_KEY, LOCAL_URL, signedInApi } from '../tests/integration/helpers'
 import { ERIC, LUCILE, dayLabel, expect, login, test } from './fixtures'
@@ -65,7 +65,7 @@ test('planifier la semaine : qui mange à la maison, proposition de l’IA, repa
   await tonight.getByRole('button', { name: 'Lucile' }).click()
   await expect(tonight.getByRole('button', { name: 'Lucile' })).toHaveAttribute('aria-pressed', 'false')
 
-  const presence = await new AxeBuilder({ page }).include('main').withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa']).analyze()
+  const presence = await (await axeFor(page)).include('main').withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa']).analyze()
   expect(presence.violations.map((v) => v.id)).toEqual([])
   await page.screenshot({ path: `test-results/layout/semaine-presence-${test.info().project.name}.png`, fullPage: true })
 
@@ -84,7 +84,7 @@ test('planifier la semaine : qui mange à la maison, proposition de l’IA, repa
   await expect(first.getByText('Saumon à manger vite')).toBeVisible()
   await first.getByRole('combobox', { name: 'Qui cuisine' }).selectOption({ label: 'Personne (restes)' })
 
-  const draft = await new AxeBuilder({ page }).include('main').withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa']).analyze()
+  const draft = await (await axeFor(page)).include('main').withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa']).analyze()
   expect(draft.violations.map((v) => v.id)).toEqual([])
   await page.screenshot({ path: `test-results/layout/semaine-proposition-${test.info().project.name}.png`, fullPage: true })
 

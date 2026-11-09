@@ -21,6 +21,8 @@ export interface Adaptation {
   /** L'écran suit le patron adapté (sinon celui d'origine). */
   active: boolean
   at: string
+  /** Taille pour laquelle les chiffres ont été recalculés (null : adaptation d'avant, taille non notée). */
+  size: string | null
   steps: AdaptedStep[]
 }
 
@@ -40,7 +42,7 @@ export function sanitizeAdaptation(raw: unknown): Adaptation | null {
     return [{ stepId: s.step_id, totalRows: count(s.total_rows), stitches: count(s.stitches), sections: sanitizeSections(s.sections), note: typeof s.note === 'string' ? s.note.slice(0, 300) : '' }]
   })
   if (steps.length === 0) return null
-  return { request: typeof a.request === 'string' ? a.request.slice(0, ADAPT_REQUEST_MAX) : '', active: a.active, at: typeof a.at === 'string' ? a.at : '', steps }
+  return { request: typeof a.request === 'string' ? a.request.slice(0, ADAPT_REQUEST_MAX) : '', active: a.active, at: typeof a.at === 'string' ? a.at : '', size: typeof a.size === 'string' && a.size ? a.size.slice(0, 40) : null, steps }
 }
 
 /** Adaptation telle qu'enregistrée en base. */
@@ -49,13 +51,19 @@ export function adaptationToJson(adaptation: Adaptation) {
     request: adaptation.request,
     active: adaptation.active,
     at: adaptation.at,
+    size: adaptation.size,
     steps: adaptation.steps.map((s) => ({ step_id: s.stepId, total_rows: s.totalRows, stitches: s.stitches, sections: s.sections, note: s.note })),
   }
 }
 
-/** Étapes à suivre : adaptées si l'adaptation est active, sinon celles du patron d'origine. */
-export function applyAdaptation(steps: KnitStep[], adaptation: Adaptation | null | undefined): ShownStep[] {
-  if (!adaptation?.active) return steps
+/** Adaptation faite pour une autre taille que celle suivie : ses chiffres ne valent plus, elle est en pause. */
+export function adaptationPaused(adaptation: Adaptation | null | undefined, size: string): boolean {
+  return !!adaptation?.size && adaptation.size !== size
+}
+
+/** Étapes à suivre : adaptées si l'adaptation est active (et faite pour la taille suivie), sinon celles du patron d'origine. */
+export function applyAdaptation(steps: KnitStep[], adaptation: Adaptation | null | undefined, size: string): ShownStep[] {
+  if (!adaptation?.active || adaptationPaused(adaptation, size)) return steps
   const byId = new Map(adaptation.steps.map((s) => [s.stepId, s]))
   return steps.map((step) => {
     const a = byId.get(step.id)

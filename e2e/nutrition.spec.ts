@@ -1,4 +1,4 @@
-import AxeBuilder from '@axe-core/playwright'
+import { axeFor } from './support/a11y'
 import { signedInApi } from '../tests/integration/helpers'
 import { expect, login, test } from './fixtures'
 
@@ -45,7 +45,7 @@ test('calcule les calories d’une recette qui n’en a pas, puis les enregistre
   await expect(dialog.getByText('Poireau, cru · 600 g')).toBeVisible()
   expect(sent).toMatchObject({ title: 'Soupe poireaux pommes de terre', servings: 4 })
   expect(sent.ingredients?.map((i) => i.name)).toEqual(['poireaux', 'pommes de terre', 'sel'])
-  expect((await new AxeBuilder({ page }).include('[role="dialog"]').analyze()).violations).toEqual([])
+  expect((await (await axeFor(page)).include('[role="dialog"]').analyze()).violations).toEqual([])
 
   await dialog.getByRole('button', { name: 'Enregistrer', exact: true }).click()
   await expect(page.getByText('215 kcal · glucides 28,4 g · protéines 6,2 g · lipides 8,1 g (par portion)')).toBeVisible()

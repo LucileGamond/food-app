@@ -68,10 +68,18 @@ describe('envoi du résumé', () => {
     expect(deps.send).toHaveBeenCalledWith(device('e1'), expect.objectContaining({ body: 'Journée Anniversaire de Léa (Lucile)\n14 h – 15 h Dentiste (Lucile)' }))
   })
 
-  it('personne à prévenir : l’agenda n’est pas lu', async () => {
+  it('personne à prévenir : rien n’est envoyé', async () => {
     const deps = setup([], {})
     expect(await notifyAgenda(deps)).toEqual({ groups: 0, sent: 0, failed: 0, removed: 0 })
-    expect(deps.loadAgendaDay).not.toHaveBeenCalled()
+    expect(deps.send).not.toHaveBeenCalled()
+  })
+
+  it('lecture de l’agenda en échec : personne n’est réservé, le résumé repartira au passage suivant', async () => {
+    const deps = setup([{ profileId: 'lucile', scope: 'all' }], { lucile: [device('l1')] })
+    deps.loadAgendaDay.mockRejectedValueOnce(new Error('base indisponible'))
+    await expect(notifyAgenda(deps)).rejects.toThrow('base indisponible')
+    expect(deps.claimAgendaReminders).not.toHaveBeenCalled()
+    expect(deps.send).not.toHaveBeenCalled()
   })
 
   it('branché sur la tâche « agenda » du handler', async () => {

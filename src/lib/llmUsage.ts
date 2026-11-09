@@ -57,7 +57,8 @@ type Tokens = Pick<UsageRow, 'model' | 'inputTokens' | 'outputTokens' | 'cacheCr
 
 /** Coût estimé en euros, ou null si le modèle n'a pas de tarif connu. */
 export function costEur(row: Tokens): number | null {
-  const price = PRICES[row.model]
+  // L'API peut renvoyer l'identifiant daté (claude-haiku-5-5-20261001) : même tarif que l'alias.
+  const price = PRICES[row.model] ?? PRICES[row.model.replace(/-\d{8}$/, '')]
   if (!price) return null
   const usd =
     (row.inputTokens * price.input + row.outputTokens * price.output + row.cacheCreationTokens * price.cacheWrite + row.cacheReadTokens * price.cacheRead) / 1_000_000 +

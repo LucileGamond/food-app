@@ -1,4 +1,4 @@
-import AxeBuilder from '@axe-core/playwright'
+import { axeFor } from './support/a11y'
 import type { Page } from '@playwright/test'
 import { createAppClient } from '../src/api/client'
 import { LOCAL_SERVICE_KEY, LOCAL_URL } from '../tests/integration/helpers'
@@ -129,7 +129,7 @@ test('accessibilité des écrans de l’agenda', async ({ page }) => {
     await page.goto(path)
     await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
     await expect(page.getByText('Réunion d’équipe').or(page.getByText('Travail · Eric')).first()).toBeVisible()
-    const results = await new AxeBuilder({ page }).exclude('[data-sonner-toaster]').withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa']).analyze()
+    const results = await (await axeFor(page)).exclude('[data-sonner-toaster]').withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa']).analyze()
     expect(results.violations.map((v) => `${path} ${v.id}: ${v.nodes.map((n) => n.target.join(' ')).join(', ')}`)).toEqual([])
   }
 })

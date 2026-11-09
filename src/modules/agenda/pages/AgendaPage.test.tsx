@@ -150,6 +150,35 @@ describe('AgendaPage — détail d’un rendez-vous', () => {
   })
 })
 
+describe('AgendaPage — période', () => {
+  it('au changement de semaine, chargement (pas « Aucun rendez-vous ») tant que la nouvelle semaine n’est pas lue', async () => {
+    const user = userEvent.setup()
+    const { api } = setup()
+    await day(/Mardi 10 novembre/)
+    let resolve: (events: never[]) => void = () => undefined
+    api.agenda.listEvents.mockImplementationOnce(() => new Promise((r) => (resolve = r)))
+    await user.click(screen.getByRole('button', { name: 'Semaine suivante' }))
+    expect(await screen.findByLabelText('Chargement de l’agenda')).toBeInTheDocument()
+    expect(screen.queryByText('Aucun rendez-vous')).not.toBeInTheDocument()
+    expect(screen.queryByRole('region', { name: /Lundi 16 novembre/ })).not.toBeInTheDocument()
+    resolve([])
+    expect(within(await day(/Lundi 16 novembre/)).getByText('Aucun rendez-vous')).toBeInTheDocument()
+  })
+
+  it('hors de la période synchronisée (semaine passée → deux mois) : dit pourquoi il n’y a rien', async () => {
+    setup({ route: '/agenda?jour=2027-01-20' })
+    const far = await day(/Mercredi 20 janvier/)
+    expect(within(far).getByText(/Hors de la période synchronisée/)).toBeInTheDocument()
+    expect(within(far).queryByText('Aucun rendez-vous')).not.toBeInTheDocument()
+  })
+
+  it('dans la période synchronisée : « Aucun rendez-vous »', async () => {
+    setup({ route: '/agenda?jour=2026-11-03' })
+    expect(within(await day(/Mercredi 4 novembre/)).getByText('Aucun rendez-vous')).toBeInTheDocument()
+    expect(within(await day(/Mardi 3 novembre/)).getByText(/Hors de la période synchronisée/)).toBeInTheDocument()
+  })
+})
+
 describe('AgendaPage — états', () => {
   it('aucun agenda suivi : invite à en ajouter un', async () => {
     setup({ sources: [] })

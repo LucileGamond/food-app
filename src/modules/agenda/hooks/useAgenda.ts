@@ -34,15 +34,20 @@ export function useAgendaScope() {
   }
 }
 
-/** Événements des jours [from, to] et sources ; rechargés à chaque synchronisation. */
+/**
+ * Événements des jours [from, to] et sources ; rechargés à chaque synchronisation. Au changement de période, les
+ * événements sont null (chargement) tant que ceux de la nouvelle période ne sont pas arrivés : les nouveaux jours
+ * n'affichent pas « Aucun rendez-vous » avec les données de l'ancienne.
+ */
 export function useAgendaEvents(from: IsoDate, to: IsoDate) {
   const api = useApi()
   const { data, error, reload } = useAsync(async () => {
     const [events, sources] = await Promise.all([api.agenda.listEvents(from, to), api.agenda.listSources()])
-    return { events, sources }
+    return { from, to, events, sources }
   }, [api, from, to])
   useRealtimeReload(api.agenda.subscribe, reload)
-  return { events: data?.events ?? null, sources: data?.sources ?? null, error, reload }
+  const current = data?.from === from && data.to === to
+  return { events: current ? data.events : null, sources: data?.sources ?? null, error, reload }
 }
 
 /** Sources du foyer et leurs gestes (ajout, suppression, synchronisation). */
