@@ -17,11 +17,16 @@ import type { YarnCheck } from './yarnLeft'
 export type SectionKind = 'rows' | 'repeat'
 
 /** Action d'une répétition, placée sur un rang de la répétition. */
-interface RepeatAction {
+export interface RepeatAction {
   text: string
   /** Rang dans la répétition (1 = premier) ; null = dernier rang. */
   rank: number | null
+  /** Mailles ajoutées (+) ou retirées (−) à chaque fois ; absent : pas connu (deviné d'après le texte). */
+  stitches?: number
 }
+
+/** Effet d'une action sur les mailles, au plus. */
+export const MAX_ACTION_STITCHES = 200
 
 export interface StepSection {
   kind: SectionKind
@@ -134,7 +139,11 @@ export function sanitizeSections(raw: unknown): StepSection[] {
       section.actions = s.actions
         .filter((a): a is Record<string, unknown> => typeof a === 'object' && a !== null && typeof a.text === 'string' && a.text.trim() !== '')
         .slice(0, MAX_ACTIONS)
-        .map((a) => ({ text: text(a.text), rank: count(a.rank, 500) }))
+        .map((a) => {
+          const stitches = a.stitches
+          const known = typeof stitches === 'number' && Number.isInteger(stitches) && Math.abs(stitches) <= MAX_ACTION_STITCHES
+          return { text: text(a.text), rank: count(a.rank, 500), ...(known ? { stitches } : {}) }
+        })
     }
     return [section]
   })
@@ -205,27 +214,6 @@ export function planSections(sections: StepSection[], totalRows: number | null):
   })
 }
 
-type SectionAlert =
-  | { type: 'action'; section: StepSection; action: RepeatAction; count: number; times: number | null }
-  | { type: 'start'; section: StepSection }
-
-/** Ce qu'il y a à faire en tricotant le rang `row` : actions d'une répétition, début d'une nouvelle section. */
-export function alertsAt(step: Pick<KnitStep, 'sections' | 'totalRows'>, row: number): SectionAlert[] {
-  if (row < 1) return []
-  const plan = planSections(step.sections, step.totalRows)
-  const alerts: SectionAlert[] = []
-  for (const p of plan) {
-    // Le début de la première section se lit dans la liste ; on annonce les changements ensuite.
-    if (p.index > 0 && p.start === row && (p.end === null || p.end >= p.start)) alerts.push({ type: 'start', section: p.section })
-  }
-  for (const p of plan) {
-    for (const a of p.actions) {
-      if (a.row === row) alerts.push({ type: 'action', section: p.section, action: a.action, count: a.count, times: p.section.times })
-    }
-  }
-  return alerts
-}
-
 /** Section du rang `row` (null si toutes sont faites ou si la suite est à régler). */
 export function sectionIndexAt(plan: PlannedSection[], row: number): number | null {
   const current = plan.find((p) => p.start !== null && p.start <= row && (p.end === null || p.end >= row))
@@ -282,7 +270,20 @@ interface ActionForm {
   text: string
   /** Rang dans la répétition : « 1 », « 2 »… ou « last ». */
   rank: string
+  /** Mailles ajoutées ou retirées à chaque fois : « -2 », « +1 », « 0 » ; vide : pas connu. */
+  stitches: string
 }
+
+/** « -2 », « −2 », « +1 », « 0 » → nombre ; vide → null ; sinon undefined. */
+export function parseStitches(value: string): number | null | undefined {
+  const t = value.trim().replace('−', '-').replace(/^\+/, '')
+  if (!t) return null
+  const n = Number(t)
+  return Number.isInteger(n) && Math.abs(n) <= MAX_ACTION_STITCHES ? n : undefined
+}
+
+/** −2 → « -2 », 1 → « +1 », 0 → « 0 ». */
+export const formatStitches = (n: number): string => (n > 0 ? `+${n}` : String(n))
 
 export interface SectionForm {
   kind: SectionKind
@@ -295,14 +296,14 @@ export interface SectionForm {
 
 export function sectionToForm(section: StepSection): SectionForm {
   const text = (n: number | null) => (n === null ? '' : String(n))
-  const actions = section.kind === 'repeat' ? repeatActions(section).map((a) => ({ text: a.text, rank: a.rank === null ? 'last' : String(a.rank) })) : []
+  const actions = section.kind === 'repeat' ? repeatActions(section).map((a) => ({ text: a.text, rank: a.rank === null ? 'last' : String(a.rank), stitches: a.stitches === undefined ? '' : formatStitches(a.stitches) })) : []
   return {
     kind: section.kind,
     text: section.kind === 'rows' ? section.text : '',
     rows: text(section.rows),
     every: text(section.every),
     times: text(section.times),
-    actions: actions.length ? actions : [{ text: '', rank: 'last' }],
+    actions: actions.length ? actions : [{ text: '', rank: 'last', stitches: '' }],
   }
 }
 
@@ -324,10 +325,12 @@ export function formToSection(form: SectionForm, pattern: string | null = null):
   const times = parse(form.times, 1, 500)
   if (every === undefined) return 'Répétition : un nombre de rangs entre 1 et 500.'
   if (times === undefined) return 'Nombre de fois : un nombre entier entre 1 et 500.'
-  const actions = form.actions
-    .map((a) => ({ text: a.text.trim().slice(0, 200), rank: a.rank === 'last' ? null : Number(a.rank) }))
-    .filter((a) => a.text)
-    .slice(0, MAX_ACTIONS)
+  const filled = form.actions.filter((a) => a.text.trim()).slice(0, MAX_ACTIONS)
+  if (filled.some((a) => parseStitches(a.stitches) === undefined)) return `Mailles : un nombre entier entre -${MAX_ACTION_STITCHES} et ${MAX_ACTION_STITCHES} (ex. -2 pour 1 diminution de chaque côté).`
+  const actions: RepeatAction[] = filled.map((a) => {
+    const stitches = parseStitches(a.stitches)
+    return { text: a.text.trim().slice(0, 200), rank: a.rank === 'last' ? null : Number(a.rank), ...(typeof stitches === 'number' ? { stitches } : {}) }
+  })
   if (actions.length === 0) return 'Indique quoi faire (ex. « 1 diminution de chaque côté »).'
   if (every === null && !pattern) return 'Indique tous les combien de rangs.'
   if (every !== null && actions.some((a) => a.rank !== null && a.rank > every)) return `Une action est placée après le dernier rang de la répétition (${every}).`
@@ -338,34 +341,10 @@ export function formToSection(form: SectionForm, pattern: string | null = null):
 
 type ActionEffect = 'decrease' | 'increase' | 'other'
 
-/** Diminution (bord rouge), augmentation (bord bleu) ou autre action, d'après son texte. */
+/** Diminution, augmentation ou autre action, d'après son texte. */
 export function actionEffect(text: string): ActionEffect {
   const t = text.toLowerCase()
-  if (/dimin|\bdim\b|ensemble/.test(t)) return 'decrease'
+  if (/dimin|\bdim\b|ensemble|\bens\b/.test(t)) return 'decrease'
   if (/augm|\baug\b/.test(t)) return 'increase'
   return 'other'
-}
-
-interface DotLine {
-  /** Rangs de la ligne, dans l'ordre. */
-  rows: number[]
-  /** Actions de la ligne, par rang. */
-  actions: Map<number, RepeatAction[]>
-}
-
-/** Lignes de pastilles d'une section : une ligne par fois pour une répétition, une seule pour des rangs. */
-export function sectionLines(planned: PlannedSection, row: number): DotLine[] {
-  const { section, start } = planned
-  if (start === null) return []
-  const range = (from: number, to: number) => Array.from({ length: Math.max(to - from + 1, 0) }, (_, i) => from + i)
-  if (section.kind === 'rows') return planned.end === null ? [] : [{ rows: range(start, planned.end), actions: new Map() }]
-  if (section.every === null) return []
-  const every = section.every
-  // Répétition sans fin connue : jusqu'à deux fois après le rang à tricoter.
-  const starts = section.times === null && planned.end === null ? planned.repeatStarts.filter((s) => s <= row + every * 2) : planned.repeatStarts
-  return starts.map((first) => {
-    const actions = new Map<number, RepeatAction[]>()
-    for (const a of planned.actions) if (a.row >= first && a.row < first + every) actions.set(a.row, [...(actions.get(a.row) ?? []), a.action])
-    return { rows: range(first, first + every - 1), actions }
-  })
 }

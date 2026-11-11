@@ -3,6 +3,7 @@ import userEvent from '@testing-library/user-event'
 import { fakeApi, renderWithApp } from '@/test/fakes'
 import type { KnitChart } from '../lib/chart'
 import type { KnitProject, KnitStep } from '../lib/pattern'
+import { KnittingModePage } from './KnittingModePage'
 import { KnittingProjectPage } from './KnittingProjectPage'
 
 // Pas de canvas dans jsdom : l'image du diagramme est envoyée telle quelle.
@@ -76,8 +77,16 @@ function renderProject(project: KnitProject = PROJECT, api = fakeApi()) {
   return renderWithApp(<KnittingProjectPage />, { api, route: '/tricot/p1?etape', path: '/tricot/:id' })
 }
 
+/** Mode tricoter, sur l'étape en cours (8 rangs faits : rang 9 à tricoter). */
+function renderMode(project: KnitProject = PROJECT, api = fakeApi()) {
+  api.knitting.getProject.mockResolvedValue(structuredClone(project))
+  return renderWithApp(<KnittingModePage />, { api, route: '/tricot/p1/tricoter', path: '/tricot/:id/tricoter' })
+}
+
+const rowLine = () => screen.findByRole('region', { name: /à tricoter$/ })
+
 describe('diagrammes d’une étape', () => {
-  it('surligne le rang à tricoter et le fait avancer avec le compteur', async () => {
+  it('préparation : le diagramme est calé sur le rang en cours, sans compteur', async () => {
     const user = userEvent.setup()
     renderProject()
     const chart = await screen.findByRole('region', { name: 'Torsade' })
@@ -86,10 +95,28 @@ describe('diagrammes d’une étape', () => {
     expect(within(chart).getByRole('img', { name: 'Torsade du patron' })).toHaveAttribute('src', 'https://cdn.test/c1.jpg')
     // Rang 3 sur 6, de bas en haut : de 50 % à 66,7 % de la hauteur
     expect(parseFloat(within(chart).getByTestId('chart-band').style.top)).toBeCloseTo(50)
+    await user.click(within(chart).getByRole('button', { name: 'Plein écran : Torsade' }))
+    const full = await screen.findByRole('dialog', { name: 'Torsade' })
+    expect(within(full).queryByRole('button', { name: 'Ajouter 1 rang' })).not.toBeInTheDocument()
+  })
 
+  it('mode tricoter : le rang du diagramme suit le compteur, avec une bande de l’image', async () => {
+    const user = userEvent.setup()
+    renderMode()
+    const line = await rowLine()
+    expect(line).toHaveTextContent('Torsade : rang 3 sur 6 · 2e fois · Tour de droite à gauche')
+    expect(within(line).getByRole('button', { name: 'Voir Torsade en grand' })).toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: 'Ajouter 1 rang' }))
-    expect(within(chart).getByRole('status')).toHaveTextContent('Rang 4 sur 6 · 2e fois')
-    expect(parseFloat(within(chart).getByTestId('chart-band').style.top)).toBeCloseTo(33.33, 1)
+    expect(line).toHaveTextContent('Torsade : rang 4 sur 6 · 2e fois')
+  })
+
+  it('mode tricoter : diagramme à venir ou juste fini, sans bande', async () => {
+    renderMode({ ...PROJECT, charts: [{ ...TORSADE, startRow: 12 }, { ...TORSADE, id: 'c2', title: 'Bordure', repeats: false, rows: 8 }] })
+    const line = await rowLine()
+    expect(line).toHaveTextContent('Torsade : commence au rang 12')
+    // Bordure : 8 rangs, finie au rang 8 ; rappelée au rang 9
+    expect(line).toHaveTextContent('Bordure : terminé')
+    expect(screen.queryByTestId('chart-strip')).not.toBeInTheDocument()
   })
 
   it('annonce un diagramme qui commence plus loin, ou qui est fini', async () => {
@@ -194,28 +221,24 @@ describe('diagrammes d’une étape', () => {
   })
 
   it('donne le sens de lecture à plat, et les rangs envers non dessinés', async () => {
-    const api = fakeApi()
     const flat = { ...TORSADE, flat: true }
-    renderProject({ ...PROJECT, charts: [flat, { ...flat, id: 'c2', title: 'Jacquard', oddOnly: true }] }, api)
+    renderMode({ ...PROJECT, charts: [flat, { ...flat, id: 'c2', title: 'Jacquard', oddOnly: true }] })
     // Rang 9 de l'étape : rang 3 du diagramme, impair, sur l'endroit
-    const torsade = await screen.findByRole('region', { name: 'Torsade' })
-    expect(within(torsade).getByRole('status')).toHaveTextContent('Rang 3 sur 6 · 2e foisEndroit, de droite à gauche')
-    expect(within(torsade).getByTestId('chart-band')).toHaveAttribute('data-direction', 'rtl')
-    // Une ligne pour deux rangs : rang 9 sur 12, ligne 5
-    const jacquard = screen.getByRole('region', { name: 'Jacquard' })
-    expect(within(jacquard).getByRole('status')).toHaveTextContent('Rang 9 sur 12Endroit, de droite à gauche')
+    const line = await rowLine()
+    expect(line).toHaveTextContent('Torsade : rang 3 sur 6 · 2e fois · Endroit, de droite à gauche')
+    // Une ligne pour deux rangs : rang 9 sur 12
+    expect(line).toHaveTextContent('Jacquard : rang 9 sur 12 · Endroit, de droite à gauche')
 
     await userEvent.setup().click(screen.getByRole('button', { name: 'Ajouter 1 rang' }))
-    expect(within(torsade).getByRole('status')).toHaveTextContent('Envers, de gauche à droite')
-    expect(within(torsade).getByTestId('chart-band')).toHaveAttribute('data-direction', 'ltr')
-    expect(within(jacquard).getByRole('status')).toHaveTextContent('Rang 10 sur 12Envers, non dessiné')
+    expect(line).toHaveTextContent('Torsade : rang 4 sur 6 · 2e fois · Envers, de gauche à droite')
+    expect(line).toHaveTextContent('Jacquard : rang 10 sur 12 · Envers, non dessiné')
   })
 
-  it('suit le diagramme en plein écran, avec le compteur et le zoom', async () => {
+  it('mode tricoter : suit le diagramme en plein écran, avec le compteur et le zoom', async () => {
     const user = userEvent.setup()
     const api = fakeApi()
-    renderProject(PROJECT, api)
-    await user.click(await screen.findByRole('button', { name: 'Plein écran : Torsade' }))
+    renderMode(PROJECT, api)
+    await user.click(await screen.findByRole('button', { name: 'Voir Torsade en grand' }))
     const full = await screen.findByRole('dialog', { name: 'Torsade' })
     expect(within(full).getByRole('status')).toHaveTextContent('Rang 3 sur 6 · 2e fois · Tour de droite à gauche')
     expect(within(full).getByText('rangs faits')).toHaveTextContent('8 rangs faits')
@@ -236,7 +259,7 @@ describe('diagrammes d’une étape', () => {
 
     await user.click(within(full).getByRole('button', { name: 'Fermer le plein écran' }))
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
-    expect(within(screen.getByRole('region', { name: 'Torsade' })).getByTestId('chart-band')).toBeInTheDocument()
+    expect(screen.getByTestId('chart-strip')).toBeInTheDocument()
   })
 
   it('règle le tricot à plat et les rangs endroit seuls', async () => {

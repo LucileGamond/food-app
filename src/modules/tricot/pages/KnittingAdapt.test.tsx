@@ -4,6 +4,7 @@ import { AppError } from '@/api'
 import { fakeApi, renderWithApp } from '@/test/fakes'
 import { adaptationPaused, adaptationToJson, applyAdaptation, describeChange, sanitizeAdaptation, withAdaptedSections, type Adaptation } from '../lib/adapt'
 import type { KnitProject, KnitStep, StepSection } from '../lib/pattern'
+import { KnittingModePage } from './KnittingModePage'
 import { KnittingProjectPage } from './KnittingProjectPage'
 import { openFold } from '@/test/openFold'
 
@@ -128,7 +129,7 @@ describe('patron adapté : écran', () => {
     await user.click(await screen.findByRole('link', { name: /Manches/ }))
     expect(await screen.findByText(/Patron adapté : 16 rangs de plus pour 5 cm\./)).toBeInTheDocument()
     expect(screen.getByText('Patron d’origine : 120 rangs, 60 mailles à la fin.')).toBeInTheDocument()
-    expect(screen.getByText('/ 136')).toBeInTheDocument()
+    expect(screen.getByText(/rangs? faits? sur 136/)).toBeInTheDocument()
     // Plus d'estimation (≈) d'après l'échantillon
     expect(screen.queryByText(/avec ton échantillon/)).not.toBeInTheDocument()
   })
@@ -165,7 +166,7 @@ describe('patron adapté : écran', () => {
     const api = fakeApi()
     renderProject(api, { ...project(ADAPTATION), sizes: ['M', 'L'], sizeIndex: 1 })
     // L'étape suit le patron d'origine (pas les chiffres de M)
-    expect(await screen.findByText('/ 120')).toBeInTheDocument()
+    expect(await screen.findByText(/rangs? faits? sur 120/)).toBeInTheDocument()
     expect(screen.queryByText(/Patron adapté :/)).not.toBeInTheDocument()
     await user.click(screen.getByRole('link', { name: /Pull Bergamote/ }))
     await openFold('Patron adapté à moi')
@@ -178,8 +179,20 @@ describe('patron adapté : écran', () => {
     const api = fakeApi()
     renderProject(api, project({ ...ADAPTATION, active: false }))
     expect(await screen.findByText(/≈ 65 avec ton échantillon/)).toBeInTheDocument()
-    expect(screen.getByText('/ 120')).toBeInTheDocument()
+    expect(screen.getByText(/rangs? faits? sur 120/)).toBeInTheDocument()
     expect(screen.queryByText(/Patron d’origine :/)).not.toBeInTheDocument()
+  })
+
+  it('mode tricoter : suit les chiffres du patron adapté, ou ceux d’origine si l’adaptation est en pause', async () => {
+    const api = fakeApi()
+    api.knitting.getProject.mockResolvedValue(project(ADAPTATION))
+    const { unmount } = renderWithApp(<KnittingModePage />, { api, route: '/tricot/p1/tricoter', path: '/tricot/:id/tricoter' })
+    expect(await screen.findByText('/ 136')).toBeInTheDocument()
+    unmount()
+    api.knitting.getProject.mockResolvedValue({ ...project(ADAPTATION), sizes: ['M', 'L'], sizeIndex: 1 })
+    renderWithApp(<KnittingModePage />, { api, route: '/tricot/p1/tricoter', path: '/tricot/:id/tricoter' })
+    expect(await screen.findByText('/ 120')).toBeInTheDocument()
+    expect(screen.getByText(/taille L/)).toBeInTheDocument()
   })
 
   it('patron adapté suivi : les sections réglées vont dans l’adaptation, pas dans le patron d’origine', async () => {

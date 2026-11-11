@@ -95,7 +95,7 @@ describe('résultat du modèle', () => {
     ])
   })
 
-  it('garde plusieurs actions dans une répétition, chacune sur son rang', () => {
+  it('garde plusieurs actions dans une répétition, chacune sur son rang, avec son effet sur les mailles', () => {
     const pattern = sanitizePattern(
       {
         ...PATTERN,
@@ -107,7 +107,12 @@ describe('résultat du modèle', () => {
                 kind: 'repeat',
                 every: 4,
                 times: 5,
-                actions: [{ text: '1 diminution', rank: 1 }, { text: '1 augmentation', rank: null }, { text: 'marqueur', rank: 9 }, { text: '' }],
+                actions: [
+                  { text: '1 diminution', rank: 1, stitches: -1 },
+                  { text: '1 augmentation', rank: null, stitches: 1.5 },
+                  { text: 'marqueur', rank: 9, stitches: 0 },
+                  { text: '', stitches: -999 },
+                ],
               },
             ],
           },
@@ -115,10 +120,11 @@ describe('résultat du modèle', () => {
       },
       'M',
     )
+    // Effet sur les mailles gardé s'il est entier et raisonnable (0 compris), sinon laissé inconnu
     expect(pattern.steps[0]!.sections[0]!.actions).toEqual([
-      { text: '1 diminution', rank: 1 },
+      { text: '1 diminution', rank: 1, stitches: -1 },
       { text: '1 augmentation', rank: null },
-      { text: 'marqueur', rank: null },
+      { text: 'marqueur', rank: null, stitches: 0 },
     ])
   })
 

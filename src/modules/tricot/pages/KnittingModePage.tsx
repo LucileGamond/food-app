@@ -1,0 +1,182 @@
+import { SearchX, X } from 'lucide-react'
+import { useState, type ReactNode } from 'react'
+import { Link, useParams, useSearchParams } from 'react-router-dom'
+import { toast } from 'sonner'
+import { errorMessage } from '@/api'
+import { useApi } from '@/app/ApiContext'
+import { ConfirmDialog } from '@/components/ConfirmDialog'
+import { EmptyState } from '@/components/EmptyState'
+import { LoadError } from '@/components/LoadError'
+import { ScreenAwakeToggle } from '@/components/ScreenAwakeToggle'
+import { buttonVariants } from '@/components/ui/button'
+import { Skeleton } from '@/components/ui/skeleton'
+import { useScreenAwake } from '@/hooks/useWakeLock'
+import { cn } from '@/lib/utils'
+import { ChartFullscreen } from '../components/ChartImage'
+import { ModeCounter } from '../components/mode/ModeCounter'
+import { PatternDrawer } from '../components/mode/PatternDrawer'
+import { RowLine } from '../components/mode/RowLine'
+import { StepDone } from '../components/mode/StepDone'
+import { UpcomingList } from '../components/mode/UpcomingList'
+import { OfflineNote } from '../components/OfflineNote'
+import { useBaseGlossary } from '../hooks/useBaseGlossary'
+import { useKnitProject } from '../hooks/useKnitProject'
+import { useRowVibration } from '../hooks/useRowVibration'
+import { stepsToFollow, type ShownStep } from '../lib/adapt'
+import { chartPosition } from '../lib/chart'
+import { looksEnglish, mergeGlossary } from '../lib/glossary'
+import { stepGuide } from '../lib/guide'
+import { stitchTrack } from '../lib/stitches'
+import { currentStepIndex, type KnitProject } from '../lib/pattern'
+
+/**
+ * Mode tricoter : plein écran, écran allumé. Le rang à tricoter (tout ce qu'il demande), ce qui arrive ensuite et le
+ * compteur. Le reste du projet (laine, sections, diagrammes…) se prépare sur la page du projet.
+ */
+export function KnittingModePage() {
+  const { id = '' } = useParams()
+  return <KnittingMode key={id} id={id} />
+}
+
+function KnittingMode({ id }: { id: string }) {
+  const api = useApi()
+  const knit = useKnitProject(api, id)
+  const projectTo = `/tricot/${id}`
+
+  const shell = (children: ReactNode) => (
+    <div className="mx-auto min-h-dvh max-w-2xl bg-page px-4 pt-4 pb-[env(safe-area-inset-bottom)]">
+      <Link to={projectTo} className={cn(buttonVariants({ variant: 'ghost', size: 'icon-lg' }), 'mb-2')} aria-label="Quitter le mode tricoter">
+        <X />
+      </Link>
+      {children}
+    </div>
+  )
+
+  if (knit.loadError) return shell(<LoadError message={knit.loadError} onRetry={() => void knit.reload()} />)
+  if (knit.loading) {
+    return shell(
+      <div className="space-y-3" aria-busy="true" aria-label="Chargement du projet">
+        <Skeleton className="h-32 rounded-2xl" />
+        <Skeleton className="h-48 rounded-2xl" />
+      </div>,
+    )
+  }
+  if (!knit.project || knit.project.steps.length === 0) {
+    return shell(<EmptyState icon={SearchX} title={knit.project ? 'Aucune étape à tricoter' : 'Projet introuvable'} description="Il a peut-être été supprimé." />)
+  }
+  return <Knitting project={knit.project} knit={knit} projectTo={projectTo} />
+}
+
+interface KnittingProps {
+  project: KnitProject
+  knit: ReturnType<typeof useKnitProject>
+  projectTo: string
+}
+
+function Knitting({ project, knit, projectTo }: KnittingProps) {
+  const api = useApi()
+  const [params, setParams] = useSearchParams()
+  const awake = useScreenAwake()
+  const base = useBaseGlossary()
+  const [finishing, setFinishing] = useState(false)
+  const [chartOpen, setChartOpen] = useState<string | null>(null)
+
+  const { size, steps } = stepsToFollow(project)
+  const step: ShownStep = steps.find((s) => s.id === params.get('etape')) ?? steps[currentStepIndex(steps)]!
+  const index = steps.indexOf(step)
+  const next = steps[index + 1] ?? null
+  const charts = project.charts.filter((c) => c.stepId === step.id)
+  const guide = stepGuide(step, charts, next?.title ?? null)
+  const row = step.rowCount + 1
+  const finished = step.done || (step.totalRows !== null && step.rowCount >= step.totalRows)
+  const line = guide.at(row)
+  const glossary = mergeGlossary(project.abbreviations ?? [], base, looksEnglish(step.instructions))
+  const setupTo = `${projectTo}?etape=${encodeURIComponent(step.id)}`
+  useRowVibration(row, !finished && line.events.length > 0)
+
+  const count = (delta: number) => void knit.countRows(step.id, delta)
+
+  async function finish() {
+    if (!(await knit.saveStep(step.id, { done: true }))) return
+    if (next) setParams({ etape: next.id }, { replace: true })
+  }
+
+  async function translate() {
+    try {
+      const translated = await api.knitting.translateText(step.instructions)
+      if (!translated.numbersKept) toast.warning('Vérifie les nombres : la traduction en a changé certains.')
+      await knit.saveStep(step.id, { translation: translated.text })
+    } catch (error) {
+      toast.error(errorMessage(error))
+    }
+  }
+
+  const openChart = charts.find((c) => c.id === chartOpen)
+
+  return (
+    <div className="mx-auto flex min-h-dvh max-w-2xl flex-col bg-page">
+      <header className="sticky top-0 z-30 border-b bg-background/95 backdrop-blur" style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }}>
+        <div className="flex items-center gap-2 px-4 py-2">
+          <Link to={projectTo} className={cn(buttonVariants({ variant: 'ghost', size: 'icon-lg' }), 'shrink-0')} aria-label="Quitter le mode tricoter">
+            <X />
+          </Link>
+          <div className="min-w-0 flex-1">
+            <h1 className="truncate text-lg font-semibold tracking-tight">{step.title}</h1>
+            <p className="truncate text-xs text-muted-foreground">
+              {project.title} · étape {index + 1} sur {steps.length} · taille {size}
+            </p>
+          </div>
+        </div>
+      </header>
+
+      <main className="flex-1 space-y-5 px-4 pt-4 pb-6">
+        <ScreenAwakeToggle awake={awake} />
+        <OfflineNote offline={knit.offline} pending={knit.pending} />
+        {finished ? (
+          <StepDone done={step.done} next={next?.title ?? null} projectTo={projectTo} onFinish={() => setFinishing(true)} />
+        ) : (
+          <>
+            <RowLine line={line} stitches={stitchTrack(step)(row)} glossary={glossary} setupTo={setupTo} onOpenChart={setChartOpen} />
+            <UpcomingList items={line.unknown ? [] : guide.upcoming(row)} glossary={glossary} />
+          </>
+        )}
+        <PatternDrawer
+          step={step}
+          row={finished ? null : row}
+          size={size}
+          sizes={project.sizes}
+          sizeIndex={project.sizeIndex}
+          abbreviations={project.abbreviations ?? []}
+          onHighlights={(highlights) => void knit.saveStep(step.id, { highlights })}
+          onTranslate={translate}
+          onNotes={(notes) => void knit.saveStep(step.id, { notes })}
+          onFinish={() => setFinishing(true)}
+        />
+      </main>
+
+      {!step.done && (
+        <footer className="sticky bottom-0 border-t bg-background/95 px-4 py-3 backdrop-blur" style={{ paddingBottom: 'calc(0.75rem + env(safe-area-inset-bottom, 0px))' }}>
+          <ModeCounter rowCount={step.rowCount} totalRows={step.totalRows} onCount={count} />
+        </footer>
+      )}
+
+      {openChart && (
+        <ChartFullscreen
+          chart={openChart}
+          position={chartPosition(openChart, row)}
+          open
+          onOpenChange={(open) => !open && setChartOpen(null)}
+          counter={{ rowCount: step.rowCount, onCount: count }}
+        />
+      )}
+      <ConfirmDialog
+        open={finishing}
+        onOpenChange={setFinishing}
+        title={next ? 'Passer à l’étape suivante ?' : 'Terminer le projet ?'}
+        description={next ? `« ${step.title} » sera marquée terminée, et « ${next.title} » s’ouvrira au rang ${next.rowCount + 1}.` : `« ${step.title} » est la dernière étape.`}
+        confirmLabel={next ? 'Étape terminée' : 'Projet terminé'}
+        onConfirm={finish}
+      />
+    </div>
+  )
+}

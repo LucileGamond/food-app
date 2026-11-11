@@ -234,3 +234,10 @@ export function describeReading(position: ChartRow, flat: boolean): string {
   const direction = position.direction === 'rtl' ? 'de droite à gauche' : 'de gauche à droite'
   return flat ? `${position.side === 'endroit' ? 'Endroit' : 'Envers'}, ${direction}` : `Tour ${direction}`
 }
+
+/** « Rang 5 sur 24 », « Commence au rang 12 de l'étape », « Diagramme terminé ». */
+export function chartStatus(chart: Pick<ChartSetup, 'rows' | 'flat' | 'oddOnly'>, position: ChartPosition): { main: string; reading: string | null } {
+  if (position.kind === 'before') return { main: `Commence au rang ${position.startRow} de l’étape`, reading: null }
+  if (position.kind === 'after') return { main: 'Diagramme terminé', reading: null }
+  return { main: describePosition(position, chart), reading: describeReading(position, chart.flat) }
+}

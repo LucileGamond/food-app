@@ -24,8 +24,6 @@ interface Props {
   charts: KnitChart[]
   /** Diagrammes repérés à la lecture du patron. */
   hints: ChartHint[]
-  /** Compteur de l'étape (depuis le plein écran du diagramme). */
-  onCount: (delta: number) => void
   /** Après un ajout, un réglage ou une suppression : recharge le projet. */
   onChanged: () => Promise<void>
 }
@@ -38,8 +36,8 @@ interface Draft {
   hint: ChartHint | null
 }
 
-/** Diagrammes de l'étape, suivis avec le compteur de rangs, et ajout d'un diagramme depuis le PDF ou une image. */
-export function StepCharts({ projectId, pdfPath, step, steps, charts, hints, onCount, onChanged }: Props) {
+/** Diagrammes de l'étape (préparation) : calage, réglage, et ajout d'un diagramme depuis le PDF ou une image. */
+export function StepCharts({ projectId, pdfPath, step, steps, charts, hints, onChanged }: Props) {
   const api = useApi()
   const inputId = useId()
   const [draft, setDraft] = useState<Draft | null>(null)
@@ -105,7 +103,7 @@ export function StepCharts({ projectId, pdfPath, step, steps, charts, hints, onC
   return (
     <div className="space-y-3">
       {shown.map((chart) => (
-        <ChartView key={chart.id} chart={chart} rowCount={step.rowCount} onCount={onCount} onEdit={() => setEditing(chart)} onDelete={() => setDeleting(chart)} />
+        <ChartView key={chart.id} chart={chart} rowCount={step.rowCount} onEdit={() => setEditing(chart)} onDelete={() => setDeleting(chart)} />
       ))}
 
       <div className="flex flex-wrap gap-2">

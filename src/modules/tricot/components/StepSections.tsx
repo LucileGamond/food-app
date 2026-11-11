@@ -7,10 +7,11 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { NativeSelect } from '@/components/ui/native-select'
 import { cn } from '@/lib/utils'
-import { RowDots } from './RowDots'
+import { guessStitches } from '../lib/stitches'
 import {
   describeRange,
   describeSection,
+  formatStitches,
   formToSection,
   MAX_ACTIONS,
   MAX_SECTIONS,
@@ -48,6 +49,12 @@ function rankOptions(every: number | null): { value: string; label: string }[] {
     ...Array.from({ length: Math.min(every, 100) - 2 }, (_, i) => ({ value: String(i + 2), label: `${i + 2}e rang` })),
     { value: 'last', label: 'Dernier rang' },
   ]
+}
+
+/** Effet deviné d'après le texte, proposé en exemple (« -2 ») ; « ? » si on ne sait pas. */
+function guessPlaceholder(text: string): string {
+  const guess = text.trim() ? guessStitches(text) : null
+  return guess === null ? '?' : formatStitches(guess)
 }
 
 function SectionForm({ section, onSave, onCancel }: { section: StepSection; onSave: (s: StepSection) => void; onCancel: () => void }) {
@@ -104,6 +111,7 @@ function SectionForm({ section, onSave, onCancel }: { section: StepSection; onSa
           </div>
           <fieldset className="space-y-2">
             <legend className="text-sm font-medium">Actions de chaque répétition</legend>
+            <p className="text-xs text-muted-foreground">Pour chaque action : mailles ajoutées (+) ou retirées (−) à chaque fois, pour suivre le nombre de mailles.</p>
             {form.actions.map((action, i) => (
               <div key={i} className="flex items-center gap-1.5">
                 <Input
@@ -113,6 +121,15 @@ function SectionForm({ section, onSave, onCancel }: { section: StepSection; onSa
                   onChange={(e) => setAction(i, { text: e.target.value })}
                   maxLength={200}
                   placeholder="1 diminution de chaque côté"
+                />
+                <Input
+                  aria-label={`Mailles de l’action ${i + 1}`}
+                  title="Mailles ajoutées (+) ou retirées (−) à chaque fois"
+                  className="h-10 w-16 shrink-0 px-2 text-center"
+                  inputMode="numeric"
+                  value={action.stitches}
+                  onChange={(e) => setAction(i, { stitches: e.target.value })}
+                  placeholder={guessPlaceholder(action.text)}
                 />
                 <NativeSelect aria-label={`Rang de l’action ${i + 1}`} className="w-32 shrink-0 px-2" value={options.some((o) => o.value === action.rank) ? action.rank : 'last'} onChange={(e) => setAction(i, { rank: e.target.value })}>
                   {options.map((o) => (
@@ -136,7 +153,7 @@ function SectionForm({ section, onSave, onCancel }: { section: StepSection; onSa
               </div>
             ))}
             {form.actions.length < MAX_ACTIONS && (
-              <Button type="button" variant="ghost" className="h-9" onClick={() => setForm((f) => ({ ...f, actions: [...f.actions, { text: '', rank: '1' }] }))}>
+              <Button type="button" variant="ghost" className="h-9" onClick={() => setForm((f) => ({ ...f, actions: [...f.actions, { text: '', rank: '1', stitches: '' }] }))}>
                 <Plus /> Ajouter une action
               </Button>
             )}
@@ -160,8 +177,8 @@ function SectionForm({ section, onSave, onCancel }: { section: StepSection; onSa
   )
 }
 
-/** Sections de l'étape, dans l'ordre : rangs sans répétition et répétitions, réglables en rangs selon sa laine. */
-export function StepSections({ step, onChange, onCount }: { step: KnitStep; onChange: (sections: StepSection[]) => Promise<boolean>; onCount: (delta: number) => void }) {
+/** Sections de l'étape (préparation), dans l'ordre : rangs sans répétition et répétitions, réglables en rangs selon sa laine. */
+export function StepSections({ step, onChange }: { step: KnitStep; onChange: (sections: StepSection[]) => Promise<boolean> }) {
   // Index en cours de modification ; `step.sections.length` = nouvelle section.
   const [editing, setEditing] = useState<number | null>(null)
   const [removing, setRemoving] = useState<number | null>(null)
@@ -187,11 +204,7 @@ export function StepSections({ step, onChange, onCount }: { step: KnitStep; onCh
       <h3 id={`sections-${step.id}`} className="flex items-center gap-1.5 text-sm font-medium">
         <ListOrdered className="size-4" aria-hidden /> Déroulé de l’étape
       </h3>
-      <p className="text-xs text-muted-foreground">
-        Une pastille par rang : touche-la quand le rang est fini, appui long pour la décocher. Bord{' '}
-        <span className="font-medium text-red-600 dark:text-red-400">rouge</span> : diminution, bord{' '}
-        <span className="font-medium text-blue-600 dark:text-blue-400">bleu</span> : augmentation.
-      </p>
+      <p className="text-xs text-muted-foreground">Vérifie et corrige ce que la lecture a compris : le mode tricoter suit ce déroulé rang par rang.</p>
       <ol className="space-y-2 text-sm">
         {plan.map((p) => {
           const { section, index } = p
@@ -248,7 +261,6 @@ export function StepSections({ step, onChange, onCount }: { step: KnitStep; onCh
                   </DropdownMenuContent>
                 </DropdownMenu>
               </div>
-              <RowDots planned={p} rowCount={step.rowCount} onCount={onCount} />
             </li>
           )
         })}

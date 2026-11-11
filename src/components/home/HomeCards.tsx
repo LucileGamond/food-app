@@ -170,7 +170,7 @@ function KnittingProjectCard({ project }: { project: KnitProjectSummary }) {
   const steps = knit.project?.steps ?? []
   const step = steps[currentStepIndex(steps)]
   return (
-    <HomeCard id="home-knitting" title={project.title} to={`/tricot/${project.id}`} linkLabel="Ouvrir">
+    <HomeCard id="home-knitting" title={project.title} to={`/tricot/${project.id}/tricoter`} linkLabel="Tricoter">
       {!step ? (
         <Loading label="Chargement du projet" />
       ) : (

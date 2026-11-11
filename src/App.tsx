@@ -32,6 +32,7 @@ const SettingsPage = lazy(() => import('@/pages/SettingsPage').then((m) => ({ de
 const KnittingPage = lazy(() => import('@/modules/tricot/pages/KnittingPage').then((m) => ({ default: m.KnittingPage })))
 const KnittingImportPage = lazy(() => import('@/modules/tricot/pages/KnittingImportPage').then((m) => ({ default: m.KnittingImportPage })))
 const KnittingProjectPage = lazy(() => import('@/modules/tricot/pages/KnittingProjectPage').then((m) => ({ default: m.KnittingProjectPage })))
+const KnittingModePage = lazy(() => import('@/modules/tricot/pages/KnittingModePage').then((m) => ({ default: m.KnittingModePage })))
 // Module Plantes (indépendant de la cuisine, partagé par le foyer).
 const PlantsPage = lazy(() => import('@/modules/plantes/pages/PlantsPage').then((m) => ({ default: m.PlantsPage })))
 const PlantFormPage = lazy(() => import('@/modules/plantes/pages/PlantFormPage').then((m) => ({ default: m.PlantFormPage })))
@@ -57,6 +58,15 @@ export function App({ api, auth }: { api: Api; auth: AuthClient }) {
                 element={
                   <PageGuard page="recettes">
                     <CookingPage />
+                  </PageGuard>
+                }
+              />
+              {/* Mode tricoter : plein écran, sans la navigation. */}
+              <Route
+                path="/tricot/:id/tricoter"
+                element={
+                  <PageGuard page="tricot">
+                    <KnittingModePage />
                   </PageGuard>
                 }
               />

@@ -1,7 +1,7 @@
 // « Patron adapté à moi » (facultatif) : étapes recalculées pour l'échantillon de la tricoteuse et ses retouches.
 // Le patron d'origine reste tel quel ; l'adaptation se superpose aux étapes quand elle est active.
 
-import { sanitizeSections, type KnitStep, type StepSection } from './pattern'
+import { sanitizeSections, type KnitProject, type KnitStep, type StepSection } from './pattern'
 
 export const ADAPT_REQUEST_MAX = 1000
 
@@ -87,4 +87,15 @@ export function withAdaptedSections(adaptation: Adaptation, stepId: string, sect
 export function describeChange(before: Pick<KnitStep, 'totalRows' | 'stitches'>, after: Pick<AdaptedStep, 'totalRows' | 'stitches'>): string {
   const part = (a: number | null, b: number | null, unit: string) => (a === b ? null : `${a ?? '?'} → ${b ?? '?'} ${unit}`)
   return [part(before.totalRows, after.totalRows, 'rangs'), part(before.stitches, after.stitches, 'mailles')].filter(Boolean).join(' · ')
+}
+
+/** Ce qui se tricote : la taille suivie et les étapes à suivre (adaptées si l'adaptation est suivie et faite pour cette taille). */
+export function stepsToFollow(project: Pick<KnitProject, 'steps' | 'sizes' | 'sizeIndex' | 'size' | 'adaptation'>): { size: string; steps: ShownStep[]; following: boolean } {
+  const size = (project.sizeIndex !== null ? project.sizes[project.sizeIndex] : undefined) ?? project.size
+  const adaptation = project.adaptation ?? null
+  return {
+    size,
+    steps: applyAdaptation(project.steps, adaptation, size),
+    following: adaptation?.active === true && !adaptationPaused(adaptation, size),
+  }
 }

@@ -23,7 +23,7 @@ export interface PatternSection {
   every: number | null
   times: number | null
   /** Répétition : actions de chaque répétition, chacune sur un rang (1 = premier, null = dernier). */
-  actions: { text: string; rank: number | null }[]
+  actions: { text: string; rank: number | null; stitches?: number }[]
   /** Rangs sans répétition : le point (« jersey »). */
   text: string
   pattern: string | null
@@ -170,8 +170,13 @@ export const TOOL: Tool = {
                           type: ['integer', 'null'],
                           description: 'Rang de l’action dans la répétition : 1 = premier (« au prochain rang, puis tous les 6 rangs »), null = dernier (« tous les 6 rangs »).',
                         },
+                        stitches: {
+                          type: ['integer', 'null'],
+                          description:
+                            'Mailles ajoutées (positif) ou retirées (négatif) à chaque fois : -2 pour « 1 diminution de chaque côté », +1 pour « 1 augmentation », 0 pour « placer un marqueur » ; null si le patron ne permet pas de le savoir.',
+                        },
                       },
-                      required: ['text', 'rank'],
+                      required: ['text', 'rank', 'stitches'],
                     },
                   },
                   text: { type: 'string', description: 'rows : le point (« jersey »), ou vide ; repeat : vide.' },
@@ -295,7 +300,8 @@ export function sanitizeSection(value: unknown): PatternSection | null {
       const a = asRecord(value)
       const rank = int(a.rank, 1, 500)
       // Rang au-delà de la répétition, ou égal au dernier : « dernier rang ».
-      return { text: str(a.text, 200), rank: rank !== null && every !== null && rank >= every ? null : rank }
+      const stitches = int(a.stitches, -200, 200)
+      return { text: str(a.text, 200), rank: rank !== null && every !== null && rank >= every ? null : rank, ...(stitches !== null ? { stitches } : {}) }
     })
     .filter((a) => a.text)
     .slice(0, 10)

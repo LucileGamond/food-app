@@ -3,6 +3,7 @@ import userEvent from '@testing-library/user-event'
 import { fakeApi, renderWithApp } from '@/test/fakes'
 import { EMPTY_YARN } from '../lib/yarn'
 import type { KnitProject, KnitStep } from '../lib/pattern'
+import { KnittingModePage } from './KnittingModePage'
 import { KnittingProjectPage } from './KnittingProjectPage'
 import { openFold } from '@/test/openFold'
 
@@ -45,6 +46,17 @@ const OVERVIEW = '/tricot/p1'
 function renderProject(project: KnitProject = PROJECT, api = fakeApi(), route = '/tricot/p1?etape') {
   api.knitting.getProject.mockResolvedValue(structuredClone(project))
   return { ...renderWithApp(<KnittingProjectPage />, { api, route, path: '/tricot/:id' }), api }
+}
+
+/** Mode tricoter, sur l'étape en cours. */
+function renderMode(project: KnitProject = PROJECT, api = fakeApi()) {
+  api.knitting.getProject.mockResolvedValue(structuredClone(project))
+  return { ...renderWithApp(<KnittingModePage />, { api, route: '/tricot/p1/tricoter', path: '/tricot/:id/tricoter' }), api }
+}
+
+/** Ouvre le volet « Patron » du mode tricoter. */
+async function openPattern(user: ReturnType<typeof userEvent.setup>) {
+  await user.click(await screen.findByText('Patron', { selector: 'summary *, summary' }))
 }
 
 beforeEach(() => localStorage.clear())
@@ -104,8 +116,9 @@ describe('patron en anglais', () => {
 describe('question sur le rang', () => {
   it('pose une question avec l’étape, le rang et la taille en contexte', async () => {
     const user = userEvent.setup()
-    const { api } = renderProject()
+    const { api } = renderMode()
     api.knitting.askAboutStep.mockResolvedValue('Tricote 2 mailles ensemble, puis fais un jeté.')
+    await openPattern(user)
     await user.click(await screen.findByRole('button', { name: 'Une question sur ce rang ?' }))
     const section = screen.getByRole('region', { name: 'Question sur ce rang' })
     await user.click(within(section).getByRole('button', { name: 'Demander' }))
@@ -127,8 +140,9 @@ describe('question sur le rang', () => {
 
   it('montre l’erreur de la réponse', async () => {
     const user = userEvent.setup()
-    const { api } = renderProject()
+    const { api } = renderMode()
     api.knitting.askAboutStep.mockRejectedValue(new Error('réseau'))
+    await openPattern(user)
     await user.click(await screen.findByRole('button', { name: 'Une question sur ce rang ?' }))
     await user.type(screen.getByLabelText('Ta question sur le rang 12'), 'ssk ?')
     await user.click(screen.getByRole('button', { name: 'Demander' }))
@@ -194,7 +208,7 @@ describe('assez de laine pour finir ?', () => {
 describe('hors ligne', () => {
   it('compte les rangs sans réseau, puis les envoie au retour du réseau', async () => {
     const user = userEvent.setup()
-    const { api } = renderProject()
+    const { api } = renderMode()
     await screen.findByRole('heading', { name: 'Dos' })
     const online = vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(false)
     try {
@@ -229,7 +243,7 @@ describe('hors ligne', () => {
 
   it('garde l’avancée si l’envoi échoue en perdant le réseau', async () => {
     const user = userEvent.setup()
-    const { api } = renderProject()
+    const { api } = renderMode()
     await screen.findByRole('heading', { name: 'Dos' })
     const online = vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(true)
     api.knitting.saveProgress.mockImplementationOnce(async () => {

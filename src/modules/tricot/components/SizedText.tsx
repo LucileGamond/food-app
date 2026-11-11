@@ -2,43 +2,11 @@ import { Check, Highlighter, Languages, Loader2, Undo2 } from 'lucide-react'
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { NativeSelect } from '@/components/ui/native-select'
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { cn } from '@/lib/utils'
-import { abbreviationParts, looksEnglish, mergeGlossary, type Abbreviation } from '../lib/glossary'
+import { looksEnglish, mergeGlossary, type Abbreviation } from '../lib/glossary'
+import { Glossed } from './Glossed'
 import { useBaseGlossary } from '../hooks/useBaseGlossary'
 import { highlightKey, highlightParts, toggleHighlight, type HighlightPart, type Highlights } from '../lib/sizes'
-
-/** Texte simple : ses abréviations deviennent des boutons qui en donnent le sens. */
-function Glossed({ text, glossary }: { text: string; glossary: Abbreviation[] }) {
-  if (glossary.length === 0) return <>{text}</>
-  return (
-    <>
-      {abbreviationParts(text, glossary).map((part, i) =>
-        part.kind === 'text' ? (
-          part.text
-        ) : (
-          <Popover key={i}>
-            <PopoverTrigger
-              render={
-                <button
-                  type="button"
-                  aria-label={`${part.text} : explication`}
-                  className="rounded underline decoration-brand/60 decoration-dotted underline-offset-4 hover:bg-muted focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none"
-                />
-              }
-            >
-              {part.text}
-            </PopoverTrigger>
-            <PopoverContent className="w-64">
-              <p className="font-medium">{part.text}</p>
-              <p className="text-muted-foreground">{part.meaning}</p>
-            </PopoverContent>
-          </Popover>
-        ),
-      )}
-    </>
-  )
-}
 
 interface Props {
   text: string
