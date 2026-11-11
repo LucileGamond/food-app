@@ -60,10 +60,11 @@ test('planifier la semaine : qui mange à la maison, proposition de l’IA, repa
   const tomorrowDinner = page.getByRole('group', { name: `${dayLabel(1)} — Soir` })
   await expect(tomorrowDinner.getByRole('button', { name: 'Eric' })).toHaveAttribute('aria-pressed', 'false')
   await expect(tomorrowDinner.getByText(/^Eric : .*Ciné$/)).toBeVisible()
-  // Corrigé à la main : Lucile ne dîne pas là ce soir.
-  const tonight = page.getByRole('group', { name: `${dayLabel(0)} — Soir` })
-  await tonight.getByRole('button', { name: 'Lucile' }).click()
-  await expect(tonight.getByRole('button', { name: 'Lucile' })).toHaveAttribute('aria-pressed', 'false')
+  // Corrigé à la main : Lucile ne dîne pas là après-demain. Pas « ce soir » : le soir, le créneau du jour est déjà
+  // passé et n'est plus proposé.
+  const laterDinner = page.getByRole('group', { name: `${dayLabel(2)} — Soir` })
+  await laterDinner.getByRole('button', { name: 'Lucile' }).click()
+  await expect(laterDinner.getByRole('button', { name: 'Lucile' })).toHaveAttribute('aria-pressed', 'false')
 
   const presence = await (await axeFor(page)).include('main').withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa']).analyze()
   expect(presence.violations.map((v) => v.id)).toEqual([])
@@ -71,7 +72,7 @@ test('planifier la semaine : qui mange à la maison, proposition de l’IA, repa
 
   await page.getByRole('button', { name: 'Proposer avec l’IA' }).click()
   await expect(page.getByRole('button', { name: 'Valider la semaine' })).toBeEnabled()
-  expect(sent!.slots.find((s) => s.key === `${parisDay(0)}|DINNER`)?.people ?? []).not.toContain(LUCILE.id)
+  expect(sent!.slots.find((s) => s.key === `${parisDay(2)}|DINNER`)?.people ?? []).not.toContain(LUCILE.id)
   expect(sent!.slots.find((s) => s.key === `${parisDay(1)}|DINNER`)?.people ?? []).not.toContain(ERIC.id)
   expect(sent!.dishes.find((d) => d.title === 'Salade de saumon')?.fragile).toBe(true)
 
