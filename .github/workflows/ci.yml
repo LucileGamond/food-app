@@ -11,14 +11,17 @@ concurrency:
   # (migrations appliquées mais fonctions pas encore déployées).
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
+# Clés publiques de démonstration de la Supabase locale (identiques partout).
+env:
+  VITE_SUPABASE_URL: http://127.0.0.1:54321
+  VITE_SUPABASE_ANON_KEY: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6ImFub24iLCJleHAiOjE5ODM4MTI5OTZ9.CRXP1A7WOeoJeXxjNni43kdQwgnWNReilDMblYTn_I0
+
+# Trois familles de jobs en parallèle : vérifications sans base, base + intégration, E2E découpés en shards.
+# Chaque job qui touche la base démarre sa propre Supabase : pas de données partagées entre jobs.
 jobs:
-  test:
-    name: Tests
+  checks:
+    name: Lint, types et tests unitaires
     runs-on: ubuntu-latest
-    env:
-      # Clés publiques de démonstration de la Supabase locale (identiques partout).
-      VITE_SUPABASE_URL: http://127.0.0.1:54321
-      VITE_SUPABASE_ANON_KEY: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6ImFub24iLCJleHAiOjE5ODM4MTI5OTZ9.CRXP1A7WOeoJeXxjNni43kdQwgnWNReilDMblYTn_I0
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -31,6 +34,16 @@ jobs:
       - run: npm run check:functions
       - run: npm run test:coverage
 
+  db:
+    name: Base et intégration
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
       - uses: supabase/setup-cli@v1
         with:
           version: 2.121.0
@@ -38,6 +51,27 @@ jobs:
         run: supabase start -x studio,imgproxy,logflare,vector,supavisor
       - run: npm run test:db
       - run: npm run test:integration
+
+  e2e:
+    name: E2E (${{ matrix.shard }}/4)
+    runs-on: ubuntu-latest
+    strategy:
+      # Tous les shards vont au bout : un échec n'en cache pas un autre.
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3, 4]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - uses: supabase/setup-cli@v1
+        with:
+          version: 2.121.0
+      - name: Démarrer Supabase en local
+        run: supabase start -x studio,imgproxy,logflare,vector,supavisor
 
       # Navigateurs Playwright en cache (clé : version installée) ; les paquets système restent à installer.
       - id: playwright
@@ -51,11 +85,11 @@ jobs:
         run: npx playwright install --with-deps chromium chromium-headless-shell
       - if: steps.playwright-cache.outputs.cache-hit == 'true'
         run: npx playwright install-deps chromium chromium-headless-shell
-      - run: npm run test:e2e
+      - run: npm run test:e2e -- --shard=${{ matrix.shard }}/4
       - uses: actions/upload-artifact@v4
         if: failure()
         with:
-          name: playwright-report
+          name: playwright-report-${{ matrix.shard }}
           path: |
             playwright-report
             test-results
@@ -63,7 +97,7 @@ jobs:
 
   deploy:
     name: Déploiement (prod)
-    needs: test
+    needs: [checks, db, e2e]
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     environment: production
