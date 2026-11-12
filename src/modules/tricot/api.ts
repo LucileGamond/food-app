@@ -45,12 +45,13 @@ interface ChartRow {
   grid_bottom: number
   rows: number
   start_row: number
+  end_row: number | null
   repeats: boolean
   flat: boolean
   odd_only: boolean
 }
 
-const CHART_COLUMNS = 'id, step_id, title, image_path, grid_top, grid_bottom, rows, start_row, repeats, flat, odd_only, created_at'
+const CHART_COLUMNS = 'id, step_id, title, image_path, grid_top, grid_bottom, rows, start_row, end_row, repeats, flat, odd_only, created_at'
 
 function chartColumns(setup: ChartSetup) {
   return {
@@ -60,6 +61,7 @@ function chartColumns(setup: ChartSetup) {
     grid_bottom: setup.gridBottom,
     rows: setup.rows,
     start_row: setup.startRow,
+    end_row: setup.endRow ?? null,
     repeats: setup.repeats,
     flat: setup.flat,
     odd_only: setup.flat && setup.oddOnly,

@@ -333,6 +333,9 @@ describe('diagrammes', () => {
     // En rond : les rangs endroit seuls ne s'appliquent pas
     await api.knitting.updateChart(chart!.id, { ...SETUP, stepId, rows: 12, startRow: 5, repeats: false, flat: false })
     expect((await api.knitting.getProject(id))!.charts[0]).toMatchObject({ rows: 12, startRow: 5, repeats: false, flat: false, oddOnly: false })
+    // Rattaché à une sous-étape : s'arrête au dernier rang de celle-ci
+    await api.knitting.updateChart(chart!.id, { ...SETUP, stepId, startRow: 5, endRow: 28 })
+    expect((await api.knitting.getProject(id))!.charts[0]).toMatchObject({ startRow: 5, endRow: 28 })
 
     await api.knitting.deleteChart(chart!)
     expect((await api.knitting.getProject(id))!.charts).toEqual([])

@@ -1,6 +1,6 @@
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(12);
+select plan(14);
 
 -- Base locale partagée : on part sans diagramme (tout est annulé à la fin).
 delete from public.knit_charts;
@@ -25,6 +25,10 @@ select throws_ok(
 update public.knit_charts set rows = 12, repeats = false;
 select throws_ok('update public.knit_charts set flat = false, odd_only = true', '23514', null, 'rangs endroit seuls : seulement à plat');
 select is((select rows from public.knit_charts), 12, 'calage modifié');
+-- Rattaché à une sous-étape : s'arrête à sa fin, pas avant son début
+update public.knit_charts set start_row = 5, end_row = 28;
+select is((select end_row from public.knit_charts), 28, 'fin du diagramme : fin de sa sous-étape');
+select throws_ok('update public.knit_charts set end_row = 4', '23514', null, 'fin avant le début : refusée');
 update public.knit_projects set chart_hints = '[{"page": 4, "title": "Torsade", "rows": 24, "step": 0, "flat": true, "oddOnly": false}]' where id = :'project';
 select is((select chart_hints -> 0 ->> 'page' from public.knit_projects where id = :'project'), '4', 'diagrammes repérés enregistrés');
 select throws_ok(format($$update public.knit_projects set chart_hints = '{}' where id = %L$$, :'project'), '23514', null, 'diagrammes repérés : une liste');

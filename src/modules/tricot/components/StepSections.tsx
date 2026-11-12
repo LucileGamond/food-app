@@ -1,4 +1,4 @@
-import { ArrowDown, ArrowUp, Check, ListOrdered, MoreHorizontal, Pencil, Plus, Ruler, Trash2, X } from 'lucide-react'
+import { ArrowDown, ArrowUp, Check, ListOrdered, MoreHorizontal, Pencil, Plus, Ruler, Trash2, X, Grid3x3 } from 'lucide-react'
 import { useId, useState, type FormEvent } from 'react'
 import { ConfirmDialog } from '@/components/ConfirmDialog'
 import { Button } from '@/components/ui/button'
@@ -11,6 +11,10 @@ import { guessStitches } from '../lib/stitches'
 import { describeConversion, parseMeasure, validateSection } from '../lib/measure'
 import { withoutSection } from '../lib/sources'
 import { effectiveNeedles, formatNeedle } from '../lib/needles'
+import { looksEnglish, mergeGlossary, type Abbreviation } from '../lib/glossary'
+import { useBaseGlossary } from '../hooks/useBaseGlossary'
+import { SizedText } from './SizedText'
+import type { KnitChart } from '../lib/chart'
 import {
   describeRange,
   describeSection,
@@ -256,7 +260,29 @@ function SectionForm({ section, onSave, onCancel, needle }: { section: StepSecti
 }
 
 /** Sections de l'étape (préparation), dans l'ordre : rangs sans répétition et répétitions, réglables en rangs selon sa laine. */
-export function StepSections({ step, onChange, needles = [] }: { step: KnitStep; onChange: (sections: StepSection[]) => Promise<boolean>; needles?: number[] }) {
+interface TextProps {
+  /** Tailles du patron et celle mise en valeur, pour le paragraphe de chaque sous-étape. */
+  sizes: string[]
+  sizeIndex: number | null
+  abbreviations: Abbreviation[]
+}
+
+export function StepSections({
+  step,
+  onChange,
+  needles = [],
+  text,
+  charts = [],
+}: {
+  step: KnitStep
+  onChange: (sections: StepSection[]) => Promise<boolean>
+  needles?: number[]
+  text?: TextProps
+  /** Diagrammes de l'étape : chacun montré dans la sous-étape où il commence. */
+  charts?: Pick<KnitChart, 'id' | 'title' | 'startRow' | 'endRow'>[]
+}) {
+  const base = useBaseGlossary()
+  const glossary = text ? mergeGlossary(text.abbreviations, base, looksEnglish(step.instructions)) : []
   const own = effectiveNeedles(step.sections, needles)
   /** Aiguille héritée par la sous-étape `index` : celle d'avant, ou la seule du projet. */
   const inheritedAt = (index: number) => (index > 0 ? (own[index - 1] ?? null) : needles.length === 1 ? needles[0]! : null)
@@ -321,6 +347,18 @@ export function StepSections({ step, onChange, needles = [] }: { step: KnitStep;
                         : 'Indique le nombre de rangs pour que la suite se calcule.'
                       : [range, current.includes(index) && next !== null && `prochaine fois : rang ${next}`].filter(Boolean).join(' · ')}
                   </p>
+                  {p.start !== null &&
+                    charts
+                      .filter((c) => c.startRow >= p.start! && (p.end === null || c.startRow <= p.end))
+                      .map((c) => (
+                        <p key={c.id} className="mt-1 flex items-center gap-1.5 text-xs text-muted-foreground">
+                          <Grid3x3 className="size-3.5" aria-hidden /> Diagramme {c.title ? `« ${c.title} »` : ''} : rangs {c.startRow}
+                          {c.endRow ? ` à ${c.endRow}` : ' et suivants'}
+                        </p>
+                      ))}
+                  {section.source && text && (
+                    <SizedText text={section.source} sizes={text.sizes} sizeIndex={text.sizeIndex} glossary={glossary} className="mt-1.5 rounded-lg bg-muted/40 px-2 py-1.5 text-foreground" />
+                  )}
                   <ConversionCheck section={section} onValidate={() => void save(index, validateSection(section))} onEdit={() => setEditing(index)} />
                 </div>
                 <DropdownMenu>

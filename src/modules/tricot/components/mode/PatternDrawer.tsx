@@ -2,7 +2,10 @@ import { BookOpen } from 'lucide-react'
 import type { Abbreviation } from '../../lib/glossary'
 import type { KnitStep } from '../../lib/pattern'
 import type { Highlights } from '../../lib/sizes'
-import { StepText } from '../SizedText'
+import { SizedText, StepText } from '../SizedText'
+import { useBaseGlossary } from '../../hooks/useBaseGlossary'
+import { looksEnglish, mergeGlossary } from '../../lib/glossary'
+import { planSections, sectionIndicesAt } from '../../lib/pattern'
 import { StepNotes } from '../StepNotes'
 import { StepQuestion } from '../StepQuestion'
 
@@ -21,6 +24,10 @@ interface Props {
 
 /** Volet « Patron », replié : le texte de l'étape, ses abréviations, une question sur le rang, les notes. */
 export function PatternDrawer({ step, row, size, sizes, sizeIndex, abbreviations, onHighlights, onTranslate, onNotes }: Props) {
+  const base = useBaseGlossary()
+  // Paragraphe(s) des sous-étapes en cours : d'abord, le texte complet ensuite
+  const current = row === null ? [] : sectionIndicesAt(planSections(step.sections, step.totalRows), row).flatMap((i) => (step.sections[i]?.source ? [step.sections[i]!.source!] : []))
+  const glossary = mergeGlossary(abbreviations, base, looksEnglish(step.instructions))
   return (
     <details className="group rounded-2xl border bg-background">
       <summary className="flex min-h-12 cursor-pointer items-center gap-2 px-4 font-medium">
@@ -28,8 +35,16 @@ export function PatternDrawer({ step, row, size, sizes, sizeIndex, abbreviations
         <span className="text-sm font-normal text-muted-foreground">texte de l’étape, question, notes</span>
       </summary>
       <div className="space-y-4 border-t p-4">
+        {current.length > 0 && (
+          <section aria-label="Sous-étape en cours" className="space-y-2">
+            {current.map((source, i) => (
+              <SizedText key={i} text={source} sizes={sizes} sizeIndex={sizeIndex} glossary={glossary} className="rounded-lg bg-brand/5 px-3 py-2" />
+            ))}
+          </section>
+        )}
         {step.instructions ? (
           <>
+            {current.length > 0 && <p className="text-xs font-medium text-muted-foreground">Texte complet de l’étape</p>}
             <StepText
               text={step.instructions}
               sizes={sizes}

@@ -22,6 +22,8 @@ export interface ChartSetup {
   gridBottom: number
   rows: number
   startRow: number
+  /** Dernier rang de l'étape où il sert (fin de sa sous-étape) ; absent ou null : jusqu'à la fin de l'étape. */
+  endRow?: number | null
   repeats: boolean
   /** À plat (allers-retours) ; sinon en rond. */
   flat: boolean
@@ -59,7 +61,7 @@ export type ChartPosition =
   /** Diagramme tricoté en entier (sans répétition). */
   | { kind: 'after' }
 
-type Reading = Pick<ChartSetup, 'rows' | 'startRow' | 'repeats' | 'flat' | 'oddOnly'>
+type Reading = Pick<ChartSetup, 'rows' | 'startRow' | 'endRow' | 'repeats' | 'flat' | 'oddOnly'>
 
 /** Rangs tricotés pour un passage dans le diagramme. */
 export function chartRows(chart: Pick<ChartSetup, 'rows' | 'flat' | 'oddOnly'>): number {
@@ -69,6 +71,8 @@ export function chartRows(chart: Pick<ChartSetup, 'rows' | 'flat' | 'oddOnly'>):
 /** Où en est le diagramme quand on tricote le rang `row` de l'étape (rangs faits + 1). */
 export function chartPosition(chart: Reading, row: number): ChartPosition {
   if (row < chart.startRow) return { kind: 'before', startRow: chart.startRow }
+  // Rattaché à une sous-étape : fini après elle
+  if (chart.endRow && row > chart.endRow) return { kind: 'after' }
   const total = chartRows(chart)
   const offset = row - chart.startRow
   if (!chart.repeats && offset >= total) return { kind: 'after' }
@@ -94,7 +98,7 @@ export function rowBand(chart: Pick<ChartSetup, 'gridTop' | 'gridBottom' | 'rows
 }
 
 /** Calage lu en base : valeurs bornées, pour qu'une donnée abîmée ne fasse pas planter l'écran. */
-export function sanitizeSetup(raw: { grid_top: number | string; grid_bottom: number | string; rows: number; start_row: number }): Pick<ChartSetup, 'gridTop' | 'gridBottom' | 'rows' | 'startRow'> {
+export function sanitizeSetup(raw: { grid_top: number | string; grid_bottom: number | string; rows: number; start_row: number; end_row?: number | null }): Pick<ChartSetup, 'gridTop' | 'gridBottom' | 'rows' | 'startRow' | 'endRow'> {
   const fraction = (v: number | string, fallback: number) => {
     const n = Number(v)
     return Number.isFinite(n) ? Math.min(Math.max(n, 0), 1) : fallback
@@ -107,6 +111,7 @@ export function sanitizeSetup(raw: { grid_top: number | string; grid_bottom: num
     gridBottom: bottom > top ? bottom : 1,
     rows: count(raw.rows, MAX_CHART_ROWS),
     startRow: count(raw.start_row, 5000),
+    ...(typeof raw.end_row === 'number' && Number.isInteger(raw.end_row) && raw.end_row >= raw.start_row ? { endRow: Math.min(raw.end_row, 5000) } : {}),
   }
 }
 
@@ -117,13 +122,16 @@ export interface ChartForm {
   gridBottom: number
   rows: string
   startRow: string
+  /** Dernier rang (vide : jusqu'à la fin de l'étape). */
+  endRow?: string
   repeats: boolean
   flat: boolean
   oddOnly: boolean
 }
 
 export function setupToForm(setup: ChartSetup): ChartForm {
-  return { ...setup, stepId: setup.stepId ?? '', rows: String(setup.rows), startRow: String(setup.startRow) }
+  const { endRow, ...rest } = setup
+  return { ...rest, stepId: setup.stepId ?? '', rows: String(setup.rows), startRow: String(setup.startRow), ...(endRow ? { endRow: String(endRow) } : {}) }
 }
 
 /** Plus petit écart entre le haut et le bas du diagramme (fraction de l'image). */
@@ -140,6 +148,9 @@ export function formToSetup(form: ChartForm): ChartSetup | string {
   const startRow = parse(form.startRow, 5000)
   if (startRow === null) return 'Premier rang : un nombre entier entre 1 et 5000.'
   if (form.gridBottom - form.gridTop < MIN_GRID_HEIGHT) return 'Place le trait du haut au-dessus du trait du bas.'
+  const endRow = form.endRow?.trim() ? parse(form.endRow, 5000) : null
+  if (endRow === null && form.endRow?.trim()) return 'Dernier rang : un nombre entier entre 1 et 5000.'
+  if (endRow !== null && endRow < startRow) return 'Le dernier rang vient après le premier.'
   return {
     stepId: form.stepId || null,
     title: form.title.trim().slice(0, MAX_CHART_TITLE),
@@ -151,6 +162,7 @@ export function formToSetup(form: ChartForm): ChartSetup | string {
     flat: form.flat,
     // En rond, chaque tour est dessiné.
     oddOnly: form.flat && form.oddOnly,
+    ...(endRow !== null ? { endRow } : {}),
   }
 }
 

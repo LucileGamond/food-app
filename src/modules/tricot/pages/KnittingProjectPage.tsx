@@ -192,6 +192,18 @@ export function KnittingProjectPage() {
   if (stepParam !== null && step) {
     const adjustedStitches = adjustCount(step.stitches, gauges.pattern.stitches, gauges.mine.stitches)
     const adjustedRows = adjustCount(step.totalRows, gauges.pattern.rows, gauges.mine.rows)
+    const stepText = (
+      <StepText
+        text={step.instructions}
+        sizes={project.sizes}
+        sizeIndex={project.sizeIndex}
+        highlights={step.highlights}
+        onChange={(highlights) => void saveStep(step.id, { highlights })}
+        abbreviations={project.abbreviations ?? []}
+        translation={step.translation ?? null}
+        onTranslate={() => translateStep(step.id, step.instructions)}
+      />
+    )
     return (
       <>
         <Link to={`/tricot/${project.id}`} className="mb-2 inline-flex max-w-full items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
@@ -244,18 +256,16 @@ export function KnittingProjectPage() {
               </p>
             )}
           </header>
-          {step.instructions && (
-            <StepText
-              text={step.instructions}
-              sizes={project.sizes}
-              sizeIndex={project.sizeIndex}
-              highlights={step.highlights}
-              onChange={(highlights) => void saveStep(step.id, { highlights })}
-              abbreviations={project.abbreviations ?? []}
-              translation={step.translation ?? null}
-              onTranslate={() => translateStep(step.id, step.instructions)}
-            />
-          )}
+          {step.instructions &&
+            (step.sections.some((x) => x.source) ? (
+              // Chaque sous-étape montre son paragraphe : le texte complet (corrections, traduction) reste à portée
+              <details className="rounded-xl border px-3 py-2">
+                <summary className="cursor-pointer text-sm font-medium">Texte complet du patron</summary>
+                <div className="mt-2">{stepText}</div>
+              </details>
+            ) : (
+              stepText
+            ))}
           <p className="text-sm text-muted-foreground">
             {step.rowCount} rang{step.rowCount > 1 ? 's' : ''} fait{step.rowCount > 1 ? 's' : ''}
             {step.totalRows !== null && ` sur ${step.totalRows}`}
@@ -263,7 +273,7 @@ export function KnittingProjectPage() {
             {describePass(step) && ` · ${describePass(step)}`}
           </p>
           <StepTimes step={step} onChange={(progress) => void saveStep(step.id, progress)} />
-          <StepSections step={step} needles={needles} onChange={(sections) => saveSections(step, sections)} />
+          <StepSections step={step} needles={needles} text={{ sizes: project.sizes, sizeIndex: project.sizeIndex, abbreviations: project.abbreviations ?? [] }} charts={project.charts.filter((c) => c.stepId === step.id)} onChange={(sections) => saveSections(step, sections)} />
           <StepOutline step={step} nextTitle={steps[index + 1]?.title ?? null} showCurrent={!step.done && step.rowCount > 0} />
           <StepCharts projectId={project.id} pdfPath={project.pdfPath} step={step} steps={steps} charts={project.charts} hints={project.chartHints} onChanged={reload} />
           <StepNotes key={step.id} step={step} onSave={(notes) => void saveStep(step.id, { notes })} />

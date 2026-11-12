@@ -138,6 +138,12 @@ describe('mode tricoter : avec diagramme', () => {
     expect(stitches()).toBe('En fin de rang : 64 mailles')
   })
 
+  it('rattaché à une sous-étape : plus montré après sa fin', async () => {
+    const { line } = await open(project({ rowCount: 8 }, { charts: [{ ...TORSADE, repeats: true, endRow: 8 }] }))
+    expect(line).not.toHaveTextContent('Torsade : rang')
+    expect(screen.queryByTestId('chart-strip')).not.toBeInTheDocument()
+  })
+
   it('d’une autre étape : pas affiché', async () => {
     const { line } = await open(project({ rowCount: 5 }, { charts: [{ ...TORSADE, stepId: 's2' }] }))
     expect(line).not.toHaveTextContent('Torsade')
@@ -317,5 +323,17 @@ describe('mode tricoter : aiguilles', () => {
     await open(project({ rowCount: 14, sections: steps }, { needles: [3, 3.5] }))
     expect(screen.queryByText(/Change pour l’aiguille/)).not.toBeInTheDocument()
     expect(screen.getByRole('contentinfo')).toHaveTextContent('aig. 3,5 mm · 2 rangs : jersey')
+  })
+})
+
+describe('mode tricoter : texte de la sous-étape en cours', () => {
+  it('le volet Patron montre d’abord le paragraphe de la sous-étape en cours', async () => {
+    const user = userEvent.setup()
+    const sections = [{ ...rows(4, 'côtes'), source: 'Tricoter 4 rangs de côtes.' }, { ...rows(16, 'jersey'), source: 'Continuer en jersey.' }]
+    await open(project({ rowCount: 5, instructions: 'Tricoter 4 rangs de côtes.\n\nContinuer en jersey.', sections }))
+    await user.click(screen.getByText('Patron', { selector: 'summary' }))
+    expect(screen.getByRole('region', { name: 'Sous-étape en cours' })).toHaveTextContent('Continuer en jersey.')
+    expect(screen.getByRole('region', { name: 'Sous-étape en cours' })).not.toHaveTextContent('côtes')
+    expect(screen.getByText('Texte complet de l’étape')).toBeInTheDocument()
   })
 })

@@ -158,3 +158,26 @@ describe('diagrammes repérés', () => {
     expect(describeHint({ ...hint, title: '' })).toBe('Diagramme, page 4')
   })
 })
+
+describe('diagramme rattaché à une sous-étape', () => {
+  const chart = { rows: 4, startRow: 5, endRow: 12, repeats: true, flat: false, oddOnly: false }
+
+  it('montré de son premier à son dernier rang, plus après', () => {
+    expect(chartPosition(chart, 4)).toEqual({ kind: 'before', startRow: 5 })
+    expect(chartPosition(chart, 12)).toMatchObject({ kind: 'row', chartRow: 4, repeat: 2 })
+    expect(chartPosition(chart, 13)).toEqual({ kind: 'after' })
+    // Sans dernier rang : jusqu'à la fin de l'étape
+    expect(chartPosition({ ...chart, endRow: null }, 40)).toMatchObject({ kind: 'row' })
+  })
+
+  it('formulaire : dernier rang facultatif, après le premier', () => {
+    const form: ChartForm = { stepId: 's1', title: '', gridTop: 0.1, gridBottom: 0.9, rows: '4', startRow: '5', repeats: true, flat: false, oddOnly: false }
+    expect(formToSetup({ ...form, endRow: '12' })).toMatchObject({ startRow: 5, endRow: 12 })
+    expect(formToSetup({ ...form, endRow: '' })).not.toHaveProperty('endRow')
+    expect(formToSetup({ ...form, endRow: '4' })).toBe('Le dernier rang vient après le premier.')
+    expect(formToSetup({ ...form, endRow: 'x' })).toBe('Dernier rang : un nombre entier entre 1 et 5000.')
+    expect(setupToForm({ stepId: 's1', title: '', gridTop: 0, gridBottom: 1, rows: 4, startRow: 5, endRow: 12, repeats: true, flat: false, oddOnly: false })).toMatchObject({ startRow: '5', endRow: '12' })
+    expect(sanitizeSetup({ grid_top: 0, grid_bottom: 1, rows: 4, start_row: 5, end_row: 12 })).toMatchObject({ endRow: 12 })
+    expect(sanitizeSetup({ grid_top: 0, grid_bottom: 1, rows: 4, start_row: 5, end_row: 3 })).not.toHaveProperty('endRow')
+  })
+})

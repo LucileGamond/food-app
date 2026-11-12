@@ -322,6 +322,34 @@ describe('KnittingProjectPage', () => {
     expect(await screen.findByText('Prête à tricoter')).toBeInTheDocument()
   })
 
+  it('texte par sous-étape : chaque sous-étape montre son paragraphe, le texte complet est replié', async () => {
+    const project = structuredClone(PROJECT)
+    project.sizes = ['S', 'M', 'L']
+    project.sizeIndex = 1
+    project.steps[1]!.instructions = 'Tricoter 4 rangs.\n\nDiminuer 1 m. de chaque côté tous les 6 rangs 4 (4-5) fois.'
+    project.steps[1]!.sections = [
+      { ...project.steps[1]!.sections[0]!, source: 'Tricoter 4 rangs.' },
+      { ...project.steps[1]!.sections[1]!, source: 'Diminuer 1 m. de chaque côté tous les 6 rangs 4 (4-5) fois.' },
+    ]
+    renderProject(fakeApi(), project, `${STEP}=s2`)
+    const list = (await screen.findByRole('region', { name: 'Sous-étapes' })).querySelector('ol')!
+    const items = within(list).getAllByRole('listitem')
+    expect(items[0]).toHaveTextContent('Tricoter 4 rangs.')
+    expect(items[1]).toHaveTextContent('Diminuer 1 m. de chaque côté tous les 6 rangs 4 (4-5) fois.')
+    // Nombres de la taille M surlignés dans le paragraphe
+    expect(within(items[1]!).getAllByText((_, el) => el?.tagName === 'MARK').map((m) => m.textContent)).toEqual(['4'])
+    expect(screen.getByText('Texte complet du patron', { selector: 'summary' })).toBeInTheDocument()
+  })
+
+  it('diagramme montré dans la sous-étape où il commence', async () => {
+    const chart = { id: 'c1', stepId: 's2', title: 'Torsade', gridTop: 0, gridBottom: 1, rows: 4, startRow: 5, endRow: 28, repeats: true, flat: false, oddOnly: false, imagePath: 'c1.png', imageUrl: null }
+    renderProject(fakeApi(), { ...PROJECT, charts: [chart] }, `${STEP}=s2`)
+    const list = (await screen.findByRole('region', { name: 'Sous-étapes' })).querySelector('ol')!
+    const items = within(list).getAllByRole('listitem')
+    expect(items[0]).not.toHaveTextContent('Diagramme')
+    expect(items[1]).toHaveTextContent('Diagramme « Torsade » : rangs 5 à 28')
+  })
+
   it('règle, ajoute, déplace et supprime des sections', async () => {
     const user = userEvent.setup()
     const { api } = renderProject()

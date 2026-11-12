@@ -7,7 +7,7 @@ import { Label } from '@/components/ui/label'
 import { NativeSelect } from '@/components/ui/native-select'
 import { cn } from '@/lib/utils'
 import { formToSetup, MAX_CHART_TITLE, moveNearestLine, rowBand, type ChartForm, type ChartSetup } from '../lib/chart'
-import type { KnitStep } from '../lib/pattern'
+import { describeSection, planSections, type KnitStep } from '../lib/pattern'
 
 interface Props {
   open: boolean
@@ -15,7 +15,7 @@ interface Props {
   imageUrl: string | null
   /** Calage de départ : celui du diagramme modifié, ou l'image entière. */
   initial: ChartForm
-  steps: Pick<KnitStep, 'id' | 'title'>[]
+  steps: Pick<KnitStep, 'id' | 'title' | 'sections' | 'totalRows'>[]
   /** Nouveau diagramme : l'image peut encore être recadrée. */
   onCrop?: () => void
   onCancel: () => void
@@ -61,6 +61,11 @@ export function ChartSetupDialog({ open, imageUrl, initial, steps, onCrop, onCan
       setSaving(false)
     }
   }
+
+  // Sous-étapes de l'étape choisie, aux rangs connus : la choisir cale le diagramme sur elle
+  const step = steps.find((s) => s.id === form.stepId)
+  const substeps = step ? planSections(step.sections, step.totalRows).filter((p) => p.start !== null) : []
+  const chosen = substeps.findIndex((p) => String(p.start) === form.startRow && String(p.end ?? '') === (form.endRow ?? ''))
 
   const rows = Number(form.rows)
   const showRows = Number.isInteger(rows) && rows >= 1 && rows <= 500
@@ -162,9 +167,33 @@ export function ChartSetupDialog({ open, imageUrl, initial, steps, onCrop, onCan
               ))}
             </NativeSelect>
           </div>
+          {substeps.length > 0 && (
+            <div className="grid gap-1.5 sm:col-span-2">
+              <Label htmlFor={`${id}-substep`}>Sous-étape</Label>
+              <NativeSelect
+                id={`${id}-substep`}
+                value={chosen === -1 ? '' : String(chosen)}
+                onChange={(e) => {
+                  const p = substeps[Number(e.target.value)]
+                  if (p) update({ startRow: String(p.start), endRow: p.end === null ? '' : String(p.end) })
+                }}
+              >
+                <option value="">Rangs choisis à la main</option>
+                {substeps.map((p, i) => (
+                  <option key={p.index} value={i}>
+                    {p.index + 1}. {describeSection(p.section)} ({p.end === null ? `dès le rang ${p.start}` : `rangs ${p.start} à ${p.end}`})
+                  </option>
+                ))}
+              </NativeSelect>
+            </div>
+          )}
           <div className="grid gap-1.5">
             <Label htmlFor={`${id}-start`}>Rang 1 du diagramme au rang de l’étape</Label>
             <Input id={`${id}-start`} className="h-10" inputMode="numeric" maxLength={4} value={form.startRow} onChange={(e) => update({ startRow: e.target.value })} />
+          </div>
+          <div className="grid gap-1.5">
+            <Label htmlFor={`${id}-end`}>Dernier rang (facultatif)</Label>
+            <Input id={`${id}-end`} className="h-10" inputMode="numeric" maxLength={4} placeholder="fin de l’étape" value={form.endRow ?? ''} onChange={(e) => update({ endRow: e.target.value })} />
           </div>
         </div>
         <div className="grid gap-2 text-sm">
