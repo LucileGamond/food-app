@@ -13,6 +13,7 @@ import { sanitizeAbbreviations, type Abbreviation, type BaseGlossary } from './l
 import { sanitizeYarnChecks, type YarnCheck } from './lib/yarnLeft'
 import { sanitizeSizeChart, type MeasureProfile } from './lib/sizing'
 import { sanitizeHints, sanitizeSetup, type ChartHint, type ChartSetup, type KnitChart } from './lib/chart'
+import type { SectionsChange, Split } from './lib/organize'
 import { MAX_PDF_BYTES, type KnitProject, type KnitProjectSummary, type KnitStep, type PatternStep, type ReadPattern, type StepSection, sanitizeSections } from './lib/pattern'
 
 const PATTERN_BUCKET = 'knit-patterns'
@@ -327,6 +328,27 @@ export function createKnittingApi(db: AppSupabaseClient) {
         p_total_rows: merged.totalRows as number,
       })
       if (error) throw toAppError(error, 'Impossible de regrouper les étapes.')
+    },
+
+    /** Sous-étapes de plusieurs étapes enregistrées d'un coup (sous-étape déplacée d'une étape à une autre). */
+    async saveSections(changes: SectionsChange[]): Promise<void> {
+      const { error } = await db.rpc('set_knit_sections', {
+        p_steps: changes.map((c) => ({ id: c.id, sections: c.sections, total_rows: c.totalRows })) as unknown as Json,
+      })
+      if (error) throw toAppError(error, 'Impossible de déplacer la sous-étape.')
+    },
+
+    /** Sépare une étape : la suite devient une nouvelle étape juste après. */
+    async splitStep(stepId: string, split: Split): Promise<void> {
+      const { error } = await db.rpc('split_knit_step', {
+        p_step: stepId,
+        p_sections: split.first.sections as unknown as Json,
+        p_total_rows: split.first.totalRows as number,
+        p_new_title: split.second.title,
+        p_new_sections: split.second.sections as unknown as Json,
+        p_new_total_rows: split.second.totalRows as number,
+      })
+      if (error) throw toAppError(error, 'Impossible de séparer l’étape.')
     },
 
     /** Taille dont les nombres sont mis en valeur dans le texte des étapes (null : aucune). */

@@ -50,7 +50,7 @@ test('charge un patron PDF pour une taille, compte les rangs et retrouve son ava
   await page.getByRole('button', { name: 'Enregistrer le projet' }).click()
 
   // Projet : liste des étapes ; on tricote dans le mode tricoter, sur l'étape en cours
-  await expect(page.getByRole('navigation', { name: 'Étapes' }).getByRole('link')).toHaveCount(2)
+  await expect(page.getByRole('navigation', { name: 'Étapes' }).getByRole('list').getByRole('link')).toHaveCount(2)
   await expectNoA11yViolations(page)
   await page.getByRole('link', { name: 'Tricoter', exact: true }).click()
   await expect(page.getByRole('heading', { level: 1, name: 'Dos – côtes' })).toBeVisible()
@@ -370,4 +370,53 @@ test('aides pendant le tricot : abréviations, pesée de la laine et rangs compt
   await context.setOffline(false)
   await expect.poll(async () => (await api.knitting.getProject(id))!.steps[1]!.rowCount).toBe(2)
   await expect(page.getByText(/Hors ligne/)).toHaveCount(0)
+})
+
+test('organise les étapes : regroupe, sépare et déplace une sous-étape, puis tricote l’étape regroupée', async ({ page }) => {
+  const { api } = await signedInApi()
+  await api.settings.saveSettings({ ...DEFAULT_SETTINGS, disabledPages: [] })
+  const r = (rows: number, text: string) => ({ kind: 'rows' as const, rows, every: null, times: null, text, pattern: null })
+  const id = await api.knitting.createProject({
+    title: 'Pull Organisé',
+    size: 'M',
+    pdf: null,
+    steps: [
+      { title: 'Dos – côtes', instructions: 'Monter 90 m.', totalRows: 4, stitches: 90, sections: [r(4, 'côtes')] },
+      { title: 'Dos – jersey', instructions: 'Jersey.', totalRows: 6, stitches: 90, sections: [r(4, 'jersey'), r(2, 'point mousse')] },
+      { title: 'Manche', instructions: '', totalRows: 3, stitches: null, sections: [r(3, 'côtes')] },
+    ],
+  })
+  await login(page)
+  await page.goto(`/tricot/${id}`)
+  await page.getByRole('link', { name: 'Organiser' }).click()
+  await expect(page.getByRole('heading', { name: 'Organiser les étapes' })).toBeVisible()
+  await expectNoA11yViolations(page)
+
+  // Regrouper « Dos – côtes » et « Dos – jersey »
+  await page.getByRole('button', { name: 'Regrouper avec la suivante : « Dos – côtes »' }).click()
+  await page.getByRole('alertdialog').getByRole('button', { name: 'Regrouper' }).click()
+  const steps = page.getByRole('list', { name: 'Étapes' })
+  await expect(steps.getByRole('heading')).toHaveText(['Dos – côtes', 'Manche'])
+  await expect(page.getByRole('list', { name: 'Sous-étapes de « Dos – côtes »' }).getByRole('listitem')).toHaveText(['4 rangs : côtes', '4 rangs : jersey', '2 rangs : point mousse'])
+
+  // Déplacer « point mousse » vers la manche, puis séparer la manche avant lui
+  await page.getByRole('button', { name: 'Actions pour « 2 rangs : point mousse »' }).click()
+  await page.getByRole('menuitem', { name: 'Déplacer vers une autre étape' }).click()
+  const move = page.getByRole('alertdialog')
+  await move.getByLabel('Étape').selectOption({ label: '2. Manche' })
+  await move.getByRole('button', { name: 'Déplacer' }).click()
+  await expect(page.getByRole('list', { name: 'Sous-étapes de « Manche »' }).getByRole('listitem')).toHaveText(['3 rangs : côtes', '2 rangs : point mousse'])
+  await page.getByRole('button', { name: 'Actions pour « 2 rangs : point mousse »' }).click()
+  await page.getByRole('menuitem', { name: 'Nouvelle étape à partir d’ici' }).click()
+  await page.getByRole('alertdialog').getByRole('button', { name: 'Séparer' }).click()
+  await expect(steps.getByRole('heading')).toHaveText(['Dos – côtes', 'Manche', 'Manche (suite)'])
+  await expect(page.getByText('Étape 1 · 8 rangs')).toBeVisible()
+  await expect(page.getByText('Étape 3 · 2 rangs')).toBeVisible()
+
+  // L'étape regroupée se tricote d'un bout à l'autre : le compteur de sous-étape suit
+  await page.goto(`/tricot/${id}/tricoter`)
+  for (let i = 0; i < 5; i++) await page.getByRole('button', { name: 'Ajouter 1 rang' }).click()
+  const counters = page.getByRole('list', { name: 'Sous-étapes en cours' })
+  await expect(counters).toContainText('Sous-étape 2 sur 2')
+  await expect(counters).toContainText('Rang 2 sur 4')
 })

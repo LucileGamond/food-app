@@ -1,4 +1,4 @@
-import { Check, ChevronLeft, ChevronRight, FileText, MoreHorizontal, Play, SearchX, Trash2, Undo2, Wand2 } from 'lucide-react'
+import { Check, ChevronLeft, ChevronRight, FileText, ListTree, MoreHorizontal, Play, SearchX, Trash2, Undo2, Wand2 } from 'lucide-react'
 import { useState } from 'react'
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { toast } from 'sonner'
@@ -302,9 +302,16 @@ export function KnittingProjectPage() {
       {offlineNote}
 
       <nav aria-labelledby="knit-steps">
-        <h2 id="knit-steps" className="mb-2 text-lg font-semibold tracking-tight">
-          Étapes
-        </h2>
+        <div className="mb-2 flex items-center justify-between gap-2">
+          <h2 id="knit-steps" className="text-lg font-semibold tracking-tight">
+            Étapes
+          </h2>
+          {steps.length > 1 && (
+            <Link to={`/tricot/${project.id}/organiser`} className={cn(buttonVariants({ variant: 'ghost' }), 'h-9')}>
+              <ListTree /> Organiser
+            </Link>
+          )}
+        </div>
         {steps.length === 0 ? (
           <p className="text-sm text-muted-foreground">Aucune étape dans ce patron.</p>
         ) : (

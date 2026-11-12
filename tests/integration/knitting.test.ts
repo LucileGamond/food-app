@@ -75,6 +75,51 @@ describe('knitting api', () => {
     await expect(api.knitting.mergeSteps(first!.id, { sections, totalRows: null })).rejects.toThrow()
   })
 
+  it('déplace une sous-étape et sépare une étape ; une suite de réorganisations reste cohérente en base', async () => {
+    const { api } = await signedInApi()
+    const r = (n: number, text: string) => ({ kind: 'rows' as const, rows: n, every: null, times: null, text, pattern: null })
+    const id = await api.knitting.createProject({
+      title: 'Pull',
+      size: 'M',
+      pdf: null,
+      steps: [
+        { title: 'Dos', instructions: '', totalRows: 30, stitches: 90, sections: [r(10, 'côtes'), r(20, 'jersey')] },
+        { title: 'Manche', instructions: '', totalRows: 12, stitches: null, sections: [r(12, 'côtes')] },
+      ],
+    })
+    const load = async () => (await api.knitting.getProject(id))!.steps
+    let steps = await load()
+    const { moveSection, splitStep } = await import('@/modules/tricot/lib/organize')
+    const { mergeSteps } = await import('@/modules/tricot/lib/merge')
+
+    await api.knitting.saveSections(moveSection(steps[0]!, 1, steps[1]!))
+    steps = await load()
+    expect(steps.map((s) => [s.title, s.totalRows, s.sections.map((x) => x.text)])).toEqual([
+      ['Dos', 10, ['côtes']],
+      ['Manche', 32, ['côtes', 'jersey']],
+    ])
+
+    await api.knitting.splitStep(steps[1]!.id, splitStep(steps[1]!, 1))
+    steps = await load()
+    expect(steps.map((s) => [s.position, s.title, s.totalRows, s.sections.map((x) => x.text)])).toEqual([
+      [0, 'Dos', 10, ['côtes']],
+      [1, 'Manche', 12, ['côtes']],
+      [2, 'Manche (suite)', 20, ['jersey']],
+    ])
+
+    // Regrouper ce qui vient d'être séparé : retour à l'étape d'avant
+    await api.knitting.mergeSteps(steps[1]!.id, mergeSteps(steps[1]!, steps[2]!))
+    steps = await load()
+    expect(steps.map((s) => [s.position, s.title, s.totalRows, s.sections.map((x) => x.text)])).toEqual([
+      [0, 'Dos', 10, ['côtes']],
+      [1, 'Manche', 32, ['côtes', 'jersey']],
+    ])
+
+    await api.knitting.saveProgress(steps[1]!.id, { rowCount: 1 })
+    await expect(api.knitting.saveSections(moveSection(steps[1]!, 0, steps[0]!))).rejects.toThrow()
+    await expect(api.knitting.splitStep(steps[1]!.id, splitStep(steps[1]!, 1))).rejects.toThrow()
+  })
+
   it('garde chaque projet pour sa propriétaire, accepte un projet sans PDF', async () => {
     const lucile = await signedInApi()
     const eric = await signedInApi(ERIC.email)

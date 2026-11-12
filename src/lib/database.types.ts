@@ -863,6 +863,12 @@ isOneToOne: false
                            } |
 { Args: { "p_pattern_gauge_rows": number,"p_pattern_gauge_stitches": number,"p_pdf_path": string,"p_queue_id": string,"p_size": string,"p_steps": Json,"p_title": string }; Returns: string
                            },
+"set_knit_sections":
+{ Args: { "p_steps": Json }; Returns: undefined
+                           },
+"split_knit_step":
+{ Args: { "p_new_sections": Json,"p_new_title": string,"p_new_total_rows": number,"p_sections": Json,"p_step": string,"p_total_rows": number }; Returns: string
+                           },
 "merge_knit_steps":
 { Args: { "p_sections": Json,"p_step": string,"p_total_rows": number }; Returns: undefined
                            },
