@@ -19,6 +19,7 @@ import { mergeBlocker, mergeSteps } from '../lib/merge'
 import { isStarted, moveSection, splitStep } from '../lib/organize'
 import { describeSection, stepFacts, type KnitProject } from '../lib/pattern'
 import { anchoredSections, textOf } from '../lib/sources'
+import { endStitches } from '../lib/stitches'
 
 /**
  * Organiser les étapes d'un projet : regrouper une étape avec la suivante, séparer une étape, déplacer une sous-étape
@@ -96,7 +97,7 @@ function Organize({ project, reload }: { project: KnitProject; reload: () => Pro
               <div className="flex items-start gap-2">
                 <div className="min-w-0 flex-1">
                   <p className="text-xs text-muted-foreground">
-                    {[`Étape ${index + 1} sur ${steps.length}`, ...stepFacts(step)].join(' · ')}
+                    {[`Étape ${index + 1} sur ${steps.length}`, ...stepFacts({ ...step, stitches: endStitches(step) })].join(' · ')}
                   </p>
                   <h2 className="font-medium">{step.title}</h2>
                   {isStarted(step) && (

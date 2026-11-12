@@ -130,6 +130,15 @@ describe('knitting api', () => {
     expect((await api.knitting.getProject(id))!.needles).toEqual([3, 3.5])
     await api.knitting.saveNeedles(id, [4])
     expect((await api.knitting.getProject(id))!.needles).toEqual([4])
+    // Échantillon par aiguille, et conversions vérifiées pour elle
+    // Mailles au début saisies sur une étape, puis retour au patron
+    const step = (await api.knitting.getProject(id))!.steps[0]!
+    await api.knitting.saveProgress(step.id, { startStitches: 70 })
+    expect((await api.knitting.getProject(id))!.steps[0]!.startStitches).toBe(70)
+    await api.knitting.saveProgress(step.id, { startStitches: null })
+    expect((await api.knitting.getProject(id))!.steps[0]!.startStitches).toBeNull()
+    await api.knitting.saveNeedleGauges(id, [{ needle: 4, stitches: 20, rows: 28, checked: true }])
+    expect((await api.knitting.getProject(id))!.needleGauges).toEqual([{ needle: 4, stitches: 20, rows: 28, checked: true }])
     const other = await api.knitting.createProject({ title: 'Bonnet', size: 'M', pdf: null, steps: STEPS })
     expect((await api.knitting.getProject(other))!.needles).toEqual([])
   })

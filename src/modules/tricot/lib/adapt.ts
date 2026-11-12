@@ -1,7 +1,9 @@
 // « Patron adapté à moi » (facultatif) : étapes recalculées pour l'échantillon de la tricoteuse et ses retouches.
 // Le patron d'origine reste tel quel ; l'adaptation se superpose aux étapes quand elle est active.
 
-import { convertSections, rowGauge } from './measure'
+import { convertSection } from './measure'
+import { chainNeedles, effectiveNeedles } from './needles'
+import { rowGaugeFor } from './needleGauges'
 import { sanitizeSections, type KnitProject, type KnitStep, type StepSection } from './pattern'
 
 export const ADAPT_REQUEST_MAX = 1000
@@ -94,17 +96,27 @@ export function describeChange(before: Pick<KnitStep, 'totalRows' | 'stitches'>,
  * Ce qui se tricote : la taille suivie et les étapes à suivre (adaptées si l'adaptation est suivie et faite pour cette
  * taille), leurs mesures (« 5 cm ») converties en rangs avec l'échantillon tant qu'elles ne sont pas validées.
  */
-export function stepsToFollow(project: Pick<KnitProject, 'steps' | 'sizes' | 'sizeIndex' | 'size' | 'adaptation' | 'patternGauge' | 'myGauge'>): {
+export function stepsToFollow(project: Pick<KnitProject, 'steps' | 'sizes' | 'sizeIndex' | 'size' | 'adaptation' | 'patternGauge' | 'myGauge' | 'needles' | 'needleGauges'>): {
   size: string
   steps: ShownStep[]
   following: boolean
 } {
   const size = (project.sizeIndex !== null ? project.sizes[project.sizeIndex] : undefined) ?? project.size
   const adaptation = project.adaptation ?? null
-  const gauge = rowGauge({ mine: project.myGauge, pattern: project.patternGauge })
+  // Chaque sous-étape avec l'échantillon de son aiguille
+  const gauges = { needleGauges: project.needleGauges ?? [], mine: project.myGauge, pattern: project.patternGauge }
   return {
     size,
-    steps: applyAdaptation(project.steps, adaptation, size).map((s) => ({ ...s, sections: convertSections(s.sections, gauge) })),
+    steps: withNeedleFrom(applyAdaptation(project.steps, adaptation, size), project.needles ?? []).map((s) => {
+      const own = effectiveNeedles(s.sections, project.needles ?? [], s.needleFrom ?? null)
+      return { ...s, sections: s.sections.map((x, i) => convertSection(x, rowGaugeFor(own[i] ?? null, gauges))) }
+    }),
     following: adaptation?.active === true && !adaptationPaused(adaptation, size),
   }
+}
+
+/** Chaque étape avec l'aiguille où finit la précédente (héritée par sa première sous-étape). */
+function withNeedleFrom<T extends KnitStep>(steps: T[], needles: number[]): T[] {
+  const from = chainNeedles(steps.map((s) => s.sections), needles)
+  return steps.map((s, i) => ({ ...s, needleFrom: from[i] ?? null }))
 }

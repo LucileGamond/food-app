@@ -197,8 +197,10 @@ test('met un patron de côté, le commence, puis note la laine (étiquette) et s
   await expect(sections).toContainText('1 diminution de chaque côté — tous les 15 rangs (≈ 5 cm) (4 fois)')
   await expectNoA11yViolations(page)
   await check.getByRole('button', { name: 'Valider' }).click()
-  await expect(sections).toContainText('1 diminution de chaque côté — tous les 15 rangs (4 fois)')
+  // Vérifié pour le projet : la conversion suit toujours l'échantillon, sans rien redemander ; l'étape est prête
+  await expect(sections).toContainText('Vérifié pour ce projet.')
   await expect(check).toHaveCount(0)
+  await expect(page.getByText('Prête à tricoter')).toBeVisible()
   // Étape tricotée 2 fois, et toute l'étape rang par rang
   await page.getByLabel('À tricoter').selectOption('2 fois')
   await expect(page.getByText('0 rang fait sur 30 · 1re fois sur 2')).toBeVisible()
@@ -207,7 +209,7 @@ test('met un patron de côté, le commence, puis note la laine (étiquette) et s
   await expectNoA11yViolations(page)
   await page.reload()
   await expect(page.getByText('0 rang fait sur 30 · 1re fois sur 2')).toBeVisible()
-  await expect(sections).toContainText('1 diminution de chaque côté — tous les 15 rangs (4 fois)')
+  await expect(sections).toContainText('Vérifié pour ce projet.')
 
   // La liste d'attente est vide
   await page.getByRole('link', { name: 'Pull Bergamote' }).click()

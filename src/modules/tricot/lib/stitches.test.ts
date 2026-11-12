@@ -1,5 +1,5 @@
 import type { StepSection } from './pattern'
-import { guessStitches, stitchTrack } from './stitches'
+import { endStitches, guessStitches, startStitchesOf, stitchTrack } from './stitches'
 
 const rows = (n: number | null): StepSection => ({ kind: 'rows', rows: n, every: null, times: null, text: 'jersey', pattern: n === null ? '5 cm' : null })
 const repeat = (every: number, times: number | null, actions: StepSection['actions']): StepSection => ({ kind: 'repeat', rows: null, every, times, actions, text: '', pattern: null })
@@ -55,5 +55,38 @@ describe('mailles en fin de rang', () => {
     expect(guessStitches('augmenter 3 fois')).toBe(3)
     expect(guessStitches('dec 1 st each side')).toBeNull()
     expect(guessStitches('placer un marqueur')).toBeNull()
+  })
+})
+
+describe('mailles au début saisies', () => {
+  // 4 rangs, puis 1 dim. de chaque côté tous les 6 rangs (4 fois) : −8 ; le patron dit 56 à la fin
+  const step = {
+    totalRows: 30,
+    stitches: 56,
+    sections: [
+      { kind: 'rows' as const, rows: 4, every: null, times: null, text: '', pattern: null },
+      { kind: 'repeat' as const, rows: null, every: 6, times: 4, actions: [{ text: '1 dim. de chaque côté', rank: null, stitches: -2 }], text: '', pattern: null },
+    ],
+  }
+
+  it('font foi : chaque rang et la fin se décalent de la même différence', () => {
+    expect(startStitchesOf(step)).toBe(64)
+    expect(endStitches(step)).toBe(56)
+    const more = { ...step, startStitches: 68 }
+    expect(stitchTrack(more)(1)).toEqual({ kind: 'sure', stitches: 68 })
+    expect(stitchTrack(more)(10)).toEqual({ kind: 'sure', stitches: 66 })
+    expect(endStitches(more)).toBe(60)
+    expect(startStitchesOf(more)).toBe(68)
+  })
+
+  it('sans mailles de fin au patron : le début saisi suffit', () => {
+    expect(stitchTrack({ ...step, stitches: null })(1)).toMatchObject({ kind: 'unknown' })
+    expect(stitchTrack({ ...step, stitches: null, startStitches: 64 })(30)).toEqual({ kind: 'sure', stitches: 56 })
+    expect(endStitches({ ...step, stitches: null, startStitches: 64 })).toBe(56)
+  })
+
+  it('début saisi mais calcul impossible (sous-étape à régler) : fin inconnue', () => {
+    const toSet = { ...step, startStitches: 64, sections: [{ kind: 'rows' as const, rows: null, every: null, times: null, text: '', pattern: '5 cm' }] }
+    expect(endStitches(toSet)).toBeNull()
   })
 })

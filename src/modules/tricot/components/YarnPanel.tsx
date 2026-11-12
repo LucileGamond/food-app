@@ -1,6 +1,8 @@
 // Laine et échantillon d'un projet : laines utilisées (saisies ou lues sur la photo de l'étiquette) et échantillons
 // du patron et de la tricoteuse, qui recalculent les mailles et les rangs affichés dans les étapes.
 
+import { NeedleGaugesForm } from './NeedleGaugesForm'
+import type { NeedleGauge } from '../lib/needleGauges'
 import { Camera, Loader2, Pencil, Plus, Trash2 } from 'lucide-react'
 import { useState, type FormEvent } from 'react'
 import { toast } from 'sonner'
@@ -269,7 +271,16 @@ function GaugeForm({ info, onSave }: { info: ProjectInfo; onSave: (patternGauge:
 
 /** Laine et échantillon du projet, enregistrés ensemble. */
 /** `removedYarn` : position de la laine retirée (ses pesées partent avec elle). */
-export function YarnPanel({ info, onSave }: { info: ProjectInfo; onSave: (info: ProjectInfo, removedYarn?: number) => Promise<boolean> }) {
+export function YarnPanel({
+  info,
+  onSave,
+  needleGauges,
+}: {
+  info: ProjectInfo
+  onSave: (info: ProjectInfo, removedYarn?: number) => Promise<boolean>
+  /** Échantillon par aiguille (projet à plusieurs aiguilles). */
+  needleGauges?: { needles: number[]; gauges: NeedleGauge[]; onSave: (gauges: NeedleGauge[]) => Promise<boolean> }
+}) {
   const api = useApi()
   const [editing, setEditing] = useState<number | 'new' | null>(null)
   // Stock de laine, pour prendre une laine du stock (sans erreur bloquante : le stock est un plus).
@@ -319,6 +330,8 @@ export function YarnPanel({ info, onSave }: { info: ProjectInfo; onSave: (info: 
         info={info}
         onSave={(patternGauge, myGauge) => onSave({ ...info, patternGauge, myGauge })}
       />
+
+      {needleGauges && <NeedleGaugesForm key={JSON.stringify([needleGauges.needles, needleGauges.gauges])} needles={needleGauges.needles} gauges={needleGauges.gauges} onSave={needleGauges.onSave} />}
 
       <YarnDialog
         yarn={typeof editing === 'number' ? (info.yarns[editing] ?? null) : null}

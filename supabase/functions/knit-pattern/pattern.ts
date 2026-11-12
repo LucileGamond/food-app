@@ -422,6 +422,24 @@ export function needleIn(text: string, needles: number[]): number | null {
   return hits.at(-1)?.value ?? null
 }
 
+/**
+ * Étape à tricoter plusieurs fois d'après son titre ou son texte (« Manches (x2) », « tricoter la 2e manche de la même
+ * façon », « make 2 », « both sleeves ») ; null : rien ne le dit. Le modèle oublie souvent ce nombre.
+ */
+export function timesIn(text: string): number | null {
+  const x = /\(\s*x\s*([2-9])\s*\)/i.exec(text)
+  if (x) return Number(x[1])
+  const make = /\bmake\s+(2|two|3|three|4|four)\b/i.exec(text)
+  if (make) return { '2': 2, two: 2, '3': 3, three: 3, '4': 4, four: 4 }[make[1]!.toLowerCase()] ?? null
+  const patterns = [
+    /\b(?:tricoter|faire|monter et tricoter)\s+(?:la|une)\s+(?:2e|2ème|2eme|deuxième|seconde)\s+\S+\s+(?:de la même façon|identique|pareil)/i,
+    /\b(?:tricoter|faire)\s+(?:2|deux)\s+(?:manches|chaussettes|moufles|gants|chaussons)\b/i,
+    /\b(?:work|knit|make)\s+(?:a\s+|the\s+)?(?:second|2nd|other)\s+\S+\s+(?:the same|to match|identically|in the same way)/i,
+    /\bboth\s+(?:sleeves|socks|mittens|gloves)\b/i,
+  ]
+  return patterns.some((re) => re.test(text)) ? 2 : null
+}
+
 /** Sous-étapes sans aiguille dont le paragraphe en cite une du patron : elle leur est donnée. */
 function withNeedles(steps: PatternStep[], needles: number[]): PatternStep[] {
   if (!needles.length) return steps
@@ -585,7 +603,8 @@ export function sanitizePattern(input: unknown, size: string): ReadPattern {
   const needles = [...new Set((Array.isArray(data.needles) ? data.needles : []).filter((n): n is number => typeof n === 'number' && n >= 0.5 && n <= 30).map((n) => Math.round(n * 100) / 100))]
     .sort((a, b) => a - b)
     .slice(0, 10)
-  const steps = withNeedles(grouped.steps, needles)
+  // Nombre de fois oublié par le modèle : déduit du titre ou du texte
+  const steps = withNeedles(grouped.steps, needles).map((step) => (step.times > 1 ? step : { ...step, times: timesIn(`${step.title}\n${step.instructions}`) ?? step.times }))
   const charts = grouped.charts
   return {
     title: str(data.title, 200) || 'Patron sans titre',

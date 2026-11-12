@@ -1,4 +1,4 @@
-import { effectiveNeedles, formatNeedle, parseNeedles, readNeedle, sanitizeNeedles } from './needles'
+import { chainNeedles, effectiveNeedles, formatNeedle, parseNeedles, readNeedle, sanitizeNeedles } from './needles'
 import { readyIssues } from './ready'
 import type { StepSection } from './pattern'
 
@@ -26,6 +26,17 @@ describe('aiguilles', () => {
     expect(effectiveNeedles(sections, [3, 3.5])).toEqual([3, 3.5, 3.5, 3])
     expect(effectiveNeedles([rows(10, 'côtes'), rows(4, 'jersey')], [4])).toEqual([4, 4])
     expect(effectiveNeedles([rows(10, 'côtes'), rows(4, 'jersey', 4)], [3, 4])).toEqual([null, 4])
+  })
+
+  it('d’une étape à l’autre : la première sous-étape hérite de l’aiguille où finit l’étape d’avant', () => {
+    const back = [rows(10, 'côtes', 3), rows(30, 'jersey', 3.5)]
+    const sleeve = [rows(8, 'côtes', 3), rows(40, 'jersey', 3.5)]
+    const raglan = [rows(20, 'raglan'), rows(10, 'encolure')]
+    expect(chainNeedles([back, sleeve, raglan], [3, 3.5])).toEqual([null, 3.5, 3.5])
+    expect(effectiveNeedles(raglan, [3, 3.5], 3.5)).toEqual([3.5, 3.5])
+    // Une étape sans aiguille transmet celle d'avant
+    expect(chainNeedles([back, raglan, [rows(4, 'col')]], [3, 3.5])).toEqual([null, 3.5, 3.5])
+    expect(readyIssues({ sections: raglan, needleFrom: 3.5 }, [3, 3.5])).toEqual([])
   })
 
   it('prête à tricoter : aiguille à choisir quand le projet en a plusieurs, sauf héritée', () => {

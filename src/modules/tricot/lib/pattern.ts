@@ -8,6 +8,7 @@
 // une piste qui avance en parallèle des autres, et les sections suivantes s'enchaînent derrière elle.
 // Le compteur compte les rangs terminés : ce qui est annoncé concerne le rang à tricoter (rangs faits + 1).
 
+import type { NeedleGauge } from './needleGauges'
 import type { SizeChart } from './sizing'
 import type { Adaptation } from './adapt'
 import type { ChartHint, KnitChart } from './chart'
@@ -86,6 +87,10 @@ export interface KnitStep {
   instructions: string
   totalRows: number | null
   stitches: number | null
+  /** Mailles au début, saisies par la tricoteuse : elles font foi (null ou absent : déduites de la fin). */
+  startStitches?: number | null
+  /** Aiguille où finit l'étape d'avant, héritée par la première sous-étape (calculée, pas enregistrée). */
+  needleFrom?: number | null
   sections: StepSection[]
   /** Rangs faits, pour la fois en cours. */
   rowCount: number
@@ -135,6 +140,8 @@ export interface KnitProject {
   adaptation?: Adaptation | null
   /** Aiguilles du patron (mm), de la plus fine à la plus grosse. */
   needles?: number[]
+  /** Échantillon par aiguille, et conversions vérifiées par aiguille. */
+  needleGauges?: NeedleGauge[]
 }
 
 /** Étape telle que lue dans le patron (avant enregistrement). */

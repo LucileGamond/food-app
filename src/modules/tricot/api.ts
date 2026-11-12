@@ -15,6 +15,7 @@ import { sanitizeSizeChart, type MeasureProfile } from './lib/sizing'
 import { sanitizeHints, sanitizeSetup, type ChartHint, type ChartSetup, type KnitChart } from './lib/chart'
 import type { SectionsChange, Split } from './lib/organize'
 import { sanitizeNeedles } from './lib/needles'
+import { sanitizeNeedleGauges, type NeedleGauge } from './lib/needleGauges'
 import { MAX_PDF_BYTES, type KnitProject, type KnitProjectSummary, type KnitStep, type PatternStep, type ReadPattern, type StepSection, readMissingParts, sanitizeSections } from './lib/pattern'
 
 const PATTERN_BUCKET = 'knit-patterns'
@@ -25,7 +26,7 @@ const SIGNED_URL_TTL_SECONDS = 60 * 60
 /** Photos d'avancement : dossier par personne (<uid>/<uuid>.jpg). */
 const PROGRESS_BUCKET = 'knit-photos'
 
-export type StepProgress = Partial<Pick<KnitStep, 'rowCount' | 'times' | 'pass' | 'notes' | 'done' | 'sections' | 'highlights' | 'translation'>>
+export type StepProgress = Partial<Pick<KnitStep, 'rowCount' | 'times' | 'pass' | 'notes' | 'done' | 'sections' | 'highlights' | 'translation' | 'startStitches'>>
 
 /** Contenu du fichier en base64. */
 export async function fileToBase64(file: Blob): Promise<string> {
@@ -80,6 +81,7 @@ interface StepRow {
   instructions: string
   total_rows: number | null
   stitches: number | null
+  start_stitches?: number | null
   sections: unknown
   row_count: number
   times: number
@@ -98,6 +100,7 @@ function toStep(row: StepRow): KnitStep {
     instructions: row.instructions,
     totalRows: row.total_rows,
     stitches: row.stitches,
+    startStitches: row.start_stitches ?? null,
     sections: sanitizeSections(row.sections),
     rowCount: row.row_count,
     times: row.times,
@@ -209,7 +212,7 @@ export function createKnittingApi(db: AppSupabaseClient) {
       const { data, error } = await db
         .from('knit_projects')
         .select(
-          `id, title, size, sizes, size_index, pdf_path, chart_hints, abbreviations, yarn_checks, yarns, pattern_gauge_stitches, pattern_gauge_rows, my_gauge_stitches, my_gauge_rows, adaptation, needles, knit_steps(id, position, title, instructions, total_rows, stitches, sections, row_count, times, pass, notes, done, highlights, translation), knit_charts(${CHART_COLUMNS})`,
+          `id, title, size, sizes, size_index, pdf_path, chart_hints, abbreviations, yarn_checks, yarns, pattern_gauge_stitches, pattern_gauge_rows, my_gauge_stitches, my_gauge_rows, adaptation, needles, needle_gauges, knit_steps(id, position, title, instructions, total_rows, stitches, start_stitches, sections, row_count, times, pass, notes, done, highlights, translation), knit_charts(${CHART_COLUMNS})`,
         )
         .eq('id', id)
         .order('position', { referencedTable: 'knit_steps' })
@@ -235,6 +238,7 @@ export function createKnittingApi(db: AppSupabaseClient) {
         myGauge: { stitches: data.my_gauge_stitches, rows: data.my_gauge_rows },
         adaptation: sanitizeAdaptation(data.adaptation),
         needles: sanitizeNeedles(data.needles),
+        needleGauges: sanitizeNeedleGauges(data.needle_gauges),
       }
     },
 
@@ -329,6 +333,7 @@ export function createKnittingApi(db: AppSupabaseClient) {
           sections: progress.sections as unknown as NonNullable<Json> | undefined,
           highlights: progress.highlights as unknown as NonNullable<Json> | undefined,
           translation: progress.translation,
+          start_stitches: progress.startStitches,
         })
         .eq('id', stepId)
       if (error) throw toAppError(error, 'Impossible d’enregistrer l’avancée.')
@@ -368,6 +373,12 @@ export function createKnittingApi(db: AppSupabaseClient) {
     },
 
     /** Taille dont les nombres sont mis en valeur dans le texte des étapes (null : aucune). */
+    /** Échantillon par aiguille et conversions vérifiées par aiguille. */
+    async saveNeedleGauges(id: string, gauges: NeedleGauge[]): Promise<void> {
+      const { error } = await db.from('knit_projects').update({ needle_gauges: gauges as unknown as Json[] }).eq('id', id)
+      if (error) throw toAppError(error, 'Impossible d’enregistrer l’échantillon.')
+    },
+
     /** Aiguilles du patron (mm) : celle de chaque sous-étape se choisit parmi elles. */
     async saveNeedles(id: string, needles: number[]): Promise<void> {
       const { error } = await db.from('knit_projects').update({ needles: sanitizeNeedles(needles) }).eq('id', id)

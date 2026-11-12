@@ -31,7 +31,10 @@ import { StepNotes } from '../components/StepNotes'
 import { StepTimes } from '../components/StepTimes'
 import { StepOutline } from '../components/StepOutline'
 import { StepReady } from '../components/StepReady'
+import { StepStartStitches } from '../components/StepStartStitches'
+import { endStitches, startStitchesOf } from '../lib/stitches'
 import { ProjectNeedles } from '../components/ProjectNeedles'
+import { withChecked, withGauges, type NeedleGauge } from '../lib/needleGauges'
 import { isReady, readyIssues } from '../lib/ready'
 import { describePass } from '../lib/passes'
 
@@ -86,6 +89,7 @@ export function KnittingProjectPage() {
   // Patron adapté suivi : ses rangs, mailles et sections remplacent ceux du patron d'origine (gardé tel quel).
   const adaptation = project.adaptation ?? null
   const needles = project.needles ?? []
+  const needleGauges = project.needleGauges ?? []
   const { size: followedSize, steps, following } = stepsToFollow(project)
   const knitTo = (stepId?: string) => `/tricot/${project.id}/tricoter${stepId ? `?etape=${encodeURIComponent(stepId)}` : ''}`
   const current = steps[currentStepIndex(steps)]
@@ -102,9 +106,24 @@ export function KnittingProjectPage() {
   const noGauge = { stitches: null, rows: null }
   const gauges = following ? { pattern: noGauge, mine: noGauge } : { pattern: project.patternGauge, mine: project.myGauge }
 
+  /** Échantillons par aiguille : une aiguille dont l'échantillon change est à revérifier. */
+  async function saveNeedleGauges(next: NeedleGauge[]): Promise<boolean> {
+    try {
+      await api.knitting.saveNeedleGauges(project!.id, withGauges(needleGauges, next, false))
+      await reload()
+      return true
+    } catch (error) {
+      toast.error(errorMessage(error))
+      return false
+    }
+  }
+
   async function saveInfo(info: ProjectInfo, removedYarn?: number): Promise<boolean> {
     try {
       await api.knitting.saveProjectInfo(project!.id, info)
+      // Échantillon général (ou du patron) changé : les aiguilles qui s'en servent sont à revérifier
+      const generalChanged = info.myGauge.rows !== project!.myGauge.rows || info.patternGauge.rows !== project!.patternGauge.rows
+      if (generalChanged && needleGauges.some((g) => g.checked && g.rows === null)) await api.knitting.saveNeedleGauges(project!.id, withGauges(needleGauges, needleGauges, true))
       // Laine retirée : les pesées restent liées à la bonne laine.
       const checks = project!.yarnChecks ?? []
       if (removedYarn !== undefined && checks.some((c) => c.yarn >= removedYarn)) await api.knitting.saveYarnChecks(project!.id, withoutYarn(checks, removedYarn))
@@ -162,6 +181,16 @@ export function KnittingProjectPage() {
     }
   }
 
+  /** Conversions de l'aiguille vérifiées : valable pour toutes ses sous-étapes. */
+  async function checkNeedle(needle: number | null) {
+    try {
+      await api.knitting.saveNeedleGauges(project!.id, withChecked(needleGauges, needle))
+      await reload()
+    } catch (error) {
+      toast.error(errorMessage(error))
+    }
+  }
+
   async function changeSize(sizeIndex: number | null) {
     try {
       await api.knitting.setSizeIndex(project!.id, sizeIndex)
@@ -190,7 +219,9 @@ export function KnittingProjectPage() {
   )
 
   if (stepParam !== null && step) {
-    const adjustedStitches = adjustCount(step.stitches, gauges.pattern.stitches, gauges.mine.stitches)
+    // Mailles de fin : déduites du début saisi, sinon celles du patron
+    const stepEnd = endStitches(step)
+    const adjustedStitches = adjustCount(stepEnd, gauges.pattern.stitches, gauges.mine.stitches)
     const adjustedRows = adjustCount(step.totalRows, gauges.pattern.rows, gauges.mine.rows)
     const stepText = (
       <StepText
@@ -210,7 +241,7 @@ export function KnittingProjectPage() {
           <ChevronLeft className="size-4 shrink-0" aria-hidden /> <span className="truncate">{project.title}</span>
         </Link>
         <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
-          {step.done || isReady(step, needles) ? (
+          {step.done || isReady(step, needles, needleGauges) ? (
             <Link to={knitTo(step.id)} className={cn(buttonVariants(), 'h-10')}>
               <Play /> Tricoter cette étape
             </Link>
@@ -233,7 +264,7 @@ export function KnittingProjectPage() {
         <article key={step.id} aria-labelledby="step-title" className="space-y-4 rounded-2xl border bg-background p-4 shadow-xs sm:p-5">
           <header>
             <p className="text-xs text-muted-foreground">
-              {[`Étape ${index + 1} sur ${steps.length}`, ...stepFacts(step)].join(' · ')}
+              {[`Étape ${index + 1} sur ${steps.length}`, ...stepFacts({ ...step, stitches: stepEnd })].join(' · ')}
               {adjustedStitches !== null && ` (≈ ${adjustedStitches} avec ton échantillon)`}
             </p>
             <h1 id="step-title" className="text-xl font-semibold tracking-tight">
@@ -241,9 +272,17 @@ export function KnittingProjectPage() {
             </h1>
             {!step.done && (
               <div className="mt-2">
-                <StepReady issues={readyIssues(step, needles)} />
+                <StepReady issues={readyIssues(step, needles, needleGauges)} />
               </div>
             )}
+            <div className="mt-2">
+              <StepStartStitches
+                start={startStitchesOf(step)}
+                set={(step.startStitches ?? null) !== null}
+                previous={index > 0 ? endStitches(steps[index - 1]!) : null}
+                onSave={(startStitches) => saveStep(step.id, { startStitches })}
+              />
+            </div>
             {step.adapted && (
               <p className="mt-1 flex items-start gap-1.5 rounded-xl bg-brand/10 p-2 text-sm">
                 <Wand2 className="mt-0.5 size-4 shrink-0 text-brand" aria-hidden />
@@ -273,7 +312,7 @@ export function KnittingProjectPage() {
             {describePass(step) && ` · ${describePass(step)}`}
           </p>
           <StepTimes step={step} onChange={(progress) => void saveStep(step.id, progress)} />
-          <StepSections step={step} needles={needles} text={{ sizes: project.sizes, sizeIndex: project.sizeIndex, abbreviations: project.abbreviations ?? [] }} charts={project.charts.filter((c) => c.stepId === step.id)} onChange={(sections) => saveSections(step, sections)} />
+          <StepSections step={step} needles={needles} text={{ sizes: project.sizes, sizeIndex: project.sizeIndex, abbreviations: project.abbreviations ?? [] }} charts={project.charts.filter((c) => c.stepId === step.id)} needleGauges={needleGauges} onCheckNeedle={checkNeedle} onChange={(sections) => saveSections(step, sections)} />
           <StepOutline step={step} nextTitle={steps[index + 1]?.title ?? null} showCurrent={!step.done && step.rowCount > 0} />
           <StepCharts projectId={project.id} pdfPath={project.pdfPath} step={step} steps={steps} charts={project.charts} hints={project.chartHints} onChanged={reload} />
           <StepNotes key={step.id} step={step} onSave={(notes) => void saveStep(step.id, { notes })} />
@@ -365,7 +404,7 @@ export function KnittingProjectPage() {
                       )}
                     </span>
                     {s.done && <span className="sr-only">(terminée)</span>}
-                    {!s.done && !isReady(s, needles) && <span className="shrink-0 rounded-full bg-amber-500/15 px-2 py-0.5 text-xs font-medium">À préparer</span>}
+                    {!s.done && !isReady(s, needles, needleGauges) && <span className="shrink-0 rounded-full bg-amber-500/15 px-2 py-0.5 text-xs font-medium">À préparer</span>}
                     {isCurrent && <span className="shrink-0 rounded-full bg-brand/15 px-2 py-0.5 text-xs font-medium">En cours</span>}
                     <ChevronRight className="size-4 shrink-0 text-muted-foreground" aria-hidden />
                   </Link>
@@ -377,7 +416,11 @@ export function KnittingProjectPage() {
       </nav>
 
       <div className="mt-6 space-y-4">
-        <YarnPanel info={{ yarns: project.yarns, patternGauge: project.patternGauge, myGauge: project.myGauge }} onSave={saveInfo} />
+        <YarnPanel
+          info={{ yarns: project.yarns, patternGauge: project.patternGauge, myGauge: project.myGauge }}
+          onSave={saveInfo}
+          needleGauges={{ needles, gauges: needleGauges, onSave: saveNeedleGauges }}
+        />
         <AdaptPanel project={project} size={followedSize} onSaved={reload} />
         <YarnCheckCard yarns={project.yarns} steps={steps} checks={project.yarnChecks ?? []} onSave={saveYarnCheck} />
         <ProgressPanel projectId={project.id} currentStepId={current?.id ?? null} stepTitle={(id) => steps.find((s) => s.id === id)?.title} />

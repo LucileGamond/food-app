@@ -26,9 +26,12 @@ export function parseNeedles(text: string): number[] | null {
   return sanitizeNeedles(values)
 }
 
-/** Aiguille de chaque sous-étape : la sienne, sinon celle d'avant ; la seule du projet s'il n'y en a qu'une. */
-export function effectiveNeedles(sections: Pick<StepSection, 'needle'>[], projectNeedles: number[]): (number | null)[] {
-  let current: number | null = projectNeedles.length === 1 ? projectNeedles[0]! : null
+/**
+ * Aiguille de chaque sous-étape : la sienne, sinon celle d'avant ; pour la première, celle où finit l'étape d'avant
+ * (`from`), sinon la seule du projet s'il n'y en a qu'une.
+ */
+export function effectiveNeedles(sections: Pick<StepSection, 'needle'>[], projectNeedles: number[], from: number | null = null): (number | null)[] {
+  let current: number | null = from ?? (projectNeedles.length === 1 ? projectNeedles[0]! : null)
   return sections.map((s) => {
     if (s.needle !== undefined && valid(s.needle)) current = s.needle
     return current
@@ -37,3 +40,14 @@ export function effectiveNeedles(sections: Pick<StepSection, 'needle'>[], projec
 
 /** Aiguilles lues en base sur une sous-étape (null : héritée). */
 export const readNeedle = (value: unknown): number | null => (valid(value) ? Math.round(value * 100) / 100 : null)
+
+/** Aiguille héritée par chaque étape : celle où finit l'étape d'avant (null pour la première, ou sans aiguille). */
+export function chainNeedles(steps: Pick<StepSection, 'needle'>[][], projectNeedles: number[]): (number | null)[] {
+  const from: (number | null)[] = []
+  let current: number | null = null
+  for (const sections of steps) {
+    from.push(current)
+    current = effectiveNeedles(sections, projectNeedles, current).at(-1) ?? current
+  }
+  return from
+}

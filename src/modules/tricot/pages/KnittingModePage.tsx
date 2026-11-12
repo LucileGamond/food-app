@@ -97,13 +97,17 @@ function Knitting({ project, knit, projectTo }: KnittingProps) {
   const line = guide.at(row)
   const glossary = mergeGlossary(project.abbreviations ?? [], base, looksEnglish(step.instructions))
   const setupTo = `${projectTo}?etape=${encodeURIComponent(step.id)}`
-  const issues = readyIssues(step, project.needles ?? [])
+  const issues = readyIssues(step, project.needles ?? [], project.needleGauges ?? [])
   const ready = issues.length === 0
   const substeps = finished ? [] : substepCounts(step, row)
-  const needles = effectiveNeedles(step.sections, project.needles ?? [])
+  const needles = effectiveNeedles(step.sections, project.needles ?? [], step.needleFrom ?? null)
   const needle = substeps[0] ? (needles[substeps[0].index] ?? null) : null
   // Premier rang d'une sous-étape qui change d'aiguille : le rappeler
-  const needleChange = substeps.find((c) => c.row === 1 && c.index > 0 && needles[c.index] !== null && needles[c.index] !== needles[c.index - 1])
+  // (la première, par rapport à l'aiguille où finissait l'étape d'avant)
+  const needleChange = substeps.find((c) => {
+    const before = c.index > 0 ? needles[c.index - 1] : (step.needleFrom ?? null)
+    return c.row === 1 && needles[c.index] !== null && before !== null && needles[c.index] !== before
+  })
   useRowVibration(row, !finished && line.events.length > 0)
 
   const count = (delta: number) => void knit.countRows(step.id, delta)

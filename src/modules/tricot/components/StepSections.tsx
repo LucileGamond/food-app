@@ -15,6 +15,7 @@ import { looksEnglish, mergeGlossary, type Abbreviation } from '../lib/glossary'
 import { useBaseGlossary } from '../hooks/useBaseGlossary'
 import { SizedText } from './SizedText'
 import type { KnitChart } from '../lib/chart'
+import { isChecked, type NeedleGauge } from '../lib/needleGauges'
 import {
   describeRange,
   describeSection,
@@ -45,20 +46,39 @@ function NumberField({ id, label, ...props }: { id: string; label: string } & Re
 }
 
 /** Rangs calculés depuis une mesure du patron : le calcul, à vérifier puis valider (ou régler). */
-function ConversionCheck({ section, onValidate, onEdit }: { section: StepSection; onValidate: () => void; onEdit: () => void }) {
+interface NeedleCheck {
+  /** Aiguille de la sous-étape (null : aucune choisie). */
+  needle: number | null
+  /** Conversions de cette aiguille déjà vérifiées. */
+  checked: boolean
+}
+
+function ConversionCheck({ section, onValidate, onEdit, check }: { section: StepSection; onValidate: () => void; onEdit: () => void; check?: NeedleCheck }) {
   const calculation = describeConversion(section)
   if (!calculation) return null
+  if (check?.checked) {
+    // Vérifié une fois pour l'aiguille : il suit son échantillon, sans redemander
+    return (
+      <p className="mt-1.5 flex items-start gap-1.5 text-xs text-muted-foreground">
+        <Ruler className="mt-0.5 size-3.5 shrink-0" aria-hidden />
+        <span>
+          Converti : {calculation}. Vérifié pour {check.needle !== null ? `l’aiguille ${formatNeedle(check.needle)}` : 'ce projet'}.
+        </span>
+      </p>
+    )
+  }
   return (
     <div role="note" className="mt-2 space-y-2 rounded-lg border border-amber-500/40 bg-amber-500/10 p-2 text-sm">
       <p className="flex items-start gap-1.5">
         <Ruler className="mt-0.5 size-4 shrink-0 text-amber-700 dark:text-amber-400" aria-hidden />
         <span>
-          Converti depuis le patron : {calculation} (arrondi). Vérifie ce nombre, puis valide-le ; il suit l’échantillon tant qu’il n’est pas validé.
+          Converti depuis le patron : {calculation} (arrondi).{' '}
+          {check ? `Vérifie-le : valider vaut pour toutes les sous-étapes ${check.needle !== null ? `à l’aiguille ${formatNeedle(check.needle)}` : 'du projet'}.` : 'Vérifie ce nombre, puis valide-le ; il suit l’échantillon tant qu’il n’est pas validé.'}
         </span>
       </p>
       <div className="flex flex-wrap gap-2">
         <Button type="button" className="h-9" onClick={onValidate}>
-          <Check /> Valider
+          <Check /> {check?.needle != null ? `Valider pour l’aiguille ${formatNeedle(check.needle)}` : 'Valider'}
         </Button>
         <Button type="button" variant="outline" className="h-9" onClick={onEdit}>
           <Pencil /> Régler
@@ -273,6 +293,8 @@ export function StepSections({
   needles = [],
   text,
   charts = [],
+  needleGauges = [],
+  onCheckNeedle,
 }: {
   step: KnitStep
   onChange: (sections: StepSection[]) => Promise<boolean>
@@ -280,12 +302,15 @@ export function StepSections({
   text?: TextProps
   /** Diagrammes de l'étape : chacun montré dans la sous-étape où il commence. */
   charts?: Pick<KnitChart, 'id' | 'title' | 'startRow' | 'endRow'>[]
+  /** Conversions vérifiées par aiguille ; avec `onCheckNeedle`, valider vaut pour toute l'aiguille. */
+  needleGauges?: NeedleGauge[]
+  onCheckNeedle?: (needle: number | null) => Promise<void>
 }) {
   const base = useBaseGlossary()
   const glossary = text ? mergeGlossary(text.abbreviations, base, looksEnglish(step.instructions)) : []
-  const own = effectiveNeedles(step.sections, needles)
+  const own = effectiveNeedles(step.sections, needles, step.needleFrom ?? null)
   /** Aiguille héritée par la sous-étape `index` : celle d'avant, ou la seule du projet. */
-  const inheritedAt = (index: number) => (index > 0 ? (own[index - 1] ?? null) : needles.length === 1 ? needles[0]! : null)
+  const inheritedAt = (index: number) => (index > 0 ? (own[index - 1] ?? null) : (step.needleFrom ?? (needles.length === 1 ? needles[0]! : null)))
   // Index en cours de modification ; `step.sections.length` = nouvelle section.
   const [editing, setEditing] = useState<number | null>(null)
   const [removing, setRemoving] = useState<number | null>(null)
@@ -359,7 +384,12 @@ export function StepSections({
                   {section.source && text && (
                     <SizedText text={section.source} sizes={text.sizes} sizeIndex={text.sizeIndex} glossary={glossary} className="mt-1.5 rounded-lg bg-muted/40 px-2 py-1.5 text-foreground" />
                   )}
-                  <ConversionCheck section={section} onValidate={() => void save(index, validateSection(section))} onEdit={() => setEditing(index)} />
+                  <ConversionCheck
+                    section={section}
+                    check={onCheckNeedle ? { needle: own[index] ?? null, checked: isChecked(needleGauges, own[index] ?? null) } : undefined}
+                    onValidate={() => void (onCheckNeedle ? onCheckNeedle(own[index] ?? null) : save(index, validateSection(section)))}
+                    onEdit={() => setEditing(index)}
+                  />
                 </div>
                 <DropdownMenu>
                   <DropdownMenuTrigger render={<Button variant="ghost" size="icon" aria-label={`Actions pour « ${describeSection(section)} »`} />}>

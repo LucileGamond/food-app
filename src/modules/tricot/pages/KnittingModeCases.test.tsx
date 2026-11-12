@@ -337,3 +337,22 @@ describe('mode tricoter : texte de la sous-étape en cours', () => {
     expect(screen.getByText('Texte complet de l’étape')).toBeInTheDocument()
   })
 })
+
+describe('mode tricoter : mailles au début saisies', () => {
+  it('les mailles de chaque rang partent du début saisi', async () => {
+    // 60 à la fin (patron), 1 aug. de chaque côté au rang 6 ; début saisi : 62 au lieu de 58
+    const sections = [rows(5, 'jersey'), repeat(6, 1, [{ text: '1 aug. de chaque côté', rank: null, stitches: 2 }])]
+    // Augmentation au dernier rang de la répétition (rang 11) : au rang 6, toujours 62 (58 sans le début saisi)
+    const { stitches } = await open(project({ rowCount: 5, sections, totalRows: 11, startStitches: 62 }))
+    expect(stitches()).toBe('En fin de rang : 62 mailles')
+  })
+})
+
+describe('mode tricoter : aiguille d’une étape à l’autre', () => {
+  it('début d’étape à une autre aiguille que la fin de la précédente : le rappel', async () => {
+    const value = project({ rowCount: 0, sections: [{ ...rows(8, 'côtes'), needle: 3 }, rows(10, 'jersey')] }, { needles: [3, 3.5] })
+    value.steps = [{ ...value.steps[0]!, id: 's0', position: 0, title: 'Dos', done: true, sections: [{ ...rows(30, 'jersey'), needle: 3.5 }] }, ...value.steps.map((s, i) => ({ ...s, position: i + 1 }))]
+    await open(value)
+    expect(screen.getByText('Change pour l’aiguille 3 mm')).toBeInTheDocument()
+  })
+})

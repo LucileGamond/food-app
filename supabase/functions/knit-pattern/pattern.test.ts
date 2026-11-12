@@ -1,5 +1,5 @@
 import { createHandler, type Deps } from './handler.ts'
-import { groupPieces, missingParts, needleIn, pieceTitle, MAX_PDF_BASE64, parseInput, readPattern, sanitizePattern, sanitizeSection, systemPrompt, TOOL, type PhaseStep } from './pattern.ts'
+import { groupPieces, missingParts, needleIn, pieceTitle, timesIn, MAX_PDF_BASE64, parseInput, readPattern, sanitizePattern, sanitizeSection, systemPrompt, TOOL, type PhaseStep } from './pattern.ts'
 
 const PDF = 'JVBERi0xLjQK' // « %PDF-1.4 »
 
@@ -306,6 +306,22 @@ describe('regroupement par morceau', () => {
     // À l'import : donnée à la sous-étape dont le paragraphe la cite
     const pattern = sanitizePattern({ ...PATTERN, needles: [3, 3.5], steps: [{ title: 'Dos – côtes', piece: 'Dos', instructions: 'Aiguille 3 : côtes.', total_rows: 10, stitches: 60, sections: [] }, { title: 'Dos – jersey', piece: 'Dos', instructions: 'Changer pour l’aiguille 3,5.', total_rows: 20, stitches: 60, sections: [] }] }, '')
     expect(pattern.steps[0]!.sections.map((x) => x.needle)).toEqual([3, 3.5])
+  })
+
+  it('nombre de fois déduit du titre ou du texte quand le modèle l’oublie', () => {
+    expect(timesIn('MANCHES (x2)')).toBe(2)
+    expect(timesIn('Mettre la manche de côté. Monter et tricoter la 2ème manche de la même façon.')).toBe(2)
+    expect(timesIn('SLEEVES (make 2)')).toBe(2)
+    expect(timesIn('Make two socks.')).toBe(2)
+    expect(timesIn('Work second sleeve to match.')).toBe(2)
+    expect(timesIn('Both sleeves are worked in the round.')).toBe(2)
+    expect(timesIn('Tricoter 2 manches identiques.')).toBe(2)
+    // Rien ne le dit : rien ; des côtes 2/2 ou « 2 x 2 » ne comptent pas
+    expect(timesIn('Côtes 2/2 sur 6 cm, puis 2 x 2 rangs.')).toBeNull()
+    expect(timesIn('Dos : monter 98 m.')).toBeNull()
+    // À la lecture : ×1 du modèle corrigé, ×2 donné gardé
+    const pattern = sanitizePattern({ ...PATTERN, steps: [{ title: 'Manche', instructions: 'Monter et tricoter la 2ème manche de la même façon.', total_rows: 10, stitches: 60, times: 1, sections: [] }, { title: 'Dos', instructions: 'Monter 98 m.', total_rows: 10, stitches: 98, sections: [] }] }, '')
+    expect(pattern.steps.map((s) => s.times)).toEqual([2, 1])
   })
 
   it('titre de partie en majuscules : remis en casse normale', () => {

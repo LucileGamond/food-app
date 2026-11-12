@@ -39,9 +39,15 @@ function unknown(reason: string): StitchTrack {
   return () => ({ kind: 'unknown', reason })
 }
 
-/** Suivi des mailles d'une étape, d'après ses sections et son nombre de mailles à la fin. */
-export function stitchTrack(step: { sections: StepSection[]; totalRows: number | null; stitches: number | null }): StitchTrack {
-  if (step.stitches === null) return unknown('Le nombre de mailles à la fin de l’étape n’est pas indiqué.')
+type CountedStep = { sections: StepSection[]; totalRows: number | null; stitches: number | null; startStitches?: number | null }
+
+/**
+ * Suivi des mailles d'une étape. Mailles au début saisies : elles font foi, chaque augmentation et diminution s'ajoute
+ * (4 mailles de plus au début, 4 de plus partout). Sinon, on remonte depuis les mailles de fin du patron.
+ */
+export function stitchTrack(step: CountedStep): StitchTrack {
+  const startSet = step.startStitches ?? null
+  if (step.stitches === null && startSet === null) return unknown('Le nombre de mailles à la fin de l’étape n’est pas indiqué.')
   const plan = planSections(step.sections, step.totalRows)
   if (plan.some((p) => p.start === null || isToSet(p.section))) {
     return unknown('Une sous-étape est à régler en rangs.')
@@ -50,7 +56,7 @@ export function stitchTrack(step: { sections: StepSection[]; totalRows: number |
     return unknown('Une répétition va jusqu’à la fin de l’étape, dont le nombre de rangs n’est pas connu.')
   }
   const changes = plan.flatMap((p) => p.actions.map((a) => ({ row: a.row, text: a.action.text, ...effectOf(a.action) })))
-  const start = step.stitches - changes.reduce((sum, c) => sum + c.stitches, 0)
+  const start = startSet ?? step.stitches! - changes.reduce((sum, c) => sum + c.stitches, 0)
   const reasons = [...new Set(changes.filter((c) => c.guessed).map((c) => c.text))].map((text) => {
     const guess = guessStitches(text)
     return guess === null ? `Effet de « ${text} » inconnu (compté 0).` : `Effet de « ${text} » deviné : ${guess > 0 ? '+' : ''}${guess} mailles.`
@@ -60,4 +66,19 @@ export function stitchTrack(step: { sections: StepSection[]; totalRows: number |
     const stitches = start + changes.filter((c) => c.row <= row).reduce((sum, c) => sum + c.stitches, 0)
     return reasons.length ? { kind: 'estimate', stitches, reasons } : { kind: 'sure', stitches }
   }
+}
+
+/** Mailles à la fin de l'étape : déduites du début saisi, sinon celles du patron (null : inconnues). */
+export function endStitches(step: CountedStep): number | null {
+  if ((step.startStitches ?? null) === null) return step.stitches
+  // Début saisi : la fin du patron ne vaut plus ; sans calcul possible, elle n'est pas connue
+  const last = stitchTrack(step)(Number.MAX_SAFE_INTEGER)
+  return last.kind === 'unknown' ? null : last.stitches
+}
+
+/** Mailles au début de l'étape : saisies, sinon déduites de la fin (null : inconnues). */
+export function startStitchesOf(step: CountedStep): number | null {
+  if ((step.startStitches ?? null) !== null) return step.startStitches!
+  const first = stitchTrack(step)(0)
+  return first.kind === 'unknown' ? null : first.stitches
 }

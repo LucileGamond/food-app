@@ -6,6 +6,7 @@
 
 import { describeConversion } from './measure'
 import { effectiveNeedles } from './needles'
+import { isChecked, type NeedleGauge } from './needleGauges'
 import { describeSection, type KnitStep, type StepSection } from './pattern'
 
 export interface ReadyIssue {
@@ -15,11 +16,12 @@ export interface ReadyIssue {
   text: string
 }
 
-function issueOf(section: StepSection): string | null {
+function issueOf(section: StepSection, checked: boolean): string | null {
   if (section.at?.row === null) return 'rang de début « en même temps » à régler'
   if (section.kind === 'rows' && section.rows === null) return 'nombre de rangs à régler'
   if (section.kind === 'repeat' && section.every === null) return 'rythme en rangs à régler'
-  if (section.measured || section.at?.measured) return `calcul à vérifier (${describeConversion(section) ?? 'converti depuis les cm'})`
+  // Conversion vérifiée pour son aiguille : rien à refaire
+  if (!checked && (section.measured || section.at?.measured)) return `calcul à vérifier (${describeConversion(section) ?? 'converti depuis les cm'})`
   return null
 }
 
@@ -27,12 +29,12 @@ function issueOf(section: StepSection): string | null {
  * Ce qui manque pour tricoter l'étape ; vide : prête. Aiguilles : à choisir quand le projet en a plusieurs (une seule
  * vaut partout ; sans aiguille au projet, rien n'est demandé).
  */
-export function readyIssues(step: Pick<KnitStep, 'sections'>, needles: number[] = []): ReadyIssue[] {
-  const own = effectiveNeedles(step.sections, needles)
+export function readyIssues(step: Pick<KnitStep, 'sections' | 'needleFrom'>, needles: number[] = [], needleGauges: NeedleGauge[] = []): ReadyIssue[] {
+  const own = effectiveNeedles(step.sections, needles, step.needleFrom ?? null)
   return step.sections.flatMap((section, index) => {
-    const issue = issueOf(section) ?? (needles.length > 1 && own[index] === null ? 'aiguille à choisir' : null)
+    const issue = issueOf(section, isChecked(needleGauges, own[index] ?? null)) ?? (needles.length > 1 && own[index] === null ? 'aiguille à choisir' : null)
     return issue ? [{ index, text: `Sous-étape ${index + 1} (${describeSection(section)}) : ${issue}.` }] : []
   })
 }
 
-export const isReady = (step: Pick<KnitStep, 'sections'>, needles: number[] = []) => readyIssues(step, needles).length === 0
+export const isReady = (step: Pick<KnitStep, 'sections' | 'needleFrom'>, needles: number[] = [], needleGauges: NeedleGauge[] = []) => readyIssues(step, needles, needleGauges).length === 0

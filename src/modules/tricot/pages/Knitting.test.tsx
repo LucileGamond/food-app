@@ -350,6 +350,95 @@ describe('KnittingProjectPage', () => {
     expect(items[1]).toHaveTextContent('Diagramme « Torsade » : rangs 5 à 28')
   })
 
+  it('échantillon par aiguille : chaque sous-étape convertie avec celui de son aiguille, vérifiée une fois par aiguille', async () => {
+    const user = userEvent.setup()
+    const project = structuredClone(PROJECT)
+    project.patternGauge = { stitches: 22, rows: 30 }
+    project.needles = [3, 3.5]
+    project.needleGauges = [{ needle: 3, stitches: null, rows: 40, checked: false }]
+    project.steps[1]!.sections = [
+      { kind: 'rows', rows: null, every: null, times: null, text: 'côtes', pattern: '5 cm', needle: 3 },
+      { kind: 'rows', rows: null, every: null, times: null, text: 'jersey', pattern: '10 cm', needle: 3.5 },
+    ]
+    const { api } = renderProject(fakeApi(), project, `${STEP}=s2`)
+    const sections = await screen.findByRole('region', { name: 'Sous-étapes' })
+    // Aiguille 3 : son échantillon (40 rangs) ; 3,5 : celui du patron (30 rangs)
+    expect(within(sections).getByText('20 rangs (≈ 5 cm) : côtes')).toBeInTheDocument()
+    expect(within(sections).getByText('30 rangs (≈ 10 cm) : jersey')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Tricoter cette étape' })).toBeDisabled()
+    await user.click(within(sections).getByRole('button', { name: 'Valider pour l’aiguille 3,5 mm' }))
+    expect(api.knitting.saveNeedleGauges).toHaveBeenLastCalledWith('p1', [
+      { needle: 3, stitches: null, rows: 40, checked: false },
+      { needle: 3.5, stitches: null, rows: null, checked: true },
+    ])
+  })
+
+  it('aiguilles vérifiées : plus rien à valider, l’étape est prête', async () => {
+    const project = structuredClone(PROJECT)
+    project.patternGauge = { stitches: 22, rows: 30 }
+    project.needles = [3, 3.5]
+    project.needleGauges = [
+      { needle: 3, stitches: null, rows: 40, checked: true },
+      { needle: 3.5, stitches: null, rows: null, checked: true },
+    ]
+    project.steps[1]!.sections = [
+      { kind: 'rows', rows: null, every: null, times: null, text: 'côtes', pattern: '5 cm', needle: 3 },
+      { kind: 'rows', rows: null, every: null, times: null, text: 'jersey', pattern: '10 cm', needle: 3.5 },
+    ]
+    renderProject(fakeApi(), project, `${STEP}=s2`)
+    expect(await screen.findByText('Prête à tricoter')).toBeInTheDocument()
+    expect(screen.getByText(/Vérifié pour l’aiguille 3 mm/)).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /^Valider/ })).not.toBeInTheDocument()
+  })
+
+  it('échantillon par aiguille saisi dans « Laine et échantillon » : l’aiguille changée est à revérifier', async () => {
+    const user = userEvent.setup()
+    const project = { ...structuredClone(PROJECT), needles: [3, 3.5], needleGauges: [{ needle: 3.5, stitches: null, rows: null, checked: true }] }
+    const { api } = renderProject(fakeApi(), project, OVERVIEW)
+    await user.click(await screen.findByRole('button', { name: 'Laine et échantillon' }))
+    const form = screen.getByRole('form', { name: 'Échantillon par aiguille' })
+    await user.type(within(form).getByLabelText('Rangs (3,5 mm)'), '28')
+    await user.click(within(form).getByRole('button', { name: 'Enregistrer les échantillons par aiguille' }))
+    expect(api.knitting.saveNeedleGauges).toHaveBeenLastCalledWith('p1', [
+      { needle: 3, stitches: null, rows: null, checked: false },
+      { needle: 3.5, stitches: null, rows: 28, checked: false },
+    ])
+  })
+
+  it('mailles au début : saisies, elles font foi ; reprendre celles de l’étape d’avant ; revenir au patron', async () => {
+    const user = userEvent.setup()
+    const project = structuredClone(PROJECT)
+    project.steps[1]!.sections = [project.steps[1]!.sections[0]!, { ...project.steps[1]!.sections[1]!, actions: [{ text: '1 diminution de chaque côté', rank: null, stitches: -2 }] }]
+    const { api } = renderProject(fakeApi(), project, `${STEP}=s2`)
+    // 56 à la fin, 4 × −2 : 64 au début ; l'étape d'avant finit à 64
+    expect((await screen.findByText(/Mailles au début :/)).parentElement).toHaveTextContent('Mailles au début : 64 mailles (d’après la fin du patron)')
+    expect(screen.queryByRole('button', { name: /Reprendre les/ })).not.toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'Modifier les mailles au début' }))
+    const form = screen.getByRole('form', { name: 'Mailles au début' })
+    await user.clear(within(form).getByLabelText('Mailles au début de l’étape'))
+    await user.type(within(form).getByLabelText('Mailles au début de l’étape'), '0')
+    await user.click(within(form).getByRole('button', { name: 'Enregistrer' }))
+    expect(within(form).getByRole('alert')).toHaveTextContent('Un nombre entier de mailles')
+    await user.clear(within(form).getByLabelText('Mailles au début de l’étape'))
+    await user.type(within(form).getByLabelText('Mailles au début de l’étape'), '70')
+    await user.click(within(form).getByRole('button', { name: 'Enregistrer' }))
+    expect(api.knitting.saveProgress).toHaveBeenLastCalledWith('s2', { startStitches: 70 })
+  })
+
+  it('mailles au début saisies : la fin se recalcule, l’étape d’avant est proposée', async () => {
+    const user = userEvent.setup()
+    const project = structuredClone(PROJECT)
+    project.steps[1]!.startStitches = 70
+    project.steps[1]!.sections = [project.steps[1]!.sections[0]!, { ...project.steps[1]!.sections[1]!, actions: [{ text: '1 diminution de chaque côté', rank: null, stitches: -2 }] }]
+    const { api } = renderProject(fakeApi(), project, `${STEP}=s2`)
+    expect(await screen.findByText('Étape 2 sur 3 · 30 rangs · 62 mailles à la fin')).toBeInTheDocument()
+    expect(screen.getByText(/Mailles au début :/).parentElement).toHaveTextContent('Mailles au début : 70 mailles')
+    await user.click(screen.getByRole('button', { name: 'Reprendre les 64 mailles de l’étape d’avant' }))
+    expect(api.knitting.saveProgress).toHaveBeenLastCalledWith('s2', { startStitches: 64 })
+    await user.click(screen.getByRole('button', { name: 'Revenir au patron' }))
+    expect(api.knitting.saveProgress).toHaveBeenLastCalledWith('s2', { startStitches: null })
+  })
+
   it('règle, ajoute, déplace et supprime des sections', async () => {
     const user = userEvent.setup()
     const { api } = renderProject()
@@ -482,16 +571,11 @@ describe('KnittingProjectPage', () => {
     expect(within(sections).getByText('Rangs 1 à 13')).toBeInTheDocument()
     expect(within(sections).getByText('1 augmentation — tous les 7 rangs (≈ 2,5 cm) (3 fois)')).toBeInTheDocument()
     const notes = within(sections).getAllByRole('note')
-    expect(notes[0]).toHaveTextContent('Converti depuis le patron : 5 cm × 26 rangs pour 10 cm (ton échantillon) ≈ 13 rangs (arrondi). Vérifie ce nombre, puis valide-le')
+    expect(notes[0]).toHaveTextContent('Converti depuis le patron : 5 cm × 26 rangs pour 10 cm (ton échantillon) ≈ 13 rangs (arrondi). Vérifie-le : valider vaut pour toutes les sous-étapes du projet.')
 
-    // Valider : enregistré comme un nombre de rangs ordinaire, l'autre section reste à vérifier
+    // Valider : vaut pour tout le projet (sans aiguille choisie), une seule fois
     await user.click(within(notes[0]!).getByRole('button', { name: 'Valider' }))
-    expect(api.knitting.saveProgress).toHaveBeenLastCalledWith('s2', {
-      sections: [
-        { kind: 'rows', rows: 13, every: null, times: null, text: 'jersey', pattern: '5 cm' },
-        { kind: 'repeat', rows: null, every: 7, times: 3, actions: [{ text: '1 augmentation', rank: null }], text: '', pattern: 'tous les 2,5 cm', measured: { rowsPer10: 26, source: 'mine' } },
-      ],
-    })
+    expect(api.knitting.saveNeedleGauges).toHaveBeenLastCalledWith('p1', [{ needle: null, stitches: null, rows: null, checked: true }])
 
     // Régler : le formulaire part du nombre calculé ; enregistré, il est validé
     await user.click(within(notes[1]!).getByRole('button', { name: 'Régler' }))
