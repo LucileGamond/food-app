@@ -135,9 +135,9 @@ export function KnittingImportPage() {
                   {index + 1}. {step.title}
                 </p>
                 {step.instructions && <SizedText text={step.instructions} sizes={pattern.sizes} sizeIndex={sizeIndex} glossary={mergeGlossary(pattern.abbreviations ?? [], glossary, looksEnglish(step.instructions))} className="mt-1" />}
-                {(step.totalRows || step.stitches) && (
+                {(!!step.totalRows || !!step.stitches || (step.times ?? 1) > 1) && (
                   <p className="mt-2 text-xs text-muted-foreground">
-                    {[step.totalRows && `${step.totalRows} rangs`, step.stitches && `${step.stitches} mailles`].filter(Boolean).join(' · ')}
+                    {[step.totalRows && `${step.totalRows} rangs`, step.stitches && `${step.stitches} mailles`, (step.times ?? 1) > 1 && `à tricoter ${step.times} fois`].filter(Boolean).join(' · ')}
                   </p>
                 )}
                 {step.sections.length > 0 && (

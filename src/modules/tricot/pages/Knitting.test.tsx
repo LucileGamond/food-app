@@ -145,6 +145,21 @@ describe('KnittingImportPage', () => {
     expect(await screen.findByText('Projet ouvert')).toBeInTheDocument()
   })
 
+  it('étape à tricoter 2 fois lue dans le patron : annoncée, puis gardée à l’enregistrement', async () => {
+    const user = userEvent.setup()
+    const api = fakeApi()
+    const steps = [{ title: 'Manches', instructions: 'Tricoter 2 manches identiques.', totalRows: 90, stitches: 50, times: 2, sections: [] }]
+    api.knitting.readPattern.mockResolvedValue({ ...PATTERN, steps })
+    api.knitting.createProject.mockResolvedValue('p9')
+    renderImport(api)
+    await user.upload(screen.getByLabelText('Patron (PDF)'), pdf())
+    await user.type(screen.getByLabelText('Taille choisie'), 'M')
+    await user.click(screen.getByRole('button', { name: 'Lire le patron' }))
+    expect(await screen.findByText('90 rangs · 50 mailles · à tricoter 2 fois')).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'Enregistrer le projet' }))
+    expect(api.knitting.createProject).toHaveBeenCalledWith(expect.objectContaining({ steps }))
+  })
+
   it('affiche le message de la lecture (taille introuvable) et permet de recommencer', async () => {
     const user = userEvent.setup()
     const api = fakeApi()

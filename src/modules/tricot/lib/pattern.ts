@@ -116,7 +116,10 @@ export interface KnitProject {
 }
 
 /** Étape telle que lue dans le patron (avant enregistrement). */
-export type PatternStep = Pick<KnitStep, 'title' | 'instructions' | 'totalRows' | 'stitches' | 'sections'>
+export type PatternStep = Pick<KnitStep, 'title' | 'instructions' | 'totalRows' | 'stitches' | 'sections'> & {
+  /** Nombre de fois où l'étape se tricote (2 : les deux manches) ; absent : 1. */
+  times?: number
+}
 
 export interface ReadPattern {
   title: string

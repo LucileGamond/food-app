@@ -34,6 +34,8 @@ export interface PatternStep {
   instructions: string
   totalRows: number | null
   stitches: number | null
+  /** Nombre de fois où l'étape se tricote (2 : les deux manches). */
+  times: number
   sections: PatternSection[]
 }
 
@@ -149,6 +151,10 @@ export const TOOL: Tool = {
             },
             total_rows: { type: ['integer', 'null'], description: 'Nombre de rangs (ou tours) de l’étape si on peut le connaître.' },
             stitches: { type: ['integer', 'null'], description: 'Nombre de mailles sur l’aiguille à la fin de l’étape, s’il est indiqué.' },
+            times: {
+              type: 'integer',
+              description: 'Nombre de fois où l’étape se tricote à l’identique : 2 pour « Manches (x2) », « tricoter 2 manches », « faire un 2e devant identique » ; 1 sinon.',
+            },
             sections: {
               type: 'array',
               description: 'Déroulé de l’étape en sections successives, rangs comptés depuis le début de l’étape.',
@@ -180,13 +186,17 @@ export const TOOL: Tool = {
                     },
                   },
                   text: { type: 'string', description: 'rows : le point (« jersey »), ou vide ; repeat : vide.' },
-                  pattern: { type: ['string', 'null'], description: 'Mesure telle qu’écrite dans le patron : « 5 cm », « tous les 5 cm », « tous les 6 rangs ».' },
+                  pattern: {
+                    type: ['string', 'null'],
+                    description:
+                      'Mesure telle qu’écrite dans le patron, pour la taille choisie seulement et avec son unité : « 5 cm », « tous les 5 cm », « 2 in », « tous les 6 rangs ».',
+                  },
                 },
                 required: ['kind', 'rows', 'every', 'times', 'actions', 'text', 'pattern'],
               },
             },
           },
-          required: ['title', 'instructions', 'total_rows', 'stitches', 'sections'],
+          required: ['title', 'instructions', 'total_rows', 'stitches', 'times', 'sections'],
         },
       },
       charts: {
@@ -271,7 +281,10 @@ export function systemPrompt(size: string): string {
     'Pour chaque étape, avec les nombres de la taille choisie : le nombre total de rangs si tu peux le déduire (hauteur donnée seulement en cm : null), et les mailles à la fin.',
     'Décris le déroulé de chaque étape en sections successives (sections) : rangs sans action particulière (« tricoter 4 rangs »)',
     'et actions répétées (« diminuer 1 m. de chaque côté tous les 6 rangs 4 fois »), dans l’ordre du patron, avec la mesure telle qu’écrite dans pattern.',
-    'Mesure en centimètres (« 5 cm », « tous les 5 cm ») : rows ou every à null, la tricoteuse la convertira en rangs selon sa laine.',
+    'Mesure en longueur (« 5 cm », « tous les 5 cm », « 2 in ») : rows ou every à null, et dans pattern la seule valeur de la taille choisie avec son unité ;',
+    'l’application la convertira en rangs avec l’échantillon.',
+    'Une partie tricotée plusieurs fois à l’identique (les deux manches, « x2 », un 2e devant « en vis-à-vis » sans autre différence) : une seule étape, avec times à 2 ;',
+    'sinon times à 1. Deux parties qui diffèrent (devant gauche et devant droit aux diminutions inversées) restent deux étapes.',
     'Repère les diagrammes (grilles de symboles ou de couleurs) dans charts : page du PDF, nom, plus grand numéro de rang de la grille,',
     'rangs endroit seuls ou non, à plat ou en rond, et l’étape où il se tricote ; un diagramme propre à une autre taille est ignoré.',
     'Relève dans size_chart le tableau des mesures par taille (tour de poitrine, longueur…), converti en cm, une valeur par taille dans l’ordre de sizes,',
@@ -413,6 +426,7 @@ export function sanitizePattern(input: unknown, size: string): ReadPattern {
         instructions: str(s.instructions, MAX_INSTRUCTIONS),
         totalRows: int(s.total_rows, 1, 2000),
         stitches: int(s.stitches, 1, 5000),
+        times: int(s.times, 1, 10) ?? 1,
         sections: (Array.isArray(s.sections) ? s.sections : []).map(sanitizeSection).filter((r): r is PatternSection => r !== null).slice(0, 30),
       }
     })

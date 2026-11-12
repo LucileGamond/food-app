@@ -66,6 +66,12 @@ describe('knitting api', () => {
 
   it('refuse un projet invalide et l’accès sans connexion', async () => {
     const { api } = await signedInApi()
+    // Manches à tricoter 2 fois, lues dans le patron
+    const sleeves = await api.knitting.createProject({ title: 'Gilet', size: 'M', pdf: null, steps: [{ ...STEPS[0]!, title: 'Manches', times: 2 }, STEPS[1]!] })
+    expect((await api.knitting.getProject(sleeves))!.steps.map((s) => [s.title, s.times, s.pass])).toEqual([
+      ['Manches', 2, 1],
+      ['Emmanchures', 1, 1],
+    ])
     await expect(api.knitting.createProject({ title: 'Vide', size: 'M', pdf: null, steps: [] })).rejects.toThrow('Certaines valeurs sont invalides.')
     await expect(api.knitting.createProject({ title: 'Pull', size: 'M', pdf: new File(['x'], 'photo.png', { type: 'image/png' }), steps: STEPS })).rejects.toThrow('Choisis un fichier PDF.')
     const anon = createKnittingApi(anonClient())

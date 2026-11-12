@@ -19,8 +19,10 @@ const PATTERN = {
       instructions: 'Tricoter 4 rangs, puis diminuer 1 m. de chaque côté tous les 6 rangs 4 fois.',
       total_rows: 30,
       stitches: 56,
+      times: 1,
       sections: [{ kind: 'rows', rows: 4, every: null, times: null, actions: [], text: '', pattern: '4 rangs' }, DECREASE],
     },
+    { title: 'Manches', instructions: 'Tricoter 2 manches identiques.', total_rows: 90, stitches: 50, times: 2, sections: [] },
   ],
 }
 
@@ -50,6 +52,7 @@ describe('résultat du modèle', () => {
             instructions: 'Coudre.',
             total_rows: -3,
             stitches: 'beaucoup',
+            times: 12,
             sections: [{ kind: 'repeat', every: 0, text: 'x' }, { kind: 'repeat', every: 2, actions: [{ text: ' ' }] }, { kind: 'rows', rows: null }, { kind: 'autre' }, 'n’importe quoi'],
           },
         ],
@@ -59,15 +62,18 @@ describe('résultat du modèle', () => {
     expect(pattern.title).toBe('Pull Bergamote')
     expect(pattern.sizes).toEqual(['S', 'M', 'L'])
     expect(pattern.steps).toEqual([
-      { title: 'Dos – côtes', instructions: 'Monter 64 m. et tricoter 6 cm en côtes 1/1.', totalRows: 18, stitches: 64, sections: [] },
+      // Nombre de fois absent : 1 ; hors bornes (12) : 1
+      { title: 'Dos – côtes', instructions: 'Monter 64 m. et tricoter 6 cm en côtes 1/1.', totalRows: 18, stitches: 64, times: 1, sections: [] },
       {
         title: 'Dos – emmanchures',
         instructions: 'Tricoter 4 rangs, puis diminuer 1 m. de chaque côté tous les 6 rangs 4 fois.',
         totalRows: 30,
         stitches: 56,
+        times: 1,
         sections: [{ kind: 'rows', rows: 4, every: null, times: null, actions: [], text: '', pattern: '4 rangs' }, DECREASE],
       },
-      { title: 'Finitions', instructions: 'Coudre.', totalRows: null, stitches: null, sections: [] },
+      { title: 'Manches', instructions: 'Tricoter 2 manches identiques.', totalRows: 90, stitches: 50, times: 2, sections: [] },
+      { title: 'Finitions', instructions: 'Coudre.', totalRows: null, stitches: null, times: 1, sections: [] },
     ])
   })
 
@@ -207,13 +213,14 @@ describe('résultat du modèle', () => {
   it('envoie le PDF et la taille au modèle', async () => {
     const fetchModel = vi.fn(async (_url: string | URL | Request, _init?: RequestInit) => reply(PATTERN))
     const { pattern, usage } = await readPattern({ pdf: PDF, size: 'M' }, { apiKey: 'cle', fetch: fetchModel })
-    expect(pattern.steps).toHaveLength(2)
+    expect(pattern.steps).toHaveLength(3)
     expect(usage).toEqual({ input_tokens: 5000, output_tokens: 800 })
     const body = JSON.parse(String(fetchModel.mock.calls[0]![1]!.body))
     expect(body.messages[0].content[0]).toEqual({ type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: PDF } })
     expect(body.system).toContain('Taille choisie : « M »')
     expect(body.tool_choice).toEqual({ type: 'tool', name: 'enregistrer_patron' })
     expect(systemPrompt('4 ans')).toContain('recopie mot pour mot')
+    expect(systemPrompt('4 ans')).toContain('une seule étape, avec times à 2')
   })
 })
 
@@ -235,8 +242,8 @@ describe('handler', () => {
     const { handle, deps } = setup()
     const response = await handle(post({ pdf: PDF, size: 'M' }))
     expect(response.status).toBe(200)
-    expect((await response.json()).steps).toHaveLength(2)
-    expect(deps.log).toHaveBeenCalledWith('patron lu', expect.objectContaining({ steps: 2 }))
+    expect((await response.json()).steps).toHaveLength(3)
+    expect(deps.log).toHaveBeenCalledWith('patron lu', expect.objectContaining({ steps: 3 }))
   })
 
   it('refuse les requêtes invalides ou anonymes', async () => {
