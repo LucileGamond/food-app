@@ -46,8 +46,8 @@ describe('sections « en même temps »', () => {
   })
 
   it('le rang annonce tout ce qui tombe dessus, de chaque consigne', () => {
-    expect(events(15)).toEqual(['Nouvelle section : En même temps, dès le rang 15 : 20 m centrales en attente — à chaque rang (1 fois)', '20 m centrales en attente (1/1, dernière fois)'])
-    expect(events(20)).toEqual(['raglan corps (10/10, dernière fois)', 'raglan manches (10/11)', 'Nouvelle section : encolure : 1 m de chaque côté — tous les 2 rangs (3 fois)'])
+    expect(events(15)).toEqual(['Nouvelle sous-étape : En même temps, dès le rang 15 : 20 m centrales en attente — à chaque rang (1 fois)', '20 m centrales en attente (1/1, dernière fois)'])
+    expect(events(20)).toEqual(['raglan corps (10/10, dernière fois)', 'raglan manches (10/11)', 'Nouvelle sous-étape : encolure : 1 m de chaque côté — tous les 2 rangs (3 fois)'])
     expect(events(22)).toEqual(['raglan corps (2/2, dernière fois)', 'raglan manches (11/11, dernière fois)'])
     const guide = stepGuide(YOKE, [], 'Col')
     expect(guide.at(17).context).toBe(
@@ -74,13 +74,13 @@ describe('sections « en même temps »', () => {
     const guide = stepGuide(toSet, [], 'Col')
     expect(guide.at(1).events.map(describeEvent)).toContain('À régler avant de continuer : En même temps, à 5 cm (à régler) : 20 m centrales en attente — à chaque rang (1 fois)')
     expect(guide.at(2).unknown).toBe(true)
-    expect(stitchTrack(toSet)(1)).toEqual({ kind: 'unknown', reason: 'Une section est à régler en rangs.' })
+    expect(stitchTrack(toSet)(1)).toEqual({ kind: 'unknown', reason: 'Une sous-étape est à régler en rangs.' })
   })
 
   it('une section à régler sur la piste principale : les autres pistes restent annoncées jusque-là', () => {
     const sections = [repeat(2, 3, 'raglan corps', -4), { ...repeat(2, 3, 'raglan corps', -4), every: null, pattern: 'tous les 2 cm' }, repeat(1, 1, 'marqueur', 0, { row: 3, pattern: null })]
     const guide = stepGuide({ sections, totalRows: null }, [], null)
-    expect(guide.at(3).events.map(describeEvent)).toEqual(['Nouvelle section : En même temps, dès le rang 3 : marqueur — à chaque rang (1 fois)', 'marqueur (1/1, dernière fois)'])
+    expect(guide.at(3).events.map(describeEvent)).toEqual(['Nouvelle sous-étape : En même temps, dès le rang 3 : marqueur — à chaque rang (1 fois)', 'marqueur (1/1, dernière fois)'])
     expect(guide.at(7).events.map((e) => e.kind)).toEqual(['to-set'])
     expect(guide.upcoming(1, 10).map((u) => u.row)).toEqual([2, 3, 4, 6, 7])
   })

@@ -132,7 +132,7 @@ describe('formulaire d’une section', () => {
     expect(formToSection(form({ kind: 'rows' }), '5 cm')).toEqual(rows(null, '', '5 cm'))
     // « En même temps » : un rang de début, sauf hauteur du patron encore à convertir
     expect(formToSection(form({ kind: 'rows', rows: '4', start: 'at', atRow: '0' }))).toBe('Rang de début : un nombre entier entre 1 et 5000.')
-    expect(formToSection(form({ kind: 'rows', rows: '4', start: 'at' }))).toBe('Indique le rang où cette section commence.')
+    expect(formToSection(form({ kind: 'rows', rows: '4', start: 'at' }))).toBe('Indique le rang où cette sous-étape commence.')
     expect(formToSection(form({ kind: 'rows', rows: '4', start: 'at' }), null, '15 cm')).toMatchObject({ rows: 4, at: { row: null, pattern: '15 cm' } })
     expect(formToSection(form({ kind: 'rows', rows: '4', start: 'at', atRow: '46' }))).toMatchObject({ at: { row: 46, pattern: null } })
     expect(formToSection(form({ kind: 'rows', rows: '4', start: 'after', atRow: '46' }))).not.toHaveProperty('at')

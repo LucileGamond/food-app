@@ -142,6 +142,9 @@ describe('résultat du modèle', () => {
       expect(sanitizeSection({ ...neck, at })).not.toHaveProperty('at')
     }
     expect(systemPrompt('M')).toContain('EN MÊME TEMPS')
+    // Une étape par partie du patron, ses phases en sous-étapes
+    expect(systemPrompt('M')).toContain('en suivant avant tout sa structure')
+    expect(systemPrompt('M')).toContain('sous-étapes dans des points, des diagrammes ou des motifs différents')
   })
 
   it('garde le texte du patron tel quel et la position de la taille choisie', () => {

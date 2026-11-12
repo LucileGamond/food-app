@@ -146,7 +146,7 @@ export const TOOL: Tool = {
         items: {
           type: 'object',
           properties: {
-            title: { type: 'string', description: 'Ex. « Dos – côtes », « Manches – augmentations ».' },
+            title: { type: 'string', description: 'Titre de la partie tel que le patron la nomme (ex. « Dos », « Manche », « Empiècement ») ; pas un titre par phase comme « Manche – côtes ».' },
             instructions: {
               type: 'string',
               description: 'Texte du patron pour cette étape, recopié mot pour mot avec les nombres de toutes les tailles : ni résumé, ni coupé, ni traduit.',
@@ -159,7 +159,7 @@ export const TOOL: Tool = {
             },
             sections: {
               type: 'array',
-              description: 'Déroulé de l’étape en sections successives, rangs comptés depuis le début de l’étape.',
+              description: 'Sous-étapes de l’étape, dans l’ordre (côtes, jersey, augmentations, diagramme…), chacune avec son point ou son motif ; rangs comptés depuis le début de l’étape.',
               items: {
                 type: 'object',
                 properties: {
@@ -289,12 +289,15 @@ export function systemPrompt(size: string): string {
   return [
     ...chosen,
     'Les patrons donnent les nombres de toutes les tailles à la suite, par exemple « monter 60 (64-68-72) m. » ou « 60/64/68/72 m. ».',
-    'Découpe le patron en étapes de tricot dans l’ordre (dos, devant, manches, finitions…).',
+    'Découpe le patron en étapes dans l’ordre, en suivant avant tout sa structure : une étape par grande partie que le patron présente comme telle',
+    '(son titre de partie : par exemple dos, devant, manche, empiècement, col, finitions, selon le patron). Ne crée pas une étape par paragraphe ou par sous-titre :',
+    'les phases d’une même partie (côtes, puis jersey, puis augmentations ; un diagramme, puis un autre point) sont des sous-étapes (sections) de cette étape.',
+    'Une étape peut donc avoir des sous-étapes dans des points, des diagrammes ou des motifs différents, et un nombre de mailles qui change.',
     'Dans instructions, recopie mot pour mot le texte du patron pour l’étape, avec les nombres de toutes les tailles tels qu’écrits :',
     'ne résume rien, ne coupe rien, ne traduis pas ; garde les retours à la ligne utiles. L’application mettra en valeur les nombres de la taille choisie.',
     'Donne dans size_number la position de la taille choisie parmi sizes (1 = première).',
     'Pour chaque étape, avec les nombres de la taille choisie : le nombre total de rangs si tu peux le déduire (hauteur donnée seulement en cm : null), et les mailles à la fin.',
-    'Décris le déroulé de chaque étape en sections successives (sections) : rangs sans action particulière (« tricoter 4 rangs »)',
+    'Décris le déroulé de chaque étape en sous-étapes successives (sections) : rangs sans action particulière (« tricoter 4 rangs », avec le point ou le diagramme dans text)',
     'et actions répétées (« diminuer 1 m. de chaque côté tous les 6 rangs 4 fois »), dans l’ordre du patron, avec la mesure telle qu’écrite dans pattern.',
     'Mesure en longueur (« 5 cm », « tous les 5 cm », « 2 in ») : rows ou every à null, et dans pattern la seule valeur de la taille choisie avec son unité ;',
     'l’application la convertira en rangs avec l’échantillon.',

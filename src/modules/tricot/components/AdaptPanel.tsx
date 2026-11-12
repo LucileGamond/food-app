@@ -81,7 +81,7 @@ export function AdaptPanel({ project, size, onSaved }: Props) {
   return (
     <PanelFold id="knit-adapt" title="Patron adapté à moi">
       <div>
-        <p className="text-sm text-muted-foreground">Facultatif : mailles, rangs et sections recalculés pour ton échantillon et tes retouches. Le patron d’origine reste disponible.</p>
+        <p className="text-sm text-muted-foreground">Facultatif : mailles, rangs et sous-étapes recalculés pour ton échantillon et tes retouches. Le patron d’origine reste disponible.</p>
       </div>
 
       {adaptation && !editing && (

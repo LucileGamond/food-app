@@ -106,13 +106,13 @@ function SectionForm({ section, onSave, onCancel }: { section: StepSection; onSa
   }
 
   return (
-    <form onSubmit={submit} className="space-y-3 rounded-xl border bg-background p-3" noValidate aria-label="Section">
+    <form onSubmit={submit} className="space-y-3 rounded-xl border bg-background p-3" noValidate aria-label="Sous-étape">
       {section.pattern && (
         <p className="text-sm text-muted-foreground">
           Patron : <span className="font-medium text-foreground">{section.pattern}</span>
         </p>
       )}
-      <div role="radiogroup" aria-label="Type de section" className="grid grid-cols-2 gap-1 rounded-lg bg-muted p-1">
+      <div role="radiogroup" aria-label="Type de sous-étape" className="grid grid-cols-2 gap-1 rounded-lg bg-muted p-1">
         {KINDS.map(({ kind, label }) => (
           <button
             key={kind}
@@ -126,7 +126,7 @@ function SectionForm({ section, onSave, onCancel }: { section: StepSection; onSa
           </button>
         ))}
       </div>
-      <div role="radiogroup" aria-label="Début de la section" className="grid grid-cols-2 gap-1 rounded-lg bg-muted p-1">
+      <div role="radiogroup" aria-label="Début de la sous-étape" className="grid grid-cols-2 gap-1 rounded-lg bg-muted p-1">
         {STARTS.map(({ start, label }) => (
           <button
             key={start}
@@ -148,7 +148,7 @@ function SectionForm({ section, onSave, onCancel }: { section: StepSection; onSa
             </p>
           )}
           <NumberField id={`${id}-at`} label="À partir du rang" value={form.atRow} onChange={set('atRow')} placeholder="46" />
-          <p className="text-xs text-muted-foreground">Rang de l’étape où cette section commence, pendant que les autres continuent. Les sections suivantes s’enchaînent derrière elle.</p>
+          <p className="text-xs text-muted-foreground">Rang de l’étape où cette sous-étape commence, pendant que les autres continuent. Les sous-étapes suivantes s’enchaînent derrière elle.</p>
         </div>
       )}
       {form.kind === 'rows' ? (
@@ -332,7 +332,7 @@ export function StepSections({ step, onChange }: { step: KnitStep; onChange: (se
       <ConfirmDialog
         open={removing !== null}
         onOpenChange={(open) => !open && setRemoving(null)}
-        title="Supprimer cette section ?"
+        title="Supprimer cette sous-étape ?"
         description={removing !== null && step.sections[removing] ? `« ${describeSection(step.sections[removing])} »` : undefined}
         confirmLabel="Supprimer"
         onConfirm={async () => {
@@ -341,7 +341,7 @@ export function StepSections({ step, onChange }: { step: KnitStep; onChange: (se
       />
       {editing === null && step.sections.length < MAX_SECTIONS && (
         <Button variant="outline" className="h-9" onClick={() => setEditing(step.sections.length)}>
-          <Plus /> Ajouter une section
+          <Plus /> Ajouter une sous-étape
         </Button>
       )}
     </section>

@@ -172,7 +172,7 @@ describe('mode tricoter', () => {
     project.steps[1]!.rowCount = 5
     renderMode(project)
     const row = await line()
-    expect(row).toHaveTextContent('La suite n’est pas connue : une section est à régler en rangs.')
+    expect(row).toHaveTextContent('La suite n’est pas connue : une sous-étape est à régler en rangs.')
     expect(screen.queryByRole('list', { name: 'Ensuite' })).not.toBeInTheDocument()
     await user.click(within(row).getByRole('link', { name: 'Régler' }))
     expect(await screen.findByText('Page du projet')).toBeInTheDocument()
@@ -242,7 +242,7 @@ describe('mode tricoter', () => {
     expect(api.knitting.saveProgress).not.toHaveBeenCalledWith('s2', expect.objectContaining({ done: true }))
 
     // 2e fois finie : l'étape se termine comme une autre.
-    await user.click(screen.getByText('texte de l’étape, question, notes'))
+    // Le bouton est hors du volet « Patron », visible sans l'ouvrir
     await user.click(screen.getByRole('button', { name: 'Terminer l’étape maintenant' }))
     await user.click(within(await screen.findByRole('alertdialog', { name: 'Passer à l’étape suivante ?' })).getByRole('button', { name: 'Étape terminée' }))
     expect(api.knitting.saveProgress).toHaveBeenLastCalledWith('s2', { done: true })

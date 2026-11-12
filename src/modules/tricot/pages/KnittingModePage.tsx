@@ -1,4 +1,4 @@
-import { SearchX, X } from 'lucide-react'
+import { Check, SearchX, X } from 'lucide-react'
 import { useState, type ReactNode } from 'react'
 import { Link, useParams, useSearchParams } from 'react-router-dom'
 import { toast } from 'sonner'
@@ -8,7 +8,7 @@ import { ConfirmDialog } from '@/components/ConfirmDialog'
 import { EmptyState } from '@/components/EmptyState'
 import { LoadError } from '@/components/LoadError'
 import { ScreenAwakeToggle } from '@/components/ScreenAwakeToggle'
-import { buttonVariants } from '@/components/ui/button'
+import { Button, buttonVariants } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useScreenAwake } from '@/hooks/useWakeLock'
 import { cn } from '@/lib/utils'
@@ -159,9 +159,12 @@ function Knitting({ project, knit, projectTo }: KnittingProps) {
           onHighlights={(highlights) => void knit.saveStep(step.id, { highlights })}
           onTranslate={translate}
           onNotes={(notes) => void knit.saveStep(step.id, { notes })}
-          finishLabel={anotherPass ? `Terminer la ${ordinal(step.pass)} fois maintenant` : 'Terminer l’étape maintenant'}
-          onFinish={() => setFinishing(true)}
         />
+        {!finished && (
+          <Button variant="outline" className="h-10" onClick={() => setFinishing(true)}>
+            <Check /> {anotherPass ? `Terminer la ${ordinal(step.pass)} fois maintenant` : 'Terminer l’étape maintenant'}
+          </Button>
+        )}
       </main>
 
       {!step.done && (

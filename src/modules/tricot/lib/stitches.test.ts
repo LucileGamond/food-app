@@ -33,7 +33,7 @@ describe('mailles en fin de rang', () => {
 
   it('inconnu : mailles de fin non indiquées, section à régler, répétition sans fin connue, compte faux', () => {
     expect(stitchTrack({ sections: DECREASES, totalRows: 12, stitches: null })(3)).toMatchObject({ kind: 'unknown', reason: expect.stringContaining('mailles à la fin') })
-    expect(stitchTrack({ sections: [rows(null), ...DECREASES], totalRows: 30, stitches: 64 })(3)).toMatchObject({ kind: 'unknown', reason: 'Une section est à régler en rangs.' })
+    expect(stitchTrack({ sections: [rows(null), ...DECREASES], totalRows: 30, stitches: 64 })(3)).toMatchObject({ kind: 'unknown', reason: 'Une sous-étape est à régler en rangs.' })
     expect(stitchTrack({ sections: [repeat(2, null, [{ text: '1 aug.', rank: null, stitches: 1 }])], totalRows: null, stitches: 30 })(3)).toMatchObject({ kind: 'unknown', reason: expect.stringContaining('jusqu’à la fin de l’étape') })
     // Répétition jusqu'à la fin, nombre de rangs connu : on sait
     expect(stitchTrack({ sections: [repeat(2, null, [{ text: '1 aug.', rank: null, stitches: 1 }])], totalRows: 6, stitches: 30 })(1)).toEqual({ kind: 'sure', stitches: 27 })

@@ -53,7 +53,7 @@ export function RowLine({ line, stitches, glossary, setupTo, onOpenChart }: Prop
           <p className="flex items-start gap-2 text-sm">
             <CircleAlert className="mt-0.5 size-4 shrink-0 text-muted-foreground" aria-hidden />
             <span>
-              La suite n’est pas connue : une section est à régler en rangs.{' '}
+              La suite n’est pas connue : une sous-étape est à régler en rangs.{' '}
               <Link to={setupTo} className="font-medium underline underline-offset-4">
                 Régler
               </Link>

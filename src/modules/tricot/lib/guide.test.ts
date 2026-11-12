@@ -40,7 +40,7 @@ describe('guide du rang', () => {
     expect(guide.upcoming(6).map((u) => [u.row, u.inRows, u.events.map(describeEvent)])).toEqual([
       [8, 2, ['1 dim. de chaque côté (2/3)']],
       [10, 4, ['1 dim. de chaque côté (3/3, dernière fois)']],
-      [11, 5, ['Nouvelle section : 6 rangs : jersey']],
+      [11, 5, ['Nouvelle sous-étape : 6 rangs : jersey']],
       [16, 10, ['Dernier rang de l’étape, ensuite : Col']],
     ])
     expect(guide.upcoming(6, 2)).toHaveLength(2)

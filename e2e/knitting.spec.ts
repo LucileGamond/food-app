@@ -59,7 +59,6 @@ test('charge un patron PDF pour une taille, compte les rangs et retrouve son ava
   await expect(page.getByRole('list', { name: 'Ensuite' })).toContainText('Dernier rang de l’étape, ensuite : Emmanchures')
   await expectNoA11yViolations(page)
   // Fin d'étape anticipée, confirmée : l'étape suivante s'ouvre
-  await page.getByText('texte de l’étape, question, notes').click()
   await page.getByRole('button', { name: 'Terminer l’étape maintenant' }).click()
   await page.getByRole('alertdialog').getByRole('button', { name: 'Étape terminée' }).click()
   await expect(page.getByRole('heading', { level: 1, name: 'Emmanchures' })).toBeVisible()
@@ -75,7 +74,7 @@ test('charge un patron PDF pour une taille, compte les rangs et retrouve son ava
   await page.getByRole('button', { name: 'Enregistrer', exact: true }).click()
   await expect(page.getByText('Rangs 1 à 24 · prochaine fois : rang 6')).toBeVisible()
   // Section sans répétition ajoutée à la suite
-  await page.getByRole('button', { name: 'Ajouter une section' }).click()
+  await page.getByRole('button', { name: 'Ajouter une sous-étape' }).click()
   await page.getByLabel('Nombre de rangs').fill('10')
   await page.getByLabel('Description (facultatif)').fill('côtes')
   await page.getByRole('button', { name: 'Enregistrer', exact: true }).click()

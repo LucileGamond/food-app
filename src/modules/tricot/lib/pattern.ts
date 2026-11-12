@@ -411,7 +411,7 @@ export function formToSection(form: SectionForm, pattern: string | null = null, 
     const row = parse(form.atRow, 1, MAX_ROW_COUNT)
     if (row === undefined) return `Rang de début : un nombre entier entre 1 et ${MAX_ROW_COUNT}.`
     // Sans rang : seulement pour une hauteur du patron encore à convertir (« à 15 cm »).
-    if (row === null && !atPattern) return 'Indique le rang où cette section commence.'
+    if (row === null && !atPattern) return 'Indique le rang où cette sous-étape commence.'
     at = { at: { row, pattern: atPattern } }
   }
   const section = formToBody(form, pattern, parse)

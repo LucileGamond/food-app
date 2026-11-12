@@ -44,7 +44,7 @@ export function stitchTrack(step: { sections: StepSection[]; totalRows: number |
   if (step.stitches === null) return unknown('Le nombre de mailles à la fin de l’étape n’est pas indiqué.')
   const plan = planSections(step.sections, step.totalRows)
   if (plan.some((p) => p.start === null || isToSet(p.section))) {
-    return unknown('Une section est à régler en rangs.')
+    return unknown('Une sous-étape est à régler en rangs.')
   }
   if (step.totalRows === null && plan.some((p) => p.section.kind === 'repeat' && p.section.times === null)) {
     return unknown('Une répétition va jusqu’à la fin de l’étape, dont le nombre de rangs n’est pas connu.')
@@ -55,7 +55,7 @@ export function stitchTrack(step: { sections: StepSection[]; totalRows: number |
     const guess = guessStitches(text)
     return guess === null ? `Effet de « ${text} » inconnu (compté 0).` : `Effet de « ${text} » deviné : ${guess > 0 ? '+' : ''}${guess} mailles.`
   })
-  if (start <= 0) return unknown('Le nombre de mailles ne tombe pas juste : vérifie les sections et le nombre de mailles de l’étape.')
+  if (start <= 0) return unknown('Le nombre de mailles ne tombe pas juste : vérifie les sous-étapes et le nombre de mailles de l’étape.')
   return (row) => {
     const stitches = start + changes.filter((c) => c.row <= row).reduce((sum, c) => sum + c.stitches, 0)
     return reasons.length ? { kind: 'estimate', stitches, reasons } : { kind: 'sure', stitches }

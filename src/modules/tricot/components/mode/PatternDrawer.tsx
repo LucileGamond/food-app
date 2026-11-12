@@ -1,5 +1,4 @@
-import { BookOpen, Check } from 'lucide-react'
-import { Button } from '@/components/ui/button'
+import { BookOpen } from 'lucide-react'
 import type { Abbreviation } from '../../lib/glossary'
 import type { KnitStep } from '../../lib/pattern'
 import type { Highlights } from '../../lib/sizes'
@@ -19,14 +18,10 @@ interface Props {
   onHighlights: (highlights: Highlights) => void
   onTranslate: () => Promise<void>
   onNotes: (notes: string) => void
-  /** « Terminer l’étape maintenant », ou la fois en cours pour une étape tricotée plusieurs fois. */
-  finishLabel: string
-  /** Terminer l'étape (ou la fois en cours) avant son dernier rang : nombre de rangs inconnu, ou fin anticipée. */
-  onFinish: () => void
 }
 
 /** Volet « Patron », replié : le texte de l'étape, ses abréviations, une question sur le rang, les notes. */
-export function PatternDrawer({ step, row, size, sizes, sizeIndex, abbreviations, onHighlights, onTranslate, onNotes, finishLabel, onFinish }: Props) {
+export function PatternDrawer({ step, row, size, sizes, sizeIndex, abbreviations, onHighlights, onTranslate, onNotes }: Props) {
   return (
     <details className="group rounded-2xl border bg-background">
       <summary className="flex min-h-12 cursor-pointer items-center gap-2 px-4 font-medium">
@@ -53,11 +48,6 @@ export function PatternDrawer({ step, row, size, sizes, sizeIndex, abbreviations
           <p className="text-sm text-muted-foreground">Pas de texte pour cette étape.</p>
         )}
         <StepNotes key={step.id} step={step} onSave={onNotes} />
-        {!step.done && (
-          <Button variant="outline" className="h-10" onClick={onFinish}>
-            <Check /> {finishLabel}
-          </Button>
-        )}
       </div>
     </details>
   )

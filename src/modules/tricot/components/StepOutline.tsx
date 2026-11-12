@@ -50,7 +50,7 @@ function Section({ section, current, isCurrent }: { section: OutlineSection; cur
         {section.toSet
           ? 'À régler en rangs dans la préparation : la suite se calculera.'
           : section.start === null
-            ? 'Rangs pas encore connus (une section avant est à régler).'
+            ? 'Rangs pas encore connus (une sous-étape avant est à régler).'
             : [section.range, section.quiet > 0 && `${plural(section.quiet, 'rang')} sans rien de particulier`].filter(Boolean).join(' · ')}
       </p>
       {section.rows.length > 0 && (
@@ -82,11 +82,11 @@ export function StepOutline({ step, nextTitle, showCurrent = true }: Props) {
     <details ref={ref} onToggle={onToggle} className="group rounded-2xl border bg-background">
       <summary className="flex min-h-12 cursor-pointer items-center gap-2 px-4 font-medium">
         <ListTree className="size-4 text-muted-foreground" aria-hidden /> Toute l’étape
-        <span className="text-sm font-normal text-muted-foreground">sections et rangs</span>
+        <span className="text-sm font-normal text-muted-foreground">sous-étapes et rangs</span>
       </summary>
       <div className="border-t p-3">
         {outline.length === 0 ? (
-          <p className="text-sm text-muted-foreground">Rien de prévu : ajoute des sections ou le nombre de rangs de l’étape dans la préparation.</p>
+          <p className="text-sm text-muted-foreground">Rien de prévu : ajoute des sous-étapes ou le nombre de rangs de l’étape dans la préparation.</p>
         ) : (
           <ol className="space-y-2 text-sm" aria-label="Toute l’étape">
             {outline.map((section, i) => (

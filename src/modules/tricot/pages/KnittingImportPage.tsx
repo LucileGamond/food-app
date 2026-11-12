@@ -141,7 +141,7 @@ export function KnittingImportPage() {
                   </p>
                 )}
                 {step.sections.length > 0 && (
-                  <ol className="mt-2 list-inside list-decimal space-y-0.5 text-xs">
+                  <ol aria-label="Sous-étapes" className="mt-2 list-inside list-decimal space-y-0.5 text-xs">
                     {step.sections.map((section, i) => (
                       <li key={i}>{describeSection(section)}</li>
                     ))}

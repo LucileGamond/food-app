@@ -242,7 +242,7 @@ describe('KnittingProjectPage', () => {
 
     await user.click(await screen.findByRole('button', { name: 'Actions pour « 1 diminution de chaque côté — tous les 6 rangs (4 fois) »' }))
     await user.click(await screen.findByRole('menuitem', { name: 'Régler' }))
-    const form = screen.getByRole('form', { name: 'Section' })
+    const form = screen.getByRole('form', { name: 'Sous-étape' })
     await user.clear(within(form).getByLabelText('Tous les … rangs'))
     await user.type(within(form).getByLabelText('Tous les … rangs'), '8')
     await user.click(within(form).getByRole('button', { name: 'Enregistrer' }))
@@ -250,8 +250,8 @@ describe('KnittingProjectPage', () => {
     expect(await screen.findByText('Rangs 5 à 36 · prochaine fois : rang 12')).toBeInTheDocument()
 
     // Nouvelle section sans répétition, à la fin
-    await user.click(screen.getByRole('button', { name: 'Ajouter une section' }))
-    const added = screen.getByRole('form', { name: 'Section' })
+    await user.click(screen.getByRole('button', { name: 'Ajouter une sous-étape' }))
+    const added = screen.getByRole('form', { name: 'Sous-étape' })
     await user.click(within(added).getByRole('button', { name: 'Enregistrer' }))
     expect(within(added).getByRole('alert')).toHaveTextContent('Indique le nombre de rangs.')
     await user.type(within(added).getByLabelText('Nombre de rangs'), '10')
@@ -262,8 +262,8 @@ describe('KnittingProjectPage', () => {
     expect(await screen.findByText('Rangs 37 à 46')).toBeInTheDocument()
 
     // Une répétition se crée aussi
-    await user.click(screen.getByRole('button', { name: 'Ajouter une section' }))
-    const repeatForm = screen.getByRole('form', { name: 'Section' })
+    await user.click(screen.getByRole('button', { name: 'Ajouter une sous-étape' }))
+    const repeatForm = screen.getByRole('form', { name: 'Sous-étape' })
     await user.click(within(repeatForm).getByRole('radio', { name: 'Répétition' }))
     await user.click(within(repeatForm).getByRole('button', { name: 'Enregistrer' }))
     expect(within(repeatForm).getByRole('alert')).toHaveTextContent('Indique quoi faire')
@@ -278,7 +278,7 @@ describe('KnittingProjectPage', () => {
     expect(api.knitting.saveProgress).toHaveBeenLastCalledWith('s2', { sections: [rows10, jersey, { ...decrease, every: 8 }] })
     await user.click(screen.getByRole('button', { name: 'Actions pour « 4 rangs : jersey »' }))
     await user.click(await screen.findByRole('menuitem', { name: 'Supprimer' }))
-    const confirm = await screen.findByRole('alertdialog', { name: 'Supprimer cette section ?' })
+    const confirm = await screen.findByRole('alertdialog', { name: 'Supprimer cette sous-étape ?' })
     expect(confirm).toHaveTextContent('« 4 rangs : jersey »')
     await user.click(within(confirm).getByRole('button', { name: 'Supprimer' }))
     expect(api.knitting.saveProgress).toHaveBeenLastCalledWith('s2', { sections: [rows10, { ...decrease, every: 8 }] })
@@ -289,7 +289,7 @@ describe('KnittingProjectPage', () => {
     const { api } = renderProject()
     await user.click(await screen.findByRole('button', { name: 'Actions pour « 1 diminution de chaque côté — tous les 6 rangs (4 fois) »' }))
     await user.click(await screen.findByRole('menuitem', { name: 'Régler' }))
-    const form = screen.getByRole('form', { name: 'Section' })
+    const form = screen.getByRole('form', { name: 'Sous-étape' })
     expect(within(form).getByRole('combobox', { name: 'Rang de l’action 1' })).toHaveValue('last')
     await user.selectOptions(within(form).getByRole('combobox', { name: 'Rang de l’action 1' }), '1')
     await user.click(within(form).getByRole('button', { name: 'Ajouter une action' }))
@@ -319,7 +319,7 @@ describe('KnittingProjectPage', () => {
     const { api } = renderProject()
     await user.click(await screen.findByRole('button', { name: 'Actions pour « 1 diminution de chaque côté — tous les 6 rangs (4 fois) »' }))
     await user.click(await screen.findByRole('menuitem', { name: 'Régler' }))
-    const form = screen.getByRole('form', { name: 'Section' })
+    const form = screen.getByRole('form', { name: 'Sous-étape' })
     const stitches = within(form).getByRole('textbox', { name: 'Mailles de l’action 1' })
     // Effet deviné d'après le texte, proposé en exemple
     expect(stitches).toHaveValue('')

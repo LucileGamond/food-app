@@ -145,14 +145,14 @@ export function stepGuide(step: { sections: StepSection[]; totalRows: number | n
   })
 }
 
-/** « 1 diminution (3/8) », « 1 diminution (8/8, dernière fois) », « Nouvelle section : … », « Dernier rang de l'étape ». */
+/** « 1 diminution (3/8) », « 1 diminution (8/8, dernière fois) », « Nouvelle sous-étape : … », « Dernier rang de l'étape ». */
 export function describeEvent(event: GuideEvent): string {
   switch (event.kind) {
     case 'action':
       if (event.times === null) return `${event.text} (${event.count === 1 ? '1re' : `${event.count}e`} fois)`
       return `${event.text} (${event.count}/${event.times}${event.count === event.times ? ', dernière fois' : ''})`
     case 'section':
-      return `Nouvelle section : ${event.text}`
+      return `Nouvelle sous-étape : ${event.text}`
     case 'to-set':
       return `À régler avant de continuer : ${event.text}`
     case 'step-end':
