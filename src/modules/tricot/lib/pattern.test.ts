@@ -105,13 +105,13 @@ describe('sections d’une étape', () => {
     expect(describeSection(repeat(6, 4))).toBe('1 diminution — tous les 6 rangs (4 fois)')
     expect(describeSection(repeat(1, null))).toBe('1 diminution — à chaque rang')
     expect(describeSection(repeat(null, 3, '1 augmentation', 'tous les 5 cm'))).toBe('1 augmentation — tous les 5 cm (rangs à régler)')
-    expect(describeRange({ section: rows(1), index: 0, start: 3, end: 3, repeatStarts: [], actions: [] })).toBe('Rang 3')
+    expect(describeRange({ section: rows(1), index: 0, parallel: false, start: 3, end: 3, repeatStarts: [], actions: [] })).toBe('Rang 3')
   })
 })
 
 describe('formulaire d’une section', () => {
   it('lit des rangs sans répétition ou une répétition', () => {
-    const form = (patch: Partial<SectionForm>): SectionForm => ({ kind: 'repeat', text: '', rows: '', every: '', times: '', actions: [{ text: '1 diminution', rank: 'last', stitches: '' }], ...patch })
+    const form = (patch: Partial<SectionForm>): SectionForm => ({ kind: 'repeat', start: 'after', atRow: '', text: '', rows: '', every: '', times: '', actions: [{ text: '1 diminution', rank: 'last', stitches: '' }], ...patch })
     expect(formToSection(form({ kind: 'rows', text: ' jersey ', rows: '10' }), '5 cm')).toEqual(rows(10, 'jersey', '5 cm'))
     expect(formToSection(form({ every: '6', times: '4' }))).toEqual({ ...repeat(6, 4), text: '', actions: [{ text: '1 diminution', rank: null }] })
     expect(formToSection(form({}), 'tous les 5 cm')).toEqual({ ...repeat(null, null, '1 diminution', 'tous les 5 cm'), text: '', actions: [{ text: '1 diminution', rank: null }] })
@@ -120,16 +120,22 @@ describe('formulaire d’une section', () => {
       formToSection(form({ every: '4', actions: [{ text: ' 1 diminution ', rank: '1', stitches: '' }, { text: '1 augmentation', rank: '4', stitches: '' }, { text: ' ', rank: '2', stitches: '' }] })),
     ).toMatchObject({ actions: [{ text: '1 diminution', rank: 1 }, { text: '1 augmentation', rank: null }] })
     // Ancien format : l'action est le texte de la section
-    expect(sectionToForm(repeat(6, 4))).toEqual({ kind: 'repeat', text: '', rows: '', every: '6', times: '4', actions: [{ text: '1 diminution', rank: 'last', stitches: '' }] })
+    expect(sectionToForm(repeat(6, 4))).toEqual({ kind: 'repeat', start: 'after', atRow: '', text: '', rows: '', every: '6', times: '4', actions: [{ text: '1 diminution', rank: 'last', stitches: '' }] })
     expect(sectionToForm(rows(4, 'jersey')).actions).toEqual([{ text: '', rank: 'last', stitches: '' }])
     expect(sectionToForm({ ...repeat(6, 4), actions: [{ text: 'torsade', rank: 2 }] }).actions).toEqual([{ text: 'torsade', rank: '2', stitches: '' }])
   })
 
   it('signale les valeurs invalides', () => {
-    const form = (patch: Partial<SectionForm>): SectionForm => ({ kind: 'repeat', text: '', rows: '', every: '', times: '', actions: [{ text: 'x', rank: 'last', stitches: '' }], ...patch })
+    const form = (patch: Partial<SectionForm>): SectionForm => ({ kind: 'repeat', start: 'after', atRow: '', text: '', rows: '', every: '', times: '', actions: [{ text: 'x', rank: 'last', stitches: '' }], ...patch })
     expect(formToSection(form({ kind: 'rows', rows: '0' }))).toBe('Nombre de rangs : un nombre entier entre 1 et 2000.')
     expect(formToSection(form({ kind: 'rows' }))).toBe('Indique le nombre de rangs.')
     expect(formToSection(form({ kind: 'rows' }), '5 cm')).toEqual(rows(null, '', '5 cm'))
+    // « En même temps » : un rang de début, sauf hauteur du patron encore à convertir
+    expect(formToSection(form({ kind: 'rows', rows: '4', start: 'at', atRow: '0' }))).toBe('Rang de début : un nombre entier entre 1 et 5000.')
+    expect(formToSection(form({ kind: 'rows', rows: '4', start: 'at' }))).toBe('Indique le rang où cette section commence.')
+    expect(formToSection(form({ kind: 'rows', rows: '4', start: 'at' }), null, '15 cm')).toMatchObject({ rows: 4, at: { row: null, pattern: '15 cm' } })
+    expect(formToSection(form({ kind: 'rows', rows: '4', start: 'at', atRow: '46' }))).toMatchObject({ at: { row: 46, pattern: null } })
+    expect(formToSection(form({ kind: 'rows', rows: '4', start: 'after', atRow: '46' }))).not.toHaveProperty('at')
     expect(formToSection(form({ every: '6', actions: [{ text: ' ', rank: 'last', stitches: '' }] }))).toContain('Indique quoi faire')
     expect(formToSection(form({ every: '2,5' }))).toBe('Répétition : un nombre de rangs entre 1 et 500.')
     expect(formToSection(form({ every: '2', times: '0' }))).toBe('Nombre de fois : un nombre entier entre 1 et 500.')

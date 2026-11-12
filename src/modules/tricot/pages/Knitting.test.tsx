@@ -387,6 +387,40 @@ describe('KnittingProjectPage', () => {
     })
   })
 
+  it('section « en même temps » : début à un rang, réglé dans le formulaire ; hauteur du patron convertie', async () => {
+    const user = userEvent.setup()
+    const project = structuredClone(PROJECT)
+    project.patternGauge = { stitches: 22, rows: 30 }
+    project.steps[1]!.sections = [
+      { kind: 'repeat', rows: null, every: 2, times: 10, actions: [{ text: 'raglan', rank: null }], text: '', pattern: null },
+      { kind: 'repeat', rows: null, every: 2, times: 2, actions: [{ text: 'encolure', rank: null }], text: '', pattern: null, at: { row: null, pattern: '5 cm' } },
+    ]
+    const { api } = renderProject(fakeApi(), project)
+    const sections = await screen.findByRole('region', { name: 'Déroulé de l’étape' })
+    // 5 cm × 30 rangs pour 10 cm = 15 rangs : début au rang 16
+    expect(within(sections).getByText('En même temps, dès le rang 16 (≈ 5 cm) : encolure — tous les 2 rangs (2 fois)')).toBeInTheDocument()
+    expect(within(sections).getByText('Rangs 16 à 19')).toBeInTheDocument()
+    expect(within(sections).getByRole('note')).toHaveTextContent('Converti depuis le patron : début : 5 cm × 30 rangs pour 10 cm (échantillon du patron) ≈ rang 16 (arrondi).')
+
+    // Régler : « En même temps » au rang 18, enregistré validé (hauteur du patron gardée)
+    await user.click(within(within(sections).getByRole('note')).getByRole('button', { name: 'Régler' }))
+    expect(screen.getByRole('radio', { name: 'En même temps' })).toHaveAttribute('aria-checked', 'true')
+    expect(screen.getByText('à 5 cm')).toBeInTheDocument()
+    await user.clear(screen.getByLabelText('À partir du rang'))
+    await user.type(screen.getByLabelText('À partir du rang'), '18')
+    await user.click(screen.getByRole('button', { name: 'Enregistrer' }))
+    expect(api.knitting.saveProgress).toHaveBeenLastCalledWith('s2', {
+      sections: [expect.anything(), { kind: 'repeat', rows: null, every: 2, times: 2, actions: [{ text: 'encolure', rank: null }], text: '', pattern: null, at: { row: 18, pattern: '5 cm' } }],
+    })
+
+    // Repasser la section « à la suite » : plus de début
+    await user.click(screen.getByRole('button', { name: /^Actions pour « En même temps/ }))
+    await user.click(await screen.findByRole('menuitem', { name: 'Régler' }))
+    await user.click(screen.getByRole('radio', { name: 'À la suite' }))
+    await user.click(screen.getByRole('button', { name: 'Enregistrer' }))
+    expect(api.knitting.saveProgress).toHaveBeenLastCalledWith('s2', { sections: [expect.anything(), expect.not.objectContaining({ at: expect.anything() })] })
+  })
+
   it('cm du patron sans échantillon : invite à le renseigner', async () => {
     const project = structuredClone(PROJECT)
     project.steps[1]!.sections = [{ kind: 'rows', rows: null, every: null, times: null, text: 'jersey', pattern: '5 cm' }]

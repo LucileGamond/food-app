@@ -2,7 +2,7 @@ import { Check, ListTree } from 'lucide-react'
 import { useRef } from 'react'
 import { cn } from '@/lib/utils'
 import { describeEvent } from '../lib/guide'
-import { outlineIndexAt, stepOutline, type OutlineRow, type OutlineSection } from '../lib/outline'
+import { outlineIndicesAt, stepOutline, type OutlineRow, type OutlineSection } from '../lib/outline'
 import type { StepSection } from '../lib/pattern'
 import type { StitchCount } from '../lib/stitches'
 
@@ -70,7 +70,7 @@ export function StepOutline({ step, nextTitle, showCurrent = true }: Props) {
   const ref = useRef<HTMLDetailsElement>(null)
   const outline = stepOutline(step, nextTitle)
   const current = showCurrent ? step.rowCount + 1 : null
-  const currentIndex = current === null ? null : outlineIndexAt(outline, current)
+  const currentIndices = current === null ? [] : outlineIndicesAt(outline, current)
 
   // À l'ouverture : le rang en cours (ou sa section) en vue.
   function onToggle() {
@@ -90,7 +90,7 @@ export function StepOutline({ step, nextTitle, showCurrent = true }: Props) {
         ) : (
           <ol className="space-y-2 text-sm" aria-label="Toute l’étape">
             {outline.map((section, i) => (
-              <Section key={i} section={section} current={current} isCurrent={i === currentIndex} />
+              <Section key={i} section={section} current={current} isCurrent={currentIndices.includes(i)} />
             ))}
           </ol>
         )}

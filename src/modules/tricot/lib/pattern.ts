@@ -4,6 +4,8 @@
 //   « 4 rangs jersey », puis « 1 diminution tous les 6 rangs (4 fois) », puis « 10 rangs »…
 // Une répétition peut porter plusieurs actions, chacune sur un rang de la répétition (1er, dernier…).
 // Les rangs de chaque section se calculent à la suite (rangs 1 à 4, puis 5 à 28…).
+// « En même temps » : une section peut démarrer à un rang donné (`at`) au lieu de suivre la précédente ; elle ouvre
+// une piste qui avance en parallèle des autres, et les sections suivantes s'enchaînent derrière elle.
 // Le compteur compte les rangs terminés : ce qui est annoncé concerne le rang à tricoter (rangs faits + 1).
 
 import type { SizeChart } from './sizing'
@@ -37,6 +39,16 @@ export interface MeasuredRows {
   source: 'mine' | 'pattern'
 }
 
+/** Début d'une section « en même temps » : un rang de l'étape, ou une hauteur du patron à convertir. */
+export interface SectionStart {
+  /** Rang de l'étape où la section commence (1 = premier) ; null : à régler (hauteur en cm). */
+  row: number | null
+  /** Hauteur écrite dans le patron, depuis le début de l'étape (« 15 cm »). */
+  pattern: string | null
+  /** Rang calculé depuis la hauteur avec l'échantillon, pas encore validé. */
+  measured?: MeasuredRows
+}
+
 export interface StepSection {
   kind: SectionKind
   /** Rangs sans répétition : nombre de rangs (null : à régler, ex. « 5 cm »). */
@@ -53,6 +65,8 @@ export interface StepSection {
   pattern: string | null
   /** Rangs (ou rythme) calculés depuis la mesure avec l'échantillon, à vérifier ; absent : réglés ou validés. */
   measured?: MeasuredRows
+  /** « En même temps » : la section commence à ce rang, en parallèle ; absent : à la suite de la précédente. */
+  at?: SectionStart
 }
 
 export const MAX_SECTIONS = 30
@@ -137,6 +151,17 @@ export interface ReadPattern {
   sizeChart?: SizeChart | null
 }
 
+function sanitizeMeasured(value: unknown): MeasuredRows | null {
+  if (typeof value !== 'object' || value === null) return null
+  const { rowsPer10, source } = value as Record<string, unknown>
+  return typeof rowsPer10 === 'number' && rowsPer10 > 0 && rowsPer10 <= 100 && (source === 'mine' || source === 'pattern') ? { rowsPer10, source } : null
+}
+
+/** Section à régler : son nombre de rangs (ou son rythme), ou son rang de début « en même temps », n'est pas connu. */
+export function isToSet(section: StepSection): boolean {
+  return (section.kind === 'rows' ? section.rows : section.every) === null || section.at?.row === null
+}
+
 /** Sections lues en base : seules celles bien formées sont gardées (une donnée abîmée ne fait pas planter l'écran). */
 export function sanitizeSections(raw: unknown): StepSection[] {
   if (!Array.isArray(raw)) return []
@@ -154,10 +179,15 @@ export function sanitizeSections(raw: unknown): StepSection[] {
       text: text(s.text),
       pattern: typeof s.pattern === 'string' ? s.pattern.slice(0, 100) : null,
     }
-    const m = s.measured
-    if (typeof m === 'object' && m !== null) {
-      const { rowsPer10, source } = m as Record<string, unknown>
-      if (typeof rowsPer10 === 'number' && rowsPer10 > 0 && rowsPer10 <= 100 && (source === 'mine' || source === 'pattern')) section.measured = { rowsPer10, source }
+    const measured = sanitizeMeasured(s.measured)
+    if (measured) section.measured = measured
+    if (typeof s.at === 'object' && s.at !== null) {
+      const a = s.at as Record<string, unknown>
+      const at: SectionStart = { row: count(a.row, 5000), pattern: typeof a.pattern === 'string' && a.pattern.trim() ? a.pattern.slice(0, 100) : null }
+      const atMeasured = sanitizeMeasured(a.measured)
+      if (atMeasured) at.measured = atMeasured
+      // Début sans rang ni hauteur : la section suit la précédente.
+      if (at.row !== null || at.pattern !== null) section.at = at
     }
     if (Array.isArray(s.actions)) {
       section.actions = s.actions
@@ -199,6 +229,8 @@ interface PlannedAction {
 export interface PlannedSection {
   section: StepSection
   index: number
+  /** Commence « en même temps » que d'autres, à un rang donné. */
+  parallel: boolean
   /** Premier et dernier rang (null : inconnus, une section précédente est à régler). */
   start: number | null
   end: number | null
@@ -208,11 +240,12 @@ export interface PlannedSection {
   actions: PlannedAction[]
 }
 
-/** Rangs de chaque section, à la suite les unes des autres. */
+/** Rangs de chaque section, à la suite les unes des autres ; une section « en même temps » repart de son rang de début. */
 export function planSections(sections: StepSection[], totalRows: number | null): PlannedSection[] {
   let cursor: number | null = 0
   return sections.map((section, index) => {
-    const empty = { section, index, repeatStarts: [], actions: [] }
+    if (section.at) cursor = section.at.row === null ? null : section.at.row - 1
+    const empty = { section, index, parallel: !!section.at, repeatStarts: [], actions: [] }
     if (cursor === null) return { ...empty, start: null, end: null }
     const from: number = cursor
     const start = from + 1
@@ -234,14 +267,18 @@ export function planSections(sections: StepSection[], totalRows: number | null):
     )
     // Sans nombre de fois : jusqu'à la fin de l'étape, la suite n'est pas planifiable.
     cursor = section.times === null ? null : from + every * section.times
-    return { section, index, start, end: section.times === null ? totalRows : cursor, repeatStarts, actions }
+    return { ...empty, start, end: section.times === null ? totalRows : cursor, repeatStarts, actions }
   })
 }
 
-/** Section du rang `row` (null si toutes sont faites ou si la suite est à régler). */
+/** Sections en cours au rang `row` (plusieurs avec « en même temps »), dans l'ordre. */
+export function sectionIndicesAt(plan: PlannedSection[], row: number): number[] {
+  return plan.filter((p) => p.start !== null && p.start <= row && (p.end === null || p.end >= row)).map((p) => p.index)
+}
+
+/** Première section du rang `row` (null si toutes sont faites ou si la suite est à régler). */
 export function sectionIndexAt(plan: PlannedSection[], row: number): number | null {
-  const current = plan.find((p) => p.start !== null && p.start <= row && (p.end === null || p.end >= row))
-  return current ? current.index : null
+  return sectionIndicesAt(plan, row)[0] ?? null
 }
 
 /** Prochain rang (à partir de `row`, le rang à tricoter) où une action de la répétition est à faire. */
@@ -280,6 +317,19 @@ function measuredHint(section: StepSection): string {
  * rangs calculés depuis une mesure : « 15 rangs (≈ 5 cm) : jersey ».
  */
 export function describeSection(section: StepSection): string {
+  return `${describeStart(section)}${describeBody(section)}`
+}
+
+/** « En même temps, dès le rang 46 : », « En même temps, à 15 cm (à régler) : » ; vide pour une section à la suite. */
+function describeStart(section: StepSection): string {
+  const at = section.at
+  if (!at) return ''
+  if (at.row === null) return `En même temps, ${at.pattern ? `à ${at.pattern.replace(/^à\s+/i, '')}` : 'à un rang'} (à régler) : `
+  const cm = at.measured ? parseMeasure(at.pattern) : null
+  return `En même temps, dès le rang ${at.row}${cm === null ? '' : ` (≈ ${formatCm(cm)})`} : `
+}
+
+function describeBody(section: StepSection): string {
   if (section.kind === 'rows') {
     const rows = section.rows === null ? `${section.pattern ?? 'Rangs'} (à régler)` : `${plural(section.rows, 'rang')}${measuredHint(section)}`
     return section.text ? `${rows} : ${section.text}` : `${rows} sans répétition`
@@ -320,6 +370,10 @@ export const formatStitches = (n: number): string => (n > 0 ? `+${n}` : String(n
 
 export interface SectionForm {
   kind: SectionKind
+  /** À la suite de la section précédente, ou « en même temps » à partir d'un rang. */
+  start: 'after' | 'at'
+  /** Rang de début (« en même temps »). */
+  atRow: string
   text: string
   rows: string
   every: string
@@ -332,6 +386,8 @@ export function sectionToForm(section: StepSection): SectionForm {
   const actions = section.kind === 'repeat' ? repeatActions(section).map((a) => ({ text: a.text, rank: a.rank === null ? 'last' : String(a.rank), stitches: a.stitches === undefined ? '' : formatStitches(a.stitches) })) : []
   return {
     kind: section.kind,
+    start: section.at ? 'at' : 'after',
+    atRow: text(section.at?.row ?? null),
     text: section.kind === 'rows' ? section.text : '',
     rows: text(section.rows),
     every: text(section.every),
@@ -340,13 +396,29 @@ export function sectionToForm(section: StepSection): SectionForm {
   }
 }
 
-/** Valeurs du formulaire → section, ou message d'erreur. La mesure du patron est conservée. */
-export function formToSection(form: SectionForm, pattern: string | null = null): StepSection | string {
+/**
+ * Valeurs du formulaire → section, ou message d'erreur. Les mesures du patron (longueur, hauteur de début) sont
+ * conservées ; les nombres saisis sont validés (plus de calcul à vérifier).
+ */
+export function formToSection(form: SectionForm, pattern: string | null = null, atPattern: string | null = null): StepSection | string {
   const parse = (value: string, min: number, max: number): number | null | undefined => {
     if (!value.trim()) return null
     const n = Number(value.trim())
     return Number.isInteger(n) && n >= min && n <= max ? n : undefined
   }
+  let at: { at: SectionStart } | Record<string, never> = {}
+  if (form.start === 'at') {
+    const row = parse(form.atRow, 1, MAX_ROW_COUNT)
+    if (row === undefined) return `Rang de début : un nombre entier entre 1 et ${MAX_ROW_COUNT}.`
+    // Sans rang : seulement pour une hauteur du patron encore à convertir (« à 15 cm »).
+    if (row === null && !atPattern) return 'Indique le rang où cette section commence.'
+    at = { at: { row, pattern: atPattern } }
+  }
+  const section = formToBody(form, pattern, parse)
+  return typeof section === 'string' ? section : { ...section, ...at }
+}
+
+function formToBody(form: SectionForm, pattern: string | null, parse: (value: string, min: number, max: number) => number | null | undefined): StepSection | string {
   if (form.kind === 'rows') {
     const rows = parse(form.rows, 1, 2000)
     if (rows === undefined) return 'Nombre de rangs : un nombre entier entre 1 et 2000.'

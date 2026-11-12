@@ -5,7 +5,7 @@
 // l'étape, puis à la fin de chaque rang. Un effet relevé dans le patron ou corrigé à la main est sûr ; un effet
 // deviné d'après le texte donne une estimation, signalée par « (?) ».
 
-import { actionEffect, planSections, type RepeatAction, type StepSection } from './pattern'
+import { actionEffect, isToSet, planSections, type RepeatAction, type StepSection } from './pattern'
 
 export type StitchCount =
   | { kind: 'sure'; stitches: number }
@@ -43,7 +43,7 @@ function unknown(reason: string): StitchTrack {
 export function stitchTrack(step: { sections: StepSection[]; totalRows: number | null; stitches: number | null }): StitchTrack {
   if (step.stitches === null) return unknown('Le nombre de mailles à la fin de l’étape n’est pas indiqué.')
   const plan = planSections(step.sections, step.totalRows)
-  if (plan.some((p) => p.start === null || (p.section.kind === 'rows' ? p.section.rows : p.section.every) === null)) {
+  if (plan.some((p) => p.start === null || isToSet(p.section))) {
     return unknown('Une section est à régler en rangs.')
   }
   if (step.totalRows === null && plan.some((p) => p.section.kind === 'repeat' && p.section.times === null)) {

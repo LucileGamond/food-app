@@ -1,5 +1,5 @@
 import { createHandler, type Deps } from './handler.ts'
-import { MAX_PDF_BASE64, parseInput, readPattern, sanitizePattern, systemPrompt } from './pattern.ts'
+import { MAX_PDF_BASE64, parseInput, readPattern, sanitizePattern, sanitizeSection, systemPrompt } from './pattern.ts'
 
 const PDF = 'JVBERi0xLjQK' // « %PDF-1.4 »
 
@@ -132,6 +132,16 @@ describe('résultat du modèle', () => {
       { text: '1 augmentation', rank: null },
       { text: 'marqueur', rank: null, stitches: 0 },
     ])
+  })
+
+  it('garde le début d’une consigne « en même temps » (rang ou hauteur), et rien pour une section à la suite', () => {
+    const neck = { kind: 'repeat', rows: null, every: 2, times: 2, actions: [{ text: 'rabattre 2 m de chaque côté', rank: null, stitches: -4 }], text: '', pattern: null }
+    expect(sanitizeSection({ ...neck, at: { row: null, pattern: '15 cm' } })).toMatchObject({ every: 2, at: { row: null, pattern: '15 cm' } })
+    expect(sanitizeSection({ ...neck, at: { row: 1, pattern: null } })).toMatchObject({ at: { row: 1, pattern: null } })
+    for (const at of [null, undefined, { row: null, pattern: '' }, { row: 0, pattern: null }, 'au rang 4']) {
+      expect(sanitizeSection({ ...neck, at })).not.toHaveProperty('at')
+    }
+    expect(systemPrompt('M')).toContain('EN MÊME TEMPS')
   })
 
   it('garde le texte du patron tel quel et la position de la taille choisie', () => {

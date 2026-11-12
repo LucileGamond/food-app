@@ -8,7 +8,7 @@
 // Comme le compteur, le guide parle du rang à tricoter : rangs faits + 1.
 
 import { chartPosition, chartRows, type ChartPosition, type KnitChart } from './chart'
-import { describeSection, planSections, sectionIndexAt, type StepSection } from './pattern'
+import { describeSection, isToSet, planSections, sectionIndicesAt, type StepSection } from './pattern'
 
 /** Ce qui se passe sur un rang. */
 export type GuideEvent =
@@ -66,30 +66,35 @@ export const UPCOMING_LIMIT = 5
 /** Rangs parcourus au plus pour trouver la suite (étape sans nombre de rangs). */
 const LOOKAHEAD = 2000
 
-/** Sections de l'étape, tricotées l'une après l'autre. */
+/**
+ * Sections de l'étape, tricotées l'une après l'autre ; une section « en même temps » ouvre une piste parallèle.
+ * Une section à régler annonce la suite inconnue à partir de son début (dès le 1er rang si c'est son début qui
+ * est à régler : on ne sait pas quand elle arrive).
+ */
 export function sectionSource(sections: StepSection[], totalRows: number | null): GuideSource {
   const plan = planSections(sections, totalRows)
   const byRow = new Map<number, GuideEvent[]>()
   const add = (row: number, event: GuideEvent) => byRow.set(row, [...(byRow.get(row) ?? []), event])
-  let unknownFrom: number | null = null
+  let unknownFrom = Infinity
   for (const p of plan) {
-    if (p.start === null) break
-    const toSet = (p.section.kind === 'rows' ? p.section.rows : p.section.every) === null
-    if (toSet) {
-      add(p.start, { kind: 'to-set', text: describeSection(p.section) })
-      unknownFrom = p.start
-      break
+    if (isToSet(p.section)) {
+      const from = p.start ?? (p.section.at?.row === null ? 1 : null)
+      if (from === null) continue
+      add(from, { kind: 'to-set', text: describeSection(p.section) })
+      unknownFrom = Math.min(unknownFrom, from)
+      continue
     }
-    if (p.end !== null && p.end < p.start) continue
+    // Section derrière une section à régler : ses rangs ne sont pas connus.
+    if (p.start === null || (p.end !== null && p.end < p.start)) continue
     add(p.start, { kind: 'section', text: describeSection(p.section) })
     for (const a of p.actions) add(a.row, { kind: 'action', text: a.action.text, count: a.count, times: p.section.times })
   }
   return {
-    unknownFrom,
+    unknownFrom: unknownFrom === Infinity ? null : unknownFrom,
     eventsAt: (row) => byRow.get(row) ?? [],
     contextAt: (row) => {
-      const index = sectionIndexAt(plan, row)
-      return index === null ? null : describeSection(plan[index]!.section)
+      const indices = sectionIndicesAt(plan, row)
+      return indices.length ? indices.map((i) => describeSection(plan[i]!.section)).join(' · ') : null
     },
   }
 }

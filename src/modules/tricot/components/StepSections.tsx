@@ -18,7 +18,8 @@ import {
   MAX_SECTIONS,
   nextActionRow,
   planSections,
-  sectionIndexAt,
+  isToSet,
+  sectionIndicesAt,
   sectionToForm,
   type KnitStep,
   type SectionForm as Form,
@@ -61,6 +62,11 @@ function ConversionCheck({ section, onValidate, onEdit }: { section: StepSection
   )
 }
 
+const STARTS: { start: Form['start']; label: string }[] = [
+  { start: 'after', label: 'À la suite' },
+  { start: 'at', label: 'En même temps' },
+]
+
 const KINDS: { kind: SectionKind; label: string }[] = [
   { kind: 'rows', label: 'Rangs sans répétition' },
   { kind: 'repeat', label: 'Répétition' },
@@ -86,7 +92,7 @@ function SectionForm({ section, onSave, onCancel }: { section: StepSection; onSa
   const id = useId()
   const [form, setForm] = useState<Form>(() => sectionToForm(section))
   const [error, setError] = useState<string | null>(null)
-  const set = (key: 'text' | 'rows' | 'every' | 'times') => (e: React.ChangeEvent<HTMLInputElement>) => setForm((f) => ({ ...f, [key]: e.target.value }))
+  const set = (key: 'text' | 'rows' | 'every' | 'times' | 'atRow') => (e: React.ChangeEvent<HTMLInputElement>) => setForm((f) => ({ ...f, [key]: e.target.value }))
   const setAction = (i: number, patch: Partial<Form['actions'][number]>) =>
     setForm((f) => ({ ...f, actions: f.actions.map((a, j) => (j === i ? { ...a, ...patch } : a)) }))
   const every = Number(form.every) || null
@@ -94,7 +100,7 @@ function SectionForm({ section, onSave, onCancel }: { section: StepSection; onSa
 
   function submit(event: FormEvent) {
     event.preventDefault()
-    const result = formToSection(form, section.pattern)
+    const result = formToSection(form, section.pattern, section.at?.pattern ?? null)
     if (typeof result === 'string') return setError(result)
     onSave(result)
   }
@@ -120,6 +126,31 @@ function SectionForm({ section, onSave, onCancel }: { section: StepSection; onSa
           </button>
         ))}
       </div>
+      <div role="radiogroup" aria-label="Début de la section" className="grid grid-cols-2 gap-1 rounded-lg bg-muted p-1">
+        {STARTS.map(({ start, label }) => (
+          <button
+            key={start}
+            type="button"
+            role="radio"
+            aria-checked={form.start === start}
+            onClick={() => setForm((f) => ({ ...f, start }))}
+            className={cn('rounded-md px-2 py-1.5 text-sm', form.start === start ? 'bg-background font-medium shadow-xs' : 'text-muted-foreground')}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+      {form.start === 'at' && (
+        <div className="space-y-1">
+          {section.at?.pattern && (
+            <p className="text-sm text-muted-foreground">
+              Patron : <span className="font-medium text-foreground">à {section.at.pattern.replace(/^à\s+/i, '')}</span>
+            </p>
+          )}
+          <NumberField id={`${id}-at`} label="À partir du rang" value={form.atRow} onChange={set('atRow')} placeholder="46" />
+          <p className="text-xs text-muted-foreground">Rang de l’étape où cette section commence, pendant que les autres continuent. Les sections suivantes s’enchaînent derrière elle.</p>
+        </div>
+      )}
       {form.kind === 'rows' ? (
         <>
           <div className="grid gap-1.5">
@@ -209,7 +240,7 @@ export function StepSections({ step, onChange }: { step: KnitStep; onChange: (se
   const [removing, setRemoving] = useState<number | null>(null)
   const plan = planSections(step.sections, step.totalRows)
   const row = step.rowCount + 1
-  const current = sectionIndexAt(plan, row)
+  const current = sectionIndicesAt(plan, row)
 
   async function save(index: number, section: StepSection) {
     const next = [...step.sections]
@@ -242,13 +273,13 @@ export function StepSections({ step, onChange }: { step: KnitStep; onChange: (se
           }
           const range = describeRange(p)
           const done = p.end !== null && p.end < row
-          const toSet = (section.kind === 'rows' ? section.rows : section.every) === null
+          const toSet = isToSet(section)
           const next = section.kind === 'repeat' ? nextActionRow(p, row) : null
           return (
             <li
               key={index}
-              aria-current={current === index ? 'step' : undefined}
-              className={cn('rounded-xl border px-3 py-2', current === index ? 'border-brand bg-brand/5' : 'bg-background', done && 'text-muted-foreground')}
+              aria-current={current.includes(index) ? 'step' : undefined}
+              className={cn('rounded-xl border px-3 py-2', current.includes(index) ? 'border-brand bg-brand/5' : 'bg-background', done && 'text-muted-foreground')}
             >
               <div className="flex items-start gap-2">
                 <div className="min-w-0 flex-1">
@@ -258,10 +289,10 @@ export function StepSections({ step, onChange }: { step: KnitStep; onChange: (se
                   </p>
                   <p className="text-xs text-muted-foreground">
                     {toSet
-                      ? parseMeasure(section.pattern) !== null
+                      ? (parseMeasure(section.pattern) ?? parseMeasure(section.at?.pattern ?? null)) !== null
                         ? 'Indique ton échantillon (ou celui du patron) dans « Laine et échantillon » pour convertir en rangs, ou règle le nombre de rangs.'
                         : 'Indique le nombre de rangs pour que la suite se calcule.'
-                      : [range, current === index && next !== null && `prochaine fois : rang ${next}`].filter(Boolean).join(' · ')}
+                      : [range, current.includes(index) && next !== null && `prochaine fois : rang ${next}`].filter(Boolean).join(' · ')}
                   </p>
                   <ConversionCheck section={section} onValidate={() => void save(index, validateSection(section))} onEdit={() => setEditing(index)} />
                 </div>

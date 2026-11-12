@@ -3,8 +3,8 @@
 // Chaque section avec ses rangs : ceux où il y a quelque chose à faire (action, fin de l'étape, section à régler),
 // avec les mailles en fin de rang, et le nombre de rangs sans rien de particulier entre eux.
 
-import { stepGuide, type GuideEvent } from './guide'
-import { describeRange, describeSection, planSections, type StepSection } from './pattern'
+import type { GuideEvent } from './guide'
+import { describeRange, describeSection, isToSet, planSections, type StepSection } from './pattern'
 import { stitchTrack, type StitchCount } from './stitches'
 
 /** Rangs montrés au plus pour une section sans fin connue (répétition jusqu'à la fin d'une étape sans nombre de rangs). */
@@ -38,14 +38,19 @@ type OutlineStep = { sections: StepSection[]; totalRows: number | null; stitches
 
 const describeRows = (start: number, end: number) => (start === end ? `Rang ${start}` : `Rangs ${start} à ${end}`)
 
-/** L'étape entière, section par section. */
+/** L'étape entière, section par section : chacune avec ses propres rangs (les pistes « en même temps » à part). */
 export function stepOutline(step: OutlineStep, nextTitle: string | null): OutlineSection[] {
-  const guide = stepGuide(step, [], nextTitle)
   const stitches = stitchTrack(step)
-  const rowsBetween = (start: number, end: number): Pick<OutlineSection, 'rows' | 'quiet'> => {
+  const plan = planSections(step.sections, step.totalRows)
+  const total = step.totalRows
+  const stepEnd: GuideEvent = { kind: 'step-end', next: nextTitle }
+  // Le dernier rang de l'étape est rappelé dans la première section qui le contient (sinon après les sections).
+  const endOwner = total === null ? -1 : plan.findIndex((p) => p.start !== null && !isToSet(p.section) && p.start <= total && (p.end === null || p.end >= total))
+
+  const rowsBetween = (start: number, end: number, eventsAt: (row: number) => GuideEvent[]): Pick<OutlineSection, 'rows' | 'quiet'> => {
     const rows: OutlineRow[] = []
     for (let row = start; row <= end; row++) {
-      const events = guide.at(row).events.filter((e) => e.kind !== 'section')
+      const events = eventsAt(row)
       if (!events.length) continue
       const count = stitches(row)
       rows.push({ row, events, stitches: events.some((e) => e.kind === 'action') && count.kind !== 'unknown' ? count : null })
@@ -55,8 +60,8 @@ export function stepOutline(step: OutlineStep, nextTitle: string | null): Outlin
 
   const outline: OutlineSection[] = []
   let last = 0
-  for (const p of planSections(step.sections, step.totalRows)) {
-    const toSet = (p.section.kind === 'rows' ? p.section.rows : p.section.every) === null
+  for (const p of plan) {
+    const toSet = isToSet(p.section)
     const base = { title: describeSection(p.section), range: describeRange(p), start: p.start, end: p.end, toSet, cut: false }
     if (p.start === null || toSet) {
       outline.push({ ...base, rows: [], quiet: 0 })
@@ -67,19 +72,24 @@ export function stepOutline(step: OutlineStep, nextTitle: string | null): Outlin
     if (p.end !== null && p.end < p.start) continue
     const cut = p.end === null
     const end = p.end ?? p.start + OUTLINE_OPEN_ROWS - 1
-    outline.push({ ...base, ...rowsBetween(p.start, end), cut })
-    last = cut ? Infinity : end
+    const eventsAt = (row: number): GuideEvent[] => [
+      ...p.actions.filter((a) => a.row === row).map((a): GuideEvent => ({ kind: 'action', text: a.action.text, count: a.count, times: p.section.times })),
+      ...(p.index === endOwner && row === total ? [stepEnd] : []),
+    ]
+    outline.push({ ...base, ...rowsBetween(p.start, end, eventsAt), cut })
+    // Sections « en même temps » : la dernière à finir compte.
+    last = cut ? Infinity : Math.max(last, end)
   }
   // Rangs de l'étape après la dernière section (ou étape sans section) : jusqu'au dernier rang.
-  if (step.totalRows !== null && last < step.totalRows) {
+  if (total !== null && last < total) {
     const start = last + 1
-    outline.push({ title: null, range: describeRows(start, step.totalRows), start, end: step.totalRows, toSet: false, cut: false, ...rowsBetween(start, step.totalRows) })
+    const eventsAt = (row: number) => (row === total && endOwner === -1 ? [stepEnd] : [])
+    outline.push({ title: null, range: describeRows(start, total), start, end: total, toSet: false, cut: false, ...rowsBetween(start, total, eventsAt) })
   }
   return outline
 }
 
-/** Section où se trouve le rang `row` (index dans le plan), sinon null. */
-export function outlineIndexAt(outline: OutlineSection[], row: number): number | null {
-  const index = outline.findIndex((s) => s.start !== null && !s.toSet && s.start <= row && (s.end === null || s.cut || s.end >= row))
-  return index === -1 ? null : index
+/** Sections où se trouve le rang `row` (plusieurs avec « en même temps »). */
+export function outlineIndicesAt(outline: OutlineSection[], row: number): number[] {
+  return outline.flatMap((s, i) => (s.start !== null && !s.toSet && s.start <= row && (s.end === null || s.cut || s.end >= row) ? [i] : []))
 }

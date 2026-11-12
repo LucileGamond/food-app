@@ -196,6 +196,50 @@ describe('mode tricoter : toute l’étape', () => {
   })
 })
 
+describe('mode tricoter : consignes « en même temps »', () => {
+  const at = (row: number | null, pattern: string | null = null) => ({ at: { row, pattern } })
+  const action = (text: string, stitches: number) => [{ text, rank: null, stitches }]
+  // Empiècement raglan inventé : corps et manches tous les 2 rangs, encolure qui commence pendant les deux
+  const YOKE: StepSection[] = [
+    repeat(2, 10, action('raglan corps', -4)),
+    { ...repeat(2, 11, action('raglan manches', -4)), ...at(1) },
+    { ...repeat(1, 1, action('20 m centrales en attente', -20)), ...at(15) },
+    repeat(2, 2, action('encolure : 2 m de chaque côté', -4)),
+  ]
+
+  it('le rang réunit les consignes qui tombent dessus, la suite les mêle, les mailles les comptent toutes', async () => {
+    // 22 rangs, 100 mailles à la fin ; corps −40, manches −44, encolure −28 : 212 au départ
+    const { line, upcoming, stitches, add } = await open(project({ rowCount: 13, totalRows: 22, stitches: 100, sections: YOKE }))
+    expect(line).toHaveTextContent('Rang 14 à tricoterraglan corps (7/10)raglan manches (7/11)')
+    expect(stitches()).toBe(`En fin de rang : ${212 - 7 * 8} mailles`)
+    expect(texts(upcoming())).toEqual([
+      'rang 15Nouvelle section : En même temps, dès le rang 15 : 20 m centrales en attente — à chaque rang (1 fois)20 m centrales en attente (1/1, dernière fois)dans 1',
+      'rang 16raglan corps (8/10)raglan manches (8/11)Nouvelle section : encolure : 2 m de chaque côté — tous les 2 rangs (2 fois)dans 2',
+      'rang 17encolure : 2 m de chaque côté (1/2)dans 3',
+      'rang 18raglan corps (9/10)raglan manches (9/11)dans 4',
+      'rang 19encolure : 2 m de chaque côté (2/2, dernière fois)dans 5',
+    ])
+    await add(1)
+    expect(line).toHaveTextContent('Rang 15 à tricoter')
+    expect(stitches()).toBe(`En fin de rang : ${212 - 7 * 8 - 20} mailles`)
+  })
+
+  it('encolure « à 5 cm » sans échantillon : à régler dès le début ; avec l’échantillon : convertie, avec le rappel', async () => {
+    const sections = YOKE.map((s, i) => (i === 2 ? { ...s, ...at(null, '5 cm') } : s))
+    const first = await open(project({ rowCount: 0, totalRows: 22, stitches: 100, sections }))
+    expect(first.line).toHaveTextContent('À régler avant de continuer : En même temps, à 5 cm (à régler) : 20 m centrales en attente')
+    expect(first.upcoming()).toHaveLength(0)
+  })
+
+  it('encolure « à 5 cm » avec l’échantillon du patron : rang calculé (≈), rappel à vérifier', async () => {
+    const sections = YOKE.map((s, i) => (i === 2 ? { ...s, ...at(null, '5 cm') } : s))
+    // 5 cm × 28 rangs pour 10 cm = 14 rangs : début au rang 15
+    const { upcoming } = await open(project({ rowCount: 13, totalRows: 22, stitches: 100, sections }, { patternGauge: { stitches: 22, rows: 28 } }))
+    expect(texts(upcoming())[0]).toBe('rang 15Nouvelle section : En même temps, dès le rang 15 (≈ 5 cm) : 20 m centrales en attente — à chaque rang (1 fois)20 m centrales en attente (1/1, dernière fois)dans 1')
+    expect(screen.getByRole('note')).toHaveTextContent('Des rangs sont calculés depuis les cm du patron')
+  })
+})
+
 describe('mode tricoter : patron adapté et cas limites', () => {
   it('patron adapté suivi : ses sections, son nombre de rangs et ses mailles', async () => {
     const adaptation: Adaptation = {

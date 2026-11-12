@@ -34,25 +34,41 @@ export const rowsFor = (cm: number, rowsPer10: number): number => Math.max(1, Ma
 /** Nombre de rangs de la section : le nombre de rangs, ou le rythme d'une répétition. */
 const rowsOf = (section: StepSection) => (section.kind === 'rows' ? section.rows : section.every)
 
-/**
- * Section à mesure (« 5 cm ») convertie en rangs avec l'échantillon, si elle est à régler ou pas encore validée.
- * Sans échantillon, ou section réglée et validée : inchangée.
- */
-export function convertSection(section: StepSection, gauge: MeasuredRows | null): StepSection {
+/** Longueur d'une section (« 5 cm » → rangs) convertie si elle est à régler ou pas encore validée. */
+function convertLength(section: StepSection, gauge: MeasuredRows): StepSection {
   const cm = parseMeasure(section.pattern)
-  if (cm === null || gauge === null || (rowsOf(section) !== null && !section.measured)) return section
+  if (cm === null || (rowsOf(section) !== null && !section.measured)) return section
   const rows = rowsFor(cm, gauge.rowsPer10)
   return section.kind === 'rows' ? { ...section, rows, measured: gauge } : { ...section, every: rows, measured: gauge }
+}
+
+/** Début « en même temps » (« à 15 cm » → rang 46) converti s'il est à régler ou pas encore validé. */
+function convertStart(section: StepSection, gauge: MeasuredRows): StepSection {
+  const at = section.at
+  const cm = parseMeasure(at?.pattern ?? null)
+  if (!at || cm === null || (at.row !== null && !at.measured)) return section
+  // « À 15 cm » : 15 cm tricotés, la section commence au rang d'après.
+  return { ...section, at: { ...at, row: rowsFor(cm, gauge.rowsPer10) + 1, measured: gauge } }
+}
+
+/**
+ * Section à mesure (« 5 cm », « en même temps, à 15 cm ») convertie en rangs avec l'échantillon, si elle est à
+ * régler ou pas encore validée. Sans échantillon, ou section réglée et validée : inchangée.
+ */
+export function convertSection(section: StepSection, gauge: MeasuredRows | null): StepSection {
+  return gauge === null ? section : convertStart(convertLength(section, gauge), gauge)
 }
 
 export function convertSections(sections: StepSection[], gauge: MeasuredRows | null): StepSection[] {
   return sections.map((s) => convertSection(s, gauge))
 }
 
-/** Calcul validé : la section devient un nombre de rangs comme un autre. */
+/** Calcul validé : la section devient un nombre de rangs (et un rang de début) comme un autre. */
 export function validateSection(section: StepSection): StepSection {
   const { measured: _measured, ...rest } = section
-  return rest
+  if (!rest.at?.measured) return rest
+  const { measured: _atMeasured, ...at } = rest.at
+  return { ...rest, at }
 }
 
 const number = (n: number) => String(Math.round(n * 10) / 10).replace('.', ',')
@@ -60,11 +76,23 @@ const number = (n: number) => String(Math.round(n * 10) / 10).replace('.', ',')
 /** « 5 cm », « 2,5 cm » */
 export const formatCm = (cm: number): string => `${number(cm)} cm`
 
-/** « 5 cm × 30 rangs pour 10 cm (ton échantillon) ≈ 15 rangs » ; null si la section n'est pas convertie. */
+const sourceOf = (gauge: MeasuredRows) => (gauge.source === 'mine' ? 'ton échantillon' : 'échantillon du patron')
+
+/**
+ * « 5 cm × 30 rangs pour 10 cm (ton échantillon) ≈ 15 rangs » ; « début : 15 cm × 30 rangs pour 10 cm (…) ≈ rang 46 » ;
+ * null si la section n'est pas convertie.
+ */
 export function describeConversion(section: StepSection): string | null {
+  const parts: string[] = []
   const cm = parseMeasure(section.pattern)
   const rows = rowsOf(section)
-  if (!section.measured || cm === null || rows === null) return null
-  const source = section.measured.source === 'mine' ? 'ton échantillon' : 'échantillon du patron'
-  return `${formatCm(cm)} × ${number(section.measured.rowsPer10)} rangs pour 10 cm (${source}) ≈ ${rows} rang${rows > 1 ? 's' : ''}`
+  if (section.measured && cm !== null && rows !== null) {
+    parts.push(`${formatCm(cm)} × ${number(section.measured.rowsPer10)} rangs pour 10 cm (${sourceOf(section.measured)}) ≈ ${rows} rang${rows > 1 ? 's' : ''}`)
+  }
+  const at = section.at
+  const atCm = parseMeasure(at?.pattern ?? null)
+  if (at?.measured && atCm !== null && at.row !== null) {
+    parts.push(`début : ${formatCm(atCm)} × ${number(at.measured.rowsPer10)} rangs pour 10 cm (${sourceOf(at.measured)}) ≈ rang ${at.row}`)
+  }
+  return parts.length ? parts.join(' ; ') : null
 }

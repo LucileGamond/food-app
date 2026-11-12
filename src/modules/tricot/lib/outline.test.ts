@@ -1,5 +1,5 @@
 import type { StepSection } from './pattern'
-import { OUTLINE_OPEN_ROWS, outlineIndexAt, stepOutline } from './outline'
+import { OUTLINE_OPEN_ROWS, outlineIndicesAt, stepOutline } from './outline'
 
 const rows = (n: number | null, text: string): StepSection => ({ kind: 'rows', rows: n, every: null, times: null, text, pattern: n === null ? '5 cm' : null })
 const repeat = (every: number, times: number | null, text: string, stitches?: number): StepSection => ({
@@ -59,9 +59,9 @@ describe('étape entière', () => {
 
   it('section du rang en cours', () => {
     const outline = stepOutline({ sections: [rows(4, 'côtes'), repeat(6, 4, '1 dim.')], totalRows: 30, stitches: null }, null)
-    expect(outlineIndexAt(outline, 1)).toBe(0)
-    expect(outlineIndexAt(outline, 5)).toBe(1)
-    expect(outlineIndexAt(outline, 29)).toBe(2)
-    expect(outlineIndexAt(outline, 31)).toBeNull()
+    expect(outlineIndicesAt(outline, 1)).toEqual([0])
+    expect(outlineIndicesAt(outline, 5)).toEqual([1])
+    expect(outlineIndicesAt(outline, 29)).toEqual([2])
+    expect(outlineIndicesAt(outline, 31)).toEqual([])
   })
 })

@@ -27,6 +27,8 @@ export interface PatternSection {
   /** Rangs sans répétition : le point (« jersey »). */
   text: string
   pattern: string | null
+  /** « En même temps » : la section commence à ce rang de l'étape (ou à cette hauteur), en parallèle des autres. */
+  at?: { row: number | null; pattern: string | null }
 }
 
 export interface PatternStep {
@@ -191,8 +193,21 @@ export const TOOL: Tool = {
                     description:
                       'Mesure telle qu’écrite dans le patron, pour la taille choisie seulement et avec son unité : « 5 cm », « tous les 5 cm », « 2 in », « tous les 6 rangs ».',
                   },
+                  at: {
+                    type: ['object', 'null'],
+                    description:
+                      'Seulement pour une consigne « EN MÊME TEMPS » / « at the same time » : la section commence à un rang ou une hauteur pendant que les sections précédentes continuent. null pour une section qui suit la précédente.',
+                    properties: {
+                      row: { type: ['integer', 'null'], description: 'Rang de l’étape où elle commence (1 = premier rang de l’étape) ; null si le patron donne une hauteur.' },
+                      pattern: {
+                        type: ['string', 'null'],
+                        description: 'Hauteur depuis le début de l’étape, pour la taille choisie, avec son unité (« 15 cm ») ; si le patron la donne depuis le bas de l’ouvrage, retranche la hauteur au début de l’étape.',
+                      },
+                    },
+                    required: ['row', 'pattern'],
+                  },
                 },
-                required: ['kind', 'rows', 'every', 'times', 'actions', 'text', 'pattern'],
+                required: ['kind', 'rows', 'every', 'times', 'actions', 'text', 'pattern', 'at'],
               },
             },
           },
@@ -285,6 +300,9 @@ export function systemPrompt(size: string): string {
     'l’application la convertira en rangs avec l’échantillon.',
     'Une partie tricotée plusieurs fois à l’identique (les deux manches, « x2 », un 2e devant « en vis-à-vis » sans autre différence) : une seule étape, avec times à 2 ;',
     'sinon times à 1. Deux parties qui diffèrent (devant gauche et devant droit aux diminutions inversées) restent deux étapes.',
+    'Consignes « EN MÊME TEMPS » (raglan et encolure, emmanchures et col V) : chaque consigne garde ses sections dans l’ordre ; la première section',
+    'd’une consigne qui commence pendant une autre a at (rang de l’étape, ou hauteur depuis le début de l’étape) ; les sections suivantes de la même',
+    'consigne s’enchaînent derrière elle sans at. Une consigne qui commence avec l’étape, en parallèle d’une autre, a at.row = 1.',
     'Repère les diagrammes (grilles de symboles ou de couleurs) dans charts : page du PDF, nom, plus grand numéro de rang de la grille,',
     'rangs endroit seuls ou non, à plat ou en rond, et l’étape où il se tricote ; un diagramme propre à une autre taille est ignoré.',
     'Relève dans size_chart le tableau des mesures par taille (tour de poitrine, longueur…), converti en cm, une valeur par taille dans l’ordre de sizes,',
@@ -297,6 +315,15 @@ export function systemPrompt(size: string): string {
 
 /** Section bien formée (bornée), ou null. */
 export function sanitizeSection(value: unknown): PatternSection | null {
+  const section = sanitizeBody(value)
+  if (!section) return null
+  const at = asRecord(asRecord(value).at)
+  const row = int(at.row, 1, 5000)
+  const pattern = str(at.pattern, 100) || null
+  return row !== null || pattern !== null ? { ...section, at: { row, pattern } } : section
+}
+
+function sanitizeBody(value: unknown): PatternSection | null {
   const r = asRecord(value)
   const text = str(r.text, 200)
   const pattern = str(r.pattern, 100) || null
