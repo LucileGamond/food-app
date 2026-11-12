@@ -1,4 +1,4 @@
-import { ArrowDown, ArrowUp, Check, ListOrdered, MoreHorizontal, Pencil, Plus, Trash2, X } from 'lucide-react'
+import { ArrowDown, ArrowUp, Check, ListOrdered, MoreHorizontal, Pencil, Plus, Ruler, Trash2, X } from 'lucide-react'
 import { useId, useState, type FormEvent } from 'react'
 import { ConfirmDialog } from '@/components/ConfirmDialog'
 import { Button } from '@/components/ui/button'
@@ -8,6 +8,7 @@ import { Label } from '@/components/ui/label'
 import { NativeSelect } from '@/components/ui/native-select'
 import { cn } from '@/lib/utils'
 import { guessStitches } from '../lib/stitches'
+import { describeConversion, parseMeasure, validateSection } from '../lib/measure'
 import {
   describeRange,
   describeSection,
@@ -32,6 +33,30 @@ function NumberField({ id, label, ...props }: { id: string; label: string } & Re
     <div className="grid gap-1.5">
       <Label htmlFor={id}>{label}</Label>
       <Input id={id} className="h-10" inputMode="numeric" {...props} />
+    </div>
+  )
+}
+
+/** Rangs calculés depuis une mesure du patron : le calcul, à vérifier puis valider (ou régler). */
+function ConversionCheck({ section, onValidate, onEdit }: { section: StepSection; onValidate: () => void; onEdit: () => void }) {
+  const calculation = describeConversion(section)
+  if (!calculation) return null
+  return (
+    <div role="note" className="mt-2 space-y-2 rounded-lg border border-amber-500/40 bg-amber-500/10 p-2 text-sm">
+      <p className="flex items-start gap-1.5">
+        <Ruler className="mt-0.5 size-4 shrink-0 text-amber-700 dark:text-amber-400" aria-hidden />
+        <span>
+          Converti depuis le patron : {calculation} (arrondi). Vérifie ce nombre, puis valide-le ; il suit l’échantillon tant qu’il n’est pas validé.
+        </span>
+      </p>
+      <div className="flex flex-wrap gap-2">
+        <Button type="button" className="h-9" onClick={onValidate}>
+          <Check /> Valider
+        </Button>
+        <Button type="button" variant="outline" className="h-9" onClick={onEdit}>
+          <Pencil /> Régler
+        </Button>
+      </div>
     </div>
   )
 }
@@ -233,9 +258,12 @@ export function StepSections({ step, onChange }: { step: KnitStep; onChange: (se
                   </p>
                   <p className="text-xs text-muted-foreground">
                     {toSet
-                      ? 'Indique le nombre de rangs pour que la suite se calcule.'
+                      ? parseMeasure(section.pattern) !== null
+                        ? 'Indique ton échantillon (ou celui du patron) dans « Laine et échantillon » pour convertir en rangs, ou règle le nombre de rangs.'
+                        : 'Indique le nombre de rangs pour que la suite se calcule.'
                       : [range, current === index && next !== null && `prochaine fois : rang ${next}`].filter(Boolean).join(' · ')}
                   </p>
+                  <ConversionCheck section={section} onValidate={() => void save(index, validateSection(section))} onEdit={() => setEditing(index)} />
                 </div>
                 <DropdownMenu>
                   <DropdownMenuTrigger render={<Button variant="ghost" size="icon" aria-label={`Actions pour « ${describeSection(section)} »`} />}>

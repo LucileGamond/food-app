@@ -29,6 +29,9 @@ import { forgetProject } from '../lib/offline'
 import { currentStepIndex, type StepSection } from '../lib/pattern'
 import { OfflineNote } from '../components/OfflineNote'
 import { StepNotes } from '../components/StepNotes'
+import { StepTimes } from '../components/StepTimes'
+import { StepOutline } from '../components/StepOutline'
+import { describePass } from '../lib/passes'
 
 export function KnittingProjectPage() {
   const { id = '' } = useParams()
@@ -235,8 +238,11 @@ export function KnittingProjectPage() {
             {step.rowCount} rang{step.rowCount > 1 ? 's' : ''} fait{step.rowCount > 1 ? 's' : ''}
             {step.totalRows !== null && ` sur ${step.totalRows}`}
             {adjustedRows !== null && ` (≈ ${adjustedRows} rangs avec ton échantillon)`}
+            {describePass(step) && ` · ${describePass(step)}`}
           </p>
+          <StepTimes step={step} onChange={(progress) => void saveStep(step.id, progress)} />
           <StepSections step={step} onChange={(sections) => saveSections(step, sections)} />
+          <StepOutline step={step} nextTitle={steps[index + 1]?.title ?? null} showCurrent={!step.done && step.rowCount > 0} />
           <StepCharts projectId={project.id} pdfPath={project.pdfPath} step={step} steps={steps} charts={project.charts} hints={project.chartHints} onChanged={reload} />
           <StepNotes key={step.id} step={step} onSave={(notes) => void saveStep(step.id, { notes })} />
           {step.done && (
@@ -307,10 +313,11 @@ export function KnittingProjectPage() {
                     </span>
                     <span className="min-w-0 flex-1">
                       <span className={cn('block truncate', isCurrent && 'font-medium')}>{s.title}</span>
-                      {(s.rowCount > 0 || s.totalRows !== null) && (
+                      {(s.rowCount > 0 || s.totalRows !== null || s.times > 1) && (
                         <span className="block text-xs text-muted-foreground tabular-nums">
                           {s.rowCount}
                           {s.totalRows !== null && ` / ${s.totalRows}`} rangs
+                          {describePass(s) && ` · ${describePass(s)}`}
                         </span>
                       )}
                     </span>

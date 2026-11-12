@@ -22,7 +22,7 @@ const SIGNED_URL_TTL_SECONDS = 60 * 60
 /** Photos d'avancement : dossier par personne (<uid>/<uuid>.jpg). */
 const PROGRESS_BUCKET = 'knit-photos'
 
-export type StepProgress = Partial<Pick<KnitStep, 'rowCount' | 'notes' | 'done' | 'sections' | 'highlights' | 'translation'>>
+export type StepProgress = Partial<Pick<KnitStep, 'rowCount' | 'times' | 'pass' | 'notes' | 'done' | 'sections' | 'highlights' | 'translation'>>
 
 /** Contenu du fichier en base64. */
 export async function fileToBase64(file: Blob): Promise<string> {
@@ -77,6 +77,8 @@ interface StepRow {
   stitches: number | null
   sections: unknown
   row_count: number
+  times: number
+  pass: number
   notes: string
   done: boolean
   highlights: unknown
@@ -93,6 +95,8 @@ function toStep(row: StepRow): KnitStep {
     stitches: row.stitches,
     sections: sanitizeSections(row.sections),
     rowCount: row.row_count,
+    times: row.times,
+    pass: row.pass,
     notes: row.notes,
     done: row.done,
     highlights: sanitizeHighlights(row.highlights),
@@ -200,7 +204,7 @@ export function createKnittingApi(db: AppSupabaseClient) {
       const { data, error } = await db
         .from('knit_projects')
         .select(
-          `id, title, size, sizes, size_index, pdf_path, chart_hints, abbreviations, yarn_checks, yarns, pattern_gauge_stitches, pattern_gauge_rows, my_gauge_stitches, my_gauge_rows, adaptation, knit_steps(id, position, title, instructions, total_rows, stitches, sections, row_count, notes, done, highlights, translation), knit_charts(${CHART_COLUMNS})`,
+          `id, title, size, sizes, size_index, pdf_path, chart_hints, abbreviations, yarn_checks, yarns, pattern_gauge_stitches, pattern_gauge_rows, my_gauge_stitches, my_gauge_rows, adaptation, knit_steps(id, position, title, instructions, total_rows, stitches, sections, row_count, times, pass, notes, done, highlights, translation), knit_charts(${CHART_COLUMNS})`,
         )
         .eq('id', id)
         .order('position', { referencedTable: 'knit_steps' })
@@ -301,6 +305,8 @@ export function createKnittingApi(db: AppSupabaseClient) {
         .from('knit_steps')
         .update({
           row_count: progress.rowCount,
+          times: progress.times,
+          pass: progress.pass,
           notes: progress.notes,
           done: progress.done,
           sections: progress.sections as unknown as NonNullable<Json> | undefined,

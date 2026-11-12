@@ -35,6 +35,17 @@ describe('knitting api', () => {
     expect(project.steps[1]!.sections).toEqual([{ kind: 'repeat', rows: null, every: 8, times: 3, text: '1 augmentation', pattern: 'tous les 5 cm' }])
     expect((await api.knitting.listProjects())[0]!.stepsDone).toBe(1)
 
+    // Étape tricotée 2 fois (les deux manches) : la 2e fois repart à 0
+    expect(project.steps.map((s) => [s.times, s.pass])).toEqual([
+      [1, 1],
+      [1, 1],
+    ])
+    await api.knitting.saveProgress(project.steps[1]!.id, { times: 2, pass: 1 })
+    await api.knitting.saveProgress(project.steps[1]!.id, { pass: 2, rowCount: 0 })
+    project = (await api.knitting.getProject(id))!
+    expect([project.steps[1]!.times, project.steps[1]!.pass, project.steps[1]!.rowCount]).toEqual([2, 2, 0])
+    await expect(api.knitting.saveProgress(project.steps[1]!.id, { pass: 3 })).rejects.toThrow()
+
     // PDF d'origine consultable
     const url = await api.knitting.pdfUrl(project.pdfPath!)
     expect(await (await fetch(url)).text()).toContain('%PDF-1.4')

@@ -68,7 +68,7 @@ test('charge un patron PDF pour une taille, compte les rangs et retrouve son ava
   await row.getByRole('link', { name: 'Régler' }).click()
   await expect(page.getByRole('heading', { name: 'Emmanchures' })).toBeVisible()
   // Préparation : « tous les 5 cm » réglé à 6 rangs
-  await expect(page.getByText('1 diminution de chaque côté — tous les 5 cm (rangs à régler)')).toBeVisible()
+  await expect(page.getByRole('region', { name: 'Déroulé de l’étape' }).getByText('1 diminution de chaque côté — tous les 5 cm (rangs à régler)')).toBeVisible()
   await page.getByRole('button', { name: /^Actions pour « 1 diminution/ }).click()
   await page.getByRole('menuitem', { name: 'Régler' }).click()
   await page.getByLabel('Tous les … rangs').fill('6')
@@ -79,7 +79,7 @@ test('charge un patron PDF pour une taille, compte les rangs et retrouve son ava
   await page.getByLabel('Nombre de rangs').fill('10')
   await page.getByLabel('Description (facultatif)').fill('côtes')
   await page.getByRole('button', { name: 'Enregistrer', exact: true }).click()
-  await expect(page.getByText('Rangs 25 à 34')).toBeVisible()
+  await expect(page.getByRole('region', { name: 'Déroulé de l’étape' }).getByText('Rangs 25 à 34')).toBeVisible()
   // Retour au mode tricoter : 5 rangs terminés, le 6e est à tricoter, avec la diminution
   await page.getByRole('link', { name: 'Tricoter cette étape' }).click()
   for (let i = 0; i < 5; i++) await page.getByRole('button', { name: 'Ajouter 1 rang' }).click()
@@ -185,6 +185,26 @@ test('met un patron de côté, le commence, puis note la laine (étiquette) et s
   await expect(panel).toContainText('Phildar Partner 3.5')
   await page.getByRole('link', { name: /Dos – côtes/ }).click()
   await expect(page.getByText(/64 mailles à la fin \(≈ 70 avec ton échantillon\)/)).toBeVisible()
+
+  // « tous les 5 cm » converti avec l'échantillon du patron (30 rangs pour 10 cm) : calcul expliqué, à valider
+  await page.getByRole('button', { name: 'Étape suivante' }).click()
+  const sections = page.getByRole('region', { name: 'Déroulé de l’étape' })
+  const check = sections.getByRole('note')
+  await expect(check).toContainText('Converti depuis le patron : 5 cm × 30 rangs pour 10 cm (échantillon du patron) ≈ 15 rangs (arrondi).')
+  await expect(sections).toContainText('1 diminution de chaque côté — tous les 15 rangs (≈ 5 cm) (4 fois)')
+  await expectNoA11yViolations(page)
+  await check.getByRole('button', { name: 'Valider' }).click()
+  await expect(sections).toContainText('1 diminution de chaque côté — tous les 15 rangs (4 fois)')
+  await expect(check).toHaveCount(0)
+  // Étape tricotée 2 fois, et toute l'étape rang par rang
+  await page.getByLabel('À tricoter').selectOption('2 fois')
+  await expect(page.getByText('0 rang fait sur 30 · 1re fois sur 2')).toBeVisible()
+  await page.getByText('Toute l’étape').click()
+  await expect(page.getByRole('list', { name: 'Toute l’étape' })).toContainText('Rang 151 diminution de chaque côté (1/4)')
+  await expectNoA11yViolations(page)
+  await page.reload()
+  await expect(page.getByText('0 rang fait sur 30 · 1re fois sur 2')).toBeVisible()
+  await expect(sections).toContainText('1 diminution de chaque côté — tous les 15 rangs (4 fois)')
 
   // La liste d'attente est vide
   await page.getByRole('link', { name: 'Pull Bergamote' }).click()

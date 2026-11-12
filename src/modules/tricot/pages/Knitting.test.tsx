@@ -19,6 +19,8 @@ const step = (overrides: Partial<KnitStep>): KnitStep => ({
   stitches: 64,
   sections: [],
   rowCount: 0,
+  times: 1,
+  pass: 1,
   notes: '',
   done: false,
   highlights: {},
@@ -324,11 +326,60 @@ describe('KnittingProjectPage', () => {
     const project = structuredClone(PROJECT)
     project.steps[1]!.sections = [{ kind: 'repeat', rows: null, every: null, times: 3, text: '1 augmentation', pattern: 'tous les 5 cm' }]
     renderProject(fakeApi(), project)
-    expect(await screen.findByText('1 augmentation — tous les 5 cm (rangs à régler)')).toBeInTheDocument()
-    expect(screen.getByText('Indique le nombre de rangs pour que la suite se calcule.')).toBeInTheDocument()
+    const sections = await screen.findByRole('region', { name: 'Déroulé de l’étape' })
+    expect(within(sections).getByText('1 augmentation — tous les 5 cm (rangs à régler)')).toBeInTheDocument()
+    expect(within(sections).getByText(/^Indique ton échantillon/)).toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: /^Actions pour « 1 augmentation/ }))
     await user.click(await screen.findByRole('menuitem', { name: 'Régler' }))
     expect(screen.getByText('tous les 5 cm', { selector: 'span' })).toBeInTheDocument()
+  })
+
+  it('convertit les cm du patron en rangs avec l’échantillon : calcul expliqué, à valider ou régler', async () => {
+    const user = userEvent.setup()
+    const project = structuredClone(PROJECT)
+    project.patternGauge = { stitches: 22, rows: 30 }
+    project.myGauge = { stitches: 20, rows: 26 }
+    project.steps[1]!.sections = [
+      { kind: 'rows', rows: null, every: null, times: null, text: 'jersey', pattern: '5 cm' },
+      { kind: 'repeat', rows: null, every: null, times: 3, actions: [{ text: '1 augmentation', rank: null }], text: '', pattern: 'tous les 2,5 cm' },
+    ]
+    const { api } = renderProject(fakeApi(), project)
+    const sections = await screen.findByRole('region', { name: 'Déroulé de l’étape' })
+    // 5 cm × 26 rangs pour 10 cm = 13 rangs ; 2,5 cm × 26 = 6,5 → 7 rangs
+    expect(within(sections).getByText('13 rangs (≈ 5 cm) : jersey')).toBeInTheDocument()
+    expect(within(sections).getByText('Rangs 1 à 13')).toBeInTheDocument()
+    expect(within(sections).getByText('1 augmentation — tous les 7 rangs (≈ 2,5 cm) (3 fois)')).toBeInTheDocument()
+    const notes = within(sections).getAllByRole('note')
+    expect(notes[0]).toHaveTextContent('Converti depuis le patron : 5 cm × 26 rangs pour 10 cm (ton échantillon) ≈ 13 rangs (arrondi). Vérifie ce nombre, puis valide-le')
+
+    // Valider : enregistré comme un nombre de rangs ordinaire, l'autre section reste à vérifier
+    await user.click(within(notes[0]!).getByRole('button', { name: 'Valider' }))
+    expect(api.knitting.saveProgress).toHaveBeenLastCalledWith('s2', {
+      sections: [
+        { kind: 'rows', rows: 13, every: null, times: null, text: 'jersey', pattern: '5 cm' },
+        { kind: 'repeat', rows: null, every: 7, times: 3, actions: [{ text: '1 augmentation', rank: null }], text: '', pattern: 'tous les 2,5 cm', measured: { rowsPer10: 26, source: 'mine' } },
+      ],
+    })
+
+    // Régler : le formulaire part du nombre calculé ; enregistré, il est validé
+    await user.click(within(notes[1]!).getByRole('button', { name: 'Régler' }))
+    expect(screen.getByLabelText('Tous les … rangs')).toHaveValue('7')
+    await user.clear(screen.getByLabelText('Tous les … rangs'))
+    await user.type(screen.getByLabelText('Tous les … rangs'), '8')
+    await user.click(screen.getByRole('button', { name: 'Enregistrer' }))
+    expect(api.knitting.saveProgress).toHaveBeenLastCalledWith('s2', {
+      sections: [expect.anything(), { kind: 'repeat', rows: null, every: 8, times: 3, actions: [{ text: '1 augmentation', rank: null }], text: '', pattern: 'tous les 2,5 cm' }],
+    })
+  })
+
+  it('cm du patron sans échantillon : invite à le renseigner', async () => {
+    const project = structuredClone(PROJECT)
+    project.steps[1]!.sections = [{ kind: 'rows', rows: null, every: null, times: null, text: 'jersey', pattern: '5 cm' }]
+    renderProject(fakeApi(), project)
+    const sections = await screen.findByRole('region', { name: 'Déroulé de l’étape' })
+    expect(within(sections).getByText('5 cm (à régler) : jersey')).toBeInTheDocument()
+    expect(within(sections).getByText(/Indique ton échantillon \(ou celui du patron\) dans « Laine et échantillon »/)).toBeInTheDocument()
+    expect(within(sections).queryByRole('note')).not.toBeInTheDocument()
   })
 
   it('prépare une étape : notes, étape suivante ou précédente, reprise d’une étape terminée, sans compteur', async () => {
@@ -360,6 +411,39 @@ describe('KnittingProjectPage', () => {
     // Une étape terminée se rouvre
     await user.click(screen.getByRole('button', { name: 'Reprendre l’étape' }))
     expect(api.knitting.saveProgress).toHaveBeenLastCalledWith('s1', { done: false })
+  })
+
+  it('étape à tricoter plusieurs fois : nombre de fois et fois en cours, rappelés dans la liste', async () => {
+    const user = userEvent.setup()
+    const { api } = renderProject()
+    await screen.findByRole('heading', { name: 'Emmanchures' })
+    expect(screen.queryByLabelText('En cours')).not.toBeInTheDocument()
+    await user.selectOptions(screen.getByLabelText('À tricoter'), '2 fois')
+    expect(api.knitting.saveProgress).toHaveBeenLastCalledWith('s2', { times: 2, pass: 1 })
+    expect(screen.getByText('8 rangs faits sur 30 · 1re fois sur 2')).toBeInTheDocument()
+    await user.selectOptions(screen.getByLabelText('En cours'), '2e fois')
+    expect(api.knitting.saveProgress).toHaveBeenLastCalledWith('s2', { pass: 2 })
+    // Moins de fois que la fois en cours : elle redescend avec.
+    await user.selectOptions(screen.getByLabelText('À tricoter'), '1 fois')
+    expect(api.knitting.saveProgress).toHaveBeenLastCalledWith('s2', { times: 1, pass: 1 })
+    expect(screen.queryByLabelText('En cours')).not.toBeInTheDocument()
+  })
+
+  it('préparation : toute l’étape, rang par rang, avec le rang en cours', async () => {
+    const user = userEvent.setup()
+    renderProject()
+    await screen.findByRole('heading', { name: 'Emmanchures' })
+    await user.click(screen.getByText('Toute l’étape'))
+    const outline = screen.getByRole('list', { name: 'Toute l’étape' })
+    expect(outline).toHaveTextContent('Rang 101 diminution de chaque côté (1/4) → 62 (?) mailles')
+    expect(within(outline).getAllByRole('listitem').find((li) => li.getAttribute('aria-current') === 'step')).toHaveTextContent(/^1 diminution de chaque côté — tous les 6 rangs/)
+  })
+
+  it('liste des étapes : la fois en cours d’une étape tricotée plusieurs fois', async () => {
+    const project = structuredClone(PROJECT)
+    project.steps[1] = { ...project.steps[1]!, times: 2, pass: 2 }
+    renderProject(fakeApi(), project, OVERVIEW)
+    expect(await screen.findByText('8 / 30 rangs · 2e fois sur 2')).toBeInTheDocument()
   })
 
   it('page du projet : « Tricoter » ouvre le mode tricoter sur l’étape en cours', async () => {

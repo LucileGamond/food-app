@@ -16,7 +16,7 @@ const step = (overrides: Partial<KnitStep>): KnitStep => ({
   totalRows: 18,
   stitches: 64,
   sections: [],
-  rowCount: 0,
+  rowCount: 0, times: 1, pass: 1,
   notes: '',
   done: false,
   highlights: {},

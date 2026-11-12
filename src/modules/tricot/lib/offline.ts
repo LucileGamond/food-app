@@ -35,7 +35,9 @@ export function saveProjectCopy(project: KnitProject): void {
 
 export function loadProjectCopy(id: string): KnitProject | null {
   const project = read<KnitProject>(PROJECT_KEY(id))
-  return project && project.id === id && Array.isArray(project.steps) ? project : null
+  if (!project || project.id !== id || !Array.isArray(project.steps)) return null
+  // Copie gardée avant les étapes tricotées plusieurs fois : une seule fois.
+  return { ...project, steps: project.steps.map((s) => ({ ...s, times: s.times ?? 1, pass: s.pass ?? 1 })) }
 }
 
 export function forgetProjectCopy(id: string): void {

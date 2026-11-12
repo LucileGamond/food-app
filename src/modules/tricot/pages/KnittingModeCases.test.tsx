@@ -42,8 +42,8 @@ function project(step: Partial<KnitStep>, extra: Partial<KnitProject> = {}): Kni
     abbreviations: [],
     yarnChecks: [],
     steps: [
-      { id: 's1', position: 0, title: 'Devant', instructions: '', totalRows: 20, stitches: 60, sections: [], rowCount: 0, notes: '', done: false, highlights: {}, translation: null, ...step },
-      { id: 's2', position: 1, title: 'Col', instructions: '', totalRows: null, stitches: null, sections: [], rowCount: 0, notes: '', done: false, highlights: {}, translation: null },
+      { id: 's1', position: 0, title: 'Devant', instructions: '', totalRows: 20, stitches: 60, sections: [], rowCount: 0, times: 1, pass: 1, notes: '', done: false, highlights: {}, translation: null, ...step },
+      { id: 's2', position: 1, title: 'Col', instructions: '', totalRows: null, stitches: null, sections: [], rowCount: 0, times: 1, pass: 1, notes: '', done: false, highlights: {}, translation: null },
     ],
     ...extra,
   }
@@ -163,6 +163,39 @@ describe('mode tricoter : avec diagramme', () => {
   })
 })
 
+describe('mode tricoter : toute l’étape', () => {
+  it('sections et rangs à faire, avec les mailles, ce qui est fait et le rang à tricoter', async () => {
+    const user = userEvent.setup()
+    // 4 rangs de côtes, puis 1 dim. de chaque côté tous les 6 rangs (4 fois) : rangs 10, 16, 22, 28 ; 30 rangs, 52 mailles à la fin
+    await open(project({ rowCount: 15, totalRows: 30, stitches: 52, sections: [rows(4, 'côtes'), repeat(6, 4, [{ text: '1 dim. de chaque côté', rank: null, stitches: -2 }])] }))
+    await user.click(screen.getByText('Toute l’étape'))
+    const outline = screen.getByRole('list', { name: 'Toute l’étape' })
+    const sections = within(outline).getAllByRole('listitem').filter((li) => li.parentElement === outline)
+    expect(sections.map((li) => li.firstChild?.textContent)).toEqual(['4 rangs : côtes', '1 dim. de chaque côté — tous les 6 rangs (4 fois)', 'Fin de l’étape'])
+    expect(sections[0]).toHaveTextContent('Rangs 1 à 4 · 4 rangs sans rien de particulier')
+    expect(sections[1]).toHaveAttribute('aria-current', 'step')
+    const decreases = within(sections[1]!).getAllByRole('listitem')
+    expect(decreases.map((li) => li.textContent)).toEqual([
+      'Rang 101 dim. de chaque côté (1/4) → 58 mailles',
+      'Rang 161 dim. de chaque côté (2/4) → 56 maillesà tricoter',
+      'Rang 221 dim. de chaque côté (3/4) → 54 mailles',
+      'Rang 281 dim. de chaque côté (4/4, dernière fois) → 52 mailles',
+    ])
+    expect(within(decreases[0]!).getByLabelText('Fait')).toBeInTheDocument()
+    expect(decreases[1]).toHaveAttribute('aria-current', 'step')
+    expect(sections[2]).toHaveTextContent('Rang 30Dernier rang de l’étape, ensuite : Col')
+  })
+
+  it('section à régler : signalée, la suite sans rangs', async () => {
+    const user = userEvent.setup()
+    await open(project({ rowCount: 1, sections: [rows(4, 'côtes'), rows(null, 'jersey'), rows(6, 'côtes')] }))
+    await user.click(screen.getByText('Toute l’étape'))
+    const outline = screen.getByRole('list', { name: 'Toute l’étape' })
+    expect(outline).toHaveTextContent('5 cm (à régler) : jerseyÀ régler en rangs dans la préparation : la suite se calculera.')
+    expect(outline).toHaveTextContent('6 rangs : côtesRangs pas encore connus (une section avant est à régler).')
+  })
+})
+
 describe('mode tricoter : patron adapté et cas limites', () => {
   it('patron adapté suivi : ses sections, son nombre de rangs et ses mailles', async () => {
     const adaptation: Adaptation = {
@@ -178,6 +211,25 @@ describe('mode tricoter : patron adapté et cas limites', () => {
     // 66 à la fin, 3 fois +2 : 60 au départ, 62 après le rang 8
     expect(stitches()).toBe('En fin de rang : 62 mailles')
     expect(texts(upcoming()).at(-1)).toBe('rang 241 aug. de chaque côté (3/3, dernière fois)Dernier rang de l’étape, ensuite : Coldans 16')
+  })
+
+  it('cm du patron convertis avec l’échantillon : le mode sait quoi faire, et rappelle de vérifier', async () => {
+    // 4 rangs de côtes, puis « 5 cm » de jersey : 5 × 30 / 10 = 15 rangs (rangs 5 à 19), puis 1 rang de côtes
+    const sections = [rows(4, 'côtes'), rows(null, 'jersey'), rows(1, 'côtes')]
+    const { line, upcoming, stitches } = await open(project({ rowCount: 3, sections }, { patternGauge: { stitches: 22, rows: 30 } }))
+    expect(line).toHaveTextContent('Rang 4 à tricoter4 rangs : côtes')
+    expect(texts(upcoming())).toEqual(['rang 5Nouvelle section : 15 rangs (≈ 5 cm) : jerseydans 1', 'rang 20Nouvelle section : 1 rang : côtesDernier rang de l’étape, ensuite : Coldans 16'])
+    expect(stitches()).toBe('En fin de rang : 60 mailles')
+    expect(screen.getByRole('note')).toHaveTextContent('Des rangs sont calculés depuis les cm du patron avec l’échantillon (≈) : à vérifier. Vérifier')
+    expect(within(screen.getByRole('note')).getByRole('link', { name: 'Vérifier' })).toHaveAttribute('href', '/tricot/p1?etape=s1')
+  })
+
+  it('calcul validé : plus de rappel', async () => {
+    const sections = [{ ...rows(15, 'jersey'), pattern: '5 cm' }]
+    const { line } = await open(project({ rowCount: 3, sections, totalRows: 15 }, { patternGauge: { stitches: 22, rows: 30 }, myGauge: { stitches: 20, rows: 20 } }))
+    expect(screen.queryByRole('note')).not.toBeInTheDocument()
+    // Validé à 15 rangs : l'échantillon (20 rangs pour 10 cm, soit 10 rangs) ne le change plus
+    expect(line).toHaveTextContent('Rang 4 à tricoter15 rangs : jersey')
   })
 
   it('projet sans étape : rien à tricoter', async () => {

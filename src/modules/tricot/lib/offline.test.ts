@@ -1,7 +1,7 @@
 import type { KnitProject, KnitStep } from './pattern'
 import { clearProgress, forgetProject, forgetProjectCopy, settleProgress, isOffline, loadProjectCopy, pendingFor, pendingProgress, queueProgress, saveProjectCopy, withPending } from './offline'
 
-const step = (id: string, rowCount = 0): KnitStep => ({ id, position: 0, title: id, instructions: '', totalRows: 10, stitches: null, sections: [], rowCount, notes: '', done: false, highlights: {} })
+const step = (id: string, rowCount = 0): KnitStep => ({ id, position: 0, title: id, instructions: '', totalRows: 10, stitches: null, sections: [], rowCount, times: 1, pass: 1, notes: '', done: false, highlights: {} })
 const PROJECT: KnitProject = {
   id: 'p1',
   title: 'Pull',
@@ -27,6 +27,12 @@ describe('copie du projet sur le téléphone', () => {
     expect(loadProjectCopy('p2')).toBeNull()
     forgetProjectCopy('p1')
     expect(loadProjectCopy('p1')).toBeNull()
+  })
+
+  it('copie gardée avant les étapes tricotées plusieurs fois : une seule fois', () => {
+    const old = { ...PROJECT, steps: PROJECT.steps.map(({ times: _t, pass: _p, ...s }) => s) }
+    localStorage.setItem('life:tricot:projet:p1', JSON.stringify(old))
+    expect(loadProjectCopy('p1')).toEqual(PROJECT)
   })
 
   it('ignore une copie abîmée ou un stockage indisponible', () => {

@@ -33,6 +33,8 @@ const step = (overrides: Partial<KnitStep>): KnitStep => ({
   stitches: null,
   sections: [],
   rowCount: 0,
+  times: 1,
+  pass: 1,
   notes: '',
   done: false,
   highlights: {},

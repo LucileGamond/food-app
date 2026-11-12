@@ -15,6 +15,8 @@ const step = (overrides: Partial<KnitStep>): KnitStep => ({
   stitches: null,
   sections: [],
   rowCount: 0,
+  times: 1,
+  pass: 1,
   notes: '',
   done: false,
   highlights: {},
@@ -217,6 +219,47 @@ describe('mode tricoter', () => {
     await user.click(within(await screen.findByRole('alertdialog')).getByRole('button', { name: 'Étape terminée' }))
     expect(api.knitting.saveProgress).toHaveBeenCalledWith('s2', { done: true })
     expect(await screen.findByRole('heading', { level: 1, name: 'Encolure' })).toBeInTheDocument()
+    expect(await screen.findByText('Rang 1 à tricoter')).toBeInTheDocument()
+  })
+
+  it('étape tricotée 2 fois : la 1re finie, la 2e repart au rang 1, puis l’étape se termine', async () => {
+    const user = userEvent.setup()
+    const project = structuredClone(PROJECT)
+    project.steps[1] = { ...project.steps[1]!, title: 'Manche', times: 2, pass: 1, rowCount: 29 }
+    const { api } = renderMode(project)
+    expect(await screen.findByText(/étape 2 sur 3 · 1re fois sur 2 · taille M/)).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'Ajouter 1 rang' }))
+    expect(await screen.findByText('Tous les rangs de la 1re fois sont faits')).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'Commencer la 2e fois' }))
+    const confirm = await screen.findByRole('alertdialog', { name: 'Commencer la 2e fois ?' })
+    expect(confirm).toHaveTextContent('La 1re fois de « Manche » est finie : le compteur repart au rang 1 pour la 2e fois sur 2.')
+    await user.click(within(confirm).getByRole('button', { name: 'Commencer la 2e fois' }))
+    expect(api.knitting.saveProgress).toHaveBeenLastCalledWith('s2', { pass: 2, rowCount: 0 })
+    // Même étape, 2e fois : le déroulé recommence (rang 1), l'étape n'est pas terminée.
+    expect(await screen.findByRole('heading', { level: 1, name: 'Manche' })).toBeInTheDocument()
+    expect(await screen.findByText('Rang 1 à tricoter')).toBeInTheDocument()
+    expect(screen.getByText(/2e fois sur 2/)).toBeInTheDocument()
+    expect(api.knitting.saveProgress).not.toHaveBeenCalledWith('s2', expect.objectContaining({ done: true }))
+
+    // 2e fois finie : l'étape se termine comme une autre.
+    await user.click(screen.getByText('texte de l’étape, question, notes'))
+    await user.click(screen.getByRole('button', { name: 'Terminer l’étape maintenant' }))
+    await user.click(within(await screen.findByRole('alertdialog', { name: 'Passer à l’étape suivante ?' })).getByRole('button', { name: 'Étape terminée' }))
+    expect(api.knitting.saveProgress).toHaveBeenLastCalledWith('s2', { done: true })
+    expect(await screen.findByRole('heading', { level: 1, name: 'Encolure' })).toBeInTheDocument()
+  })
+
+  it('étape tricotée 2 fois : la 1re peut se terminer avant son dernier rang', async () => {
+    const user = userEvent.setup()
+    const project = structuredClone(PROJECT)
+    project.steps[2] = { ...project.steps[2]!, times: 2, pass: 1, rowCount: 12 }
+    project.steps[1]!.done = true
+    const { api } = renderMode(project)
+    await user.click(await screen.findByText('texte de l’étape, question, notes'))
+    expect(screen.queryByRole('button', { name: 'Terminer l’étape maintenant' })).not.toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'Terminer la 1re fois maintenant' }))
+    await user.click(within(await screen.findByRole('alertdialog', { name: 'Commencer la 2e fois ?' })).getByRole('button', { name: 'Commencer la 2e fois' }))
+    expect(api.knitting.saveProgress).toHaveBeenLastCalledWith('s3', { pass: 2, rowCount: 0 })
     expect(await screen.findByText('Rang 1 à tricoter')).toBeInTheDocument()
   })
 

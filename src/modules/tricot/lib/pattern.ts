@@ -13,6 +13,7 @@ import type { Abbreviation } from './glossary'
 import type { Highlights } from './sizes'
 import type { Gauge, Yarn } from './yarn'
 import type { YarnCheck } from './yarnLeft'
+import { formatCm, parseMeasure } from './measure'
 
 export type SectionKind = 'rows' | 'repeat'
 
@@ -28,6 +29,14 @@ export interface RepeatAction {
 /** Effet d'une action sur les mailles, au plus. */
 export const MAX_ACTION_STITCHES = 200
 
+/** Rangs calculés depuis une mesure du patron (« 5 cm ») avec l'échantillon, pas encore validés. */
+export interface MeasuredRows {
+  /** Rangs pour 10 cm de l'échantillon utilisé. */
+  rowsPer10: number
+  /** Échantillon de la tricoteuse, ou celui du patron. */
+  source: 'mine' | 'pattern'
+}
+
 export interface StepSection {
   kind: SectionKind
   /** Rangs sans répétition : nombre de rangs (null : à régler, ex. « 5 cm »). */
@@ -42,6 +51,8 @@ export interface StepSection {
   text: string
   /** Mesure écrite dans le patron (« tous les 5 cm »), pour aider à la régler en rangs. */
   pattern: string | null
+  /** Rangs (ou rythme) calculés depuis la mesure avec l'échantillon, à vérifier ; absent : réglés ou validés. */
+  measured?: MeasuredRows
 }
 
 export const MAX_SECTIONS = 30
@@ -56,8 +67,13 @@ export interface KnitStep {
   totalRows: number | null
   stitches: number | null
   sections: StepSection[]
+  /** Rangs faits, pour la fois en cours. */
   rowCount: number
+  /** Nombre de fois où l'étape se tricote (2 : les deux manches), et la fois en cours (1 = la première). */
+  times: number
+  pass: number
   notes: string
+  /** Toutes les fois sont faites. */
   done: boolean
   /** Surlignage des nombres corrigé à la main, par taille. */
   highlights: Highlights
@@ -134,6 +150,11 @@ export function sanitizeSections(raw: unknown): StepSection[] {
       times: count(s.times, 500),
       text: text(s.text),
       pattern: typeof s.pattern === 'string' ? s.pattern.slice(0, 100) : null,
+    }
+    const m = s.measured
+    if (typeof m === 'object' && m !== null) {
+      const { rowsPer10, source } = m as Record<string, unknown>
+      if (typeof rowsPer10 === 'number' && rowsPer10 > 0 && rowsPer10 <= 100 && (source === 'mine' || source === 'pattern')) section.measured = { rowsPer10, source }
     }
     if (Array.isArray(s.actions)) {
       section.actions = s.actions
@@ -245,16 +266,25 @@ function describeActions(section: StepSection): string {
     .join(' + ')
 }
 
-/** « 4 rangs : jersey », « 1 diminution — tous les 6 rangs (4 fois) », « 1 diminution — tous les 5 cm (rangs à régler) ». */
+/** « (≈ 5 cm) » pour des rangs calculés depuis une mesure du patron, pas encore validés. */
+function measuredHint(section: StepSection): string {
+  const cm = section.measured ? parseMeasure(section.pattern) : null
+  return cm === null ? '' : ` (≈ ${formatCm(cm)})`
+}
+
+/**
+ * « 4 rangs : jersey », « 1 diminution — tous les 6 rangs (4 fois) », « 1 diminution — tous les 5 cm (rangs à régler) » ;
+ * rangs calculés depuis une mesure : « 15 rangs (≈ 5 cm) : jersey ».
+ */
 export function describeSection(section: StepSection): string {
   if (section.kind === 'rows') {
-    const rows = section.rows === null ? `${section.pattern ?? 'Rangs'} (à régler)` : plural(section.rows, 'rang')
+    const rows = section.rows === null ? `${section.pattern ?? 'Rangs'} (à régler)` : `${plural(section.rows, 'rang')}${measuredHint(section)}`
     return section.text ? `${rows} : ${section.text}` : `${rows} sans répétition`
   }
   const rhythm =
     section.every === null
       ? `${section.pattern ?? 'intervalle'} (rangs à régler)`
-      : `${section.every === 1 ? 'à chaque rang' : `tous les ${section.every} rangs`}${section.times !== null ? ` (${section.times} fois)` : ''}`
+      : `${section.every === 1 ? 'à chaque rang' : `tous les ${section.every} rangs`}${measuredHint(section)}${section.times !== null ? ` (${section.times} fois)` : ''}`
   return `${describeActions(section)} — ${rhythm}`
 }
 

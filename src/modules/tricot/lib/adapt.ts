@@ -1,6 +1,7 @@
 // « Patron adapté à moi » (facultatif) : étapes recalculées pour l'échantillon de la tricoteuse et ses retouches.
 // Le patron d'origine reste tel quel ; l'adaptation se superpose aux étapes quand elle est active.
 
+import { convertSections, rowGauge } from './measure'
 import { sanitizeSections, type KnitProject, type KnitStep, type StepSection } from './pattern'
 
 export const ADAPT_REQUEST_MAX = 1000
@@ -89,13 +90,21 @@ export function describeChange(before: Pick<KnitStep, 'totalRows' | 'stitches'>,
   return [part(before.totalRows, after.totalRows, 'rangs'), part(before.stitches, after.stitches, 'mailles')].filter(Boolean).join(' · ')
 }
 
-/** Ce qui se tricote : la taille suivie et les étapes à suivre (adaptées si l'adaptation est suivie et faite pour cette taille). */
-export function stepsToFollow(project: Pick<KnitProject, 'steps' | 'sizes' | 'sizeIndex' | 'size' | 'adaptation'>): { size: string; steps: ShownStep[]; following: boolean } {
+/**
+ * Ce qui se tricote : la taille suivie et les étapes à suivre (adaptées si l'adaptation est suivie et faite pour cette
+ * taille), leurs mesures (« 5 cm ») converties en rangs avec l'échantillon tant qu'elles ne sont pas validées.
+ */
+export function stepsToFollow(project: Pick<KnitProject, 'steps' | 'sizes' | 'sizeIndex' | 'size' | 'adaptation' | 'patternGauge' | 'myGauge'>): {
+  size: string
+  steps: ShownStep[]
+  following: boolean
+} {
   const size = (project.sizeIndex !== null ? project.sizes[project.sizeIndex] : undefined) ?? project.size
   const adaptation = project.adaptation ?? null
+  const gauge = rowGauge({ mine: project.myGauge, pattern: project.patternGauge })
   return {
     size,
-    steps: applyAdaptation(project.steps, adaptation, size),
+    steps: applyAdaptation(project.steps, adaptation, size).map((s) => ({ ...s, sections: convertSections(s.sections, gauge) })),
     following: adaptation?.active === true && !adaptationPaused(adaptation, size),
   }
 }

@@ -13,12 +13,14 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { useScreenAwake } from '@/hooks/useWakeLock'
 import { cn } from '@/lib/utils'
 import { ChartFullscreen } from '../components/ChartImage'
+import { MeasuredNote } from '../components/mode/MeasuredNote'
 import { ModeCounter } from '../components/mode/ModeCounter'
 import { PatternDrawer } from '../components/mode/PatternDrawer'
 import { RowLine } from '../components/mode/RowLine'
 import { StepDone } from '../components/mode/StepDone'
 import { UpcomingList } from '../components/mode/UpcomingList'
 import { OfflineNote } from '../components/OfflineNote'
+import { StepOutline } from '../components/StepOutline'
 import { useBaseGlossary } from '../hooks/useBaseGlossary'
 import { useKnitProject } from '../hooks/useKnitProject'
 import { useRowVibration } from '../hooks/useRowVibration'
@@ -27,6 +29,7 @@ import { chartPosition } from '../lib/chart'
 import { looksEnglish, mergeGlossary } from '../lib/glossary'
 import { stepGuide } from '../lib/guide'
 import { stitchTrack } from '../lib/stitches'
+import { describePass, finishPass, hasNextPass, ordinal } from '../lib/passes'
 import { currentStepIndex, type KnitProject } from '../lib/pattern'
 
 /**
@@ -95,10 +98,14 @@ function Knitting({ project, knit, projectTo }: KnittingProps) {
   useRowVibration(row, !finished && line.events.length > 0)
 
   const count = (delta: number) => void knit.countRows(step.id, delta)
+  // Étape tricotée plusieurs fois : finir une fois ouvre la suivante (compteur à 0), pas l'étape suivante.
+  const anotherPass = !step.done && hasNextPass(step)
+  const pass = describePass(step)
 
   async function finish() {
-    if (!(await knit.saveStep(step.id, { done: true }))) return
-    if (next) setParams({ etape: next.id }, { replace: true })
+    const progress = finishPass(step)
+    if (!(await knit.saveStep(step.id, progress))) return
+    if (progress.done && next) setParams({ etape: next.id }, { replace: true })
   }
 
   async function translate() {
@@ -123,7 +130,7 @@ function Knitting({ project, knit, projectTo }: KnittingProps) {
           <div className="min-w-0 flex-1">
             <h1 className="truncate text-lg font-semibold tracking-tight">{step.title}</h1>
             <p className="truncate text-xs text-muted-foreground">
-              {project.title} · étape {index + 1} sur {steps.length} · taille {size}
+              {[project.title, `étape ${index + 1} sur ${steps.length}`, pass, `taille ${size}`].filter(Boolean).join(' · ')}
             </p>
           </div>
         </div>
@@ -132,14 +139,16 @@ function Knitting({ project, knit, projectTo }: KnittingProps) {
       <main className="flex-1 space-y-5 px-4 pt-4 pb-6">
         <ScreenAwakeToggle awake={awake} />
         <OfflineNote offline={knit.offline} pending={knit.pending} />
+        {!finished && <MeasuredNote sections={step.sections} setupTo={setupTo} />}
         {finished ? (
-          <StepDone done={step.done} next={next?.title ?? null} projectTo={projectTo} onFinish={() => setFinishing(true)} />
+          <StepDone done={step.done} next={next?.title ?? null} passDone={anotherPass ? step.pass : null} projectTo={projectTo} onFinish={() => setFinishing(true)} />
         ) : (
           <>
             <RowLine line={line} stitches={stitchTrack(step)(row)} glossary={glossary} setupTo={setupTo} onOpenChart={setChartOpen} />
             <UpcomingList items={line.unknown ? [] : guide.upcoming(row)} glossary={glossary} />
           </>
         )}
+        <StepOutline step={step} nextTitle={next?.title ?? null} showCurrent={!finished} />
         <PatternDrawer
           step={step}
           row={finished ? null : row}
@@ -150,6 +159,7 @@ function Knitting({ project, knit, projectTo }: KnittingProps) {
           onHighlights={(highlights) => void knit.saveStep(step.id, { highlights })}
           onTranslate={translate}
           onNotes={(notes) => void knit.saveStep(step.id, { notes })}
+          finishLabel={anotherPass ? `Terminer la ${ordinal(step.pass)} fois maintenant` : 'Terminer l’étape maintenant'}
           onFinish={() => setFinishing(true)}
         />
       </main>
@@ -169,14 +179,25 @@ function Knitting({ project, knit, projectTo }: KnittingProps) {
           counter={{ rowCount: step.rowCount, onCount: count }}
         />
       )}
-      <ConfirmDialog
-        open={finishing}
-        onOpenChange={setFinishing}
-        title={next ? 'Passer à l’étape suivante ?' : 'Terminer le projet ?'}
-        description={next ? `« ${step.title} » sera marquée terminée, et « ${next.title} » s’ouvrira au rang ${next.rowCount + 1}.` : `« ${step.title} » est la dernière étape.`}
-        confirmLabel={next ? 'Étape terminée' : 'Projet terminé'}
-        onConfirm={finish}
-      />
+      {anotherPass ? (
+        <ConfirmDialog
+          open={finishing}
+          onOpenChange={setFinishing}
+          title={`Commencer la ${ordinal(step.pass + 1)} fois ?`}
+          description={`La ${ordinal(step.pass)} fois de « ${step.title} » est finie : le compteur repart au rang 1 pour la ${ordinal(step.pass + 1)} fois sur ${step.times}.`}
+          confirmLabel={`Commencer la ${ordinal(step.pass + 1)} fois`}
+          onConfirm={finish}
+        />
+      ) : (
+        <ConfirmDialog
+          open={finishing}
+          onOpenChange={setFinishing}
+          title={next ? 'Passer à l’étape suivante ?' : 'Terminer le projet ?'}
+          description={next ? `« ${step.title} » sera marquée terminée, et « ${next.title} » s’ouvrira au rang ${next.rowCount + 1}.` : `« ${step.title} » est la dernière étape.`}
+          confirmLabel={next ? 'Étape terminée' : 'Projet terminé'}
+          onConfirm={finish}
+        />
+      )}
     </div>
   )
 }

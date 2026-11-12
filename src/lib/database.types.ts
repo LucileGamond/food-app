@@ -337,14 +337,14 @@ isOneToOne: false
                   ]
                 },"knit_steps": {
                   Row: {
-                    "done": boolean,"highlights": NonNullable<Json>,"id": string,"instructions": string,"notes": string,"position": number,"project_id": string,"row_count": number,"sections": NonNullable<Json>,"stitches": number | null,"title": string,"total_rows": number | null,"translation": string | null
+                    "done": boolean,"highlights": NonNullable<Json>,"id": string,"instructions": string,"notes": string,"pass": number,"position": number,"project_id": string,"row_count": number,"sections": NonNullable<Json>,"stitches": number | null,"times": number,"title": string,"total_rows": number | null,"translation": string | null
                   }
                   ComputedFields: never
                   Insert: {
-                    "done"?: boolean,"highlights"?: NonNullable<Json>,"id"?: string,"instructions"?: string,"notes"?: string,"position": number,"project_id": string,"row_count"?: number,"sections"?: NonNullable<Json>,"stitches"?: number | null,"title": string,"total_rows"?: number | null,"translation"?: string | null
+                    "done"?: boolean,"highlights"?: NonNullable<Json>,"id"?: string,"instructions"?: string,"notes"?: string,"pass"?: number,"position": number,"project_id": string,"row_count"?: number,"sections"?: NonNullable<Json>,"stitches"?: number | null,"times"?: number,"title": string,"total_rows"?: number | null,"translation"?: string | null
                   }
                   Update: {
-                    "done"?: boolean,"highlights"?: NonNullable<Json>,"id"?: string,"instructions"?: string,"notes"?: string,"position"?: number,"project_id"?: string,"row_count"?: number,"sections"?: NonNullable<Json>,"stitches"?: number | null,"title"?: string,"total_rows"?: number | null,"translation"?: string | null
+                    "done"?: boolean,"highlights"?: NonNullable<Json>,"id"?: string,"instructions"?: string,"notes"?: string,"pass"?: number,"position"?: number,"project_id"?: string,"row_count"?: number,"sections"?: NonNullable<Json>,"stitches"?: number | null,"times"?: number,"title"?: string,"total_rows"?: number | null,"translation"?: string | null
                   }
                   Relationships: [
                     {
