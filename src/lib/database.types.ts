@@ -867,7 +867,7 @@ isOneToOne: false
 { Args: { "p_steps": Json }; Returns: undefined
                            },
 "split_knit_step":
-{ Args: { "p_new_sections": Json,"p_new_title": string,"p_new_total_rows": number,"p_sections": Json,"p_step": string,"p_total_rows": number }; Returns: string
+{ Args: { "p_instructions": string,"p_new_instructions": string,"p_new_sections": Json,"p_new_title": string,"p_new_total_rows": number,"p_sections": Json,"p_step": string,"p_total_rows": number }; Returns: string
                            },
 "merge_knit_steps":
 { Args: { "p_sections": Json,"p_step": string,"p_total_rows": number }; Returns: undefined

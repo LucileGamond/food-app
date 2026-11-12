@@ -9,6 +9,7 @@ import { NativeSelect } from '@/components/ui/native-select'
 import { cn } from '@/lib/utils'
 import { guessStitches } from '../lib/stitches'
 import { describeConversion, parseMeasure, validateSection } from '../lib/measure'
+import { withoutSection } from '../lib/sources'
 import {
   describeRange,
   describeSection,
@@ -244,7 +245,9 @@ export function StepSections({ step, onChange }: { step: KnitStep; onChange: (se
 
   async function save(index: number, section: StepSection) {
     const next = [...step.sections]
-    next[index] = section
+    // Le texte du patron de la sous-étape reste avec elle quand on la règle.
+    const source = step.sections[index]?.source
+    next[index] = source ? { ...section, source } : section
     if (await onChange(next)) setEditing(null)
   }
 
@@ -336,7 +339,7 @@ export function StepSections({ step, onChange }: { step: KnitStep; onChange: (se
         description={removing !== null && step.sections[removing] ? `« ${describeSection(step.sections[removing])} »` : undefined}
         confirmLabel="Supprimer"
         onConfirm={async () => {
-          if (removing !== null) await onChange(step.sections.filter((_, j) => j !== removing))
+          if (removing !== null) await onChange(withoutSection(step.sections, removing))
         }}
       />
       {editing === null && step.sections.length < MAX_SECTIONS && (

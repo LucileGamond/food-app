@@ -18,6 +18,7 @@ import { stepsToFollow, type ShownStep } from '../lib/adapt'
 import { mergeBlocker, mergeSteps } from '../lib/merge'
 import { isStarted, moveSection, splitStep } from '../lib/organize'
 import { describeSection, type KnitProject } from '../lib/pattern'
+import { anchoredSections, textOf } from '../lib/sources'
 
 /**
  * Organiser les étapes d'un projet : regrouper une étape avec la suivante, séparer une étape, déplacer une sous-étape
@@ -64,10 +65,11 @@ function Organize({ project, reload }: { project: KnitProject; reload: () => Pro
 
   /** Sous-étape montée ou descendue dans son étape. */
   function shiftWithin(step: ShownStep, index: number, by: -1 | 1) {
-    const sections = [...step.sections]
+    // Le texte suit l'ordre des sous-étapes.
+    const sections = [...anchoredSections(step)]
     const [moved] = sections.splice(index, 1)
     sections.splice(index + by, 0, moved!)
-    void run(() => api.knitting.saveSections([{ id: step.id, sections, totalRows: step.totalRows }]))
+    void run(() => api.knitting.saveSections([{ id: step.id, sections, totalRows: step.totalRows, instructions: textOf(sections) }]))
   }
 
   const pendingStep = pending ? steps[pending.index]! : null
@@ -108,9 +110,16 @@ function Organize({ project, reload }: { project: KnitProject; reload: () => Pro
                 <p className="mt-2 text-sm text-muted-foreground">Pas de sous-étape.</p>
               ) : (
                 <ol aria-label={`Sous-étapes de « ${step.title} »`} className="mt-2 space-y-1">
-                  {step.sections.map((section, s) => (
-                    <li key={s} className="flex items-center gap-2 rounded-xl bg-muted/50 py-1 pr-1 pl-3 text-sm">
-                      <span className="min-w-0 flex-1">{describeSection(section)}</span>
+                  {anchoredSections(step).map((section, s) => (
+                    <li key={s} className="flex items-start gap-2 rounded-xl bg-muted/50 py-1 pr-1 pl-3 text-sm">
+                      <span className="min-w-0 flex-1 py-1.5">
+                        <span className="block">{describeSection(section)}</span>
+                        {section.source && (
+                          <span className="mt-0.5 line-clamp-2 block text-xs whitespace-pre-line text-muted-foreground" title={section.source}>
+                            {section.source}
+                          </span>
+                        )}
+                      </span>
                       <DropdownMenu>
                         <DropdownMenuTrigger render={<Button variant="ghost" size="icon" disabled={locked} aria-label={`Actions pour « ${describeSection(section)} »`} />}>
                           <MoreHorizontal />

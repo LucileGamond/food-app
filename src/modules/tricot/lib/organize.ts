@@ -4,14 +4,17 @@
 // compté dans une autre étape devient à régler (son rang n'a plus de sens ailleurs).
 
 import { planSections, type KnitStep, type StepSection } from './pattern'
+import { anchoredSections, textOf } from './sources'
 
-type OrganizedStep = Pick<KnitStep, 'id' | 'title' | 'totalRows' | 'sections'>
+type OrganizedStep = Pick<KnitStep, 'id' | 'title' | 'totalRows' | 'sections' | 'instructions'>
 
-/** Sous-étapes et nombre de rangs d'une étape, à enregistrer. */
+/** Sous-étapes, nombre de rangs et texte d'une étape, à enregistrer. */
 export interface SectionsChange {
   id: string
   sections: StepSection[]
   totalRows: number | null
+  /** Texte de l'étape d'après ses sous-étapes (le texte suit la sous-étape déplacée). */
+  instructions: string
 }
 
 /** Rangs d'une sous-étape quand on les connaît (rangs sans répétition, ou répétition au nombre de fois connu). */
@@ -29,14 +32,16 @@ function unanchored(section: StepSection, label: string): StepSection {
 
 const shift = (total: number | null, by: number | null) => (total === null || by === null ? null : Math.max(1, total + by))
 
-/** Sous-étape `index` de `from` déplacée à la fin de `to` : les deux étapes à enregistrer. */
+/** Sous-étape `index` de `from` déplacée à la fin de `to`, avec son texte : les deux étapes à enregistrer. */
 export function moveSection(from: OrganizedStep, index: number, to: OrganizedStep): [SectionsChange, SectionsChange] {
-  const moved = from.sections[index]!
+  const own = anchoredSections(from)
+  const moved = own[index]!
   const length = sectionLength(moved)
-  const sections = from.sections.filter((_, i) => i !== index)
+  const sections = own.filter((_, i) => i !== index)
+  const target = [...anchoredSections(to), unanchored(moved, from.title)]
   return [
-    { id: from.id, sections, totalRows: sections.length ? shift(from.totalRows, length === null ? null : -length) : from.totalRows },
-    { id: to.id, sections: [...to.sections, unanchored(moved, from.title)], totalRows: shift(to.totalRows, length) },
+    { id: from.id, sections, totalRows: sections.length ? shift(from.totalRows, length === null ? null : -length) : from.totalRows, instructions: textOf(sections) },
+    { id: to.id, sections: target, totalRows: shift(to.totalRows, length), instructions: textOf(target) },
   ]
 }
 
@@ -46,26 +51,29 @@ function startOf(step: OrganizedStep, index: number): number | null {
 }
 
 export interface Split {
-  first: { sections: StepSection[]; totalRows: number | null }
-  second: { title: string; sections: StepSection[]; totalRows: number | null }
+  first: { sections: StepSection[]; totalRows: number | null; instructions: string }
+  second: { title: string; sections: StepSection[]; totalRows: number | null; instructions: string }
 }
 
 /** Étape séparée avant la sous-étape `index` : les sous-étapes d'avant restent, la suite fait une nouvelle étape. */
 export function splitStep(step: OrganizedStep, index: number): Split {
-  const start = startOf(step, index)
+  const own = anchoredSections(step)
+  const start = startOf({ ...step, sections: own }, index)
   const kept = start === null ? null : start - 1
-  const rest = step.sections.slice(index).map((section) => {
+  const rest = own.slice(index).map((section) => {
     if (!section.at || section.at.row === null) return section
     // Rang compté depuis le début de l'étape : depuis celui de la nouvelle quand on le connaît.
     if (kept !== null && section.at.row > kept) return { ...section, at: { ...section.at, row: section.at.row - kept } }
     return unanchored(section, step.title)
   })
+  const first = own.slice(0, index)
   return {
-    first: { sections: step.sections.slice(0, index), totalRows: kept },
+    first: { sections: first, totalRows: kept, instructions: textOf(first) },
     second: {
       title: `${step.title} (suite)`.slice(0, 200),
       sections: rest,
       totalRows: kept !== null && step.totalRows !== null && step.totalRows > kept ? step.totalRows - kept : null,
+      instructions: textOf(rest),
     },
   }
 }

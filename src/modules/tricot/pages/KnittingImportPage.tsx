@@ -124,6 +124,18 @@ export function KnittingImportPage() {
             <Label htmlFor="knit-title">Nom du projet</Label>
             <Input id="knit-title" className="h-10" value={title} onChange={(e) => setTitle(e.target.value)} maxLength={200} />
           </div>
+          {!!pattern.missingParts?.length && (
+            <div role="alert" className="space-y-2 rounded-xl border border-amber-500/40 bg-amber-500/10 p-3 text-sm">
+              <p>
+                La lecture s’est arrêtée en route : {pattern.missingParts.length > 1 ? 'parties pas lues' : 'partie pas lue'} {pattern.missingParts.map((p) => `« ${p} »`).join(', ')}.
+              </p>
+              {pdf && (
+                <Button variant="outline" className="h-9" disabled={reading} onClick={() => void readFor(pdf, size.trim())}>
+                  <RotateCcw /> {reading ? 'Lecture…' : 'Relire le patron'}
+                </Button>
+              )}
+            </div>
+          )}
           {pattern.sizeChart && pdf && (
             <SizeAdvice chart={pattern.sizeChart} sizes={pattern.sizes} readIndex={pattern.sizeIndex ?? null} rereading={reading} onReread={(s) => void readFor(pdf, s)} />
           )}

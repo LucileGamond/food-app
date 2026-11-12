@@ -397,7 +397,9 @@ test('organise les étapes : regroupe, sépare et déplace une sous-étape, puis
   await page.getByRole('alertdialog').getByRole('button', { name: 'Regrouper' }).click()
   const steps = page.getByRole('list', { name: 'Étapes' })
   await expect(steps.getByRole('heading')).toHaveText(['Dos – côtes', 'Manche'])
-  await expect(page.getByRole('list', { name: 'Sous-étapes de « Dos – côtes »' }).getByRole('listitem')).toHaveText(['4 rangs : côtes', '4 rangs : jersey', '2 rangs : point mousse'])
+  await expect(page.getByRole('list', { name: 'Sous-étapes de « Dos – côtes »' }).getByRole('listitem')).toHaveText([/^4 rangs : côtes/, /^4 rangs : jersey/, /^2 rangs : point mousse/])
+  // Le texte de chaque étape regroupée est porté par sa première sous-étape
+  await expect(page.getByRole('list', { name: 'Sous-étapes de « Dos – côtes »' }).getByRole('listitem')).toHaveText(['4 rangs : côtesMonter 90 m.', '4 rangs : jerseyJersey.', '2 rangs : point mousse'])
 
   // Déplacer « point mousse » vers la manche, puis séparer la manche avant lui
   await page.getByRole('button', { name: 'Actions pour « 2 rangs : point mousse »' }).click()
@@ -405,7 +407,7 @@ test('organise les étapes : regroupe, sépare et déplace une sous-étape, puis
   const move = page.getByRole('alertdialog')
   await move.getByLabel('Étape').selectOption({ label: '2. Manche' })
   await move.getByRole('button', { name: 'Déplacer' }).click()
-  await expect(page.getByRole('list', { name: 'Sous-étapes de « Manche »' }).getByRole('listitem')).toHaveText(['3 rangs : côtes', '2 rangs : point mousse'])
+  await expect(page.getByRole('list', { name: 'Sous-étapes de « Manche »' }).getByRole('listitem')).toHaveText([/^3 rangs : côtes/, /^2 rangs : point mousse/])
   await page.getByRole('button', { name: 'Actions pour « 2 rangs : point mousse »' }).click()
   await page.getByRole('menuitem', { name: 'Nouvelle étape à partir d’ici' }).click()
   await page.getByRole('alertdialog').getByRole('button', { name: 'Séparer' }).click()

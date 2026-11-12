@@ -14,7 +14,7 @@ import { sanitizeYarnChecks, type YarnCheck } from './lib/yarnLeft'
 import { sanitizeSizeChart, type MeasureProfile } from './lib/sizing'
 import { sanitizeHints, sanitizeSetup, type ChartHint, type ChartSetup, type KnitChart } from './lib/chart'
 import type { SectionsChange, Split } from './lib/organize'
-import { MAX_PDF_BYTES, type KnitProject, type KnitProjectSummary, type KnitStep, type PatternStep, type ReadPattern, type StepSection, sanitizeSections } from './lib/pattern'
+import { MAX_PDF_BYTES, type KnitProject, type KnitProjectSummary, type KnitStep, type PatternStep, type ReadPattern, type StepSection, readMissingParts, sanitizeSections } from './lib/pattern'
 
 const PATTERN_BUCKET = 'knit-patterns'
 const CHART_BUCKET = 'knit-charts'
@@ -238,7 +238,12 @@ export function createKnittingApi(db: AppSupabaseClient) {
     async readPattern(pdf: File, size: string): Promise<ReadPattern> {
       checkPdf(pdf)
       const read = await invokeKnit<ReadPattern>({ pdf: await fileToBase64(pdf), size }, 'La lecture du patron a échoué.', (d) => Array.isArray(d.steps), READ_TIMEOUT_MS)
-      return { ...read, steps: read.steps.map((s) => ({ ...s, times: readTimes(s.times) })), sizeChart: sanitizeSizeChart(read.sizeChart, read.sizes.length) }
+      return {
+        ...read,
+        steps: read.steps.map((s) => ({ ...s, times: readTimes(s.times) })),
+        sizeChart: sanitizeSizeChart(read.sizeChart, read.sizes.length),
+        missingParts: readMissingParts(read.missingParts),
+      }
     },
 
     /**
@@ -333,7 +338,7 @@ export function createKnittingApi(db: AppSupabaseClient) {
     /** Sous-étapes de plusieurs étapes enregistrées d'un coup (sous-étape déplacée d'une étape à une autre). */
     async saveSections(changes: SectionsChange[]): Promise<void> {
       const { error } = await db.rpc('set_knit_sections', {
-        p_steps: changes.map((c) => ({ id: c.id, sections: c.sections, total_rows: c.totalRows })) as unknown as Json,
+        p_steps: changes.map((c) => ({ id: c.id, sections: c.sections, total_rows: c.totalRows, instructions: c.instructions })) as unknown as Json,
       })
       if (error) throw toAppError(error, 'Impossible de déplacer la sous-étape.')
     },
@@ -344,9 +349,11 @@ export function createKnittingApi(db: AppSupabaseClient) {
         p_step: stepId,
         p_sections: split.first.sections as unknown as Json,
         p_total_rows: split.first.totalRows as number,
+        p_instructions: split.first.instructions,
         p_new_title: split.second.title,
         p_new_sections: split.second.sections as unknown as Json,
         p_new_total_rows: split.second.totalRows as number,
+        p_new_instructions: split.second.instructions,
       })
       if (error) throw toAppError(error, 'Impossible de séparer l’étape.')
     },

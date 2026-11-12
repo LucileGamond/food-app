@@ -29,6 +29,8 @@ export interface PatternSection {
   pattern: string | null
   /** « En même temps » : la section commence à ce rang de l'étape (ou à cette hauteur), en parallèle des autres. */
   at?: { row: number | null; pattern: string | null }
+  /** Texte du patron de cette sous-étape (phase regroupée dans son morceau). */
+  source?: string
 }
 
 export interface PatternStep {
@@ -100,6 +102,8 @@ export interface ReadPattern {
   abbreviations: Abbreviation[]
   /** Tableau des mesures (pour conseiller une taille selon ses mesures), s'il y en a un. */
   sizeChart: SizeChart | null
+  /** Parties du patron annoncées mais sans étape lue (lecture arrêtée en route) : à relire. */
+  missingParts: string[]
 }
 
 function str(value: unknown, max: number): string {
@@ -140,6 +144,11 @@ export const TOOL: Tool = {
         },
         required: ['stitches', 'rows'],
       },
+      titles: {
+        type: 'array',
+        items: { type: 'string' },
+        description: 'Avant les étapes : les titres de toutes les parties à tricoter du patron, dans l’ordre et tels qu’écrits (« DOS & DEVANT », « MANCHES », « COL ») ; ni échantillon, ni fournitures, ni points, ni abréviations.',
+      },
       steps: {
         type: 'array',
         description: 'Étapes à tricoter, dans l’ordre du patron (vide si la taille est introuvable).',
@@ -147,7 +156,7 @@ export const TOOL: Tool = {
           type: 'object',
           properties: {
             title: { type: 'string', description: 'Ex. « Dos – côtes », « Manches – augmentations ».' },
-            piece: { type: 'string', description: 'Morceau tricoté d’un seul tenant, du montage à l’arrêt, auquel appartient l’étape (« Dos et devant », « Manche », « Chaussette », « Col ») ; le même pour toutes les étapes de ce morceau.' },
+            piece: { type: 'string', description: 'Titre de partie du patron sous lequel se trouve ce paragraphe (« DOS & DEVANT », « MANCHES ») ; le même pour tous les paragraphes de cette partie.' },
             instructions: {
               type: 'string',
               description: 'Texte du patron pour cette étape, recopié mot pour mot avec les nombres de toutes les tailles : ni résumé, ni coupé, ni traduit.',
@@ -265,7 +274,7 @@ export const TOOL: Tool = {
         },
       },
     },
-    required: ['title', 'sizes', 'size_found', 'steps', 'charts', 'abbreviations'],
+    required: ['title', 'sizes', 'size_found', 'titles', 'steps', 'charts', 'abbreviations'],
   },
 }
 
@@ -282,10 +291,9 @@ export function systemPrompt(size: string): string {
   return [
     ...chosen,
     'Les patrons donnent les nombres de toutes les tailles à la suite, par exemple « monter 60 (64-68-72) m. » ou « 60/64/68/72 m. ».',
-    'Découpe le patron en étapes de tricot dans l’ordre (dos, devant, manches, finitions…).',
-    'Donne pour chaque étape dans piece le morceau auquel elle appartient : ce qu’on tricote d’un seul tenant, du montage (ou des mailles reprises) à l’arrêt',
-    '(« Dos et devant », « Manche », « Col »). Les étapes d’un même morceau ont exactement le même piece : côtes, jersey et augmentations d’une manche,',
-    'ou jambe, talon, gousset, pied et pointe d’une chaussette (piece « Chaussette »).',
+    'Découpe le patron en étapes dans l’ordre : une étape par paragraphe d’instructions (un bloc de texte séparé des autres par une ligne vide ou un retour).',
+    'Donne dans piece le titre de partie sous lequel se trouve le paragraphe, tel qu’écrit dans le patron (« DOS & DEVANT », « MANCHES », « RAGLAN ») :',
+    'tous les paragraphes sous un même titre ont exactement le même piece. Sans titre, piece est le morceau tricoté d’un seul tenant (« Chaussette »).',
     'Dans instructions, recopie mot pour mot le texte du patron pour l’étape, avec les nombres de toutes les tailles tels qu’écrits :',
     'ne résume rien, ne coupe rien, ne traduis pas ; garde les retours à la ligne utiles. L’application mettra en valeur les nombres de la taille choisie.',
     'Donne dans size_number la position de la taille choisie parmi sizes (1 = première).',
@@ -375,16 +383,34 @@ export function sanitizeCharts(value: unknown, stepCount: number): ChartHint[] {
     .slice(0, MAX_CHARTS)
 }
 
+/** Titres de partie annoncés par le modèle sans aucune étape lue dessous : la lecture s'est arrêtée en route. */
+export function missingParts(titles: unknown, phases: PhaseStep[]): string[] {
+  const read = phases.map((p) => p.piece)
+  return (Array.isArray(titles) ? titles : [])
+    .map((t) => str(t, 200))
+    .filter((t) => t && !read.some((piece) => samePiece(piece, t)))
+    .map(pieceTitle)
+    .slice(0, 20)
+}
+
 /** Étape lue avec le morceau auquel elle appartient (« Dos et devant »), avant regroupement. */
 export type PhaseStep = PatternStep & { piece: string }
+
+/** « DOS & DEVANT » → « Dos & devant » ; un titre déjà en casse normale reste tel quel. */
+export function pieceTitle(piece: string): string {
+  const t = piece.trim()
+  return t === t.toLocaleUpperCase('fr') && /\p{L}{2}/u.test(t) ? t.charAt(0) + t.slice(1).toLocaleLowerCase('fr') : t
+}
 
 const samePiece = (a: string, b: string) => !!a && a.toLocaleLowerCase('fr').trim() === b.toLocaleLowerCase('fr').trim()
 
 /** Sous-étapes d'une phase dans son morceau : décalées des rangs des phases d'avant (null : inconnus). */
 function phaseSections(phase: PatternStep, offset: number | null): PatternSection[] {
   // Phase sans déroulé : une sous-étape de ses rangs (à régler s'ils ne sont pas connus).
-  if (!phase.sections.length) return [{ kind: 'rows', rows: phase.totalRows, every: null, times: null, actions: [], text: phase.title, pattern: null }]
-  return phase.sections.map((section) => {
+  const own: PatternSection[] = phase.sections.length ? phase.sections : [{ kind: 'rows', rows: phase.totalRows, every: null, times: null, actions: [], text: phase.title, pattern: null }]
+  // Le texte de la phase va à sa première sous-étape : il la suivra si on réorganise les étapes.
+  const sections = phase.instructions.trim() ? own.map((s, i) => (i === 0 ? { ...s, source: phase.instructions } : s)) : own
+  return sections.map((section) => {
     if (!section.at || section.at.row === null || offset === 0) return section
     // Début « en même temps » à un rang de la phase : rang du morceau, ou à régler si les rangs d'avant sont inconnus.
     if (offset !== null) return { ...section, at: { ...section.at, row: section.at.row + offset } }
@@ -416,7 +442,7 @@ export function groupPieces(phases: PhaseStep[], charts: ChartHint[]): { steps: 
       offset = offset === null || phase.totalRows === null ? null : offset + phase.totalRows
     }
     return {
-      title: group[0]!.piece.trim(),
+      title: pieceTitle(group[0]!.piece),
       instructions: group.map((p) => p.instructions).filter(Boolean).join('\n\n'),
       totalRows: offset,
       stitches: group.at(-1)!.stitches,
@@ -523,6 +549,7 @@ export function sanitizePattern(input: unknown, size: string): ReadPattern {
     charts,
     abbreviations: sanitizeAbbreviations(data.abbreviations),
     sizeChart: sanitizeSizeChart(data.size_chart, sizes.length),
+    missingParts: missingParts(data.titles, phases),
   }
 }
 

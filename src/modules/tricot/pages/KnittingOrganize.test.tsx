@@ -78,8 +78,8 @@ describe('organiser les étapes', () => {
     await user.selectOptions(within(dialog).getByLabelText('Étape'), '3. Manche')
     await user.click(within(dialog).getByRole('button', { name: 'Déplacer' }))
     expect(api.knitting.saveSections).toHaveBeenCalledWith([
-      { id: 's2', sections: [rows(40, 'jersey')], totalRows: 40 },
-      { id: 's3', sections: [rows(24, 'côtes'), rows(20, 'emmanchures')], totalRows: 44 },
+      { id: 's2', sections: [rows(40, 'jersey')], totalRows: 40, instructions: '' },
+      { id: 's3', sections: [rows(24, 'côtes'), rows(20, 'emmanchures')], totalRows: 44, instructions: '' },
     ])
   })
 
@@ -88,14 +88,14 @@ describe('organiser les étapes', () => {
     const api = open()
     await user.click(await actions('20 rangs : emmanchures'))
     await user.click(await screen.findByRole('menuitem', { name: 'Monter' }))
-    expect(api.knitting.saveSections).toHaveBeenCalledWith([{ id: 's2', sections: [rows(20, 'emmanchures'), rows(40, 'jersey')], totalRows: 60 }])
+    expect(api.knitting.saveSections).toHaveBeenCalledWith([{ id: 's2', sections: [rows(20, 'emmanchures'), rows(40, 'jersey')], totalRows: 60, instructions: '' }])
 
     await user.click(await actions('20 rangs : emmanchures'))
     await user.click(await screen.findByRole('menuitem', { name: 'Nouvelle étape à partir d’ici' }))
     await user.click(within(await screen.findByRole('alertdialog', { name: 'Nouvelle étape à partir d’ici ?' })).getByRole('button', { name: 'Séparer' }))
     expect(api.knitting.splitStep).toHaveBeenCalledWith('s2', {
-      first: { sections: [rows(40, 'jersey')], totalRows: 40 },
-      second: { title: 'Dos – jersey (suite)', sections: [rows(20, 'emmanchures')], totalRows: 20 },
+      first: { sections: [rows(40, 'jersey')], totalRows: 40, instructions: '' },
+      second: { title: 'Dos – jersey (suite)', sections: [rows(20, 'emmanchures')], totalRows: 20, instructions: '' },
     })
   })
 

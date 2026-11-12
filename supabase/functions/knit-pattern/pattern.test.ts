@@ -1,5 +1,5 @@
 import { createHandler, type Deps } from './handler.ts'
-import { groupPieces, MAX_PDF_BASE64, parseInput, readPattern, sanitizePattern, sanitizeSection, systemPrompt, type PhaseStep } from './pattern.ts'
+import { groupPieces, missingParts, pieceTitle, MAX_PDF_BASE64, parseInput, readPattern, sanitizePattern, sanitizeSection, systemPrompt, TOOL, type PhaseStep } from './pattern.ts'
 
 const PDF = 'JVBERi0xLjQK' // « %PDF-1.4 »
 
@@ -143,8 +143,9 @@ describe('résultat du modèle', () => {
     }
     expect(systemPrompt('M')).toContain('EN MÊME TEMPS')
     // Une étape par partie du patron, ses phases en sous-étapes
-    expect(systemPrompt('M')).toContain('ce qu’on tricote d’un seul tenant')
-    expect(systemPrompt('M')).toContain('jambe, talon, gousset, pied et pointe d’une chaussette')
+    expect(systemPrompt('M')).toContain('une étape par paragraphe d’instructions')
+    expect(systemPrompt('M')).toContain('tous les paragraphes sous un même titre ont exactement le même piece')
+    expect(JSON.stringify(TOOL.input_schema)).toContain('Avant les étapes : les titres de toutes les parties')
   })
 
   it('garde le texte du patron tel quel et la position de la taille choisie', () => {
@@ -263,7 +264,9 @@ describe('regroupement par morceau', () => {
     ])
     expect(steps[0]!.instructions).toBe('Texte Dos – côtes.\n\nTexte Dos – jersey.')
     // Phase sans déroulé : une sous-étape à son nom, rangs à régler
-    expect(steps[1]!.sections[1]).toEqual({ ...rows(null, 'Manches – augmentations'), pattern: null })
+    expect(steps[1]!.sections[1]).toEqual({ ...rows(null, 'Manches – augmentations'), pattern: null, source: 'Texte Manches – augmentations.' })
+    // Le texte de chaque phase est porté par sa première sous-étape
+    expect(steps[0]!.sections.map((s) => s.source)).toEqual(['Texte Dos – côtes.', 'Texte Dos – jersey.'])
     expect(charts.map((c) => c.step)).toEqual([0, 2, null])
   })
 
@@ -274,7 +277,19 @@ describe('regroupement par morceau', () => {
     const unknown = groupPieces([phase('Empiècement', 'Raglan – mise en place'), phase('Empiècement', 'Raglan – diminutions', { sections: [rows(40, 'raglan'), neck] })], [])
     expect(unknown.steps[0]!.sections[2]!.at).toEqual({ row: null, pattern: 'rang 10 de « Raglan – diminutions »' })
     // Première phase : rien ne change
-    expect(groupPieces([phase('Corps', 'A', { sections: [neck] }), phase('Corps', 'B')], []).steps[0]!.sections[0]).toBe(neck)
+    expect(groupPieces([phase('Corps', 'A', { sections: [neck] }), phase('Corps', 'B')], []).steps[0]!.sections[0]).toEqual({ ...neck, source: 'Texte A.' })
+  })
+
+  it('parties annoncées sans étape lue : signalées pour relire', () => {
+    const read = [phase('DOS & DEVANT', 'a'), phase('dos & devant', 'b'), phase('Manches', 'c')]
+    expect(missingParts(['DOS & DEVANT', 'MANCHES', 'COL', ' ', 4], read)).toEqual(['Col'])
+    expect(missingParts(undefined, read)).toEqual([])
+    const pattern = sanitizePattern({ ...PATTERN, titles: ['Dos', 'Manches'], steps: [{ title: 'Dos – côtes', piece: 'Dos', instructions: 'a', total_rows: 10, stitches: 60, sections: [] }] }, '')
+    expect(pattern.missingParts).toEqual(['Manches'])
+  })
+
+  it('titre de partie en majuscules : remis en casse normale', () => {
+    expect(['DOS & DEVANT', 'Manche', 'É-PAULES', 'M1'].map(pieceTitle)).toEqual(['Dos & devant', 'Manche', 'É-paules', 'M1'])
   })
 
   it('sans morceau indiqué : rien n’est regroupé', () => {
@@ -291,8 +306,8 @@ describe('regroupement par morceau', () => {
         stitches: 80,
         times: 2,
         sections: [
-          { kind: 'rows', rows: 10, every: null, times: null, actions: [], text: 'Manche – côtes', pattern: null },
-          { kind: 'rows', rows: 90, every: null, times: null, actions: [], text: 'Manche – jersey', pattern: null },
+          { kind: 'rows', rows: 10, every: null, times: null, actions: [], text: 'Manche – côtes', pattern: null, source: 'a' },
+          { kind: 'rows', rows: 90, every: null, times: null, actions: [], text: 'Manche – jersey', pattern: null, source: 'b' },
         ],
       },
     ])

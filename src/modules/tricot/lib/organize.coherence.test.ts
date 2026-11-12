@@ -3,11 +3,12 @@
 import { mergeSteps } from './merge'
 import { moveSection, sectionLength, splitStep } from './organize'
 import { planSections, type StepSection } from './pattern'
+import { textOf } from './sources'
 
 const rows = (n: number, text: string): StepSection => ({ kind: 'rows', rows: n, every: null, times: null, text, pattern: null })
 const repeat = (every: number, times: number, text: string): StepSection => ({ kind: 'repeat', rows: null, every, times, actions: [{ text, rank: null }], text: '', pattern: null })
 
-type Step = { id: string; title: string; totalRows: number | null; sections: StepSection[] }
+type Step = { id: string; title: string; totalRows: number | null; sections: StepSection[]; instructions: string }
 
 /** Fin de la dernière sous-étape (rangs de l'étape d'après ses sous-étapes). */
 const planEnd = (sections: StepSection[]) => Math.max(0, ...planSections(sections, null).map((p) => p.end ?? NaN))
@@ -23,15 +24,21 @@ function rng(seed: number) {
   }
 }
 
+/** Projet au hasard : la moitié des étapes ont leur texte par sous-étape, les autres (anciens projets) sur l'étape seulement. */
 function randomProject(rand: (n: number) => number): Step[] {
   return Array.from({ length: 2 + rand(4) }, (_, i) => {
     const sections = Array.from({ length: 1 + rand(4) }, (_, j) => (rand(2) ? rows(1 + rand(30), `r${i}.${j}`) : repeat(1 + rand(6), 1 + rand(8), `a${i}.${j}`)))
-    return { id: `s${i}`, title: `Étape ${i}`, totalRows: planEnd(sections), sections }
+    if (rand(2)) return { id: `s${i}`, title: `Étape ${i}`, totalRows: planEnd(sections), sections, instructions: `Texte de l’étape ${i}.` }
+    const sourced = sections.map((x, j) => ({ ...x, source: `Paragraphe ${i}.${j}.` }))
+    return { id: `s${i}`, title: `Étape ${i}`, totalRows: planEnd(sourced), sections: sourced, instructions: textOf(sourced) }
   })
 }
 
+/** Tous les paragraphes du projet : ceux des étapes sans texte par sous-étape, et ceux des sous-étapes. */
+const paragraphs = (steps: Step[]) => steps.flatMap((s) => (s.sections.some((x) => x.source) ? s.sections.flatMap((x) => (x.source ? x.source.split('\n\n') : [])) : s.instructions ? [s.instructions] : [])).sort()
+
 describe('cohérence des réorganisations', () => {
-  const back: Step = { id: 'b', title: 'Dos', totalRows: 66, sections: [rows(18, 'côtes'), repeat(6, 4, '1 aug.'), rows(24, 'jersey')] }
+  const back: Step = { id: 'b', title: 'Dos', instructions: '', totalRows: 66, sections: [rows(18, 'côtes'), repeat(6, 4, '1 aug.'), rows(24, 'jersey')] }
 
   it('séparer puis regrouper rend l’étape d’origine, quel que soit l’endroit', () => {
     for (let index = 1; index < back.sections.length; index++) {
@@ -50,15 +57,15 @@ describe('cohérence des réorganisations', () => {
   })
 
   it('regrouper puis séparer au même endroit rend les deux étapes', () => {
-    const sleeve: Step = { id: 's', title: 'Manche', totalRows: 40, sections: [rows(10, 'côtes'), repeat(5, 6, '1 aug.')] }
+    const sleeve: Step = { id: 's', title: 'Manche', instructions: '', totalRows: 40, sections: [rows(10, 'côtes'), repeat(5, 6, '1 aug.')] }
     const merged = mergeSteps(back, sleeve)
     const { first, second } = splitStep({ ...back, ...merged }, back.sections.length)
-    expect(first).toEqual({ sections: back.sections, totalRows: 66 })
+    expect(first).toEqual({ sections: back.sections, totalRows: 66, instructions: '' })
     expect([second.sections, second.totalRows]).toEqual([sleeve.sections, 40])
   })
 
   it('déplacer puis remettre : les rangs reviennent', () => {
-    const sleeve: Step = { id: 's', title: 'Manche', totalRows: 40, sections: [rows(40, 'côtes')] }
+    const sleeve: Step = { id: 's', title: 'Manche', instructions: '', totalRows: 40, sections: [rows(40, 'côtes')] }
     const [from, to] = moveSection(back, 1, sleeve)
     const [back2, from2] = moveSection({ ...sleeve, ...to }, 1, { ...back, ...from })
     expect([from2.totalRows, back2.totalRows]).toEqual([66, 40])
@@ -70,13 +77,15 @@ describe('cohérence des réorganisations', () => {
     for (let seed = 1; seed <= 200; seed++) {
       const rand = rng(seed)
       let steps = randomProject(rand)
-      const before = { rows: allRows(steps), texts: texts(steps) }
+      const before = { rows: allRows(steps), texts: texts(steps), paragraphs: paragraphs(steps) }
       for (let op = 0; op < 30; op++) {
         const i = rand(steps.length)
         const step = steps[i]!
         const kind = rand(3)
         if (kind === 0 && i + 1 < steps.length) {
-          steps = [...steps.slice(0, i), { ...step, ...mergeSteps(step, steps[i + 1]!) }, ...steps.slice(i + 2)]
+          // Comme en base : textes mis bout à bout
+          const instructions = [step.instructions, steps[i + 1]!.instructions].filter(Boolean).join('\n\n')
+          steps = [...steps.slice(0, i), { ...step, ...mergeSteps(step, steps[i + 1]!), instructions }, ...steps.slice(i + 2)]
           done.merge++
         } else if (kind === 1 && step.sections.length > 1) {
           const { first, second } = splitStep(step, 1 + rand(step.sections.length - 1))
@@ -88,10 +97,16 @@ describe('cohérence des réorganisations', () => {
           steps = steps.map((s) => (s.id === from.id ? { ...s, ...from } : s.id === to.id ? { ...s, ...to } : s))
           done.move++
         }
-        for (const s of steps) expect(s.totalRows, `graine ${seed}, opération ${op}, ${s.id}`).toBe(planEnd(s.sections))
+        for (const s of steps) {
+          expect(s.totalRows, `graine ${seed}, opération ${op}, ${s.id}`).toBe(planEnd(s.sections))
+          // Le texte de l'étape est celui de ses sous-étapes, dès qu'elles en portent
+          if (s.sections.some((x) => x.source)) expect(s.instructions, `graine ${seed}, opération ${op}, ${s.id}`).toBe(textOf(s.sections))
+        }
       }
       expect(allRows(steps)).toBe(before.rows)
       expect(texts(steps)).toEqual(before.texts)
+      // Aucun paragraphe perdu ni dupliqué
+      expect(paragraphs(steps), `graine ${seed}`).toEqual(before.paragraphs)
     }
     // Les trois opérations ont bien été essayées, souvent
     expect(Math.min(done.merge, done.split, done.move)).toBeGreaterThan(200)

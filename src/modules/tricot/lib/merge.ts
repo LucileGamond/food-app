@@ -4,16 +4,15 @@
 // « en même temps » décalés des rangs de la première (à régler s'ils ne sont pas connus).
 
 import { planSections, type KnitStep, type StepSection } from './pattern'
+import { anchoredSections } from './sources'
 
-type MergedStep = Pick<KnitStep, 'title' | 'totalRows' | 'sections'>
+type MergedStep = Pick<KnitStep, 'title' | 'totalRows' | 'sections' | 'instructions'>
 
-/** Sous-étapes d'une étape : les siennes, ou une seule de ses rangs (à régler s'ils ne sont pas connus). */
-function ownSections(step: MergedStep): StepSection[] {
-  return step.sections.length ? step.sections : [{ kind: 'rows', rows: step.totalRows, every: null, times: null, text: step.title, pattern: null }]
-}
+/** Sous-étapes d'une étape avec leur texte : les siennes, ou une seule de ses rangs (à régler s'ils ne sont pas connus). */
+const ownSections = anchoredSections
 
 /** Rangs d'une étape : son nombre de rangs, ou la fin de ses sous-étapes si elles sont toutes connues. */
-function stepLength(step: MergedStep): number | null {
+function stepLength(step: Pick<KnitStep, 'totalRows' | 'sections'>): number | null {
   if (step.totalRows !== null) return step.totalRows
   const plan = planSections(step.sections, null)
   if (!plan.length || plan.some((p) => p.end === null)) return null

@@ -160,6 +160,22 @@ describe('KnittingImportPage', () => {
     expect(api.knitting.createProject).toHaveBeenCalledWith(expect.objectContaining({ steps }))
   })
 
+  it('lecture arrêtée en route : les parties pas lues sont signalées, et on relit le patron', async () => {
+    const user = userEvent.setup()
+    const api = fakeApi()
+    api.knitting.readPattern.mockResolvedValueOnce({ ...PATTERN, missingParts: ['Manches', 'Col'] }).mockResolvedValueOnce({ ...PATTERN, missingParts: [] })
+    renderImport(api)
+    await user.upload(screen.getByLabelText('Patron (PDF)'), pdf())
+    await user.type(screen.getByLabelText('Taille choisie'), 'M')
+    await user.click(screen.getByRole('button', { name: 'Lire le patron' }))
+    const alert = await screen.findByRole('alert')
+    expect(alert).toHaveTextContent('La lecture s’est arrêtée en route : parties pas lues « Manches », « Col ».')
+    await user.click(within(alert).getByRole('button', { name: 'Relire le patron' }))
+    expect(api.knitting.readPattern).toHaveBeenCalledTimes(2)
+    expect(api.knitting.readPattern).toHaveBeenLastCalledWith(expect.any(File), 'M')
+    await waitFor(() => expect(screen.queryByRole('alert')).not.toBeInTheDocument())
+  })
+
   it('affiche le message de la lecture (taille introuvable) et permet de recommencer', async () => {
     const user = userEvent.setup()
     const api = fakeApi()
@@ -242,7 +258,12 @@ describe('KnittingProjectPage', () => {
     expect(dialog).toHaveTextContent('« Encolure » devient la suite de cette étape')
     await user.click(within(dialog).getByRole('button', { name: 'Regrouper' }))
     expect(api.knitting.mergeSteps).toHaveBeenCalledWith('s2', {
-      sections: [...PROJECT.steps[1]!.sections, { kind: 'rows', rows: null, every: null, times: null, text: 'Encolure', pattern: null }],
+      // Le texte de chaque étape va à sa première sous-étape
+      sections: [
+        { ...PROJECT.steps[1]!.sections[0]!, source: PROJECT.steps[1]!.instructions },
+        PROJECT.steps[1]!.sections[1],
+        { kind: 'rows', rows: null, every: null, times: null, text: 'Encolure', pattern: null, source: 'Monter 64 m.' },
+      ],
       totalRows: null,
     })
     expect(api.knitting.getProject).toHaveBeenCalledTimes(2)

@@ -67,9 +67,13 @@ export interface StepSection {
   measured?: MeasuredRows
   /** « En même temps » : la section commence à ce rang, en parallèle ; absent : à la suite de la précédente. */
   at?: SectionStart
+  /** Texte du patron de cette sous-étape : il la suit quand on regroupe, sépare ou déplace les étapes. */
+  source?: string
 }
 
 export const MAX_SECTIONS = 30
+/** Texte d'une étape, au plus (comme en base). */
+export const MAX_INSTRUCTIONS = 20000
 /** Rangs comptés dans une étape, au plus (comme en base). */
 export const MAX_ROW_COUNT = 5000
 
@@ -149,6 +153,13 @@ export interface ReadPattern {
   abbreviations?: Abbreviation[]
   /** Tableau des mesures par taille, pour conseiller une taille selon ses mesures. */
   sizeChart?: SizeChart | null
+  /** Parties du patron annoncées mais pas lues (lecture arrêtée en route) : à relire. */
+  missingParts?: string[]
+}
+
+/** Parties pas lues, telles que renvoyées par la lecture (textes non vides seulement). */
+export function readMissingParts(value: unknown): string[] {
+  return Array.isArray(value) ? value.filter((v): v is string => typeof v === 'string' && v.trim() !== '').slice(0, 20) : []
 }
 
 function sanitizeMeasured(value: unknown): MeasuredRows | null {
@@ -181,6 +192,7 @@ export function sanitizeSections(raw: unknown): StepSection[] {
     }
     const measured = sanitizeMeasured(s.measured)
     if (measured) section.measured = measured
+    if (typeof s.source === 'string' && s.source.trim()) section.source = s.source.slice(0, MAX_INSTRUCTIONS)
     if (typeof s.at === 'object' && s.at !== null) {
       const a = s.at as Record<string, unknown>
       const at: SectionStart = { row: count(a.row, 5000), pattern: typeof a.pattern === 'string' && a.pattern.trim() ? a.pattern.slice(0, 100) : null }

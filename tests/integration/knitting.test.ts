@@ -83,8 +83,8 @@ describe('knitting api', () => {
       size: 'M',
       pdf: null,
       steps: [
-        { title: 'Dos', instructions: '', totalRows: 30, stitches: 90, sections: [r(10, 'côtes'), r(20, 'jersey')] },
-        { title: 'Manche', instructions: '', totalRows: 12, stitches: null, sections: [r(12, 'côtes')] },
+        { title: 'Dos', instructions: 'Côtes 10 rangs.\n\nJersey 20 rangs.', totalRows: 30, stitches: 90, sections: [{ ...r(10, 'côtes'), source: 'Côtes 10 rangs.' }, { ...r(20, 'jersey'), source: 'Jersey 20 rangs.' }] },
+        { title: 'Manche', instructions: 'Côtes 12 rangs.', totalRows: 12, stitches: null, sections: [{ ...r(12, 'côtes'), source: 'Côtes 12 rangs.' }] },
       ],
     })
     const load = async () => (await api.knitting.getProject(id))!.steps
@@ -98,6 +98,8 @@ describe('knitting api', () => {
       ['Dos', 10, ['côtes']],
       ['Manche', 32, ['côtes', 'jersey']],
     ])
+    // Le texte suit la sous-étape déplacée
+    expect(steps.map((s) => s.instructions)).toEqual(['Côtes 10 rangs.', 'Côtes 12 rangs.\n\nJersey 20 rangs.'])
 
     await api.knitting.splitStep(steps[1]!.id, splitStep(steps[1]!, 1))
     steps = await load()
@@ -106,6 +108,7 @@ describe('knitting api', () => {
       [1, 'Manche', 12, ['côtes']],
       [2, 'Manche (suite)', 20, ['jersey']],
     ])
+    expect(steps.map((s) => s.instructions)).toEqual(['Côtes 10 rangs.', 'Côtes 12 rangs.', 'Jersey 20 rangs.'])
 
     // Regrouper ce qui vient d'être séparé : retour à l'étape d'avant
     await api.knitting.mergeSteps(steps[1]!.id, mergeSteps(steps[1]!, steps[2]!))
@@ -114,6 +117,7 @@ describe('knitting api', () => {
       [0, 'Dos', 10, ['côtes']],
       [1, 'Manche', 32, ['côtes', 'jersey']],
     ])
+    expect(steps[1]!.instructions).toBe('Côtes 12 rangs.\n\nJersey 20 rangs.')
 
     await api.knitting.saveProgress(steps[1]!.id, { rowCount: 1 })
     await expect(api.knitting.saveSections(moveSection(steps[1]!, 0, steps[0]!))).rejects.toThrow()
