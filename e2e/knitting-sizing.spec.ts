@@ -46,7 +46,7 @@ test('choisit la taille d’un patron selon une fiche de mesures', async ({ page
   await card.getByRole('button', { name: 'Relire pour la taille L' }).click()
   await expect(card.getByRole('button', { name: /Relire/ })).toHaveCount(0)
   expect(sizes).toEqual(['', 'L'])
-  await expect(page.getByText('120 rangs · 110 mailles')).toBeVisible()
+  await expect(page.getByText('120 rangs · 110 mailles à la fin')).toBeVisible()
 
   await page.getByRole('button', { name: 'Enregistrer le projet' }).click()
   await expect(page.getByText('Taille L · 0 / 1 étapes')).toBeVisible()

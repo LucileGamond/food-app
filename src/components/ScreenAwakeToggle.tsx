@@ -3,7 +3,8 @@ import type { ScreenAwake } from '@/hooks/useWakeLock'
 import { cn } from '@/lib/utils'
 
 /** Interrupteur « Écran toujours allumé » ; rien si le navigateur ne sait pas garder l'écran allumé. */
-export function ScreenAwakeToggle({ awake, className }: { awake: ScreenAwake; className?: string }) {
+/** `compact` : l'icône et l'interrupteur seuls (le libellé reste pour les lecteurs d'écran), pour un en-tête. */
+export function ScreenAwakeToggle({ awake, className, compact = false }: { awake: ScreenAwake; className?: string; compact?: boolean }) {
   if (!awake.supported) return null
   const Icon = awake.enabled ? Sun : SunDim
   return (
@@ -21,7 +22,7 @@ export function ScreenAwakeToggle({ awake, className }: { awake: ScreenAwake; cl
         <span className={cn('absolute top-0.5 size-4 rounded-full bg-background shadow transition-transform', awake.enabled ? 'translate-x-4' : 'translate-x-0.5')} />
       </span>
       <Icon className="size-4" aria-hidden />
-      Écran toujours allumé
+      <span className={cn(compact && 'sr-only')}>Écran toujours allumé</span>
     </button>
   )
 }

@@ -13,14 +13,13 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { useScreenAwake } from '@/hooks/useWakeLock'
 import { cn } from '@/lib/utils'
 import { ChartFullscreen } from '../components/ChartImage'
-import { MeasuredNote } from '../components/mode/MeasuredNote'
 import { ModeCounter } from '../components/mode/ModeCounter'
 import { PatternDrawer } from '../components/mode/PatternDrawer'
 import { RowLine } from '../components/mode/RowLine'
 import { StepDone } from '../components/mode/StepDone'
-import { SubstepCounters } from '../components/mode/SubstepCounters'
-import { UpcomingList } from '../components/mode/UpcomingList'
 import { OfflineNote } from '../components/OfflineNote'
+import { StepReady } from '../components/StepReady'
+import { readyIssues } from '../lib/ready'
 import { StepOutline } from '../components/StepOutline'
 import { useBaseGlossary } from '../hooks/useBaseGlossary'
 import { useKnitProject } from '../hooks/useKnitProject'
@@ -97,6 +96,8 @@ function Knitting({ project, knit, projectTo }: KnittingProps) {
   const line = guide.at(row)
   const glossary = mergeGlossary(project.abbreviations ?? [], base, looksEnglish(step.instructions))
   const setupTo = `${projectTo}?etape=${encodeURIComponent(step.id)}`
+  const issues = readyIssues(step)
+  const ready = issues.length === 0
   useRowVibration(row, !finished && line.events.length > 0)
 
   const count = (delta: number) => void knit.countRows(step.id, delta)
@@ -151,23 +152,21 @@ function Knitting({ project, knit, projectTo }: KnittingProps) {
               {[project.title, `étape ${index + 1} sur ${steps.length}`, pass, `taille ${size}`].filter(Boolean).join(' · ')}
             </p>
           </div>
+          <ScreenAwakeToggle awake={awake} compact className="shrink-0" />
         </div>
       </header>
 
       <main className="flex-1 space-y-5 px-4 pt-4 pb-6">
-        <ScreenAwakeToggle awake={awake} />
         <OfflineNote offline={knit.offline} pending={knit.pending} />
-        {!finished && <MeasuredNote sections={step.sections} setupTo={setupTo} />}
         {finished ? (
           <StepDone done={step.done} next={next?.title ?? null} passDone={anotherPass ? step.pass : null} projectTo={projectTo} onFinish={() => setFinishing(true)} />
+        ) : !ready ? (
+          // Pas prête : on la prépare d'abord, rien ne se compte
+          <StepReady issues={issues} setupTo={setupTo} />
         ) : (
-          <>
-            <RowLine line={line} stitches={stitchTrack(step)(row)} glossary={glossary} setupTo={setupTo} onOpenChart={setChartOpen} />
-            <SubstepCounters counts={substepCounts(step, row)} total={step.sections.length} onFinish={(c) => void finishSub(c)} />
-            <UpcomingList items={line.unknown ? [] : guide.upcoming(row)} glossary={glossary} />
-          </>
+          <RowLine line={line} stitches={stitchTrack(step)(row)} glossary={glossary} setupTo={setupTo} onOpenChart={setChartOpen} />
         )}
-        <StepOutline step={step} nextTitle={next?.title ?? null} showCurrent={!finished} />
+        <StepOutline step={step} nextTitle={next?.title ?? null} showCurrent={!finished} upcoming={finished || !ready || line.unknown ? null : (guide.upcoming(row, 1)[0] ?? null)} />
         <PatternDrawer
           step={step}
           row={finished ? null : row}
@@ -179,16 +178,16 @@ function Knitting({ project, knit, projectTo }: KnittingProps) {
           onTranslate={translate}
           onNotes={(notes) => void knit.saveStep(step.id, { notes })}
         />
-        {!finished && (
+        {!finished && ready && (
           <Button variant="outline" className="h-10" onClick={() => setFinishing(true)}>
             <Check /> {anotherPass ? `Terminer la ${ordinal(step.pass)} fois maintenant` : 'Terminer l’étape maintenant'}
           </Button>
         )}
       </main>
 
-      {!step.done && (
+      {!step.done && ready && (
         <footer className="sticky bottom-0 border-t bg-background/95 px-4 py-3 backdrop-blur" style={{ paddingBottom: 'calc(0.75rem + env(safe-area-inset-bottom, 0px))' }}>
-          <ModeCounter rowCount={step.rowCount} totalRows={step.totalRows} onCount={count} />
+          <ModeCounter rowCount={step.rowCount} totalRows={step.totalRows} onCount={count} substeps={finished ? [] : substepCounts(step, row)} onFinishSubstep={(c) => void finishSub(c)} />
         </footer>
       )}
 

@@ -76,15 +76,3 @@ export function sanitizeBaseGlossary(raw: unknown): BaseGlossary {
   const g = raw as Record<string, unknown>
   return { fr: sanitizeAbbreviations(g.fr), en: sanitizeAbbreviations(g.en) }
 }
-
-/** Abréviations du texte de l'étape (ou de sa traduction), une seule fois chacune, dans l'ordre où elles arrivent. */
-export function stepAbbreviations(text: string, translation: string | null, pattern: Abbreviation[], glossary: BaseGlossary): Abbreviation[] {
-  const found = new Map<string, string>()
-  const sources: [string, boolean][] = translation ? [[translation, false], [text, looksEnglish(text)]] : [[text, looksEnglish(text)]]
-  for (const [source, english] of sources) {
-    for (const part of abbreviationParts(source, mergeGlossary(pattern, glossary, english))) {
-      if (part.kind === 'abbr' && !found.has(part.text)) found.set(part.text, part.meaning)
-    }
-  }
-  return [...found].map(([abbr, meaning]) => ({ abbr, meaning }))
-}

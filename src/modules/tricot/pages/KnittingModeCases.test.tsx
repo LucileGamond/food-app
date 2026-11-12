@@ -1,6 +1,6 @@
 // Mode tricoter : les combinaisons d'une étape (sections, répétitions, diagrammes, adaptation), écran complet.
 
-import { screen, within } from '@testing-library/react'
+import { cleanup, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { fakeApi, renderWithApp } from '@/test/fakes'
 import type { Adaptation } from '../lib/adapt'
@@ -53,11 +53,14 @@ async function open(value: KnitProject) {
   const api = fakeApi()
   api.knitting.getProject.mockResolvedValue(value)
   renderWithApp(<KnittingModePage />, { api, route: '/tricot/p1/tricoter', path: '/tricot/:id/tricoter' })
-  const line = await screen.findByRole('region', { name: /à tricoter$/ })
+  await screen.findByRole('heading', { level: 1 })
+  // Étape pas prête : pas de rang à tricoter (la préparation dit quoi faire)
+  const line = screen.queryByRole('region', { name: /à tricoter$/ }) as HTMLElement
   return {
     api,
     line,
-    upcoming: () => screen.queryByRole('list', { name: 'Ensuite' })?.querySelectorAll('li') ?? [],
+    // Le prochain rang qui demande quelque chose, rappelé en tête de « Toute l'étape »
+    upcoming: () => screen.queryAllByText(/^Prochain :/),
     stitches: () => screen.getByText(/En fin de rang/).textContent,
     add: async (n = 1) => {
       for (let i = 0; i < n; i++) await userEvent.setup().click(screen.getByRole('button', { name: 'Ajouter 1 rang' }))
@@ -71,14 +74,14 @@ describe('mode tricoter : sans diagramme', () => {
   it('sans section ni répétition : rien de particulier, la fin de l’étape, les mailles ne changent pas', async () => {
     const { line, upcoming, stitches } = await open(project({ rowCount: 4 }))
     expect(line).toHaveTextContent('Rang 5 à tricoterRien de particulier sur ce rang.')
-    expect(texts(upcoming())).toEqual(['rang 20Dernier rang de l’étape, ensuite : Coldans 15'])
+    expect(texts(upcoming())).toEqual(['Prochain : rang 20, dans 15 — Dernier rang de l’étape, ensuite : Col'])
     expect(stitches()).toBe('En fin de rang : 60 mailles')
   })
 
   it('rangs sans répétition : la section en cours, puis le début de la suivante', async () => {
     const { line, upcoming, stitches, add } = await open(project({ rowCount: 2, sections: [rows(4, 'côtes 1/1'), rows(16, 'jersey')] }))
     expect(line).toHaveTextContent('Rang 3 à tricoter4 rangs : côtes 1/1')
-    expect(texts(upcoming())).toEqual(['rang 5Nouvelle sous-étape : 16 rangs : jerseydans 2', 'rang 20Dernier rang de l’étape, ensuite : Coldans 17'])
+    expect(texts(upcoming())).toEqual(['Prochain : rang 5, dans 2 — Nouvelle sous-étape : 16 rangs : jersey'])
     await add(2)
     expect(line).toHaveTextContent('Rang 5 à tricoterNouvelle sous-étape : 16 rangs : jersey')
     expect(stitches()).toBe('En fin de rang : 60 mailles')
@@ -93,7 +96,7 @@ describe('mode tricoter : sans diagramme', () => {
     const { line, upcoming, stitches, add } = await open(project({ rowCount: 2, totalRows: 10, sections: [rows(2, 'jersey'), raglan] }))
     expect(line).toHaveTextContent('Rang 3 à tricoterNouvelle sous-étape : 1 dim. (1er rang) + 1 aug. (dernier rang) — tous les 4 rangs (2 fois)1 dim. (1/2)')
     expect(stitches()).toBe('En fin de rang : 59 mailles')
-    expect(texts(upcoming())).toEqual(['rang 61 aug. (1/2)dans 3', 'rang 71 dim. (2/2, dernière fois)dans 4', 'rang 101 aug. (2/2, dernière fois)Dernier rang de l’étape, ensuite : Coldans 7'])
+    expect(texts(upcoming())).toEqual(['Prochain : rang 6, dans 3 — 1 aug. (1/2)'])
     await add(3)
     expect(line).toHaveTextContent('Rang 6 à tricoter1 aug. (1/2)')
     expect(stitches()).toBe('En fin de rang : 60 mailles')
@@ -102,7 +105,7 @@ describe('mode tricoter : sans diagramme', () => {
   it('répétition jusqu’à la fin de l’étape : numérotée sans total', async () => {
     const { line, upcoming } = await open(project({ rowCount: 7, totalRows: 12, sections: [repeat(4, null, [{ text: '1 aug. de chaque côté', rank: null, stitches: 2 }])] }))
     expect(line).toHaveTextContent('Rang 8 à tricoter1 aug. de chaque côté (2e fois)')
-    expect(texts(upcoming())).toEqual(['rang 121 aug. de chaque côté (3e fois)Dernier rang de l’étape, ensuite : Coldans 4'])
+    expect(texts(upcoming())).toEqual(['Prochain : rang 12, dans 4 — 1 aug. de chaque côté (3e fois) · Dernier rang de l’étape, ensuite : Col'])
   })
 
   it('deux répétitions à la suite : la jonction se lit sans trou ni doublon', async () => {
@@ -111,11 +114,7 @@ describe('mode tricoter : sans diagramme', () => {
     const { line, upcoming, stitches, add } = await open(project({ rowCount: 3, sections }))
     expect(line).toHaveTextContent('Rang 4 à tricoter1 dim. (2/2, dernière fois)')
     expect(stitches()).toBe('En fin de rang : 58 mailles')
-    expect(texts(upcoming())).toEqual([
-      'rang 5Nouvelle sous-étape : 1 aug. (1er rang) — tous les 3 rangs (2 fois)1 aug. (1/2)dans 1',
-      'rang 81 aug. (2/2, dernière fois)dans 4',
-      'rang 20Dernier rang de l’étape, ensuite : Coldans 16',
-    ])
+    expect(texts(upcoming())).toEqual(['Prochain : rang 5, dans 1 — Nouvelle sous-étape : 1 aug. (1er rang) — tous les 3 rangs (2 fois) · 1 aug. (1/2)'])
     await add()
     expect(line).toHaveTextContent('Rang 5 à tricoterNouvelle sous-étape : 1 aug. (1er rang) — tous les 3 rangs (2 fois)1 aug. (1/2)')
     expect(stitches()).toBe('En fin de rang : 59 mailles')
@@ -145,22 +144,15 @@ describe('mode tricoter : avec diagramme', () => {
     expect(screen.queryByTestId('chart-strip')).not.toBeInTheDocument()
   })
 
-  it('au-delà d’une section à régler : ni diagramme ni mailles, seulement le renvoi vers la préparation', async () => {
-    const { line } = await open(project({ rowCount: 5, sections: [rows(4, 'jersey'), rows(null, 'jersey')] }, { charts: [TORSADE] }))
-    expect(line).toHaveTextContent('Rang 6 à tricoterLa suite n’est pas connue')
-    expect(line).not.toHaveTextContent('Torsade')
+  it('étape pas prête : rien ne se compte ni ne s’affiche, la préparation dit quoi faire', async () => {
+    const { line } = await open(project({ rowCount: 4, sections: [rows(4, 'jersey'), rows(null, 'jersey')] }, { charts: [TORSADE] }))
+    expect(line).toBeNull()
+    const alert = screen.getByRole('alert')
+    expect(alert).toHaveTextContent('À préparer avant de tricoterSous-étape 2 (5 cm (à régler) : jersey) : nombre de rangs à régler.')
+    expect(within(alert).getByRole('link', { name: 'Préparer l’étape' })).toHaveAttribute('href', '/tricot/p1?etape=s1')
+    expect(screen.queryByRole('button', { name: 'Ajouter 1 rang' })).not.toBeInTheDocument()
     expect(screen.queryByTestId('chart-strip')).not.toBeInTheDocument()
-    expect(screen.queryByText(/En fin de rang/)).not.toBeInTheDocument()
-  })
-
-  it('diagramme et section à régler sur le même rang : les deux affichés, rien d’annoncé après', async () => {
-    const { line, upcoming } = await open(project({ rowCount: 4, sections: [rows(4, 'jersey'), rows(null, 'jersey')] }, { charts: [TORSADE] }))
-    expect(line).toHaveTextContent('Rang 5 à tricoterÀ régler avant de continuer : 5 cm (à régler) : jersey Régler')
-    expect(within(line).getByRole('link', { name: 'Régler' })).toHaveAttribute('href', '/tricot/p1?etape=s1')
-    expect(line).toHaveTextContent('Torsade : rang 1 sur 4 · 2e fois')
-    expect(within(line).getByTestId('chart-strip')).toBeInTheDocument()
-    expect(screen.getByText(/En fin de rang/)).toHaveTextContent('En fin de rang : (?) mailles')
-    expect(upcoming()).toHaveLength(0)
+    expect(screen.queryByRole('button', { name: /Terminer/ })).not.toBeInTheDocument()
   })
 })
 
@@ -179,8 +171,8 @@ describe('mode tricoter : toute l’étape', () => {
     expect(decreases.map((li) => li.textContent)).toEqual([
       'Rang 101 dim. de chaque côté (1/4) → 58 mailles',
       'Rang 161 dim. de chaque côté (2/4) → 56 maillesà tricoter',
-      'Rang 221 dim. de chaque côté (3/4) → 54 mailles',
-      'Rang 281 dim. de chaque côté (4/4, dernière fois) → 52 mailles',
+      'Rang 221 dim. de chaque côté (3/4) → 54 maillesdans 6',
+      'Rang 281 dim. de chaque côté (4/4, dernière fois) → 52 maillesdans 12',
     ])
     expect(within(decreases[0]!).getByLabelText('Fait')).toBeInTheDocument()
     expect(decreases[1]).toHaveAttribute('aria-current', 'step')
@@ -213,13 +205,7 @@ describe('mode tricoter : consignes « en même temps »', () => {
     const { line, upcoming, stitches, add } = await open(project({ rowCount: 13, totalRows: 22, stitches: 100, sections: YOKE }))
     expect(line).toHaveTextContent('Rang 14 à tricoterraglan corps (7/10)raglan manches (7/11)')
     expect(stitches()).toBe(`En fin de rang : ${212 - 7 * 8} mailles`)
-    expect(texts(upcoming())).toEqual([
-      'rang 15Nouvelle sous-étape : En même temps, dès le rang 15 : 20 m centrales en attente — à chaque rang (1 fois)20 m centrales en attente (1/1, dernière fois)dans 1',
-      'rang 16raglan corps (8/10)raglan manches (8/11)Nouvelle sous-étape : encolure : 2 m de chaque côté — tous les 2 rangs (2 fois)dans 2',
-      'rang 17encolure : 2 m de chaque côté (1/2)dans 3',
-      'rang 18raglan corps (9/10)raglan manches (9/11)dans 4',
-      'rang 19encolure : 2 m de chaque côté (2/2, dernière fois)dans 5',
-    ])
+    expect(texts(upcoming())).toEqual(['Prochain : rang 15, dans 1 — Nouvelle sous-étape : En même temps, dès le rang 15 : 20 m centrales en attente — à chaque rang (1 fois) · 20 m centrales en attente (1/1, dernière fois)'])
     await add(1)
     expect(line).toHaveTextContent('Rang 15 à tricoter')
     expect(stitches()).toBe(`En fin de rang : ${212 - 7 * 8 - 20} mailles`)
@@ -228,16 +214,22 @@ describe('mode tricoter : consignes « en même temps »', () => {
   it('encolure « à 5 cm » sans échantillon : à régler dès le début ; avec l’échantillon : convertie, avec le rappel', async () => {
     const sections = YOKE.map((s, i) => (i === 2 ? { ...s, ...at(null, '5 cm') } : s))
     const first = await open(project({ rowCount: 0, totalRows: 22, stitches: 100, sections }))
-    expect(first.line).toHaveTextContent('À régler avant de continuer : En même temps, à 5 cm (à régler) : 20 m centrales en attente')
+    expect(first.line).toBeNull()
+    expect(screen.getByRole('alert')).toHaveTextContent('Sous-étape 3 (En même temps, à 5 cm (à régler) : 20 m centrales en attente — à chaque rang (1 fois)) : rang de début « en même temps » à régler.')
     expect(first.upcoming()).toHaveLength(0)
   })
 
   it('encolure « à 5 cm » avec l’échantillon du patron : rang calculé (≈), rappel à vérifier', async () => {
     const sections = YOKE.map((s, i) => (i === 2 ? { ...s, ...at(null, '5 cm') } : s))
     // 5 cm × 28 rangs pour 10 cm = 14 rangs : début au rang 15
-    const { upcoming } = await open(project({ rowCount: 13, totalRows: 22, stitches: 100, sections }, { patternGauge: { stitches: 22, rows: 28 } }))
-    expect(texts(upcoming())[0]).toBe('rang 15Nouvelle sous-étape : En même temps, dès le rang 15 (≈ 5 cm) : 20 m centrales en attente — à chaque rang (1 fois)20 m centrales en attente (1/1, dernière fois)dans 1')
-    expect(screen.getByRole('note')).toHaveTextContent('Des rangs sont calculés depuis les cm du patron')
+    await open(project({ rowCount: 13, totalRows: 22, stitches: 100, sections }, { patternGauge: { stitches: 22, rows: 28 } }))
+    // Calculé, mais à vérifier avant de tricoter
+    expect(screen.getByRole('alert')).toHaveTextContent('calcul à vérifier (début : 5 cm × 28 rangs pour 10 cm (échantillon du patron) ≈ rang 15)')
+    cleanup()
+    // Vérifié (rang 15 gardé) : le mode suit
+    const checked = YOKE.map((s, i) => (i === 2 ? { ...s, ...at(15, '5 cm') } : s))
+    const { upcoming } = await open(project({ rowCount: 13, totalRows: 22, stitches: 100, sections: checked }, { patternGauge: { stitches: 22, rows: 28 } }))
+    expect(texts(upcoming())[0]).toBe('Prochain : rang 15, dans 1 — Nouvelle sous-étape : En même temps, dès le rang 15 : 20 m centrales en attente — à chaque rang (1 fois) · 20 m centrales en attente (1/1, dernière fois)')
   })
 })
 
@@ -255,18 +247,18 @@ describe('mode tricoter : patron adapté et cas limites', () => {
     expect(screen.getByText('/ 24')).toBeInTheDocument()
     // 66 à la fin, 3 fois +2 : 60 au départ, 62 après le rang 8
     expect(stitches()).toBe('En fin de rang : 62 mailles')
-    expect(texts(upcoming()).at(-1)).toBe('rang 241 aug. de chaque côté (3/3, dernière fois)Dernier rang de l’étape, ensuite : Coldans 16')
+    expect(texts(upcoming())).toEqual(['Prochain : rang 16, dans 8 — 1 aug. de chaque côté (2/3)'])
   })
 
   it('cm du patron convertis avec l’échantillon : le mode sait quoi faire, et rappelle de vérifier', async () => {
     // 4 rangs de côtes, puis « 5 cm » de jersey : 5 × 30 / 10 = 15 rangs (rangs 5 à 19), puis 1 rang de côtes
     const sections = [rows(4, 'côtes'), rows(null, 'jersey'), rows(1, 'côtes')]
-    const { line, upcoming, stitches } = await open(project({ rowCount: 3, sections }, { patternGauge: { stitches: 22, rows: 30 } }))
-    expect(line).toHaveTextContent('Rang 4 à tricoter4 rangs : côtes')
-    expect(texts(upcoming())).toEqual(['rang 5Nouvelle sous-étape : 15 rangs (≈ 5 cm) : jerseydans 1', 'rang 20Nouvelle sous-étape : 1 rang : côtesDernier rang de l’étape, ensuite : Coldans 16'])
-    expect(stitches()).toBe('En fin de rang : 60 mailles')
-    expect(screen.getByRole('note')).toHaveTextContent('Des rangs sont calculés depuis les cm du patron avec l’échantillon (≈) : à vérifier. Vérifier')
-    expect(within(screen.getByRole('note')).getByRole('link', { name: 'Vérifier' })).toHaveAttribute('href', '/tricot/p1?etape=s1')
+    const { line } = await open(project({ rowCount: 3, sections }, { patternGauge: { stitches: 22, rows: 30 } }))
+    // Le calcul est fait, mais il se vérifie avant de tricoter
+    expect(line).toBeNull()
+    const alert = screen.getByRole('alert')
+    expect(alert).toHaveTextContent('Sous-étape 2 (15 rangs (≈ 5 cm) : jersey) : calcul à vérifier (5 cm × 30 rangs pour 10 cm (échantillon du patron) ≈ 15 rangs).')
+    expect(within(alert).getByRole('link', { name: 'Préparer l’étape' })).toHaveAttribute('href', '/tricot/p1?etape=s1')
   })
 
   it('calcul validé : plus de rappel', async () => {
@@ -285,22 +277,29 @@ describe('mode tricoter : patron adapté et cas limites', () => {
   })
 })
 
-describe('mode tricoter : compteur des sous-étapes', () => {
-  it('chaque sous-étape affiche son rang ; une longueur à mesurer se finit après les rangs tricotés', async () => {
-    const step = { totalRows: null, rowCount: 14, sections: [rows(12, 'côtes'), rows(null, 'jersey'), rows(4, 'côtes')] }
+describe('mode tricoter : un seul compteur, celui de la sous-étape', () => {
+  const counter = () => screen.getByRole('contentinfo')
+
+  it('compte dans la sous-étape en cours ; la finir plus tôt fixe sa longueur aux rangs tricotés', async () => {
+    const step = { totalRows: null, rowCount: 14, sections: [rows(12, 'côtes'), rows(10, 'jersey'), rows(4, 'côtes')] }
     const { api } = await open(project(step))
-    const counters = screen.getByRole('list', { name: 'Sous-étapes en cours' })
-    expect(counters).toHaveTextContent('Sous-étape 2 sur 3')
-    expect(counters).toHaveTextContent('Rang 3 · longueur à mesurer')
-    await userEvent.setup().click(within(counters).getByRole('button', { name: 'Sous-étape finie (2 rangs)' }))
-    expect(api.knitting.saveProgress).toHaveBeenCalledWith('s1', { sections: [rows(12, 'côtes'), { ...rows(null, 'jersey'), rows: 2 }, rows(4, 'côtes')] })
+    expect(counter()).toHaveTextContent('2 / 10rangs faits · 10 rangs : jersey')
+    expect(counter()).toHaveTextContent('Étape : 14 rangs')
+    await userEvent.setup().click(within(counter()).getByRole('button', { name: 'Sous-étape finie (2 rangs)' }))
+    expect(api.knitting.saveProgress).toHaveBeenCalledWith('s1', { sections: [rows(12, 'côtes'), rows(2, 'jersey'), rows(4, 'côtes')] })
   })
 
-  it('longueur connue : rang sur le total, et la finir plus tôt', async () => {
+  it('longueur connue : rangs sur le total de la sous-étape, l’étape en petit, et la finir plus tôt', async () => {
     await open(project({ rowCount: 11, sections: [rows(12, 'côtes'), rows(8, 'jersey')] }))
-    const counters = screen.getByRole('list', { name: 'Sous-étapes en cours' })
-    expect(counters).toHaveTextContent('Sous-étape 1 sur 2')
-    expect(counters).toHaveTextContent('Rang 12 sur 12')
-    expect(within(counters).getByRole('button', { name: 'Sous-étape finie (11 rangs)' })).toBeInTheDocument()
+    expect(counter()).toHaveTextContent('11 / 12rangs faits · 12 rangs : côtes')
+    expect(counter()).toHaveTextContent('Étape : 11 / 20 rangs')
+    expect(within(counter()).getByRole('button', { name: 'Sous-étape finie (11 rangs)' })).toBeInTheDocument()
+  })
+
+  it('« en même temps » : les autres sous-étapes en cours rappelées sous le compteur', async () => {
+    const together = [rows(20, 'jersey'), { ...rows(6, 'encolure'), at: { row: 5, pattern: null } }]
+    await open(project({ rowCount: 6, sections: together }))
+    expect(counter()).toHaveTextContent('6 / 20rangs faits · 20 rangs : jersey')
+    expect(counter()).toHaveTextContent('En même temps : 2 / 6')
   })
 })

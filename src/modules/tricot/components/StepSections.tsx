@@ -261,9 +261,9 @@ export function StepSections({ step, onChange }: { step: KnitStep; onChange: (se
   return (
     <section aria-labelledby={`sections-${step.id}`} className="space-y-2">
       <h3 id={`sections-${step.id}`} className="flex items-center gap-1.5 text-sm font-medium">
-        <ListOrdered className="size-4" aria-hidden /> Déroulé de l’étape
+        <ListOrdered className="size-4" aria-hidden /> Sous-étapes
       </h3>
-      <p className="text-xs text-muted-foreground">Vérifie et corrige ce que la lecture a compris : le mode tricoter suit ce déroulé rang par rang.</p>
+      <p className="text-xs text-muted-foreground">Vérifie et corrige ce que la lecture a compris : le mode tricoter suit ces sous-étapes rang par rang.</p>
       <ol className="space-y-2 text-sm">
         {plan.map((p) => {
           const { section, index } = p

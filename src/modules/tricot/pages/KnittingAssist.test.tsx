@@ -74,13 +74,6 @@ describe('abréviations expliquées', () => {
     expect(await screen.findByRole('dialog')).toHaveTextContent('Torsade de 4 mailles croisées devant.')
   })
 
-  it('rappelle les abréviations de l’étape, une fois chacune', async () => {
-    const user = userEvent.setup()
-    renderProject()
-    await user.click(await screen.findByText('Abréviations de l’étape'))
-    expect(screen.getAllByRole('term').map((dt) => dt.textContent)).toEqual(['2 m. ens.', 'jeté', 'C4F'])
-    expect(screen.getAllByRole('definition').at(-1)).toHaveTextContent('Torsade de 4 mailles croisées devant.')
-  })
 })
 
 describe('patron en anglais', () => {

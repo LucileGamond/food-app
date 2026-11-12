@@ -1,4 +1,4 @@
-import { screen, waitFor, within } from '@testing-library/react'
+import { cleanup, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { Route } from 'react-router-dom'
 import { fakeApi, renderWithApp } from '@/test/fakes'
@@ -130,7 +130,7 @@ describe('KnittingImportPage', () => {
 
     const steps = await screen.findByRole('list', { name: 'Étapes lues' })
     expect(within(steps).getAllByRole('listitem').filter((li) => li.parentElement === steps)).toHaveLength(3)
-    expect(within(steps).getByText('30 rangs · 56 mailles')).toBeInTheDocument()
+    expect(within(steps).getByText('30 rangs · 56 mailles à la fin')).toBeInTheDocument()
     expect(within(steps).getByText('4 rangs : jersey')).toBeInTheDocument()
     expect(within(steps).getByText('1 diminution de chaque côté — tous les 6 rangs (4 fois)')).toBeInTheDocument()
     expect(screen.getByText('Taille M · 3 étapes · échantillon 22 m. × 30 rangs pour 10 cm')).toBeInTheDocument()
@@ -155,7 +155,7 @@ describe('KnittingImportPage', () => {
     await user.upload(screen.getByLabelText('Patron (PDF)'), pdf())
     await user.type(screen.getByLabelText('Taille choisie'), 'M')
     await user.click(screen.getByRole('button', { name: 'Lire le patron' }))
-    expect(await screen.findByText('90 rangs · 50 mailles · à tricoter 2 fois')).toBeInTheDocument()
+    expect(await screen.findByText('90 rangs · à tricoter 2 fois · 50 mailles à la fin')).toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: 'Enregistrer le projet' }))
     expect(api.knitting.createProject).toHaveBeenCalledWith(expect.objectContaining({ steps }))
   })
@@ -250,29 +250,34 @@ describe('KnittingProjectPage', () => {
     expect(await screen.findByRole('navigation', { name: 'Étapes' })).toBeInTheDocument()
   })
 
-  it('regroupe l’étape avec la suivante, sauf si la suivante est commencée', async () => {
+  it('prête à tricoter : indiquée sur l’étape ; sinon ce qui manque, et le bouton Tricoter bloqué', async () => {
     const user = userEvent.setup()
-    const { api } = renderProject(undefined, PROJECT, `${STEP}=s2`)
-    await user.click(await screen.findByRole('button', { name: 'Regrouper avec l’étape suivante' }))
-    const dialog = await screen.findByRole('alertdialog', { name: 'Regrouper avec l’étape suivante ?' })
-    expect(dialog).toHaveTextContent('« Encolure » devient la suite de cette étape')
-    await user.click(within(dialog).getByRole('button', { name: 'Regrouper' }))
-    expect(api.knitting.mergeSteps).toHaveBeenCalledWith('s2', {
-      // Le texte de chaque étape va à sa première sous-étape
-      sections: [
-        { ...PROJECT.steps[1]!.sections[0]!, source: PROJECT.steps[1]!.instructions },
-        PROJECT.steps[1]!.sections[1],
-        { kind: 'rows', rows: null, every: null, times: null, text: 'Encolure', pattern: null, source: 'Monter 64 m.' },
-      ],
-      totalRows: null,
-    })
-    expect(api.knitting.getProject).toHaveBeenCalledTimes(2)
+    const project = structuredClone(PROJECT)
+    project.steps[1]!.sections = [project.steps[1]!.sections[0]!, { kind: 'rows', rows: null, every: null, times: null, text: 'jersey', pattern: '5 cm' }]
+    const { api } = renderProject(fakeApi(), project, `${STEP}=s2`)
+    const alert = await screen.findByRole('alert')
+    expect(alert).toHaveTextContent('À préparer avant de tricoterSous-étape 2 (5 cm (à régler) : jersey) : nombre de rangs à régler.')
+    expect(screen.getByRole('button', { name: 'Tricoter cette étape' })).toBeDisabled()
+    expect(screen.queryByRole('link', { name: 'Tricoter cette étape' })).not.toBeInTheDocument()
+
+    // Réglée : prête, le bouton mène au mode tricoter
+    api.knitting.getProject.mockResolvedValue({ ...project, steps: project.steps.map((s) => (s.id === 's2' ? { ...s, sections: [s.sections[0]!, { ...s.sections[1]!, rows: 15 }] } : s)) })
+    await user.click(await screen.findByRole('button', { name: 'Actions pour « 5 cm (à régler) : jersey »' }))
+    await user.click(await screen.findByRole('menuitem', { name: 'Régler' }))
+    const form = screen.getByRole('form', { name: 'Sous-étape' })
+    await user.type(within(form).getByLabelText('Nombre de rangs'), '15')
+    await user.click(within(form).getByRole('button', { name: 'Enregistrer' }))
+    expect(await screen.findByText('Prête à tricoter')).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Tricoter cette étape' })).toHaveAttribute('href', '/tricot/p1/tricoter?etape=s2')
   })
 
-  it('regroupement impossible quand l’étape suivante est commencée', async () => {
-    renderProject(undefined, PROJECT, `${STEP}=s1`)
-    expect(await screen.findByRole('button', { name: 'Regrouper avec l’étape suivante' })).toBeDisabled()
-    expect(screen.getByText('L’étape suivante est commencée : elle ne peut plus être regroupée.')).toBeInTheDocument()
+  it('liste des étapes : « À préparer » sur celles qui ne sont pas prêtes', async () => {
+    const project = structuredClone(PROJECT)
+    project.steps[2]!.sections = [{ kind: 'rows', rows: null, every: null, times: null, text: '', pattern: '3 cm' }]
+    renderProject(fakeApi(), project, OVERVIEW)
+    const nav = await screen.findByRole('navigation', { name: 'Étapes' })
+    const links = within(within(nav).getByRole('list')).getAllByRole('link')
+    expect(links.map((l) => l.textContent?.includes('À préparer'))).toEqual([false, false, true])
   })
 
   it('règle, ajoute, déplace et supprime des sections', async () => {
@@ -383,7 +388,7 @@ describe('KnittingProjectPage', () => {
     const project = structuredClone(PROJECT)
     project.steps[1]!.sections = [{ kind: 'repeat', rows: null, every: null, times: 3, text: '1 augmentation', pattern: 'tous les 5 cm' }]
     renderProject(fakeApi(), project)
-    const sections = await screen.findByRole('region', { name: 'Déroulé de l’étape' })
+    const sections = await screen.findByRole('region', { name: 'Sous-étapes' })
     expect(within(sections).getByText('1 augmentation — tous les 5 cm (rangs à régler)')).toBeInTheDocument()
     expect(within(sections).getByText(/^Indique ton échantillon/)).toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: /^Actions pour « 1 augmentation/ }))
@@ -401,7 +406,7 @@ describe('KnittingProjectPage', () => {
       { kind: 'repeat', rows: null, every: null, times: 3, actions: [{ text: '1 augmentation', rank: null }], text: '', pattern: 'tous les 2,5 cm' },
     ]
     const { api } = renderProject(fakeApi(), project)
-    const sections = await screen.findByRole('region', { name: 'Déroulé de l’étape' })
+    const sections = await screen.findByRole('region', { name: 'Sous-étapes' })
     // 5 cm × 26 rangs pour 10 cm = 13 rangs ; 2,5 cm × 26 = 6,5 → 7 rangs
     expect(within(sections).getByText('13 rangs (≈ 5 cm) : jersey')).toBeInTheDocument()
     expect(within(sections).getByText('Rangs 1 à 13')).toBeInTheDocument()
@@ -438,7 +443,7 @@ describe('KnittingProjectPage', () => {
       { kind: 'repeat', rows: null, every: 2, times: 2, actions: [{ text: 'encolure', rank: null }], text: '', pattern: null, at: { row: null, pattern: '5 cm' } },
     ]
     const { api } = renderProject(fakeApi(), project)
-    const sections = await screen.findByRole('region', { name: 'Déroulé de l’étape' })
+    const sections = await screen.findByRole('region', { name: 'Sous-étapes' })
     // 5 cm × 30 rangs pour 10 cm = 15 rangs : début au rang 16
     expect(within(sections).getByText('En même temps, dès le rang 16 (≈ 5 cm) : encolure — tous les 2 rangs (2 fois)')).toBeInTheDocument()
     expect(within(sections).getByText('Rangs 16 à 19')).toBeInTheDocument()
@@ -467,7 +472,7 @@ describe('KnittingProjectPage', () => {
     const project = structuredClone(PROJECT)
     project.steps[1]!.sections = [{ kind: 'rows', rows: null, every: null, times: null, text: 'jersey', pattern: '5 cm' }]
     renderProject(fakeApi(), project)
-    const sections = await screen.findByRole('region', { name: 'Déroulé de l’étape' })
+    const sections = await screen.findByRole('region', { name: 'Sous-étapes' })
     expect(within(sections).getByText('5 cm (à régler) : jersey')).toBeInTheDocument()
     expect(within(sections).getByText(/Indique ton échantillon \(ou celui du patron\) dans « Laine et échantillon »/)).toBeInTheDocument()
     expect(within(sections).queryByRole('note')).not.toBeInTheDocument()
@@ -477,7 +482,7 @@ describe('KnittingProjectPage', () => {
     const user = userEvent.setup()
     const { api } = renderProject()
     expect(await screen.findByRole('heading', { name: 'Emmanchures' })).toBeInTheDocument()
-    expect(screen.getByText('Étape 2 sur 3 · 56 mailles à la fin')).toBeInTheDocument()
+    expect(screen.getByText('Étape 2 sur 3 · 30 rangs · 56 mailles à la fin')).toBeInTheDocument()
     expect(screen.getByText('8 rangs faits sur 30')).toBeInTheDocument()
     expect(screen.getByText('Rangs 5 à 28 · prochaine fois : rang 10')).toBeInTheDocument()
     // On tricote dans le mode tricoter : pas de compteur ni d'écran allumé ici
@@ -1013,15 +1018,22 @@ describe('texte du patron et taille mise en valeur', () => {
     const article = (await screen.findByRole('heading', { name: 'Emmanchures' })).closest('article')!
     expect(within(article).getAllByText((_, el) => el?.tagName === 'MARK').map((m) => m.textContent)).toEqual(['64', '6'])
 
+    // La taille se choisit pour tout le projet, sur sa page (pas dans une étape)
+    expect(within(article).queryByLabelText('Nombres de la taille')).not.toBeInTheDocument()
+    cleanup()
+    renderWithApp(<KnittingProjectPage />, { api, route: '/tricot/p1', path: '/tricot/:id' })
     api.knitting.getProject.mockResolvedValue({ ...project, sizeIndex: 0 })
-    await user.selectOptions(within(article).getByLabelText('Nombres de la taille'), 'S')
+    await user.selectOptions(await screen.findByLabelText('Nombres de la taille'), 'S')
     expect(api.knitting.setSizeIndex).toHaveBeenCalledWith('p1', 0)
-    await waitFor(() => expect(within(article).getAllByText((_, el) => el?.tagName === 'MARK').map((m) => m.textContent)).toEqual(['60', '6']))
-
-    // Aucune : texte sans mise en valeur ; échec : message
+    // Échec : message
     api.knitting.setSizeIndex.mockRejectedValueOnce(new AppError('Impossible de changer la taille mise en valeur.'))
-    await user.selectOptions(within(article).getByLabelText('Nombres de la taille'), 'Aucune')
+    await user.selectOptions(screen.getByLabelText('Nombres de la taille'), 'Aucune')
     expect(await screen.findByText('Impossible de changer la taille mise en valeur.')).toBeInTheDocument()
+    // De retour dans l'étape : les nombres de la taille S
+    cleanup()
+    renderWithApp(<KnittingProjectPage />, { api, route: STEP, path: '/tricot/:id' })
+    const again = (await screen.findByRole('heading', { name: 'Emmanchures' })).closest('article')!
+    await waitFor(() => expect(within(again).getAllByText((_, el) => el?.tagName === 'MARK').map((m) => m.textContent)).toEqual(['60', '6']))
   })
 
   it('corrige le surlignage nombre par nombre, pour la taille mise en valeur', async () => {

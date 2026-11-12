@@ -1,4 +1,4 @@
-import { ArrowDown, ArrowUp, ChevronLeft, Combine, MoreHorizontal, MoveRight, SearchX, Split as SplitIcon } from 'lucide-react'
+import { ArrowDown, ArrowUp, ChevronLeft, Combine, Lock, MoreHorizontal, MoveRight, SearchX, Split as SplitIcon } from 'lucide-react'
 import { useState, type ReactNode } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { toast } from 'sonner'
@@ -17,7 +17,7 @@ import { useKnitProject } from '../hooks/useKnitProject'
 import { stepsToFollow, type ShownStep } from '../lib/adapt'
 import { mergeBlocker, mergeSteps } from '../lib/merge'
 import { isStarted, moveSection, splitStep } from '../lib/organize'
-import { describeSection, type KnitProject } from '../lib/pattern'
+import { describeSection, stepFacts, type KnitProject } from '../lib/pattern'
 import { anchoredSections, textOf } from '../lib/sources'
 
 /**
@@ -96,11 +96,14 @@ function Organize({ project, reload }: { project: KnitProject; reload: () => Pro
               <div className="flex items-start gap-2">
                 <div className="min-w-0 flex-1">
                   <p className="text-xs text-muted-foreground">
-                    Étape {index + 1}
-                    {step.totalRows !== null && ` · ${step.totalRows} rangs`}
-                    {isStarted(step) && ' · commencée'}
+                    {[`Étape ${index + 1} sur ${steps.length}`, ...stepFacts(step)].join(' · ')}
                   </p>
                   <h2 className="font-medium">{step.title}</h2>
+                  {isStarted(step) && (
+                    <p className="mt-0.5 flex items-center gap-1 text-xs text-muted-foreground">
+                      <Lock className="size-3.5" aria-hidden /> Commencée : ses sous-étapes ne bougent plus.
+                    </p>
+                  )}
                 </div>
                 <Button variant="outline" className="h-9 shrink-0" disabled={mergeLock !== null} onClick={() => setPending({ kind: 'merge', index })} aria-label={`Regrouper avec la suivante : « ${step.title} »`}>
                   <Combine /> <span className="hidden sm:inline">Regrouper avec la suivante</span>

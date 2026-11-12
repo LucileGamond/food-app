@@ -465,3 +465,12 @@ export function actionEffect(text: string): ActionEffect {
   if (/augm|\baug\b/.test(t)) return 'increase'
   return 'other'
 }
+
+/** Ce qu'on sait d'une étape, dans le même ordre partout : « 80 rangs », « à tricoter 2 fois », « 56 mailles à la fin ». */
+export function stepFacts(step: { totalRows: number | null; stitches: number | null; times?: number }): string[] {
+  return [
+    step.totalRows !== null && `${step.totalRows} rang${step.totalRows > 1 ? 's' : ''}`,
+    (step.times ?? 1) > 1 && `à tricoter ${step.times} fois`,
+    step.stitches !== null && `${step.stitches} maille${step.stitches > 1 ? 's' : ''} à la fin`,
+  ].filter((f): f is string => !!f)
+}

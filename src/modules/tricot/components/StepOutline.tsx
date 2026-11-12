@@ -1,7 +1,7 @@
 import { Check, ListTree } from 'lucide-react'
 import { useRef } from 'react'
 import { cn } from '@/lib/utils'
-import { describeEvent } from '../lib/guide'
+import { describeEvent, type Upcoming } from '../lib/guide'
 import { outlineIndicesAt, stepOutline, type OutlineRow, type OutlineSection } from '../lib/outline'
 import type { StepSection } from '../lib/pattern'
 import type { StitchCount } from '../lib/stitches'
@@ -12,6 +12,8 @@ interface Props {
   nextTitle: string | null
   /** Repère du rang en cours (faux : étape finie, ou préparation sans rang en cours). */
   showCurrent?: boolean
+  /** Mode tricoter : le prochain rang qui demande quelque chose, rappelé même replié. */
+  upcoming?: Upcoming | null
 }
 
 const plural = (n: number, word: string) => `${n} ${word}${n > 1 ? 's' : ''}`
@@ -36,6 +38,7 @@ function Row({ item, current }: { item: OutlineRow; current: number | null }) {
         {item.events.map(describeEvent).join(' · ')}
         {stitches && <span className="text-muted-foreground tabular-nums"> {stitches}</span>}
         {here && <span className="ml-1 rounded-full bg-brand/15 px-1.5 text-xs">à tricoter</span>}
+        {current !== null && item.row > current && <span className="ml-1 text-xs text-muted-foreground tabular-nums">dans {item.row - current}</span>}
       </span>
     </li>
   )
@@ -66,7 +69,7 @@ function Section({ section, current, isCurrent }: { section: OutlineSection; cur
 }
 
 /** L'étape entière, section par section, avec les rangs où il y a quelque chose à faire ; repliée. */
-export function StepOutline({ step, nextTitle, showCurrent = true }: Props) {
+export function StepOutline({ step, nextTitle, showCurrent = true, upcoming }: Props) {
   const ref = useRef<HTMLDetailsElement>(null)
   const outline = stepOutline(step, nextTitle)
   const current = showCurrent ? step.rowCount + 1 : null
@@ -81,8 +84,14 @@ export function StepOutline({ step, nextTitle, showCurrent = true }: Props) {
   return (
     <details ref={ref} onToggle={onToggle} className="group rounded-2xl border bg-background">
       <summary className="flex min-h-12 cursor-pointer items-center gap-2 px-4 font-medium">
-        <ListTree className="size-4 text-muted-foreground" aria-hidden /> Toute l’étape
-        <span className="text-sm font-normal text-muted-foreground">sous-étapes et rangs</span>
+        <ListTree className="size-4 shrink-0 text-muted-foreground" aria-hidden /> <span className="shrink-0">Toute l’étape</span>
+        {upcoming ? (
+          <span className="min-w-0 truncate text-sm font-normal text-muted-foreground">
+            Prochain : rang {upcoming.row}, dans {upcoming.inRows} — {upcoming.events.map(describeEvent).join(' · ')}
+          </span>
+        ) : (
+          <span className="text-sm font-normal text-muted-foreground">sous-étapes et rangs</span>
+        )}
       </summary>
       <div className="border-t p-3">
         {outline.length === 0 ? (

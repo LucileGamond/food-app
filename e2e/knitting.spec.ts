@@ -56,18 +56,22 @@ test('charge un patron PDF pour une taille, compte les rangs et retrouve son ava
   await expect(page.getByRole('heading', { level: 1, name: 'Dos – côtes' })).toBeVisible()
   const row = page.getByRole('region', { name: /à tricoter$/ })
   await expect(row.getByRole('heading')).toHaveText('Rang 1 à tricoter')
-  await expect(page.getByRole('list', { name: 'Ensuite' })).toContainText('Dernier rang de l’étape, ensuite : Emmanchures')
+  await expect(page.getByText(/^Prochain :/)).toContainText('Dernier rang de l’étape, ensuite : Emmanchures')
   await expectNoA11yViolations(page)
   // Fin d'étape anticipée, confirmée : l'étape suivante s'ouvre
   await page.getByRole('button', { name: 'Terminer l’étape maintenant' }).click()
   await page.getByRole('alertdialog').getByRole('button', { name: 'Étape terminée' }).click()
   await expect(page.getByRole('heading', { level: 1, name: 'Emmanchures' })).toBeVisible()
-  // « tous les 5 cm » à régler : la ligne renvoie vers la préparation de l'étape
-  await expect(row).toContainText('À régler avant de continuer : 1 diminution de chaque côté — tous les 5 cm (rangs à régler)')
-  await row.getByRole('link', { name: 'Régler' }).click()
+  // « tous les 5 cm » à régler : l'étape n'est pas prête, rien ne se compte ; la liste renvoie vers la préparation
+  const notReady = page.getByRole('alert')
+  await expect(notReady).toContainText('Sous-étape 1 (1 diminution de chaque côté — tous les 5 cm (rangs à régler)) : rythme en rangs à régler.')
+  await expect(page.getByRole('button', { name: 'Ajouter 1 rang' })).toHaveCount(0)
+  await expectNoA11yViolations(page)
+  await notReady.getByRole('link', { name: 'Préparer l’étape' }).click()
   await expect(page.getByRole('heading', { name: 'Emmanchures' })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Tricoter cette étape' })).toBeDisabled()
   // Préparation : « tous les 5 cm » réglé à 6 rangs
-  await expect(page.getByRole('region', { name: 'Déroulé de l’étape' }).getByText('1 diminution de chaque côté — tous les 5 cm (rangs à régler)')).toBeVisible()
+  await expect(page.getByRole('region', { name: 'Sous-étapes' }).getByText('1 diminution de chaque côté — tous les 5 cm (rangs à régler)')).toBeVisible()
   await page.getByRole('button', { name: /^Actions pour « 1 diminution/ }).click()
   await page.getByRole('menuitem', { name: 'Régler' }).click()
   await page.getByLabel('Tous les … rangs').fill('6')
@@ -78,12 +82,12 @@ test('charge un patron PDF pour une taille, compte les rangs et retrouve son ava
   await page.getByLabel('Nombre de rangs').fill('10')
   await page.getByLabel('Description (facultatif)').fill('côtes')
   await page.getByRole('button', { name: 'Enregistrer', exact: true }).click()
-  await expect(page.getByRole('region', { name: 'Déroulé de l’étape' }).getByText('Rangs 25 à 34')).toBeVisible()
+  await expect(page.getByRole('region', { name: 'Sous-étapes' }).getByText('Rangs 25 à 34')).toBeVisible()
   // Retour au mode tricoter : 5 rangs terminés, le 6e est à tricoter, avec la diminution
   await page.getByRole('link', { name: 'Tricoter cette étape' }).click()
   for (let i = 0; i < 5; i++) await page.getByRole('button', { name: 'Ajouter 1 rang' }).click()
   await expect(row).toContainText('Rang 6 à tricoter1 diminution de chaque côté (1/4)')
-  await expect(page.getByRole('list', { name: 'Ensuite' })).toContainText('rang 121 diminution de chaque côté (2/4)dans 6')
+  await expect(page.getByText(/^Prochain :/)).toHaveText('Prochain : rang 12, dans 6 — 1 diminution de chaque côté (2/4)')
   // 56 mailles à la fin, 4 diminutions de chaque côté devinées d'après le texte : 64 au départ, 62 après ce rang (estimé)
   await expect(row).toContainText('En fin de rang : 62 (?) mailles')
   await page.getByText('texte de l’étape, question, notes').click()
@@ -187,7 +191,7 @@ test('met un patron de côté, le commence, puis note la laine (étiquette) et s
 
   // « tous les 5 cm » converti avec l'échantillon du patron (30 rangs pour 10 cm) : calcul expliqué, à valider
   await page.getByRole('button', { name: 'Étape suivante', exact: true }).click()
-  const sections = page.getByRole('region', { name: 'Déroulé de l’étape' })
+  const sections = page.getByRole('region', { name: 'Sous-étapes' })
   const check = sections.getByRole('note')
   await expect(check).toContainText('Converti depuis le patron : 5 cm × 30 rangs pour 10 cm (échantillon du patron) ≈ 15 rangs (arrondi).')
   await expect(sections).toContainText('1 diminution de chaque côté — tous les 15 rangs (≈ 5 cm) (4 fois)')
@@ -347,9 +351,6 @@ test('aides pendant le tricot : abréviations, pesée de la laine et rangs compt
   await page.getByRole('button', { name: 'C4F : explication' }).click()
   await expect(page.getByRole('dialog').getByText('Torsade de 4 mailles devant.')).toBeVisible()
   await page.keyboard.press('Escape')
-  // Rappel de toutes les abréviations de l'étape
-  await page.getByText('Abréviations de l’étape').click()
-  await expect(page.getByRole('term')).toHaveText(['jeté', 'C4F'])
 
   // Pesée (page du projet) : 220 g restants pour la moitié du travail faite → il manque 2 pelotes
   await page.getByRole('link', { name: 'Pull Aides' }).click()
@@ -412,13 +413,14 @@ test('organise les étapes : regroupe, sépare et déplace une sous-étape, puis
   await page.getByRole('menuitem', { name: 'Nouvelle étape à partir d’ici' }).click()
   await page.getByRole('alertdialog').getByRole('button', { name: 'Séparer' }).click()
   await expect(steps.getByRole('heading')).toHaveText(['Dos – côtes', 'Manche', 'Manche (suite)'])
-  await expect(page.getByText('Étape 1 · 8 rangs')).toBeVisible()
-  await expect(page.getByText('Étape 3 · 2 rangs')).toBeVisible()
+  await expect(page.getByText(/^Étape 1 sur 3 · 8 rangs/)).toBeVisible()
+  await expect(page.getByText('Étape 3 sur 3 · 2 rangs')).toBeVisible()
 
   // L'étape regroupée se tricote d'un bout à l'autre : le compteur de sous-étape suit
   await page.goto(`/tricot/${id}/tricoter`)
   for (let i = 0; i < 5; i++) await page.getByRole('button', { name: 'Ajouter 1 rang' }).click()
-  const counters = page.getByRole('list', { name: 'Sous-étapes en cours' })
-  await expect(counters).toContainText('Sous-étape 2 sur 2')
-  await expect(counters).toContainText('Rang 2 sur 4')
+  // 5 rangs faits : 4 de côtes, puis le 1er du jersey
+  const counter = page.getByRole('contentinfo')
+  await expect(counter).toContainText('1 / 4rangs faits · 4 rangs : jersey')
+  await expect(counter).toContainText('Étape : 5 / 8 rangs')
 })

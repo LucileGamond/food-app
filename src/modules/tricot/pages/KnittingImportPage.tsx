@@ -16,7 +16,7 @@ import { describeHint } from '../lib/chart'
 import { useBaseGlossary } from '../hooks/useBaseGlossary'
 import { looksEnglish, mergeGlossary } from '../lib/glossary'
 import { sizeIndexOf } from '../lib/sizes'
-import { describeSection, MAX_PDF_BYTES, type ReadPattern } from '../lib/pattern'
+import { describeSection, MAX_PDF_BYTES, stepFacts, type ReadPattern } from '../lib/pattern'
 import { formatGauge, type QueuedPattern } from '../lib/yarn'
 
 type Mode = 'start' | 'later'
@@ -147,11 +147,7 @@ export function KnittingImportPage() {
                   {index + 1}. {step.title}
                 </p>
                 {step.instructions && <SizedText text={step.instructions} sizes={pattern.sizes} sizeIndex={sizeIndex} glossary={mergeGlossary(pattern.abbreviations ?? [], glossary, looksEnglish(step.instructions))} className="mt-1" />}
-                {(!!step.totalRows || !!step.stitches || (step.times ?? 1) > 1) && (
-                  <p className="mt-2 text-xs text-muted-foreground">
-                    {[step.totalRows && `${step.totalRows} rangs`, step.stitches && `${step.stitches} mailles`, (step.times ?? 1) > 1 && `à tricoter ${step.times} fois`].filter(Boolean).join(' · ')}
-                  </p>
-                )}
+                {stepFacts(step).length > 0 && <p className="mt-2 text-xs text-muted-foreground">{stepFacts(step).join(' · ')}</p>}
                 {step.sections.length > 0 && (
                   <ol aria-label="Sous-étapes" className="mt-2 list-inside list-decimal space-y-0.5 text-xs">
                     {step.sections.map((section, i) => (

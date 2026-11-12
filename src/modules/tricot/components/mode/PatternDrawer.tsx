@@ -3,7 +3,6 @@ import type { Abbreviation } from '../../lib/glossary'
 import type { KnitStep } from '../../lib/pattern'
 import type { Highlights } from '../../lib/sizes'
 import { StepText } from '../SizedText'
-import { StepAbbreviations } from '../StepAbbreviations'
 import { StepNotes } from '../StepNotes'
 import { StepQuestion } from '../StepQuestion'
 
@@ -41,7 +40,6 @@ export function PatternDrawer({ step, row, size, sizes, sizeIndex, abbreviations
               translation={step.translation ?? null}
               onTranslate={onTranslate}
             />
-            <StepAbbreviations text={step.instructions} translation={step.translation ?? null} abbreviations={abbreviations} />
             <StepQuestion key={step.id} stepTitle={step.title} text={step.translation || step.instructions} row={row} size={size} abbreviations={abbreviations} />
           </>
         ) : (

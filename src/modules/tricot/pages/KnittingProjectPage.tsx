@@ -14,7 +14,6 @@ import { LoadError } from '@/components/LoadError'
 import { cn } from '@/lib/utils'
 import { openInNewTab } from '@/lib/openInNewTab'
 import { SizePicker, StepText } from '../components/SizedText'
-import { StepAbbreviations } from '../components/StepAbbreviations'
 import { YarnCheckCard } from '../components/YarnCheckCard'
 import { withoutYarn, withYarnCheck, type YarnCheck } from '../lib/yarnLeft'
 import { StepCharts } from '../components/StepCharts'
@@ -26,13 +25,13 @@ import { YarnPanel, type ProjectInfo } from '../components/YarnPanel'
 import { adjustCount } from '../lib/yarn'
 import { useKnitProject } from '../hooks/useKnitProject'
 import { forgetProject } from '../lib/offline'
-import { currentStepIndex, type StepSection } from '../lib/pattern'
+import { currentStepIndex, stepFacts, type StepSection } from '../lib/pattern'
 import { OfflineNote } from '../components/OfflineNote'
 import { StepNotes } from '../components/StepNotes'
 import { StepTimes } from '../components/StepTimes'
 import { StepOutline } from '../components/StepOutline'
-import { StepMerge } from '../components/StepMerge'
-import { mergeSteps } from '../lib/merge'
+import { StepReady } from '../components/StepReady'
+import { isReady, readyIssues } from '../lib/ready'
 import { describePass } from '../lib/passes'
 
 export function KnittingProjectPage() {
@@ -150,16 +149,6 @@ export function KnittingProjectPage() {
     }
   }
 
-  /** L'étape suivante devient la suite de celle-ci (sous-étapes, texte, diagrammes). */
-  async function mergeWithNext(target: ShownStep, next: ShownStep) {
-    try {
-      await api.knitting.mergeSteps(target.id, mergeSteps(target, next))
-      await reload()
-    } catch (error) {
-      toast.error(errorMessage(error))
-    }
-  }
-
   async function changeSize(sizeIndex: number | null) {
     try {
       await api.knitting.setSizeIndex(project!.id, sizeIndex)
@@ -196,9 +185,15 @@ export function KnittingProjectPage() {
           <ChevronLeft className="size-4 shrink-0" aria-hidden /> <span className="truncate">{project.title}</span>
         </Link>
         <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
-          <Link to={knitTo(step.id)} className={cn(buttonVariants(), 'h-10')}>
-            <Play /> Tricoter cette étape
-          </Link>
+          {step.done || isReady(step) ? (
+            <Link to={knitTo(step.id)} className={cn(buttonVariants(), 'h-10')}>
+              <Play /> Tricoter cette étape
+            </Link>
+          ) : (
+            <Button className="h-10" disabled aria-describedby="step-ready-title">
+              <Play /> Tricoter cette étape
+            </Button>
+          )}
           <div className="ml-auto flex gap-2">
             <Button variant="outline" size="icon-lg" aria-label="Étape précédente" disabled={index === 0} onClick={() => openStep(steps[index - 1]!.id, true)}>
               <ChevronLeft />
@@ -213,13 +208,17 @@ export function KnittingProjectPage() {
         <article key={step.id} aria-labelledby="step-title" className="space-y-4 rounded-2xl border bg-background p-4 shadow-xs sm:p-5">
           <header>
             <p className="text-xs text-muted-foreground">
-              Étape {index + 1} sur {steps.length}
-              {step.stitches && ` · ${step.stitches} mailles à la fin`}
+              {[`Étape ${index + 1} sur ${steps.length}`, ...stepFacts(step)].join(' · ')}
               {adjustedStitches !== null && ` (≈ ${adjustedStitches} avec ton échantillon)`}
             </p>
             <h1 id="step-title" className="text-xl font-semibold tracking-tight">
               {step.title}
             </h1>
+            {!step.done && (
+              <div className="mt-2">
+                <StepReady issues={readyIssues(step)} />
+              </div>
+            )}
             {step.adapted && (
               <p className="mt-1 flex items-start gap-1.5 rounded-xl bg-brand/10 p-2 text-sm">
                 <Wand2 className="mt-0.5 size-4 shrink-0 text-brand" aria-hidden />
@@ -232,7 +231,6 @@ export function KnittingProjectPage() {
               </p>
             )}
           </header>
-          <SizePicker id="knit-size-index" sizes={project.sizes} sizeIndex={project.sizeIndex} onChange={(i) => void changeSize(i)} />
           {step.instructions && (
             <StepText
               text={step.instructions}
@@ -245,7 +243,6 @@ export function KnittingProjectPage() {
               onTranslate={() => translateStep(step.id, step.instructions)}
             />
           )}
-          {step.instructions && <StepAbbreviations text={step.instructions} translation={step.translation ?? null} abbreviations={project.abbreviations ?? []} />}
           <p className="text-sm text-muted-foreground">
             {step.rowCount} rang{step.rowCount > 1 ? 's' : ''} fait{step.rowCount > 1 ? 's' : ''}
             {step.totalRows !== null && ` sur ${step.totalRows}`}
@@ -257,7 +254,6 @@ export function KnittingProjectPage() {
           <StepOutline step={step} nextTitle={steps[index + 1]?.title ?? null} showCurrent={!step.done && step.rowCount > 0} />
           <StepCharts projectId={project.id} pdfPath={project.pdfPath} step={step} steps={steps} charts={project.charts} hints={project.chartHints} onChanged={reload} />
           <StepNotes key={step.id} step={step} onSave={(notes) => void saveStep(step.id, { notes })} />
-          <StepMerge next={steps[index + 1] ?? null} adapted={!!adaptation} onMerge={() => mergeWithNext(step, steps[index + 1]!)} />
           {step.done && (
             <Button variant="outline" className="h-10" onClick={() => void saveStep(step.id, { done: false })}>
               <Undo2 /> Reprendre l’étape
@@ -300,6 +296,11 @@ export function KnittingProjectPage() {
         }
       />
       {offlineNote}
+      {project.sizes.length > 1 && (
+        <div className="mb-4">
+          <SizePicker id="knit-size-index" sizes={project.sizes} sizeIndex={project.sizeIndex} onChange={(i) => void changeSize(i)} />
+        </div>
+      )}
 
       <nav aria-labelledby="knit-steps">
         <div className="mb-2 flex items-center justify-between gap-2">
@@ -342,6 +343,7 @@ export function KnittingProjectPage() {
                       )}
                     </span>
                     {s.done && <span className="sr-only">(terminée)</span>}
+                    {!s.done && !isReady(s) && <span className="shrink-0 rounded-full bg-amber-500/15 px-2 py-0.5 text-xs font-medium">À préparer</span>}
                     {isCurrent && <span className="shrink-0 rounded-full bg-brand/15 px-2 py-0.5 text-xs font-medium">En cours</span>}
                     <ChevronRight className="size-4 shrink-0 text-muted-foreground" aria-hidden />
                   </Link>

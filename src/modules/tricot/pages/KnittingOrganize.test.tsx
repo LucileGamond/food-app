@@ -103,7 +103,7 @@ describe('organiser les étapes', () => {
     open({ ...PROJECT, steps: [PROJECT.steps[0]!, { ...PROJECT.steps[1]!, rowCount: 3 }, PROJECT.steps[2]!] })
     expect(await actions('40 rangs : jersey')).toBeDisabled()
     expect(screen.getByRole('button', { name: 'Regrouper avec la suivante : « Dos – côtes »' })).toBeDisabled()
-    expect(screen.getByText(/Étape 2 · 60 rangs · commencée/)).toBeInTheDocument()
+    expect(screen.getByText('Commencée : ses sous-étapes ne bougent plus.')).toBeInTheDocument()
   })
 
   it('patron adapté : tout est bloqué, avec l’explication', async () => {
