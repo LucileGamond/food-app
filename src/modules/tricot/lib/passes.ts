@@ -11,6 +11,11 @@ export const MAX_STEP_TIMES = 10
 
 type Passes = Pick<KnitStep, 'times' | 'pass'>
 
+/** Nombre de fois lu (patron, réponse du modèle) : un entier de 1 à 10, sinon 1. */
+export function readTimes(value: unknown): number {
+  return typeof value === 'number' && Number.isInteger(value) && value >= 1 && value <= MAX_STEP_TIMES ? value : 1
+}
+
 /** « 1re », « 2e »… */
 export const ordinal = (n: number): string => (n === 1 ? '1re' : `${n}e`)
 

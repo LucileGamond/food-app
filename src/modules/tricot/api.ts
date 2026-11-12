@@ -7,7 +7,7 @@ import { compressForReading } from '@/lib/image'
 import type { ProgressPhoto, ProjectProgress } from './lib/progress'
 import { describeYarn, yarnFromJson, yarnMeters, yarnsFromJson, type Gauge, type QueueInput, type QueuedPattern, type QueuePriority, type StashItem, type Yarn, type YarnIdea } from './lib/yarn'
 import { sanitizeHighlights } from './lib/sizes'
-import { MAX_STEP_TIMES } from './lib/passes'
+import { readTimes } from './lib/passes'
 import { adaptationToJson, sanitizeAdaptation, type Adaptation, type AdaptedStep } from './lib/adapt'
 import { sanitizeAbbreviations, type Abbreviation, type BaseGlossary } from './lib/glossary'
 import { sanitizeYarnChecks, type YarnCheck } from './lib/yarnLeft'
@@ -237,9 +237,7 @@ export function createKnittingApi(db: AppSupabaseClient) {
     async readPattern(pdf: File, size: string): Promise<ReadPattern> {
       checkPdf(pdf)
       const read = await invokeKnit<ReadPattern>({ pdf: await fileToBase64(pdf), size }, 'La lecture du patron a échoué.', (d) => Array.isArray(d.steps), READ_TIMEOUT_MS)
-      // Nombre de fois de chaque étape : un entier de 1 à 10, sinon 1.
-      const times = (n: unknown) => (typeof n === 'number' && Number.isInteger(n) && n >= 1 && n <= MAX_STEP_TIMES ? n : 1)
-      return { ...read, steps: read.steps.map((s) => ({ ...s, times: times(s.times) })), sizeChart: sanitizeSizeChart(read.sizeChart, read.sizes.length) }
+      return { ...read, steps: read.steps.map((s) => ({ ...s, times: readTimes(s.times) })), sizeChart: sanitizeSizeChart(read.sizeChart, read.sizes.length) }
     },
 
     /**
@@ -275,7 +273,7 @@ export function createKnittingApi(db: AppSupabaseClient) {
           instructions: s.instructions,
           total_rows: s.totalRows,
           stitches: s.stitches,
-          times: s.times ?? 1,
+          times: readTimes(s.times),
           sections: s.sections as unknown as Json,
         })),
         // Facultatifs : null (voir p_pdf_path).

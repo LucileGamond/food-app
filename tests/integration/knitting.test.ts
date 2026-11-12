@@ -150,6 +150,13 @@ describe('laine, échantillon et patrons en attente', () => {
     await api.knitting.deleteQueued(bonnet)
     expect(await api.knitting.listQueue()).toEqual([])
     expect(await api.knitting.getQueued(bonnet.id)).toBeNull()
+
+    // Patron retiré avec son PDF : le fichier part avec lui
+    const coatId = await api.knitting.addToQueue({ title: 'Manteau', pdf: pdf(), url: null, size: null, yarnIdea: '', notes: '', priority: 2, metersNeeded: null, needleMm: null })
+    const coat = (await api.knitting.getQueued(coatId))!
+    await api.knitting.deleteQueued(coat)
+    expect(await api.knitting.listQueue()).toEqual([])
+    await expect(api.knitting.downloadPdf(coat.pdfPath!, coat.title)).rejects.toThrow()
   })
 })
 
