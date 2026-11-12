@@ -55,6 +55,26 @@ describe('knitting api', () => {
     await expect(api.knitting.pdfUrl(project.pdfPath!)).rejects.toThrow('Impossible d’ouvrir le PDF.')
   })
 
+  it('regroupe une étape avec la suivante ; refuse si la suivante est commencée', async () => {
+    const { api } = await signedInApi()
+    const id = await api.knitting.createProject({ title: 'Pull', size: 'M', pdf: null, steps: [...STEPS, { title: 'Col', instructions: '', totalRows: null, stitches: null, sections: [] }] })
+    let project = (await api.knitting.getProject(id))!
+    const [first, second, collar] = project.steps
+    const sections = [{ kind: 'rows' as const, rows: 18, every: null, times: null, text: 'côtes', pattern: null }]
+    await api.knitting.mergeSteps(first!.id, { sections, totalRows: 48 })
+    project = (await api.knitting.getProject(id))!
+    expect(project.steps.map((s) => [s.position, s.title, s.totalRows, s.stitches])).toEqual([
+      [0, 'Dos – côtes', 48, 56],
+      [1, 'Col', null, null],
+    ])
+    expect(project.steps[0]!.instructions).toBe('Monter 64 m.\n\nDiminuer')
+    expect(project.steps[0]!.sections).toEqual(sections)
+    expect(second).toBeDefined()
+
+    await api.knitting.saveProgress(collar!.id, { rowCount: 2 })
+    await expect(api.knitting.mergeSteps(first!.id, { sections, totalRows: null })).rejects.toThrow()
+  })
+
   it('garde chaque projet pour sa propriétaire, accepte un projet sans PDF', async () => {
     const lucile = await signedInApi()
     const eric = await signedInApi(ERIC.email)

@@ -31,6 +31,8 @@ import { OfflineNote } from '../components/OfflineNote'
 import { StepNotes } from '../components/StepNotes'
 import { StepTimes } from '../components/StepTimes'
 import { StepOutline } from '../components/StepOutline'
+import { StepMerge } from '../components/StepMerge'
+import { mergeSteps } from '../lib/merge'
 import { describePass } from '../lib/passes'
 
 export function KnittingProjectPage() {
@@ -148,6 +150,16 @@ export function KnittingProjectPage() {
     }
   }
 
+  /** L'étape suivante devient la suite de celle-ci (sous-étapes, texte, diagrammes). */
+  async function mergeWithNext(target: ShownStep, next: ShownStep) {
+    try {
+      await api.knitting.mergeSteps(target.id, mergeSteps(target, next))
+      await reload()
+    } catch (error) {
+      toast.error(errorMessage(error))
+    }
+  }
+
   async function changeSize(sizeIndex: number | null) {
     try {
       await api.knitting.setSizeIndex(project!.id, sizeIndex)
@@ -245,6 +257,7 @@ export function KnittingProjectPage() {
           <StepOutline step={step} nextTitle={steps[index + 1]?.title ?? null} showCurrent={!step.done && step.rowCount > 0} />
           <StepCharts projectId={project.id} pdfPath={project.pdfPath} step={step} steps={steps} charts={project.charts} hints={project.chartHints} onChanged={reload} />
           <StepNotes key={step.id} step={step} onSave={(notes) => void saveStep(step.id, { notes })} />
+          <StepMerge next={steps[index + 1] ?? null} adapted={!!adaptation} onMerge={() => mergeWithNext(step, steps[index + 1]!)} />
           {step.done && (
             <Button variant="outline" className="h-10" onClick={() => void saveStep(step.id, { done: false })}>
               <Undo2 /> Reprendre l’étape

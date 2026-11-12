@@ -146,7 +146,8 @@ export const TOOL: Tool = {
         items: {
           type: 'object',
           properties: {
-            title: { type: 'string', description: 'Titre de la partie tel que le patron la nomme (ex. « Dos », « Manche », « Empiècement ») ; pas un titre par phase comme « Manche – côtes ».' },
+            title: { type: 'string', description: 'Ex. « Dos – côtes », « Manches – augmentations ».' },
+            piece: { type: 'string', description: 'Morceau tricoté d’un seul tenant, du montage à l’arrêt, auquel appartient l’étape (« Dos et devant », « Manche », « Chaussette », « Col ») ; le même pour toutes les étapes de ce morceau.' },
             instructions: {
               type: 'string',
               description: 'Texte du patron pour cette étape, recopié mot pour mot avec les nombres de toutes les tailles : ni résumé, ni coupé, ni traduit.',
@@ -193,25 +194,17 @@ export const TOOL: Tool = {
                     description:
                       'Mesure telle qu’écrite dans le patron, pour la taille choisie seulement et avec son unité : « 5 cm », « tous les 5 cm », « 2 in », « tous les 6 rangs ».',
                   },
-                  at: {
-                    type: ['object', 'null'],
+                  same_time_from: {
+                    type: 'string',
                     description:
-                      'Seulement pour une consigne « EN MÊME TEMPS » / « at the same time » : la section commence à un rang ou une hauteur pendant que les sections précédentes continuent. null pour une section qui suit la précédente.',
-                    properties: {
-                      row: { type: ['integer', 'null'], description: 'Rang de l’étape où elle commence (1 = premier rang de l’étape) ; null si le patron donne une hauteur.' },
-                      pattern: {
-                        type: ['string', 'null'],
-                        description: 'Hauteur depuis le début de l’étape, pour la taille choisie, avec son unité (« 15 cm ») ; si le patron la donne depuis le bas de l’ouvrage, retranche la hauteur au début de l’étape.',
-                      },
-                    },
-                    required: ['row', 'pattern'],
+                      'Seulement pour une consigne « EN MÊME TEMPS » : où cette sous-étape commence, pendant que les précédentes continuent, compté depuis le début de l’étape : « rang 1 », « rang 46 », ou une hauteur pour la taille choisie (« 15 cm »). À omettre sinon.',
                   },
                 },
-                required: ['kind', 'rows', 'every', 'times', 'actions', 'text', 'pattern', 'at'],
+                required: ['kind', 'rows', 'every', 'times', 'actions', 'text', 'pattern'],
               },
             },
           },
-          required: ['title', 'instructions', 'total_rows', 'stitches', 'times', 'sections'],
+          required: ['title', 'piece', 'instructions', 'total_rows', 'stitches', 'times', 'sections'],
         },
       },
       charts: {
@@ -289,10 +282,10 @@ export function systemPrompt(size: string): string {
   return [
     ...chosen,
     'Les patrons donnent les nombres de toutes les tailles à la suite, par exemple « monter 60 (64-68-72) m. » ou « 60/64/68/72 m. ».',
-    'Découpe le patron en étapes dans l’ordre, en suivant avant tout sa structure : une étape par grande partie que le patron présente comme telle',
-    '(son titre de partie : par exemple dos, devant, manche, empiècement, col, finitions, selon le patron). Ne crée pas une étape par paragraphe ou par sous-titre :',
-    'les phases d’une même partie (côtes, puis jersey, puis augmentations ; un diagramme, puis un autre point) sont des sous-étapes (sections) de cette étape.',
-    'Une étape peut donc avoir des sous-étapes dans des points, des diagrammes ou des motifs différents, et un nombre de mailles qui change.',
+    'Découpe le patron en étapes de tricot dans l’ordre (dos, devant, manches, finitions…).',
+    'Donne pour chaque étape dans piece le morceau auquel elle appartient : ce qu’on tricote d’un seul tenant, du montage (ou des mailles reprises) à l’arrêt',
+    '(« Dos et devant », « Manche », « Col »). Les étapes d’un même morceau ont exactement le même piece : côtes, jersey et augmentations d’une manche,',
+    'ou jambe, talon, gousset, pied et pointe d’une chaussette (piece « Chaussette »).',
     'Dans instructions, recopie mot pour mot le texte du patron pour l’étape, avec les nombres de toutes les tailles tels qu’écrits :',
     'ne résume rien, ne coupe rien, ne traduis pas ; garde les retours à la ligne utiles. L’application mettra en valeur les nombres de la taille choisie.',
     'Donne dans size_number la position de la taille choisie parmi sizes (1 = première).',
@@ -303,9 +296,9 @@ export function systemPrompt(size: string): string {
     'l’application la convertira en rangs avec l’échantillon.',
     'Une partie tricotée plusieurs fois à l’identique (les deux manches, « x2 », un 2e devant « en vis-à-vis » sans autre différence) : une seule étape, avec times à 2 ;',
     'sinon times à 1. Deux parties qui diffèrent (devant gauche et devant droit aux diminutions inversées) restent deux étapes.',
-    'Consignes « EN MÊME TEMPS » (raglan et encolure, emmanchures et col V) : chaque consigne garde ses sections dans l’ordre ; la première section',
-    'd’une consigne qui commence pendant une autre a at (rang de l’étape, ou hauteur depuis le début de l’étape) ; les sections suivantes de la même',
-    'consigne s’enchaînent derrière elle sans at. Une consigne qui commence avec l’étape, en parallèle d’une autre, a at.row = 1.',
+    'Consignes « EN MÊME TEMPS » (raglan et encolure, emmanchures et col V) : elles restent dans l’étape en cours, jamais une étape à part ; chaque consigne garde ses sections dans l’ordre ; la première section',
+    'd’une consigne qui commence pendant une autre a same_time_from (« rang 46 », ou hauteur depuis le début de l’étape « 15 cm ») ; les sections suivantes',
+    'de la même consigne s’enchaînent derrière elle, sans ce champ. Une consigne qui commence avec l’étape, en parallèle d’une autre, a « rang 1 ».',
     'Repère les diagrammes (grilles de symboles ou de couleurs) dans charts : page du PDF, nom, plus grand numéro de rang de la grille,',
     'rangs endroit seuls ou non, à plat ou en rond, et l’étape où il se tricote ; un diagramme propre à une autre taille est ignoré.',
     'Relève dans size_chart le tableau des mesures par taille (tour de poitrine, longueur…), converti en cm, une valeur par taille dans l’ordre de sizes,',
@@ -320,9 +313,14 @@ export function systemPrompt(size: string): string {
 export function sanitizeSection(value: unknown): PatternSection | null {
   const section = sanitizeBody(value)
   if (!section) return null
-  const at = asRecord(asRecord(value).at)
-  const row = int(at.row, 1, 5000)
-  const pattern = str(at.pattern, 100) || null
+  // same_time_from (lecture du patron), ou at (sous-étape déjà en base, renvoyée par l'adaptation)
+  const r = asRecord(value)
+  const at = asRecord(r.at)
+  // « rang 46 » → rang ; « 15 cm » → hauteur à convertir
+  const from = str(r.same_time_from, 100)
+  const fromRow = /^rang\s+(\d+)$/i.exec(from)?.[1]
+  const row = int(fromRow !== undefined ? Number(fromRow) : at.row, 1, 5000)
+  const pattern = (from && fromRow === undefined ? from : str(at.pattern, 100)) || null
   return row !== null || pattern !== null ? { ...section, at: { row, pattern } } : section
 }
 
@@ -375,6 +373,58 @@ export function sanitizeCharts(value: unknown, stepCount: number): ChartHint[] {
     })
     .filter((c): c is ChartHint => c !== null)
     .slice(0, MAX_CHARTS)
+}
+
+/** Étape lue avec le morceau auquel elle appartient (« Dos et devant »), avant regroupement. */
+export type PhaseStep = PatternStep & { piece: string }
+
+const samePiece = (a: string, b: string) => !!a && a.toLocaleLowerCase('fr').trim() === b.toLocaleLowerCase('fr').trim()
+
+/** Sous-étapes d'une phase dans son morceau : décalées des rangs des phases d'avant (null : inconnus). */
+function phaseSections(phase: PatternStep, offset: number | null): PatternSection[] {
+  // Phase sans déroulé : une sous-étape de ses rangs (à régler s'ils ne sont pas connus).
+  if (!phase.sections.length) return [{ kind: 'rows', rows: phase.totalRows, every: null, times: null, actions: [], text: phase.title, pattern: null }]
+  return phase.sections.map((section) => {
+    if (!section.at || section.at.row === null || offset === 0) return section
+    // Début « en même temps » à un rang de la phase : rang du morceau, ou à régler si les rangs d'avant sont inconnus.
+    if (offset !== null) return { ...section, at: { ...section.at, row: section.at.row + offset } }
+    return { ...section, at: { row: null, pattern: section.at.pattern ?? `rang ${section.at.row} de « ${phase.title} »` } }
+  })
+}
+
+/**
+ * Regroupe les étapes qui se suivent dans un même morceau (« Dos et devant – côtes », « – jersey »…) en une étape
+ * dont elles sont les sous-étapes : l'IA découpe finement de façon fiable, le regroupement se fait ici. Les
+ * diagrammes suivent leur étape.
+ */
+export function groupPieces(phases: PhaseStep[], charts: ChartHint[]): { steps: PatternStep[]; charts: ChartHint[] } {
+  const groups: PhaseStep[][] = []
+  for (const phase of phases) {
+    const last = groups.at(-1)
+    if (last && samePiece(last[0]!.piece, phase.piece)) last.push(phase)
+    else groups.push([phase])
+  }
+  const stepOf: number[] = []
+  const steps = groups.map((group, index): PatternStep => {
+    group.forEach(() => stepOf.push(index))
+    const { piece: _piece, ...first } = group[0]!
+    if (group.length === 1) return first
+    let offset: number | null = 0
+    const sections: PatternSection[] = []
+    for (const phase of group) {
+      sections.push(...phaseSections(phase, offset))
+      offset = offset === null || phase.totalRows === null ? null : offset + phase.totalRows
+    }
+    return {
+      title: group[0]!.piece.trim(),
+      instructions: group.map((p) => p.instructions).filter(Boolean).join('\n\n'),
+      totalRows: offset,
+      stitches: group.at(-1)!.stitches,
+      times: Math.max(...group.map((p) => p.times)),
+      sections: sections.slice(0, 30),
+    }
+  })
+  return { steps, charts: charts.map((c) => (c.step === null ? c : { ...c, step: stepOf[c.step] ?? null })) }
 }
 
 function gaugeValue(value: unknown): number | null {
@@ -447,9 +497,9 @@ export function sanitizePattern(input: unknown, size: string): ReadPattern {
       422,
     )
   }
-  const steps = (Array.isArray(data.steps) ? data.steps : [])
+  const phases = (Array.isArray(data.steps) ? data.steps : [])
     .slice(0, MAX_STEPS)
-    .map((value) => {
+    .map((value): PhaseStep => {
       const s = asRecord(value)
       return {
         title: str(s.title, 200),
@@ -458,17 +508,19 @@ export function sanitizePattern(input: unknown, size: string): ReadPattern {
         stitches: int(s.stitches, 1, 5000),
         times: int(s.times, 1, 10) ?? 1,
         sections: (Array.isArray(s.sections) ? s.sections : []).map(sanitizeSection).filter((r): r is PatternSection => r !== null).slice(0, 30),
+        piece: str(s.piece, 200),
       }
     })
     .filter((s) => s.title)
-  if (steps.length === 0) throw new HttpError('Aucune étape de tricot trouvée dans ce PDF.', 422)
+  if (phases.length === 0) throw new HttpError('Aucune étape de tricot trouvée dans ce PDF.', 422)
+  const { steps, charts } = groupPieces(phases, sanitizeCharts(data.charts, phases.length))
   return {
     title: str(data.title, 200) || 'Patron sans titre',
     sizes,
     sizeIndex: sizeIndex(data.size_number, sizes, size),
     steps,
     gauge: sanitizeGauge(data.gauge),
-    charts: sanitizeCharts(data.charts, steps.length),
+    charts,
     abbreviations: sanitizeAbbreviations(data.abbreviations),
     sizeChart: sanitizeSizeChart(data.size_chart, sizes.length),
   }

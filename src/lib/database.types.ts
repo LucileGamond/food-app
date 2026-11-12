@@ -863,6 +863,9 @@ isOneToOne: false
                            } |
 { Args: { "p_pattern_gauge_rows": number,"p_pattern_gauge_stitches": number,"p_pdf_path": string,"p_queue_id": string,"p_size": string,"p_steps": Json,"p_title": string }; Returns: string
                            },
+"merge_knit_steps":
+{ Args: { "p_sections": Json,"p_step": string,"p_total_rows": number }; Returns: undefined
+                           },
 "create_meal":
 { Args: { "p_adhoc_notes"?: string,"p_adhoc_title"?: string,"p_adhoc_url"?: string,"p_meal_date": string,"p_people": (string)[],"p_recipe_id"?: string,"p_slot": Database["public"]['Enums']["meal_slot"] }; Returns: string
                            },

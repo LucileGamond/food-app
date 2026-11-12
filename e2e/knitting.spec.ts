@@ -186,7 +186,7 @@ test('met un patron de côté, le commence, puis note la laine (étiquette) et s
   await expect(page.getByText(/64 mailles à la fin \(≈ 70 avec ton échantillon\)/)).toBeVisible()
 
   // « tous les 5 cm » converti avec l'échantillon du patron (30 rangs pour 10 cm) : calcul expliqué, à valider
-  await page.getByRole('button', { name: 'Étape suivante' }).click()
+  await page.getByRole('button', { name: 'Étape suivante', exact: true }).click()
   const sections = page.getByRole('region', { name: 'Déroulé de l’étape' })
   const check = sections.getByRole('note')
   await expect(check).toContainText('Converti depuis le patron : 5 cm × 30 rangs pour 10 cm (échantillon du patron) ≈ 15 rangs (arrondi).')

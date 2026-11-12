@@ -13,7 +13,7 @@ import { sanitizeAbbreviations, type Abbreviation, type BaseGlossary } from './l
 import { sanitizeYarnChecks, type YarnCheck } from './lib/yarnLeft'
 import { sanitizeSizeChart, type MeasureProfile } from './lib/sizing'
 import { sanitizeHints, sanitizeSetup, type ChartHint, type ChartSetup, type KnitChart } from './lib/chart'
-import { MAX_PDF_BYTES, type KnitProject, type KnitProjectSummary, type KnitStep, type PatternStep, type ReadPattern, sanitizeSections } from './lib/pattern'
+import { MAX_PDF_BYTES, type KnitProject, type KnitProjectSummary, type KnitStep, type PatternStep, type ReadPattern, type StepSection, sanitizeSections } from './lib/pattern'
 
 const PATTERN_BUCKET = 'knit-patterns'
 const CHART_BUCKET = 'knit-charts'
@@ -317,6 +317,16 @@ export function createKnittingApi(db: AppSupabaseClient) {
         })
         .eq('id', stepId)
       if (error) throw toAppError(error, 'Impossible d’enregistrer l’avancée.')
+    },
+
+    /** Regroupe l'étape avec la suivante, qui devient ses sous-étapes (calculées par l'application). */
+    async mergeSteps(stepId: string, merged: { sections: StepSection[]; totalRows: number | null }): Promise<void> {
+      const { error } = await db.rpc('merge_knit_steps', {
+        p_step: stepId,
+        p_sections: merged.sections as unknown as Json,
+        p_total_rows: merged.totalRows as number,
+      })
+      if (error) throw toAppError(error, 'Impossible de regrouper les étapes.')
     },
 
     /** Taille dont les nombres sont mis en valeur dans le texte des étapes (null : aucune). */

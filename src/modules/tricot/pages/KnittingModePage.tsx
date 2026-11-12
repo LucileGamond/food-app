@@ -18,19 +18,21 @@ import { ModeCounter } from '../components/mode/ModeCounter'
 import { PatternDrawer } from '../components/mode/PatternDrawer'
 import { RowLine } from '../components/mode/RowLine'
 import { StepDone } from '../components/mode/StepDone'
+import { SubstepCounters } from '../components/mode/SubstepCounters'
 import { UpcomingList } from '../components/mode/UpcomingList'
 import { OfflineNote } from '../components/OfflineNote'
 import { StepOutline } from '../components/StepOutline'
 import { useBaseGlossary } from '../hooks/useBaseGlossary'
 import { useKnitProject } from '../hooks/useKnitProject'
 import { useRowVibration } from '../hooks/useRowVibration'
-import { stepsToFollow, type ShownStep } from '../lib/adapt'
+import { stepsToFollow, withAdaptedSections, type ShownStep } from '../lib/adapt'
 import { chartPosition } from '../lib/chart'
 import { looksEnglish, mergeGlossary } from '../lib/glossary'
 import { stepGuide } from '../lib/guide'
 import { stitchTrack } from '../lib/stitches'
 import { describePass, finishPass, hasNextPass, ordinal } from '../lib/passes'
 import { currentStepIndex, type KnitProject } from '../lib/pattern'
+import { finishSubstep, substepCounts, type SubstepCount } from '../lib/substeps'
 
 /**
  * Mode tricoter : plein écran, écran allumé. Le rang à tricoter (tout ce qu'il demande), ce qui arrive ensuite et le
@@ -108,6 +110,22 @@ function Knitting({ project, knit, projectTo }: KnittingProps) {
     if (progress.done && next) setParams({ etape: next.id }, { replace: true })
   }
 
+  /** Sous-étape finie : sa longueur devient les rangs tricotés (dans l'adaptation pour une étape adaptée). */
+  async function finishSub(count: SubstepCount) {
+    const sections = finishSubstep(step.sections, count.index, count.row - 1)
+    const adaptation = project.adaptation ?? null
+    if (!step.adapted || !adaptation) {
+      await knit.saveStep(step.id, { sections })
+      return
+    }
+    try {
+      await api.knitting.saveAdaptation(project.id, withAdaptedSections(adaptation, step.id, sections))
+      await knit.reload()
+    } catch (error) {
+      toast.error(errorMessage(error))
+    }
+  }
+
   async function translate() {
     try {
       const translated = await api.knitting.translateText(step.instructions)
@@ -145,6 +163,7 @@ function Knitting({ project, knit, projectTo }: KnittingProps) {
         ) : (
           <>
             <RowLine line={line} stitches={stitchTrack(step)(row)} glossary={glossary} setupTo={setupTo} onOpenChart={setChartOpen} />
+            <SubstepCounters counts={substepCounts(step, row)} total={step.sections.length} onFinish={(c) => void finishSub(c)} />
             <UpcomingList items={line.unknown ? [] : guide.upcoming(row)} glossary={glossary} />
           </>
         )}

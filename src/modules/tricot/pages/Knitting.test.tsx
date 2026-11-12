@@ -233,6 +233,26 @@ describe('KnittingProjectPage', () => {
     expect(await screen.findByRole('navigation', { name: 'Étapes' })).toBeInTheDocument()
   })
 
+  it('regroupe l’étape avec la suivante, sauf si la suivante est commencée', async () => {
+    const user = userEvent.setup()
+    const { api } = renderProject(undefined, PROJECT, `${STEP}=s2`)
+    await user.click(await screen.findByRole('button', { name: 'Regrouper avec l’étape suivante' }))
+    const dialog = await screen.findByRole('alertdialog', { name: 'Regrouper avec l’étape suivante ?' })
+    expect(dialog).toHaveTextContent('« Encolure » devient la suite de cette étape')
+    await user.click(within(dialog).getByRole('button', { name: 'Regrouper' }))
+    expect(api.knitting.mergeSteps).toHaveBeenCalledWith('s2', {
+      sections: [...PROJECT.steps[1]!.sections, { kind: 'rows', rows: null, every: null, times: null, text: 'Encolure', pattern: null }],
+      totalRows: null,
+    })
+    expect(api.knitting.getProject).toHaveBeenCalledTimes(2)
+  })
+
+  it('regroupement impossible quand l’étape suivante est commencée', async () => {
+    renderProject(undefined, PROJECT, `${STEP}=s1`)
+    expect(await screen.findByRole('button', { name: 'Regrouper avec l’étape suivante' })).toBeDisabled()
+    expect(screen.getByText('L’étape suivante est commencée : elle ne peut plus être regroupée.')).toBeInTheDocument()
+  })
+
   it('règle, ajoute, déplace et supprime des sections', async () => {
     const user = userEvent.setup()
     const { api } = renderProject()

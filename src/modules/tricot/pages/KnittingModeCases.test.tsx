@@ -55,6 +55,7 @@ async function open(value: KnitProject) {
   renderWithApp(<KnittingModePage />, { api, route: '/tricot/p1/tricoter', path: '/tricot/:id/tricoter' })
   const line = await screen.findByRole('region', { name: /à tricoter$/ })
   return {
+    api,
     line,
     upcoming: () => screen.queryByRole('list', { name: 'Ensuite' })?.querySelectorAll('li') ?? [],
     stitches: () => screen.getByText(/En fin de rang/).textContent,
@@ -281,5 +282,25 @@ describe('mode tricoter : patron adapté et cas limites', () => {
     api.knitting.getProject.mockResolvedValue({ ...project({}), steps: [] })
     renderWithApp(<KnittingModePage />, { api, route: '/tricot/p1/tricoter', path: '/tricot/:id/tricoter' })
     expect(await screen.findByText('Aucune étape à tricoter')).toBeInTheDocument()
+  })
+})
+
+describe('mode tricoter : compteur des sous-étapes', () => {
+  it('chaque sous-étape affiche son rang ; une longueur à mesurer se finit après les rangs tricotés', async () => {
+    const step = { totalRows: null, rowCount: 14, sections: [rows(12, 'côtes'), rows(null, 'jersey'), rows(4, 'côtes')] }
+    const { api } = await open(project(step))
+    const counters = screen.getByRole('list', { name: 'Sous-étapes en cours' })
+    expect(counters).toHaveTextContent('Sous-étape 2 sur 3')
+    expect(counters).toHaveTextContent('Rang 3 · longueur à mesurer')
+    await userEvent.setup().click(within(counters).getByRole('button', { name: 'Sous-étape finie (2 rangs)' }))
+    expect(api.knitting.saveProgress).toHaveBeenCalledWith('s1', { sections: [rows(12, 'côtes'), { ...rows(null, 'jersey'), rows: 2 }, rows(4, 'côtes')] })
+  })
+
+  it('longueur connue : rang sur le total, et la finir plus tôt', async () => {
+    await open(project({ rowCount: 11, sections: [rows(12, 'côtes'), rows(8, 'jersey')] }))
+    const counters = screen.getByRole('list', { name: 'Sous-étapes en cours' })
+    expect(counters).toHaveTextContent('Sous-étape 1 sur 2')
+    expect(counters).toHaveTextContent('Rang 12 sur 12')
+    expect(within(counters).getByRole('button', { name: 'Sous-étape finie (11 rangs)' })).toBeInTheDocument()
   })
 })

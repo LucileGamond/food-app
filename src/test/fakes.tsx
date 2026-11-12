@@ -182,6 +182,7 @@ export function fakeApi(): FakeApi {
       readPattern: vi.fn(async (): Promise<ReadPattern> => ({ title: 'Patron lu', sizes: [], steps: [] })),
       createProject: vi.fn(async () => 'new-project'),
       saveProgress: vi.fn(async () => undefined),
+      mergeSteps: vi.fn(async () => undefined),
       deleteProject: vi.fn(async () => undefined),
       pdfUrl: vi.fn(async (path: string) => `https://cdn.test/${path}`),
       saveProjectInfo: vi.fn(async () => undefined),

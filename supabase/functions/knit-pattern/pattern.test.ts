@@ -1,5 +1,5 @@
 import { createHandler, type Deps } from './handler.ts'
-import { MAX_PDF_BASE64, parseInput, readPattern, sanitizePattern, sanitizeSection, systemPrompt } from './pattern.ts'
+import { groupPieces, MAX_PDF_BASE64, parseInput, readPattern, sanitizePattern, sanitizeSection, systemPrompt, type PhaseStep } from './pattern.ts'
 
 const PDF = 'JVBERi0xLjQK' // « %PDF-1.4 »
 
@@ -143,8 +143,8 @@ describe('résultat du modèle', () => {
     }
     expect(systemPrompt('M')).toContain('EN MÊME TEMPS')
     // Une étape par partie du patron, ses phases en sous-étapes
-    expect(systemPrompt('M')).toContain('en suivant avant tout sa structure')
-    expect(systemPrompt('M')).toContain('sous-étapes dans des points, des diagrammes ou des motifs différents')
+    expect(systemPrompt('M')).toContain('ce qu’on tricote d’un seul tenant')
+    expect(systemPrompt('M')).toContain('jambe, talon, gousset, pied et pointe d’une chaussette')
   })
 
   it('garde le texte du patron tel quel et la position de la taille choisie', () => {
@@ -234,6 +234,68 @@ describe('résultat du modèle', () => {
     expect(body.tool_choice).toEqual({ type: 'tool', name: 'enregistrer_patron' })
     expect(systemPrompt('4 ans')).toContain('recopie mot pour mot')
     expect(systemPrompt('4 ans')).toContain('une seule étape, avec times à 2')
+  })
+})
+
+describe('regroupement par morceau', () => {
+  const rows = (n: number | null, text: string) => ({ kind: 'rows' as const, rows: n, every: null, times: null, actions: [], text, pattern: n === null ? '30 cm' : null })
+  const phase = (piece: string, title: string, patch: Partial<PhaseStep> = {}): PhaseStep => ({ piece, title, instructions: `Texte ${title}.`, totalRows: null, stitches: null, times: 1, sections: [], ...patch })
+
+  it('les phases qui se suivent dans un morceau deviennent ses sous-étapes ; les diagrammes suivent', () => {
+    const { steps, charts } = groupPieces(
+      [
+        phase('Dos et devant', 'Dos – côtes', { totalRows: 18, sections: [rows(18, 'côtes')] }),
+        phase('dos et devant ', 'Dos – jersey', { totalRows: 100, stitches: 98, sections: [rows(100, 'jersey')] }),
+        phase('Manche', 'Manches – côtes', { times: 2, sections: [rows(24, 'côtes')] }),
+        phase('Manche', 'Manches – augmentations', { times: 2, sections: [] }),
+        phase('Col', 'Bordure'),
+      ],
+      [
+        { page: 3, title: 'Torsade', rows: 8, step: 1, flat: false, oddOnly: false },
+        { page: 4, title: 'Bordure', rows: 4, step: 4, flat: null, oddOnly: false },
+        { page: 5, title: 'Libre', rows: 4, step: null, flat: null, oddOnly: false },
+      ],
+    )
+    expect(steps.map((s) => [s.title, s.totalRows, s.stitches, s.times, s.sections.length])).toEqual([
+      ['Dos et devant', 118, 98, 1, 2],
+      ['Manche', null, null, 2, 2],
+      ['Bordure', null, null, 1, 0],
+    ])
+    expect(steps[0]!.instructions).toBe('Texte Dos – côtes.\n\nTexte Dos – jersey.')
+    // Phase sans déroulé : une sous-étape à son nom, rangs à régler
+    expect(steps[1]!.sections[1]).toEqual({ ...rows(null, 'Manches – augmentations'), pattern: null })
+    expect(charts.map((c) => c.step)).toEqual([0, 2, null])
+  })
+
+  it('« en même temps » dans une phase : son rang devient celui du morceau, ou à régler si les rangs d’avant sont inconnus', () => {
+    const neck = { ...rows(4, 'encolure'), at: { row: 10, pattern: null } }
+    const known = groupPieces([phase('Empiècement', 'Raglan – mise en place', { totalRows: 2 }), phase('Empiècement', 'Raglan – diminutions', { sections: [rows(40, 'raglan'), neck] })], [])
+    expect(known.steps[0]!.sections[2]!.at).toEqual({ row: 12, pattern: null })
+    const unknown = groupPieces([phase('Empiècement', 'Raglan – mise en place'), phase('Empiècement', 'Raglan – diminutions', { sections: [rows(40, 'raglan'), neck] })], [])
+    expect(unknown.steps[0]!.sections[2]!.at).toEqual({ row: null, pattern: 'rang 10 de « Raglan – diminutions »' })
+    // Première phase : rien ne change
+    expect(groupPieces([phase('Corps', 'A', { sections: [neck] }), phase('Corps', 'B')], []).steps[0]!.sections[0]).toBe(neck)
+  })
+
+  it('sans morceau indiqué : rien n’est regroupé', () => {
+    expect(groupPieces([phase('', 'A'), phase('', 'B')], []).steps.map((s) => s.title)).toEqual(['A', 'B'])
+  })
+
+  it('lecture du modèle : les étapes d’un même piece sont regroupées', () => {
+    const pattern = sanitizePattern({ ...PATTERN, steps: [{ title: 'Manche – côtes', piece: 'Manche', instructions: 'a', total_rows: 10, stitches: 60, times: 2, sections: [] }, { title: 'Manche – jersey', piece: 'Manche', instructions: 'b', total_rows: 90, stitches: 80, times: 2, sections: [] }] }, '')
+    expect(pattern.steps).toEqual([
+      {
+        title: 'Manche',
+        instructions: 'a\n\nb',
+        totalRows: 100,
+        stitches: 80,
+        times: 2,
+        sections: [
+          { kind: 'rows', rows: 10, every: null, times: null, actions: [], text: 'Manche – côtes', pattern: null },
+          { kind: 'rows', rows: 90, every: null, times: null, actions: [], text: 'Manche – jersey', pattern: null },
+        ],
+      },
+    ])
   })
 })
 
