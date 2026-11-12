@@ -124,6 +124,16 @@ describe('knitting api', () => {
     await expect(api.knitting.splitStep(steps[1]!.id, splitStep(steps[1]!, 1))).rejects.toThrow()
   })
 
+  it('garde les aiguilles du patron, lues à l’import puis modifiées', async () => {
+    const { api } = await signedInApi()
+    const id = await api.knitting.createProject({ title: 'Pull', size: 'M', pdf: null, steps: STEPS, needles: [3.5, 3] })
+    expect((await api.knitting.getProject(id))!.needles).toEqual([3, 3.5])
+    await api.knitting.saveNeedles(id, [4])
+    expect((await api.knitting.getProject(id))!.needles).toEqual([4])
+    const other = await api.knitting.createProject({ title: 'Bonnet', size: 'M', pdf: null, steps: STEPS })
+    expect((await api.knitting.getProject(other))!.needles).toEqual([])
+  })
+
   it('garde chaque projet pour sa propriétaire, accepte un projet sans PDF', async () => {
     const lucile = await signedInApi()
     const eric = await signedInApi(ERIC.email)

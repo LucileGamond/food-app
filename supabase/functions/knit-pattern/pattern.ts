@@ -29,6 +29,8 @@ export interface PatternSection {
   pattern: string | null
   /** « En même temps » : la section commence à ce rang de l'étape (ou à cette hauteur), en parallèle des autres. */
   at?: { row: number | null; pattern: string | null }
+  /** Aiguille (mm) quand le paragraphe en change ; absente : celle d'avant. */
+  needle?: number
   /** Texte du patron de cette sous-étape (phase regroupée dans son morceau). */
   source?: string
 }
@@ -104,6 +106,8 @@ export interface ReadPattern {
   sizeChart: SizeChart | null
   /** Parties du patron annoncées mais sans étape lue (lecture arrêtée en route) : à relire. */
   missingParts: string[]
+  /** Aiguilles du patron (mm), de la plus fine à la plus grosse. */
+  needles: number[]
 }
 
 function str(value: unknown, max: number): string {
@@ -143,6 +147,11 @@ export const TOOL: Tool = {
           rows: { type: ['number', 'null'], description: 'Rangs pour 10 cm de haut.' },
         },
         required: ['stitches', 'rows'],
+      },
+      needles: {
+        type: 'array',
+        items: { type: 'number' },
+        description: 'Tailles des aiguilles du patron en mm (« aiguilles 3 et 3,5 » → 3 et 3.5), de la plus fine à la plus grosse.',
       },
       titles: {
         type: 'array',
@@ -202,6 +211,10 @@ export const TOOL: Tool = {
                     type: ['string', 'null'],
                     description:
                       'Mesure telle qu’écrite dans le patron, pour la taille choisie seulement et avec son unité : « 5 cm », « tous les 5 cm », « 2 in », « tous les 6 rangs ».',
+                  },
+                  needle: {
+                    type: ['number', 'null'],
+                    description: 'Aiguille (mm) de cette sous-étape si le paragraphe la dit (« changer pour l’aiguille 3,5 » → 3.5) ; à omettre si elle ne change pas.',
                   },
                   same_time_from: {
                     type: 'string',
@@ -312,6 +325,7 @@ export function systemPrompt(size: string): string {
     'Relève dans size_chart le tableau des mesures par taille (tour de poitrine, longueur…), converti en cm, une valeur par taille dans l’ordre de sizes,',
     'en précisant s’il s’agit des mesures du vêtement fini ou du corps, et l’aisance conseillée si le patron la donne.',
     'Relève dans abbreviations les abréviations expliquées par le patron (sa légende), telles qu’écrites, avec leur sens en français.',
+    'Relève les aiguilles du patron (mm) dans needles ; une sous-étape dont le paragraphe change d’aiguille a needle, les suivantes la gardent sans needle.',
     'Relève l’échantillon du patron (mailles et rangs pour 10 cm) dans gauge ; ignore la liste du matériel et les abréviations, sauf s’ils servent à une étape.',
     'Si la taille choisie ne fait pas partie du patron, mets size_found à false et steps vide.',
   ].join('\n')
@@ -329,7 +343,9 @@ export function sanitizeSection(value: unknown): PatternSection | null {
   const fromRow = /^rang\s+(\d+)$/i.exec(from)?.[1]
   const row = int(fromRow !== undefined ? Number(fromRow) : at.row, 1, 5000)
   const pattern = (from && fromRow === undefined ? from : str(at.pattern, 100)) || null
-  return row !== null || pattern !== null ? { ...section, at: { row, pattern } } : section
+  const needle = typeof r.needle === 'number' && r.needle >= 0.5 && r.needle <= 30 ? Math.round(r.needle * 100) / 100 : null
+  const started = row !== null || pattern !== null ? { ...section, at: { row, pattern } } : section
+  return needle !== null ? { ...started, needle } : started
 }
 
 function sanitizeBody(value: unknown): PatternSection | null {
@@ -391,6 +407,32 @@ export function missingParts(titles: unknown, phases: PhaseStep[]): string[] {
     .filter((t) => t && !read.some((piece) => samePiece(piece, t)))
     .map(pieceTitle)
     .slice(0, 20)
+}
+
+/**
+ * Aiguille dite dans un paragraphe (« l’aiguille circulaire 3,5 », « needles 4 mm ») parmi celles du patron ; la dernière
+ * citée l'emporte (« changer pour l’aiguille 3,5 »). null : le paragraphe n'en dit rien.
+ */
+export function needleIn(text: string, needles: number[]): number | null {
+  // « aiguille circulaire 3,5 », « needles 4 mm », ou « 4 mm needles » : la dernière citée dans le texte
+  const hits = [...text.matchAll(/(?:aiguilles?|needles?)[^.\d;]{0,40}?(\d+(?:[.,]\d+)?)|(\d+(?:[.,]\d+)?)\s*mm\s+(?:[a-z-]+\s+){0,2}needles?/gi)]
+    .map((m) => ({ at: m.index ?? 0, value: Number((m[1] ?? m[2])!.replace(',', '.')) }))
+    .filter((h) => needles.includes(h.value))
+    .sort((a, b) => a.at - b.at)
+  return hits.at(-1)?.value ?? null
+}
+
+/** Sous-étapes sans aiguille dont le paragraphe en cite une du patron : elle leur est donnée. */
+function withNeedles(steps: PatternStep[], needles: number[]): PatternStep[] {
+  if (!needles.length) return steps
+  return steps.map((step) => ({
+    ...step,
+    sections: step.sections.map((section) => {
+      if (section.needle !== undefined || !section.source) return section
+      const needle = needleIn(section.source, needles)
+      return needle === null ? section : { ...section, needle }
+    }),
+  }))
 }
 
 /** Étape lue avec le morceau auquel elle appartient (« Dos et devant »), avant regroupement. */
@@ -539,7 +581,12 @@ export function sanitizePattern(input: unknown, size: string): ReadPattern {
     })
     .filter((s) => s.title)
   if (phases.length === 0) throw new HttpError('Aucune étape de tricot trouvée dans ce PDF.', 422)
-  const { steps, charts } = groupPieces(phases, sanitizeCharts(data.charts, phases.length))
+  const grouped = groupPieces(phases, sanitizeCharts(data.charts, phases.length))
+  const needles = [...new Set((Array.isArray(data.needles) ? data.needles : []).filter((n): n is number => typeof n === 'number' && n >= 0.5 && n <= 30).map((n) => Math.round(n * 100) / 100))]
+    .sort((a, b) => a - b)
+    .slice(0, 10)
+  const steps = withNeedles(grouped.steps, needles)
+  const charts = grouped.charts
   return {
     title: str(data.title, 200) || 'Patron sans titre',
     sizes,
@@ -550,6 +597,7 @@ export function sanitizePattern(input: unknown, size: string): ReadPattern {
     abbreviations: sanitizeAbbreviations(data.abbreviations),
     sizeChart: sanitizeSizeChart(data.size_chart, sizes.length),
     missingParts: missingParts(data.titles, phases),
+    needles,
   }
 }
 

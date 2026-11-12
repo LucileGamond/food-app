@@ -20,6 +20,7 @@ import { StepDone } from '../components/mode/StepDone'
 import { OfflineNote } from '../components/OfflineNote'
 import { StepReady } from '../components/StepReady'
 import { readyIssues } from '../lib/ready'
+import { effectiveNeedles, formatNeedle } from '../lib/needles'
 import { StepOutline } from '../components/StepOutline'
 import { useBaseGlossary } from '../hooks/useBaseGlossary'
 import { useKnitProject } from '../hooks/useKnitProject'
@@ -96,8 +97,13 @@ function Knitting({ project, knit, projectTo }: KnittingProps) {
   const line = guide.at(row)
   const glossary = mergeGlossary(project.abbreviations ?? [], base, looksEnglish(step.instructions))
   const setupTo = `${projectTo}?etape=${encodeURIComponent(step.id)}`
-  const issues = readyIssues(step)
+  const issues = readyIssues(step, project.needles ?? [])
   const ready = issues.length === 0
+  const substeps = finished ? [] : substepCounts(step, row)
+  const needles = effectiveNeedles(step.sections, project.needles ?? [])
+  const needle = substeps[0] ? (needles[substeps[0].index] ?? null) : null
+  // Premier rang d'une sous-étape qui change d'aiguille : le rappeler
+  const needleChange = substeps.find((c) => c.row === 1 && c.index > 0 && needles[c.index] !== null && needles[c.index] !== needles[c.index - 1])
   useRowVibration(row, !finished && line.events.length > 0)
 
   const count = (delta: number) => void knit.countRows(step.id, delta)
@@ -164,7 +170,14 @@ function Knitting({ project, knit, projectTo }: KnittingProps) {
           // Pas prête : on la prépare d'abord, rien ne se compte
           <StepReady issues={issues} setupTo={setupTo} />
         ) : (
-          <RowLine line={line} stitches={stitchTrack(step)(row)} glossary={glossary} setupTo={setupTo} onOpenChart={setChartOpen} />
+          <>
+            {needleChange && (
+              <p role="status" className="rounded-xl border border-brand/40 bg-brand/10 p-3 text-sm font-medium">
+                Change pour l’aiguille {formatNeedle(needles[needleChange.index]!)}
+              </p>
+            )}
+            <RowLine line={line} stitches={stitchTrack(step)(row)} glossary={glossary} setupTo={setupTo} onOpenChart={setChartOpen} />
+          </>
         )}
         <StepOutline step={step} nextTitle={next?.title ?? null} showCurrent={!finished} upcoming={finished || !ready || line.unknown ? null : (guide.upcoming(row, 1)[0] ?? null)} />
         <PatternDrawer
@@ -187,7 +200,7 @@ function Knitting({ project, knit, projectTo }: KnittingProps) {
 
       {!step.done && ready && (
         <footer className="sticky bottom-0 border-t bg-background/95 px-4 py-3 backdrop-blur" style={{ paddingBottom: 'calc(0.75rem + env(safe-area-inset-bottom, 0px))' }}>
-          <ModeCounter rowCount={step.rowCount} totalRows={step.totalRows} onCount={count} substeps={finished ? [] : substepCounts(step, row)} onFinishSubstep={(c) => void finishSub(c)} />
+          <ModeCounter rowCount={step.rowCount} totalRows={step.totalRows} onCount={count} substeps={substeps} needle={needle} onFinishSubstep={(c) => void finishSub(c)} />
         </footer>
       )}
 

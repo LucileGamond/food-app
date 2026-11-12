@@ -141,7 +141,7 @@ describe('KnittingImportPage', () => {
     await user.clear(screen.getByLabelText('Nom du projet'))
     await user.type(screen.getByLabelText('Nom du projet'), 'Pull de Noël')
     await user.click(screen.getByRole('button', { name: 'Enregistrer le projet' }))
-    expect(api.knitting.createProject).toHaveBeenCalledWith({ title: 'Pull de Noël', size: 'M', pdf: file, steps: PATTERN.steps, gauge: { stitches: 22, rows: 30 }, queued: null, chartHints: charts, sizes: ['S', 'M', 'L'], sizeIndex: 1, abbreviations: [] })
+    expect(api.knitting.createProject).toHaveBeenCalledWith({ title: 'Pull de Noël', size: 'M', pdf: file, steps: PATTERN.steps, gauge: { stitches: 22, rows: 30 }, queued: null, chartHints: charts, sizes: ['S', 'M', 'L'], sizeIndex: 1, abbreviations: [], needles: [] })
     expect(await screen.findByText('Projet ouvert')).toBeInTheDocument()
   })
 
@@ -278,6 +278,48 @@ describe('KnittingProjectPage', () => {
     const nav = await screen.findByRole('navigation', { name: 'Étapes' })
     const links = within(within(nav).getByRole('list')).getAllByRole('link')
     expect(links.map((l) => l.textContent?.includes('À préparer'))).toEqual([false, false, true])
+  })
+
+  it('aiguilles du patron : indiquées sur la page du projet', async () => {
+    const user = userEvent.setup()
+    const { api } = renderProject(fakeApi(), PROJECT, OVERVIEW)
+    expect(await screen.findByText('pas encore indiquées (chaque sous-étape pourra choisir la sienne)')).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'Indiquer les aiguilles du patron' }))
+    const form = screen.getByRole('form', { name: 'Aiguilles du patron' })
+    await user.type(within(form).getByLabelText('Aiguilles du patron (mm)'), 'trois')
+    await user.click(within(form).getByRole('button', { name: 'Enregistrer' }))
+    expect(within(form).getByRole('alert')).toHaveTextContent('Des tailles en mm')
+    await user.clear(within(form).getByLabelText('Aiguilles du patron (mm)'))
+    await user.type(within(form).getByLabelText('Aiguilles du patron (mm)'), '3,5 ; 3')
+    await user.click(within(form).getByRole('button', { name: 'Enregistrer' }))
+    expect(api.knitting.saveNeedles).toHaveBeenCalledWith('p1', [3, 3.5])
+  })
+
+  it('aiguille de chaque sous-étape : à choisir avec plusieurs aiguilles, héritée de la précédente', async () => {
+    const user = userEvent.setup()
+    const project = { ...structuredClone(PROJECT), needles: [3, 3.5] }
+    const { api } = renderProject(fakeApi(), project, `${STEP}=s2`)
+    const alert = await screen.findByRole('alert')
+    expect(within(alert).getAllByRole('listitem').map((li) => li.textContent)).toEqual([
+      'Sous-étape 1 (4 rangs : jersey) : aiguille à choisir.',
+      'Sous-étape 2 (1 diminution de chaque côté — tous les 6 rangs (4 fois)) : aiguille à choisir.',
+    ])
+    expect(screen.getByRole('button', { name: 'Tricoter cette étape' })).toBeDisabled()
+    await user.click(screen.getByRole('button', { name: 'Actions pour « 4 rangs : jersey »' }))
+    await user.click(await screen.findByRole('menuitem', { name: 'Régler' }))
+    const form = screen.getByRole('form', { name: 'Sous-étape' })
+    expect(within(form).getByLabelText('Aiguille')).toHaveDisplayValue('À choisir')
+    await user.selectOptions(within(form).getByLabelText('Aiguille'), '3 mm')
+    await user.click(within(form).getByRole('button', { name: 'Enregistrer' }))
+    const sections = [{ ...project.steps[1]!.sections[0]!, needle: 3 }, project.steps[1]!.sections[1]!]
+    expect(api.knitting.saveProgress).toHaveBeenLastCalledWith('s2', { sections })
+  })
+
+  it('aiguille héritée : la 2e sous-étape prend celle de la 1re, l’étape est prête', async () => {
+    const project = structuredClone(PROJECT)
+    project.steps[1]!.sections = [{ ...project.steps[1]!.sections[0]!, needle: 3 }, project.steps[1]!.sections[1]!]
+    renderProject(fakeApi(), { ...project, needles: [3, 3.5] }, `${STEP}=s2`)
+    expect(await screen.findByText('Prête à tricoter')).toBeInTheDocument()
   })
 
   it('règle, ajoute, déplace et supprime des sections', async () => {

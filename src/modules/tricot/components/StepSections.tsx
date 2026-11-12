@@ -10,6 +10,7 @@ import { cn } from '@/lib/utils'
 import { guessStitches } from '../lib/stitches'
 import { describeConversion, parseMeasure, validateSection } from '../lib/measure'
 import { withoutSection } from '../lib/sources'
+import { effectiveNeedles, formatNeedle } from '../lib/needles'
 import {
   describeRange,
   describeSection,
@@ -89,7 +90,14 @@ function guessPlaceholder(text: string): string {
   return guess === null ? '?' : formatStitches(guess)
 }
 
-function SectionForm({ section, onSave, onCancel }: { section: StepSection; onSave: (s: StepSection) => void; onCancel: () => void }) {
+interface NeedleChoice {
+  /** Aiguilles du patron. */
+  needles: number[]
+  /** Aiguille de la sous-étape d'avant (héritée si on n'en choisit pas). */
+  inherited: number | null
+}
+
+function SectionForm({ section, onSave, onCancel, needle }: { section: StepSection; onSave: (s: StepSection) => void; onCancel: () => void; needle: NeedleChoice }) {
   const id = useId()
   const [form, setForm] = useState<Form>(() => sectionToForm(section))
   const [error, setError] = useState<string | null>(null)
@@ -112,6 +120,19 @@ function SectionForm({ section, onSave, onCancel }: { section: StepSection; onSa
         <p className="text-sm text-muted-foreground">
           Patron : <span className="font-medium text-foreground">{section.pattern}</span>
         </p>
+      )}
+      {needle.needles.length > 0 && (
+        <div className="grid gap-1.5">
+          <Label htmlFor={`${id}-needle`}>Aiguille</Label>
+          <NativeSelect id={`${id}-needle`} className="h-9" value={form.needle ?? ''} onChange={(e) => setForm((f) => ({ ...f, needle: e.target.value }))}>
+            <option value="">{needle.inherited !== null ? `Comme avant (${formatNeedle(needle.inherited)})` : needle.needles.length === 1 ? `${formatNeedle(needle.needles[0]!)}` : 'À choisir'}</option>
+            {needle.needles.map((n) => (
+              <option key={n} value={String(n)}>
+                {formatNeedle(n)}
+              </option>
+            ))}
+          </NativeSelect>
+        </div>
       )}
       <div role="radiogroup" aria-label="Type de sous-étape" className="grid grid-cols-2 gap-1 rounded-lg bg-muted p-1">
         {KINDS.map(({ kind, label }) => (
@@ -235,7 +256,10 @@ function SectionForm({ section, onSave, onCancel }: { section: StepSection; onSa
 }
 
 /** Sections de l'étape (préparation), dans l'ordre : rangs sans répétition et répétitions, réglables en rangs selon sa laine. */
-export function StepSections({ step, onChange }: { step: KnitStep; onChange: (sections: StepSection[]) => Promise<boolean> }) {
+export function StepSections({ step, onChange, needles = [] }: { step: KnitStep; onChange: (sections: StepSection[]) => Promise<boolean>; needles?: number[] }) {
+  const own = effectiveNeedles(step.sections, needles)
+  /** Aiguille héritée par la sous-étape `index` : celle d'avant, ou la seule du projet. */
+  const inheritedAt = (index: number) => (index > 0 ? (own[index - 1] ?? null) : needles.length === 1 ? needles[0]! : null)
   // Index en cours de modification ; `step.sections.length` = nouvelle section.
   const [editing, setEditing] = useState<number | null>(null)
   const [removing, setRemoving] = useState<number | null>(null)
@@ -270,7 +294,7 @@ export function StepSections({ step, onChange }: { step: KnitStep; onChange: (se
           if (editing === index) {
             return (
               <li key={index}>
-                <SectionForm section={section} onSave={(s) => void save(index, s)} onCancel={() => setEditing(null)} />
+                <SectionForm section={section} needle={{ needles, inherited: inheritedAt(index) }} onSave={(s) => void save(index, s)} onCancel={() => setEditing(null)} />
               </li>
             )
           }
@@ -328,7 +352,7 @@ export function StepSections({ step, onChange }: { step: KnitStep; onChange: (se
         })}
         {editing === step.sections.length && (
           <li>
-            <SectionForm section={EMPTY} onSave={(s) => void save(step.sections.length, s)} onCancel={() => setEditing(null)} />
+            <SectionForm section={EMPTY} needle={{ needles, inherited: inheritedAt(step.sections.length) }} onSave={(s) => void save(step.sections.length, s)} onCancel={() => setEditing(null)} />
           </li>
         )}
       </ol>

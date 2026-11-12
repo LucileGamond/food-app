@@ -31,6 +31,7 @@ import { StepNotes } from '../components/StepNotes'
 import { StepTimes } from '../components/StepTimes'
 import { StepOutline } from '../components/StepOutline'
 import { StepReady } from '../components/StepReady'
+import { ProjectNeedles } from '../components/ProjectNeedles'
 import { isReady, readyIssues } from '../lib/ready'
 import { describePass } from '../lib/passes'
 
@@ -84,6 +85,7 @@ export function KnittingProjectPage() {
 
   // Patron adapté suivi : ses rangs, mailles et sections remplacent ceux du patron d'origine (gardé tel quel).
   const adaptation = project.adaptation ?? null
+  const needles = project.needles ?? []
   const { size: followedSize, steps, following } = stepsToFollow(project)
   const knitTo = (stepId?: string) => `/tricot/${project.id}/tricoter${stepId ? `?etape=${encodeURIComponent(stepId)}` : ''}`
   const current = steps[currentStepIndex(steps)]
@@ -149,6 +151,17 @@ export function KnittingProjectPage() {
     }
   }
 
+  async function saveNeedles(next: number[]): Promise<boolean> {
+    try {
+      await api.knitting.saveNeedles(project!.id, next)
+      await reload()
+      return true
+    } catch (error) {
+      toast.error(errorMessage(error))
+      return false
+    }
+  }
+
   async function changeSize(sizeIndex: number | null) {
     try {
       await api.knitting.setSizeIndex(project!.id, sizeIndex)
@@ -185,7 +198,7 @@ export function KnittingProjectPage() {
           <ChevronLeft className="size-4 shrink-0" aria-hidden /> <span className="truncate">{project.title}</span>
         </Link>
         <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
-          {step.done || isReady(step) ? (
+          {step.done || isReady(step, needles) ? (
             <Link to={knitTo(step.id)} className={cn(buttonVariants(), 'h-10')}>
               <Play /> Tricoter cette étape
             </Link>
@@ -216,7 +229,7 @@ export function KnittingProjectPage() {
             </h1>
             {!step.done && (
               <div className="mt-2">
-                <StepReady issues={readyIssues(step)} />
+                <StepReady issues={readyIssues(step, needles)} />
               </div>
             )}
             {step.adapted && (
@@ -250,7 +263,7 @@ export function KnittingProjectPage() {
             {describePass(step) && ` · ${describePass(step)}`}
           </p>
           <StepTimes step={step} onChange={(progress) => void saveStep(step.id, progress)} />
-          <StepSections step={step} onChange={(sections) => saveSections(step, sections)} />
+          <StepSections step={step} needles={needles} onChange={(sections) => saveSections(step, sections)} />
           <StepOutline step={step} nextTitle={steps[index + 1]?.title ?? null} showCurrent={!step.done && step.rowCount > 0} />
           <StepCharts projectId={project.id} pdfPath={project.pdfPath} step={step} steps={steps} charts={project.charts} hints={project.chartHints} onChanged={reload} />
           <StepNotes key={step.id} step={step} onSave={(notes) => void saveStep(step.id, { notes })} />
@@ -296,11 +309,10 @@ export function KnittingProjectPage() {
         }
       />
       {offlineNote}
-      {project.sizes.length > 1 && (
-        <div className="mb-4">
-          <SizePicker id="knit-size-index" sizes={project.sizes} sizeIndex={project.sizeIndex} onChange={(i) => void changeSize(i)} />
-        </div>
-      )}
+      <div className="mb-4 space-y-2">
+        <SizePicker id="knit-size-index" sizes={project.sizes} sizeIndex={project.sizeIndex} onChange={(i) => void changeSize(i)} />
+        <ProjectNeedles needles={needles} onSave={saveNeedles} />
+      </div>
 
       <nav aria-labelledby="knit-steps">
         <div className="mb-2 flex items-center justify-between gap-2">
@@ -343,7 +355,7 @@ export function KnittingProjectPage() {
                       )}
                     </span>
                     {s.done && <span className="sr-only">(terminée)</span>}
-                    {!s.done && !isReady(s) && <span className="shrink-0 rounded-full bg-amber-500/15 px-2 py-0.5 text-xs font-medium">À préparer</span>}
+                    {!s.done && !isReady(s, needles) && <span className="shrink-0 rounded-full bg-amber-500/15 px-2 py-0.5 text-xs font-medium">À préparer</span>}
                     {isCurrent && <span className="shrink-0 rounded-full bg-brand/15 px-2 py-0.5 text-xs font-medium">En cours</span>}
                     <ChevronRight className="size-4 shrink-0 text-muted-foreground" aria-hidden />
                   </Link>

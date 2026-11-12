@@ -5,6 +5,7 @@
 // prépare d'abord : la préparation dit quoi, sous-étape par sous-étape.
 
 import { describeConversion } from './measure'
+import { effectiveNeedles } from './needles'
 import { describeSection, type KnitStep, type StepSection } from './pattern'
 
 export interface ReadyIssue {
@@ -22,12 +23,16 @@ function issueOf(section: StepSection): string | null {
   return null
 }
 
-/** Ce qui manque pour tricoter l'étape ; vide : prête. */
-export function readyIssues(step: Pick<KnitStep, 'sections'>): ReadyIssue[] {
+/**
+ * Ce qui manque pour tricoter l'étape ; vide : prête. Aiguilles : à choisir quand le projet en a plusieurs (une seule
+ * vaut partout ; sans aiguille au projet, rien n'est demandé).
+ */
+export function readyIssues(step: Pick<KnitStep, 'sections'>, needles: number[] = []): ReadyIssue[] {
+  const own = effectiveNeedles(step.sections, needles)
   return step.sections.flatMap((section, index) => {
-    const issue = issueOf(section)
+    const issue = issueOf(section) ?? (needles.length > 1 && own[index] === null ? 'aiguille à choisir' : null)
     return issue ? [{ index, text: `Sous-étape ${index + 1} (${describeSection(section)}) : ${issue}.` }] : []
   })
 }
 
-export const isReady = (step: Pick<KnitStep, 'sections'>) => readyIssues(step).length === 0
+export const isReady = (step: Pick<KnitStep, 'sections'>, needles: number[] = []) => readyIssues(step, needles).length === 0

@@ -1,6 +1,7 @@
 import { Check, Minus, Plus } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { MAX_ROW_COUNT } from '../../lib/pattern'
+import { formatNeedle } from '../../lib/needles'
 import type { SubstepCount } from '../../lib/substeps'
 
 interface Props {
@@ -11,13 +12,15 @@ interface Props {
   substeps?: SubstepCount[]
   /** Finir la sous-étape (longueur mesurée) après les rangs tricotés. */
   onFinishSubstep?: (count: SubstepCount) => void
+  /** Aiguille de la sous-étape en cours (mm). */
+  needle?: number | null
 }
 
 /**
  * Le compteur du mode tricoter, en bas de l'écran sous le pouce : gros +1, petit −1. Il compte dans la sous-étape en
  * cours (« 5 / 16 rangs · côtes ») ; le rang de l'étape et les autres sous-étapes « en même temps » sont rappelés en petit.
  */
-export function ModeCounter({ rowCount, totalRows, onCount, substeps = [], onFinishSubstep }: Props) {
+export function ModeCounter({ rowCount, totalRows, onCount, substeps = [], onFinishSubstep, needle = null }: Props) {
   const [main, ...parallel] = substeps
   const knitted = main ? main.row - 1 : rowCount
   const total = main ? main.rows : totalRows
@@ -34,7 +37,7 @@ export function ModeCounter({ rowCount, totalRows, onCount, substeps = [], onFin
             {knitted}
             {total !== null && <span className="text-base font-normal text-muted-foreground"> / {total}</span>}
           </span>
-          <span className="block truncate">{main ? `rangs faits · ${main.title}` : 'rangs faits'}</span>
+          <span className="block truncate">{['rangs faits', needle !== null && `aig. ${formatNeedle(needle)}`, main?.title].filter(Boolean).join(' · ')}</span>
         </p>
         <Button className="h-14 px-6 text-base" disabled={rowCount >= MAX_ROW_COUNT} onClick={() => onCount(1)}>
           <Plus />

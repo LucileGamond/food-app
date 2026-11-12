@@ -1,5 +1,5 @@
 import { createHandler, type Deps } from './handler.ts'
-import { groupPieces, missingParts, pieceTitle, MAX_PDF_BASE64, parseInput, readPattern, sanitizePattern, sanitizeSection, systemPrompt, TOOL, type PhaseStep } from './pattern.ts'
+import { groupPieces, missingParts, needleIn, pieceTitle, MAX_PDF_BASE64, parseInput, readPattern, sanitizePattern, sanitizeSection, systemPrompt, TOOL, type PhaseStep } from './pattern.ts'
 
 const PDF = 'JVBERi0xLjQK' // « %PDF-1.4 »
 
@@ -286,6 +286,26 @@ describe('regroupement par morceau', () => {
     expect(missingParts(undefined, read)).toEqual([])
     const pattern = sanitizePattern({ ...PATTERN, titles: ['Dos', 'Manches'], steps: [{ title: 'Dos – côtes', piece: 'Dos', instructions: 'a', total_rows: 10, stitches: 60, sections: [] }] }, '')
     expect(pattern.missingParts).toEqual(['Manches'])
+  })
+
+  it('aiguilles du patron et de chaque sous-étape, bornées', () => {
+    const pattern = sanitizePattern({ ...PATTERN, needles: [3.5, 3, 3.5, 0, 'x'], steps: [{ title: 'Dos', instructions: 'a', total_rows: 10, stitches: 60, sections: [{ kind: 'rows', rows: 10, text: 'côtes', needle: 3 }, { kind: 'rows', rows: 4, text: 'jersey', needle: 99 }] }] }, '')
+    expect(pattern.needles).toEqual([3, 3.5])
+    expect(pattern.steps[0]!.sections.map((s) => s.needle)).toEqual([3, undefined])
+    expect(systemPrompt('M')).toContain('Relève les aiguilles du patron (mm) dans needles')
+  })
+
+  it('aiguille citée dans le paragraphe : parmi celles du patron, la dernière l’emporte', () => {
+    expect(needleIn('Avec le fil Alpaca et l’aiguille circulaire 3, monter 180 m.', [3, 3.5])).toBe(3)
+    expect(needleIn('Changer pour l’aiguille circulaire 3,5. Tricoter en jersey.', [3, 3.5])).toBe(3.5)
+    expect(needleIn('Using 4 mm circular needles, cast on 60 sts.', [3.75, 4])).toBe(4)
+    expect(needleIn('Change to needles 4 mm.', [3.75, 4])).toBe(4)
+    // Taille absente du patron, ou rien de dit : rien
+    expect(needleIn('Avec l’aiguille 5, monter 60 m.', [3, 3.5])).toBeNull()
+    expect(needleIn('Monter 60 m.', [3, 3.5])).toBeNull()
+    // À l'import : donnée à la sous-étape dont le paragraphe la cite
+    const pattern = sanitizePattern({ ...PATTERN, needles: [3, 3.5], steps: [{ title: 'Dos – côtes', piece: 'Dos', instructions: 'Aiguille 3 : côtes.', total_rows: 10, stitches: 60, sections: [] }, { title: 'Dos – jersey', piece: 'Dos', instructions: 'Changer pour l’aiguille 3,5.', total_rows: 20, stitches: 60, sections: [] }] }, '')
+    expect(pattern.steps[0]!.sections.map((x) => x.needle)).toEqual([3, 3.5])
   })
 
   it('titre de partie en majuscules : remis en casse normale', () => {

@@ -303,3 +303,19 @@ describe('mode tricoter : un seul compteur, celui de la sous-étape', () => {
     expect(counter()).toHaveTextContent('En même temps : 2 / 6')
   })
 })
+
+describe('mode tricoter : aiguilles', () => {
+  const steps: StepSection[] = [{ ...rows(4, 'côtes'), needle: 3 }, { ...rows(10, 'jersey'), needle: 3.5 }, rows(2, 'jersey')]
+
+  it('au premier rang d’une sous-étape qui change d’aiguille : le rappel ; l’aiguille près du compteur', async () => {
+    await open(project({ rowCount: 4, sections: steps }, { needles: [3, 3.5] }))
+    expect(screen.getByText('Change pour l’aiguille 3,5 mm')).toHaveAttribute('role', 'status')
+    expect(screen.getByRole('contentinfo')).toHaveTextContent('rangs faits · aig. 3,5 mm · 10 rangs : jersey')
+  })
+
+  it('aiguille héritée, et pas de rappel au milieu d’une sous-étape', async () => {
+    await open(project({ rowCount: 14, sections: steps }, { needles: [3, 3.5] }))
+    expect(screen.queryByText(/Change pour l’aiguille/)).not.toBeInTheDocument()
+    expect(screen.getByRole('contentinfo')).toHaveTextContent('aig. 3,5 mm · 2 rangs : jersey')
+  })
+})

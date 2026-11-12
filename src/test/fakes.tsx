@@ -185,6 +185,7 @@ export function fakeApi(): FakeApi {
       mergeSteps: vi.fn(async () => undefined),
       saveSections: vi.fn(async () => undefined),
       splitStep: vi.fn(async () => undefined),
+      saveNeedles: vi.fn(async () => undefined),
       deleteProject: vi.fn(async () => undefined),
       pdfUrl: vi.fn(async (path: string) => `https://cdn.test/${path}`),
       saveProjectInfo: vi.fn(async () => undefined),

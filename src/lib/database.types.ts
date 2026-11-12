@@ -277,14 +277,14 @@ isOneToOne: false
                   ]
                 },"knit_projects": {
                   Row: {
-                    "abbreviations": NonNullable<Json>,"adaptation": Json | null,"chart_hints": NonNullable<Json>,"created_at": string,"id": string,"my_gauge_rows": number | null,"my_gauge_stitches": number | null,"notes": string,"pattern_gauge_rows": number | null,"pattern_gauge_stitches": number | null,"pdf_path": string | null,"profile_id": string,"size": string,"size_index": number | null,"sizes": (string)[],"title": string,"updated_at": string,"yarn_checks": NonNullable<Json>,"yarns": NonNullable<Json>
+                    "abbreviations": NonNullable<Json>,"adaptation": Json | null,"chart_hints": NonNullable<Json>,"created_at": string,"id": string,"my_gauge_rows": number | null,"my_gauge_stitches": number | null,"needles": NonNullable<Json>,"notes": string,"pattern_gauge_rows": number | null,"pattern_gauge_stitches": number | null,"pdf_path": string | null,"profile_id": string,"size": string,"size_index": number | null,"sizes": (string)[],"title": string,"updated_at": string,"yarn_checks": NonNullable<Json>,"yarns": NonNullable<Json>
                   }
                   ComputedFields: never
                   Insert: {
-                    "abbreviations"?: NonNullable<Json>,"adaptation"?: Json | null,"chart_hints"?: NonNullable<Json>,"created_at"?: string,"id"?: string,"my_gauge_rows"?: number | null,"my_gauge_stitches"?: number | null,"notes"?: string,"pattern_gauge_rows"?: number | null,"pattern_gauge_stitches"?: number | null,"pdf_path"?: string | null,"profile_id"?: string,"size": string,"size_index"?: number | null,"sizes"?: (string)[],"title": string,"updated_at"?: string,"yarn_checks"?: NonNullable<Json>,"yarns"?: NonNullable<Json>
+                    "abbreviations"?: NonNullable<Json>,"adaptation"?: Json | null,"chart_hints"?: NonNullable<Json>,"created_at"?: string,"id"?: string,"my_gauge_rows"?: number | null,"my_gauge_stitches"?: number | null,"needles"?: NonNullable<Json>,"notes"?: string,"pattern_gauge_rows"?: number | null,"pattern_gauge_stitches"?: number | null,"pdf_path"?: string | null,"profile_id"?: string,"size": string,"size_index"?: number | null,"sizes"?: (string)[],"title": string,"updated_at"?: string,"yarn_checks"?: NonNullable<Json>,"yarns"?: NonNullable<Json>
                   }
                   Update: {
-                    "abbreviations"?: NonNullable<Json>,"adaptation"?: Json | null,"chart_hints"?: NonNullable<Json>,"created_at"?: string,"id"?: string,"my_gauge_rows"?: number | null,"my_gauge_stitches"?: number | null,"notes"?: string,"pattern_gauge_rows"?: number | null,"pattern_gauge_stitches"?: number | null,"pdf_path"?: string | null,"profile_id"?: string,"size"?: string,"size_index"?: number | null,"sizes"?: (string)[],"title"?: string,"updated_at"?: string,"yarn_checks"?: NonNullable<Json>,"yarns"?: NonNullable<Json>
+                    "abbreviations"?: NonNullable<Json>,"adaptation"?: Json | null,"chart_hints"?: NonNullable<Json>,"created_at"?: string,"id"?: string,"my_gauge_rows"?: number | null,"my_gauge_stitches"?: number | null,"needles"?: NonNullable<Json>,"notes"?: string,"pattern_gauge_rows"?: number | null,"pattern_gauge_stitches"?: number | null,"pdf_path"?: string | null,"profile_id"?: string,"size"?: string,"size_index"?: number | null,"sizes"?: (string)[],"title"?: string,"updated_at"?: string,"yarn_checks"?: NonNullable<Json>,"yarns"?: NonNullable<Json>
                   }
                   Relationships: [
                     {
@@ -863,15 +863,6 @@ isOneToOne: false
                            } |
 { Args: { "p_pattern_gauge_rows": number,"p_pattern_gauge_stitches": number,"p_pdf_path": string,"p_queue_id": string,"p_size": string,"p_steps": Json,"p_title": string }; Returns: string
                            },
-"set_knit_sections":
-{ Args: { "p_steps": Json }; Returns: undefined
-                           },
-"split_knit_step":
-{ Args: { "p_instructions": string,"p_new_instructions": string,"p_new_sections": Json,"p_new_title": string,"p_new_total_rows": number,"p_sections": Json,"p_step": string,"p_total_rows": number }; Returns: string
-                           },
-"merge_knit_steps":
-{ Args: { "p_sections": Json,"p_step": string,"p_total_rows": number }; Returns: undefined
-                           },
 "create_meal":
 { Args: { "p_adhoc_notes"?: string,"p_adhoc_title"?: string,"p_adhoc_url"?: string,"p_meal_date": string,"p_people": (string)[],"p_recipe_id"?: string,"p_slot": Database["public"]['Enums']["meal_slot"] }; Returns: string
                            },
@@ -910,6 +901,9 @@ isOneToOne: false
 { Args: { "p_since"?: string,"p_until"?: string }; Returns: {
               "cache_creation_tokens": number,"cache_read_tokens": number,"calls": number,"failures": number,"function": string,"input_tokens": number,"mode": string,"model": string,"output_tokens": number,"requests": number,"user_id": string,"web_searches": number
             }[]
+                           },
+"merge_knit_steps":
+{ Args: { "p_sections": Json,"p_step": string,"p_total_rows": number }; Returns: undefined
                            },
 "months_are_valid":
 { Args: { "p_months": (number)[] }; Returns: boolean
@@ -973,6 +967,12 @@ isOneToOne: false
                            },
 "save_weigh_in":
 { Args: { "p_measured_on": string,"p_previous_date"?: string,"p_weights": Json }; Returns: undefined
+                           },
+"set_knit_sections":
+{ Args: { "p_steps": Json }; Returns: undefined
+                           },
+"split_knit_step":
+{ Args: { "p_instructions": string,"p_new_instructions": string,"p_new_sections": Json,"p_new_title": string,"p_new_total_rows": number,"p_sections": Json,"p_step": string,"p_total_rows": number }; Returns: string
                            },
 "split_source":
 { Args: { "p_source": string }; Returns: (string)[]

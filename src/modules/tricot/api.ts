@@ -14,6 +14,7 @@ import { sanitizeYarnChecks, type YarnCheck } from './lib/yarnLeft'
 import { sanitizeSizeChart, type MeasureProfile } from './lib/sizing'
 import { sanitizeHints, sanitizeSetup, type ChartHint, type ChartSetup, type KnitChart } from './lib/chart'
 import type { SectionsChange, Split } from './lib/organize'
+import { sanitizeNeedles } from './lib/needles'
 import { MAX_PDF_BYTES, type KnitProject, type KnitProjectSummary, type KnitStep, type PatternStep, type ReadPattern, type StepSection, readMissingParts, sanitizeSections } from './lib/pattern'
 
 const PATTERN_BUCKET = 'knit-patterns'
@@ -206,7 +207,7 @@ export function createKnittingApi(db: AppSupabaseClient) {
       const { data, error } = await db
         .from('knit_projects')
         .select(
-          `id, title, size, sizes, size_index, pdf_path, chart_hints, abbreviations, yarn_checks, yarns, pattern_gauge_stitches, pattern_gauge_rows, my_gauge_stitches, my_gauge_rows, adaptation, knit_steps(id, position, title, instructions, total_rows, stitches, sections, row_count, times, pass, notes, done, highlights, translation), knit_charts(${CHART_COLUMNS})`,
+          `id, title, size, sizes, size_index, pdf_path, chart_hints, abbreviations, yarn_checks, yarns, pattern_gauge_stitches, pattern_gauge_rows, my_gauge_stitches, my_gauge_rows, adaptation, needles, knit_steps(id, position, title, instructions, total_rows, stitches, sections, row_count, times, pass, notes, done, highlights, translation), knit_charts(${CHART_COLUMNS})`,
         )
         .eq('id', id)
         .order('position', { referencedTable: 'knit_steps' })
@@ -231,6 +232,7 @@ export function createKnittingApi(db: AppSupabaseClient) {
         patternGauge: { stitches: data.pattern_gauge_stitches, rows: data.pattern_gauge_rows },
         myGauge: { stitches: data.my_gauge_stitches, rows: data.my_gauge_rows },
         adaptation: sanitizeAdaptation(data.adaptation),
+        needles: sanitizeNeedles(data.needles),
       }
     },
 
@@ -243,6 +245,7 @@ export function createKnittingApi(db: AppSupabaseClient) {
         steps: read.steps.map((s) => ({ ...s, times: readTimes(s.times) })),
         sizeChart: sanitizeSizeChart(read.sizeChart, read.sizes.length),
         missingParts: readMissingParts(read.missingParts),
+        needles: sanitizeNeedles(read.needles),
       }
     },
 
@@ -264,6 +267,8 @@ export function createKnittingApi(db: AppSupabaseClient) {
       sizeIndex?: number | null
       /** Abréviations expliquées par le patron. */
       abbreviations?: Abbreviation[]
+      /** Aiguilles du patron (mm). */
+      needles?: number[]
     }): Promise<string> {
       // PDF du patron en attente déjà envoyé ; sinon celui choisi, envoyé maintenant.
       const reused = input.queued?.pdfPath ?? null
@@ -294,12 +299,14 @@ export function createKnittingApi(db: AppSupabaseClient) {
       // Simple confort : un échec ici n'empêche pas de tricoter (diagrammes ajoutés à la main, texte sans mise en valeur).
       const sizes = input.sizes ?? []
       const abbreviations = input.abbreviations ?? []
-      if (input.chartHints?.length || sizes.length || abbreviations.length) {
+      const needles = sanitizeNeedles(input.needles)
+      if (input.chartHints?.length || sizes.length || abbreviations.length || needles.length) {
         await db
           .from('knit_projects')
           .update({
             chart_hints: (input.chartHints ?? []) as unknown as Json[],
             abbreviations: abbreviations as unknown as Json[],
+            needles,
             sizes,
             size_index: input.sizeIndex !== undefined && input.sizeIndex !== null && input.sizeIndex < sizes.length ? input.sizeIndex : null,
           })
@@ -359,6 +366,12 @@ export function createKnittingApi(db: AppSupabaseClient) {
     },
 
     /** Taille dont les nombres sont mis en valeur dans le texte des étapes (null : aucune). */
+    /** Aiguilles du patron (mm) : celle de chaque sous-étape se choisit parmi elles. */
+    async saveNeedles(id: string, needles: number[]): Promise<void> {
+      const { error } = await db.from('knit_projects').update({ needles: sanitizeNeedles(needles) }).eq('id', id)
+      if (error) throw toAppError(error, 'Impossible d’enregistrer les aiguilles.')
+    },
+
     async setSizeIndex(id: string, sizeIndex: number | null): Promise<void> {
       const { error } = await db.from('knit_projects').update({ size_index: sizeIndex }).eq('id', id)
       if (error) throw toAppError(error, 'Impossible de changer la taille mise en valeur.')

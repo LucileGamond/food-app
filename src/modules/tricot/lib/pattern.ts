@@ -69,6 +69,8 @@ export interface StepSection {
   at?: SectionStart
   /** Texte du patron de cette sous-étape : il la suit quand on regroupe, sépare ou déplace les étapes. */
   source?: string
+  /** Aiguille (mm) de cette sous-étape ; absente : celle de la sous-étape d'avant. */
+  needle?: number
 }
 
 export const MAX_SECTIONS = 30
@@ -131,6 +133,8 @@ export interface KnitProject {
   myGauge: Gauge
   /** « Patron adapté à moi » (facultatif) : étapes recalculées, le patron d'origine reste tel quel. */
   adaptation?: Adaptation | null
+  /** Aiguilles du patron (mm), de la plus fine à la plus grosse. */
+  needles?: number[]
 }
 
 /** Étape telle que lue dans le patron (avant enregistrement). */
@@ -155,6 +159,8 @@ export interface ReadPattern {
   sizeChart?: SizeChart | null
   /** Parties du patron annoncées mais pas lues (lecture arrêtée en route) : à relire. */
   missingParts?: string[]
+  /** Aiguilles du patron (mm). */
+  needles?: number[]
 }
 
 /** Parties pas lues, telles que renvoyées par la lecture (textes non vides seulement). */
@@ -193,6 +199,7 @@ export function sanitizeSections(raw: unknown): StepSection[] {
     const measured = sanitizeMeasured(s.measured)
     if (measured) section.measured = measured
     if (typeof s.source === 'string' && s.source.trim()) section.source = s.source.slice(0, MAX_INSTRUCTIONS)
+    if (typeof s.needle === 'number' && s.needle >= 0.5 && s.needle <= 30) section.needle = Math.round(s.needle * 100) / 100
     if (typeof s.at === 'object' && s.at !== null) {
       const a = s.at as Record<string, unknown>
       const at: SectionStart = { row: count(a.row, 5000), pattern: typeof a.pattern === 'string' && a.pattern.trim() ? a.pattern.slice(0, 100) : null }
@@ -391,6 +398,8 @@ export interface SectionForm {
   every: string
   times: string
   actions: ActionForm[]
+  /** Aiguille en mm ; vide ou absent : celle de la sous-étape d'avant. */
+  needle?: string
 }
 
 export function sectionToForm(section: StepSection): SectionForm {
@@ -405,6 +414,7 @@ export function sectionToForm(section: StepSection): SectionForm {
     every: text(section.every),
     times: text(section.times),
     actions: actions.length ? actions : [{ text: '', rank: 'last', stitches: '' }],
+    ...(section.needle ? { needle: String(section.needle) } : {}),
   }
 }
 
@@ -427,7 +437,9 @@ export function formToSection(form: SectionForm, pattern: string | null = null, 
     at = { at: { row, pattern: atPattern } }
   }
   const section = formToBody(form, pattern, parse)
-  return typeof section === 'string' ? section : { ...section, ...at }
+  if (typeof section === 'string') return section
+  const needle = Number(form.needle?.replace(',', '.'))
+  return { ...section, ...at, ...(form.needle?.trim() && needle >= 0.5 && needle <= 30 ? { needle } : {}) }
 }
 
 function formToBody(form: SectionForm, pattern: string | null, parse: (value: string, min: number, max: number) => number | null | undefined): StepSection | string {
