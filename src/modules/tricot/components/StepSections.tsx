@@ -16,6 +16,7 @@ import { looksEnglish, mergeGlossary, type Abbreviation } from '../lib/glossary'
 import { useBaseGlossary } from '../hooks/useBaseGlossary'
 import { SizedText } from './SizedText'
 import { HelpTip } from './HelpTip'
+import { Note } from './Note'
 import { GaugeDialog } from './GaugeDialog'
 import type { KnitChart } from '../lib/chart'
 import { isChecked, type NeedleGauge } from '../lib/needleGauges'
@@ -72,23 +73,20 @@ function ConversionCheck({ section, onValidate, onEdit, check }: { section: Step
     )
   }
   return (
-    <div role="note" className="mt-2 space-y-2 rounded-lg border border-amber-500/40 bg-amber-500/10 p-2 text-sm">
-      <p className="flex items-start gap-1.5">
-        <Ruler className="mt-0.5 size-4 shrink-0 text-amber-700 dark:text-amber-400" aria-hidden />
-        <span>
-          Converti depuis le patron : {calculation} (arrondi).{' '}
-          {check ? `Vérifie-le : valider vaut pour toutes les sous-étapes ${check.needle !== null ? `à l’aiguille ${formatNeedle(check.needle)}` : 'du projet'}.` : 'Vérifie ce nombre, puis valide-le ; il suit l’échantillon tant qu’il n’est pas validé.'}
-        </span>
-      </p>
-      <div className="flex flex-wrap gap-2">
-        <Button type="button" className="h-9" onClick={onValidate}>
+    <Note kind="todo" className="mt-2">
+      <span>
+        Converti depuis le patron : {calculation} (arrondi).{' '}
+        {check ? `Vérifie-le : valider vaut pour toutes les sous-étapes ${check.needle !== null ? `à l’aiguille ${formatNeedle(check.needle)}` : 'du projet'}.` : 'Vérifie ce nombre, puis valide-le ; il suit l’échantillon tant qu’il n’est pas validé.'}
+      </span>
+      <div className="mt-2 flex flex-wrap gap-2">
+        <Button type="button" className="h-10" onClick={onValidate}>
           <Check /> {check?.needle != null ? `Valider pour l’aiguille ${formatNeedle(check.needle)}` : 'Valider'}
         </Button>
-        <Button type="button" variant="outline" className="h-9" onClick={onEdit}>
+        <Button type="button" variant="outline" className="h-10" onClick={onEdit}>
           <Pencil /> Modifier
         </Button>
       </div>
-    </div>
+    </Note>
   )
 }
 
@@ -152,7 +150,7 @@ function SectionForm({ section, onSave, onCancel, needle }: { section: StepSecti
       {needle.needles.length > 0 && (
         <div className="grid gap-1.5">
           <Label htmlFor={`${id}-needle`}>Aiguille</Label>
-          <NativeSelect id={`${id}-needle`} className="h-9" value={form.needle ?? ''} onChange={(e) => setForm((f) => ({ ...f, needle: e.target.value }))}>
+          <NativeSelect id={`${id}-needle`} className="h-10" value={form.needle ?? ''} onChange={(e) => setForm((f) => ({ ...f, needle: e.target.value }))}>
             <option value="">{needle.inherited !== null ? `Comme avant (${formatNeedle(needle.inherited)})` : needle.needles.length === 1 ? `${formatNeedle(needle.needles[0]!)}` : 'À choisir'}</option>
             {needle.needles.map((n) => (
               <option key={n} value={String(n)}>
@@ -248,9 +246,9 @@ function SectionForm({ section, onSave, onCancel, needle }: { section: StepSecti
                   <Button
                     type="button"
                     variant="ghost"
-                    size="icon"
+                    size="icon-touch"
                     className="shrink-0"
-                    aria-label={`Retirer l’action ${i + 1}`}
+                    aria-label={`Supprimer l’action ${i + 1}`}
                     onClick={() => setForm((f) => ({ ...f, actions: f.actions.filter((_, j) => j !== i) }))}
                   >
                     <X />
@@ -259,7 +257,7 @@ function SectionForm({ section, onSave, onCancel, needle }: { section: StepSecti
               </div>
             ))}
             {form.actions.length < MAX_ACTIONS && (
-              <Button type="button" variant="ghost" className="h-9" onClick={() => setForm((f) => ({ ...f, actions: [...f.actions, { text: '', rank: '1', stitches: '' }] }))}>
+              <Button type="button" variant="ghost" className="h-10" onClick={() => setForm((f) => ({ ...f, actions: [...f.actions, { text: '', rank: '1', stitches: '' }] }))}>
                 <Plus /> Ajouter une action
               </Button>
             )}
@@ -272,10 +270,10 @@ function SectionForm({ section, onSave, onCancel, needle }: { section: StepSecti
         </p>
       )}
       <div className="flex flex-wrap gap-2">
-        <Button type="button" variant="outline" className="h-9" onClick={onCancel}>
+        <Button type="button" variant="outline" className="h-10" onClick={onCancel}>
           Annuler
         </Button>
-        <Button type="submit" className="h-9">
+        <Button type="submit" className="h-10">
           Enregistrer
         </Button>
       </div>
@@ -462,7 +460,7 @@ export function StepSections({
                   />
                 </div>
                 <DropdownMenu>
-                  <DropdownMenuTrigger render={<Button variant="ghost" size="icon" aria-label={`Actions pour « ${describeSection(section)} »`} />}>
+                  <DropdownMenuTrigger render={<Button variant="ghost" size="icon-touch" aria-label={`Actions pour « ${describeSection(section)} »`} />}>
                     <MoreHorizontal />
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end" className="w-44">
@@ -514,7 +512,7 @@ export function StepSections({
         }}
       />
       {editing === null && step.sections.length < MAX_SECTIONS && (
-        <Button variant="outline" className="h-9" onClick={() => setEditing(step.sections.length)}>
+        <Button variant="outline" className="h-10" onClick={() => setEditing(step.sections.length)}>
           <Plus /> Ajouter une sous-étape
         </Button>
       )}

@@ -9,6 +9,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { PageHeader } from '@/components/PageHeader'
 import { QueueForm } from '../components/QueueForm'
+import { Note } from '../components/Note'
 import { SizedText, SizePicker } from '../components/SizedText'
 import { SizeAdvice } from '../components/SizeAdvice'
 import { cn } from '@/lib/utils'
@@ -125,16 +126,16 @@ export function KnittingImportPage() {
             <Input id="knit-title" className="h-10" value={title} onChange={(e) => setTitle(e.target.value)} maxLength={200} />
           </div>
           {!!pattern.missingParts?.length && (
-            <div role="alert" className="space-y-2 rounded-xl border border-amber-500/40 bg-amber-500/10 p-3 text-sm">
+            <Note kind="todo" role="alert">
               <p>
                 La lecture s’est arrêtée en route : {pattern.missingParts.length > 1 ? 'parties pas lues' : 'partie pas lue'} {pattern.missingParts.map((p) => `« ${p} »`).join(', ')}.
               </p>
               {pdf && (
-                <Button variant="outline" className="h-9" disabled={reading} onClick={() => void readFor(pdf, size.trim())}>
+                <Button variant="outline" className="h-10" disabled={reading} onClick={() => void readFor(pdf, size.trim())}>
                   <RotateCcw /> {reading ? 'Lecture…' : 'Relire le patron'}
                 </Button>
               )}
-            </div>
+            </Note>
           )}
           {pattern.sizeChart && pdf && (
             <SizeAdvice chart={pattern.sizeChart} sizes={pattern.sizes} readIndex={pattern.sizeIndex ?? null} rereading={reading} onReread={(s) => void readFor(pdf, s)} />
@@ -272,7 +273,7 @@ export function KnittingImportPage() {
         <form onSubmit={(e) => void read(e)} className="max-w-lg space-y-4" noValidate>
           {fromQueue && !changingPdf ? queuedPdf : pdfField}
           <div className="grid gap-1.5">
-            <Label htmlFor="knit-size">Taille choisie</Label>
+            <Label htmlFor="knit-size">Taille</Label>
             <Input id="knit-size" className="h-10 w-40" value={size} onChange={(e) => setSize(e.target.value)} maxLength={40} placeholder="M, 38, 4 ans…" aria-describedby="knit-size-hint" />
             <p id="knit-size-hint" className="text-xs text-muted-foreground">
               Facultatif : sans taille, les rangs et mailles comptés sont ceux de la première taille du patron. Tu pourras changer la taille mise en valeur.

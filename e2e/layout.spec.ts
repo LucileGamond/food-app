@@ -293,7 +293,7 @@ test('aucun écran ni aucune fenêtre ne déborde', async ({ page, isMobile }) =
   await expect(page.getByRole('button', { name: 'Ajouter 1 rang' })).toBeVisible()
   await check(page, 'tricot-tricoter')
   await page.goto('/tricot/nouveau')
-  await expect(page.getByLabel('Taille choisie')).toBeVisible()
+  await expect(page.getByLabel('Taille', { exact: true })).toBeVisible()
   await check(page, 'tricot-nouveau')
 
   // Courses

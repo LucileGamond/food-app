@@ -15,6 +15,7 @@ import { describeSection, stepFacts, type KnitProject } from '../lib/pattern'
 import { anchoredSections, textOf } from '../lib/sources'
 import { endStitches } from '../lib/stitches'
 import { HelpTip } from './HelpTip'
+import { Note } from './Note'
 
 type Pending = { kind: 'merge'; index: number } | { kind: 'split'; index: number; section: number } | { kind: 'move'; index: number; section: number }
 
@@ -57,9 +58,9 @@ export function OrganizeSteps({ project, reload }: { project: KnitProject; reloa
         <HelpTip label="organiser">Seules les sous-étapes bougent : le texte du patron, les diagrammes et les photos restent dans leur étape. Une étape commencée ne se réorganise plus.</HelpTip>
       </p>
       {adapted && (
-        <p role="status" className="mb-4 rounded-xl border border-amber-500/40 bg-amber-500/10 p-3 text-sm">
+        <Note kind="todo" role="status" className="mb-4">
           Le patron a une adaptation : supprime-la pour organiser les étapes.
-        </p>
+        </Note>
       )}
       <ol aria-label="Étapes" className="space-y-3">
         {steps.map((step, index) => {
@@ -80,12 +81,24 @@ export function OrganizeSteps({ project, reload }: { project: KnitProject; reloa
                     </p>
                   )}
                 </div>
-                <Button variant="outline" className="h-9 shrink-0" disabled={mergeLock !== null} onClick={() => setPending({ kind: 'merge', index })} aria-label={`Regrouper avec la suivante : « ${step.title} »`}>
-                  <Combine /> <span className="hidden sm:inline">Regrouper avec la suivante</span>
-                </Button>
               </div>
+              {next && (
+                // Le bouton porte son texte sur toutes les tailles d'écran, et dit pourquoi il est bloqué.
+                <div className="mt-2">
+                  <Button
+                    variant="outline"
+                    className="h-10 w-full justify-start"
+                    disabled={mergeLock !== null}
+                    onClick={() => setPending({ kind: 'merge', index })}
+                    aria-label={`Regrouper avec « ${next.title} »`}
+                  >
+                    <Combine /> <span className="truncate">Regrouper avec « {next.title} »</span>
+                  </Button>
+                  {mergeLock && <p className="mt-1 text-xs text-muted-foreground">{mergeLock}</p>}
+                </div>
+              )}
               {step.sections.length === 0 ? (
-                <p className="mt-2 text-sm text-muted-foreground">Pas de sous-étape.</p>
+                <p className="mt-2 text-sm text-muted-foreground">Aucune sous-étape : ajoute-les dans la préparation de l’étape.</p>
               ) : (
                 <ol aria-label={`Sous-étapes de « ${step.title} »`} className="mt-2 space-y-1">
                   {anchoredSections(step).map((section, s) => (
@@ -99,7 +112,7 @@ export function OrganizeSteps({ project, reload }: { project: KnitProject; reloa
                         )}
                       </span>
                       <DropdownMenu>
-                        <DropdownMenuTrigger render={<Button variant="ghost" size="icon" disabled={locked} aria-label={`Actions pour « ${describeSection(section)} »`} />}>
+                        <DropdownMenuTrigger render={<Button variant="ghost" size="icon-touch" disabled={locked} aria-label={`Actions pour « ${describeSection(section)} »`} />}>
                           <MoreHorizontal />
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end" className="w-60">

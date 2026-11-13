@@ -41,7 +41,7 @@ test('charge un patron PDF pour une taille, compte les rangs et retrouve son ava
 
   await page.getByRole('link', { name: 'Nouveau patron' }).first().click()
   await page.getByLabel('Patron (PDF)').setInputFiles({ name: 'bergamote.pdf', mimeType: 'application/pdf', buffer: Buffer.from('%PDF-1.4\n%fin') })
-  await page.getByLabel('Taille choisie').fill('M')
+  await page.getByLabel('Taille', { exact: true }).fill('M')
   await page.getByRole('button', { name: 'Lire le patron' }).click()
   await expect(page.getByRole('list', { name: 'Étapes lues' }).locator(':scope > li')).toHaveCount(2)
   expect(sent.size).toBe('M')
@@ -119,8 +119,7 @@ test('charge un patron PDF pour une taille, compte les rangs et retrouve son ava
   await expect(page.getByRole('link', { name: /^Pull Bergamote/ })).toContainText(/5 \/ \d+ rangs/)
   await expect(page.getByRole('link', { name: 'Tricoter « Pull Bergamote »' })).toHaveAttribute('href', /\/tricoter$/)
   await page.getByRole('link', { name: /^Pull Bergamote/ }).click()
-  await page.getByRole('button', { name: 'Actions sur le projet' }).click()
-  await page.getByRole('menuitem', { name: 'Supprimer le projet' }).click()
+  await page.getByRole('button', { name: 'Supprimer le projet' }).click()
   await page.getByRole('button', { name: 'Supprimer', exact: true }).click()
   await expect(page.getByText('Aucun projet')).toBeVisible()
 })
@@ -144,7 +143,7 @@ test('met un patron de côté, le commence, puis note la laine (étiquette) et s
   await page.getByRole('link', { name: 'Nouveau patron' }).first().click()
   await page.getByRole('radio', { name: 'Mettre de côté' }).click()
   await page.getByLabel('Patron (PDF)').setInputFiles({ name: 'Gilet Rosée.pdf', mimeType: 'application/pdf', buffer: Buffer.from('%PDF-1.4\n%gilet') })
-  await page.getByLabel('Taille visée').fill('M')
+  await page.getByLabel('Taille', { exact: true }).fill('M')
   await page.getByLabel('Quand').selectOption('Bientôt')
   await expectNoA11yViolations(page)
   await page.getByRole('button', { name: 'Mettre de côté' }).click()
@@ -157,7 +156,7 @@ test('met un patron de côté, le commence, puis note la laine (étiquette) et s
   // Commencé : PDF et taille repris, le patron quitte la liste
   await queue.getByRole('link', { name: 'Commencer Gilet Rosée' }).click()
   await expect(page.getByRole('heading', { name: 'Commencer « Gilet Rosée »' })).toBeVisible()
-  await expect(page.getByLabel('Taille choisie')).toHaveValue('M')
+  await expect(page.getByLabel('Taille', { exact: true })).toHaveValue('M')
   // PDF repris : il n'est pas redemandé
   await expect(page.getByText('Gilet Rosée.pdf')).toBeVisible()
   await expect(page.getByLabel('Patron (PDF)')).toHaveCount(0)
@@ -410,11 +409,11 @@ test('organise les étapes : regroupe, sépare et déplace une sous-étape, puis
   // Organiser : une vue de l'onglet « Préparer »
   await page.getByRole('tab', { name: /2. Préparer/ }).click()
   await page.getByRole('tab', { name: 'Organiser' }).click()
-  await expect(page.getByRole('button', { name: /^Regrouper avec la suivante/ }).first()).toBeVisible()
+  await expect(page.getByRole('button', { name: /^Regrouper avec/ }).first()).toBeVisible()
   await expectNoA11yViolations(page)
 
   // Regrouper « Dos – côtes » et « Dos – jersey »
-  await page.getByRole('button', { name: 'Regrouper avec la suivante : « Dos – côtes »' }).click()
+  await page.getByRole('button', { name: 'Regrouper avec « Dos – jersey »' }).click()
   await page.getByRole('alertdialog').getByRole('button', { name: 'Regrouper' }).click()
   const steps = page.getByRole('list', { name: 'Étapes' })
   await expect(steps.getByRole('heading')).toHaveText(['Dos – côtes', 'Manche'])

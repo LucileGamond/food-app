@@ -137,7 +137,7 @@ describe('KnittingImportPage', () => {
     expect(screen.getByRole('alert')).toHaveTextContent('Choisis le PDF du patron.')
     const file = pdf()
     await user.upload(screen.getByLabelText('Patron (PDF)'), file)
-    await user.type(screen.getByLabelText('Taille choisie'), ' M ')
+    await user.type(screen.getByLabelText('Taille', { selector: 'input' }), ' M ')
     await user.click(screen.getByRole('button', { name: 'Lire le patron' }))
     expect(api.knitting.readPattern).toHaveBeenCalledWith(file, 'M')
 
@@ -168,7 +168,7 @@ describe('KnittingImportPage', () => {
     api.knitting.createProject.mockResolvedValue('p9')
     renderImport(api)
     await user.upload(screen.getByLabelText('Patron (PDF)'), pdf())
-    await user.type(screen.getByLabelText('Taille choisie'), 'M')
+    await user.type(screen.getByLabelText('Taille', { selector: 'input' }), 'M')
     await user.click(screen.getByRole('button', { name: 'Lire le patron' }))
     expect(await screen.findByText('90 rangs · à tricoter 2 fois · 50 mailles à la fin')).toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: 'Enregistrer le projet' }))
@@ -181,7 +181,7 @@ describe('KnittingImportPage', () => {
     api.knitting.readPattern.mockResolvedValueOnce({ ...PATTERN, missingParts: ['Manches', 'Col'] }).mockResolvedValueOnce({ ...PATTERN, missingParts: [] })
     renderImport(api)
     await user.upload(screen.getByLabelText('Patron (PDF)'), pdf())
-    await user.type(screen.getByLabelText('Taille choisie'), 'M')
+    await user.type(screen.getByLabelText('Taille', { selector: 'input' }), 'M')
     await user.click(screen.getByRole('button', { name: 'Lire le patron' }))
     const alert = await screen.findByRole('alert')
     expect(alert).toHaveTextContent('La lecture s’est arrêtée en route : parties pas lues « Manches », « Col ».')
@@ -198,7 +198,7 @@ describe('KnittingImportPage', () => {
     api.knitting.readPattern.mockRejectedValueOnce(new AppError('Taille « XXL » introuvable. Tailles du patron : S, M, L.')).mockResolvedValueOnce(PATTERN)
     renderImport(api)
     await user.upload(screen.getByLabelText('Patron (PDF)'), pdf())
-    await user.type(screen.getByLabelText('Taille choisie'), 'XXL')
+    await user.type(screen.getByLabelText('Taille', { selector: 'input' }), 'XXL')
     await user.click(screen.getByRole('button', { name: 'Lire le patron' }))
     expect(await screen.findByRole('alert')).toHaveTextContent('Tailles du patron : S, M, L.')
 
@@ -216,7 +216,7 @@ describe('KnittingImportPage', () => {
     const heavy = pdf()
     Object.defineProperty(heavy, 'size', { value: 21 * 1024 * 1024 })
     await user.upload(screen.getByLabelText('Patron (PDF)'), heavy)
-    await user.type(screen.getByLabelText('Taille choisie'), 'M')
+    await user.type(screen.getByLabelText('Taille', { selector: 'input' }), 'M')
     await user.click(screen.getByRole('button', { name: 'Lire le patron' }))
     expect(screen.getByRole('alert')).toHaveTextContent('PDF trop lourd (20 Mo au plus).')
 
@@ -270,7 +270,7 @@ describe('KnittingProjectPage', () => {
     await user.click(screen.getByRole('tab', { name: /2. Préparer/ }))
     const nav = await screen.findByRole('navigation', { name: 'Étapes' })
     const links = within(within(nav).getByRole('list')).getAllByRole('link')
-    expect(links.map((l) => l.textContent)).toEqual(['Dos – côtes18 / 18 rangs(terminée)', '2Emmanchures8 / 30 rangsEn cours', '3Encolure'])
+    expect(links.map((l) => l.textContent)).toEqual(['1Dos – côtes18 / 18 rangs(terminée)', '2Emmanchures8 / 30 rangsEn cours', '3Encolure'])
     expect(links[1]).toHaveAttribute('aria-current', 'step')
     expect(within(links[0]!).getByText('(terminée)')).toBeInTheDocument()
     await user.click(links[2]!)
@@ -367,7 +367,7 @@ describe('KnittingProjectPage', () => {
   it('aiguilles du patron : indiquées dans « Démarrer »', async () => {
     const user = userEvent.setup()
     const { api } = renderProject(fakeApi(), PROJECT, START)
-    expect(await screen.findByText('pas encore indiquées (chaque sous-étape pourra choisir la sienne)')).toBeInTheDocument()
+    expect(await screen.findByText('aucune : indique-les pour que chaque sous-étape choisisse la sienne')).toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: 'Modifier les aiguilles du patron' }))
     const form = screen.getByRole('form', { name: 'Aiguilles du patron' })
     await user.type(within(form).getByLabelText('Aiguilles du patron (mm)'), 'trois')
@@ -384,9 +384,10 @@ describe('KnittingProjectPage', () => {
     const project = { ...structuredClone(PROJECT), needles: [3, 3.5] }
     const { api } = renderProject(fakeApi(), project, `${STEP}=s2`)
     const alert = await screen.findByRole('alert')
+    // Chaque ligne : la phrase entière pour le lecteur d'écran, puis le numéro, ce qui manque et la sous-étape
     expect(within(alert).getAllByRole('listitem').map((li) => li.textContent)).toEqual([
-      'Sous-étape 1 (4 rangs : jersey) : aiguille à choisir.',
-      'Sous-étape 2 (1 diminution de chaque côté — tous les 6 rangs (4 fois)) : aiguille à choisir.',
+      'Sous-étape 1 (4 rangs : jersey) : aiguille à choisir.1aiguille à choisir4 rangs : jersey',
+      'Sous-étape 2 (1 diminution de chaque côté — tous les 6 rangs (4 fois)) : aiguille à choisir.2aiguille à choisir1 diminution de chaque côté — tous les 6 rangs (4 fois)',
     ])
     expect(screen.getByRole('button', { name: 'Tricoter cette étape' })).toBeDisabled()
     await user.click(screen.getByRole('button', { name: 'Actions pour « 4 rangs : jersey »' }))
@@ -602,7 +603,7 @@ describe('KnittingProjectPage', () => {
     await user.type(within(form).getByRole('textbox', { name: 'Action 2' }), '1 augmentation')
     await user.selectOptions(within(form).getByRole('combobox', { name: 'Rang de l’action 2' }), 'last')
     await user.click(within(form).getByRole('button', { name: 'Ajouter une action' }))
-    await user.click(within(form).getByRole('button', { name: 'Retirer l’action 3' }))
+    await user.click(within(form).getByRole('button', { name: 'Supprimer l’action 3' }))
     await user.click(within(form).getByRole('button', { name: 'Enregistrer' }))
     expect(api.knitting.saveProgress).toHaveBeenLastCalledWith('s2', {
       sections: [
@@ -872,14 +873,14 @@ describe('KnittingProjectPage', () => {
     const tab = { location: { href: '' }, close: vi.fn() }
     const open = vi.spyOn(window, 'open').mockReturnValue(tab as unknown as Window)
     const { api } = renderProject(fakeApi(), PROJECT, OVERVIEW)
+    // Les actions du projet tiennent au bout du titre, en icônes
     await user.click(await screen.findByRole('button', { name: 'Voir le PDF' }))
     expect(open).toHaveBeenCalledWith('', '_blank')
     expect(api.knitting.pdfUrl).toHaveBeenCalledWith('u-lucile/abc.pdf')
     await vi.waitFor(() => expect(tab.location.href).toBe('https://cdn.test/u-lucile/abc.pdf'))
     open.mockRestore()
 
-    await user.click(screen.getByRole('button', { name: 'Actions sur le projet' }))
-    await user.click(await screen.findByRole('menuitem', { name: 'Supprimer le projet' }))
+    await user.click(screen.getByRole('button', { name: 'Supprimer le projet' }))
     await user.click(await screen.findByRole('button', { name: 'Supprimer' }))
     expect(api.knitting.deleteProject).toHaveBeenCalledWith(expect.objectContaining({ id: 'p1', pdfPath: 'u-lucile/abc.pdf' }))
     expect(await screen.findByText('Liste des projets')).toBeInTheDocument()
@@ -968,7 +969,8 @@ describe('laine et échantillon du projet', () => {
     await user.type(within(dialog).getByLabelText('Coloris'), '0100 Écru')
     await user.click(within(dialog).getByRole('button', { name: 'Enregistrer' }))
     await waitFor(() => expect(api.knitting.saveProjectInfo).toHaveBeenLastCalledWith('p1', expect.objectContaining({ yarns: [{ ...yarn, color: '0100 Écru' }] })))
-    await user.click(within(panel).getByRole('button', { name: 'Retirer DROPS Alpaca' }))
+    await user.click(within(panel).getByRole('button', { name: 'Supprimer DROPS Alpaca' }))
+    await user.click(within(await screen.findByRole('alertdialog', { name: 'Supprimer cette laine ?' })).getByRole('button', { name: 'Supprimer' }))
     await waitFor(() => expect(api.knitting.saveProjectInfo).toHaveBeenLastCalledWith('p1', expect.objectContaining({ yarns: [] })))
   })
 
@@ -985,7 +987,8 @@ describe('laine et échantillon du projet', () => {
     ]
     await renderProject(api, { ...PROJECT, yarns: [alpaca, merino, kid], yarnChecks: checks })
     const panel = await screen.findByRole('region', { name: 'Laine et échantillon' })
-    await user.click(within(panel).getByRole('button', { name: 'Retirer DROPS Merino' }))
+    await user.click(within(panel).getByRole('button', { name: 'Supprimer DROPS Merino' }))
+    await user.click(within(await screen.findByRole('alertdialog', { name: 'Supprimer cette laine ?' })).getByRole('button', { name: 'Supprimer' }))
     await waitFor(() =>
       expect(api.knitting.saveYarnChecks).toHaveBeenCalledWith('p1', [
         { yarn: 0, grams: 50, rowsDone: 10, at: '' },
@@ -994,7 +997,8 @@ describe('laine et échantillon du projet', () => {
     )
     // La dernière laine retirée sans pesée derrière elle : rien à décaler
     api.knitting.saveYarnChecks.mockClear()
-    await user.click(within(panel).getByRole('button', { name: 'Retirer DROPS Kid-Silk' }))
+    await user.click(within(panel).getByRole('button', { name: 'Supprimer DROPS Kid-Silk' }))
+    await user.click(within(await screen.findByRole('alertdialog', { name: 'Supprimer cette laine ?' })).getByRole('button', { name: 'Supprimer' }))
     await waitFor(() => expect(api.knitting.saveProjectInfo).toHaveBeenLastCalledWith('p1', expect.objectContaining({ yarns: [alpaca, merino] })))
     expect(api.knitting.saveYarnChecks).toHaveBeenCalledWith('p1', [{ yarn: 0, grams: 50, rowsDone: 10, at: '' }, { yarn: 1, grams: 40, rowsDone: 10, at: '' }])
   })
@@ -1071,8 +1075,8 @@ describe('patrons à faire plus tard', () => {
     await waitFor(() => expect(tab.location.href).toBe('https://cdn.test/u-lucile/gilet.pdf'))
     open.mockRestore()
 
-    await user.click(within(items[0]!).getByRole('button', { name: 'Retirer Gilet Rosée' }))
-    await user.click(within(await screen.findByRole('alertdialog')).getByRole('button', { name: 'Retirer' }))
+    await user.click(within(items[0]!).getByRole('button', { name: 'Supprimer Gilet Rosée' }))
+    await user.click(within(await screen.findByRole('alertdialog')).getByRole('button', { name: 'Supprimer' }))
     await waitFor(() => expect(api.knitting.deleteQueued).toHaveBeenCalledWith(QUEUED))
     expect(api.knitting.listQueue).toHaveBeenCalledTimes(2)
   })
@@ -1090,12 +1094,12 @@ describe('patrons à faire plus tard', () => {
     // PDF et taille choisis d'abord pour « Commencer maintenant » : repris en changeant d'avis
     const pdf = new File(['%PDF'], 'Gilet Rosée.pdf', { type: 'application/pdf' })
     await user.upload(screen.getByLabelText('Patron (PDF)'), pdf)
-    await user.type(screen.getByLabelText('Taille choisie'), 'M')
+    await user.type(screen.getByLabelText('Taille', { selector: 'input' }), 'M')
     expect(screen.getByRole('radio', { name: 'Commencer maintenant' })).toBeChecked()
     await user.click(screen.getByRole('radio', { name: 'Mettre de côté' }))
     expect(screen.getByRole('radio', { name: 'Mettre de côté' })).toBeChecked()
     expect(screen.getByLabelText('Nom du patron')).toHaveValue('Gilet Rosée')
-    expect(screen.getByLabelText('Taille visée')).toHaveValue('M')
+    expect(screen.getByLabelText('Taille', { selector: 'input' })).toHaveValue('M')
     await user.clear(screen.getByLabelText('Nom du patron'))
     await user.click(screen.getByRole('button', { name: 'Mettre de côté' }))
     expect(screen.getByRole('alert')).toHaveTextContent('Donne un nom au patron.')
@@ -1135,7 +1139,7 @@ describe('patrons à faire plus tard', () => {
     })
     expect(await screen.findByRole('heading', { name: 'Commencer « Gilet Rosée »' })).toBeInTheDocument()
     expect(api.knitting.downloadPdf).toHaveBeenCalledWith('u-lucile/gilet.pdf', 'Gilet Rosée')
-    expect(screen.getByLabelText('Taille choisie')).toHaveValue('M')
+    expect(screen.getByLabelText('Taille', { selector: 'input' })).toHaveValue('M')
     // PDF repris : rien à choisir, ni « Mettre de côté »
     expect(await screen.findByText('Gilet Rosée.pdf')).toBeInTheDocument()
     expect(screen.queryByLabelText('Patron (PDF)')).not.toBeInTheDocument()
@@ -1229,8 +1233,8 @@ describe('stock de laine', () => {
     await user.click(within(dialog).getByRole('button', { name: 'Enregistrer' }))
     await waitFor(() => expect(api.knitting.saveStashItem).toHaveBeenCalledWith({ id: 'st1', yarn: { ...MERINO, skeins: 5 }, notes: '' }))
 
-    await user.click(within(list).getByRole('button', { name: 'Retirer DROPS Merino du stock' }))
-    await user.click(within(await screen.findByRole('alertdialog')).getByRole('button', { name: 'Retirer' }))
+    await user.click(within(list).getByRole('button', { name: 'Supprimer DROPS Merino du stock' }))
+    await user.click(within(await screen.findByRole('alertdialog')).getByRole('button', { name: 'Supprimer' }))
     await waitFor(() => expect(api.knitting.deleteStashItem).toHaveBeenCalledWith('st1'))
   })
 
@@ -1314,7 +1318,7 @@ describe('texte du patron et taille mise en valeur', () => {
     api.knitting.readPattern.mockResolvedValue({ ...PATTERN, steps, sizeIndex: 1 })
     renderWithApp(<KnittingImportPage />, { api, route: '/tricot/nouveau', path: '/tricot/nouveau', extraRoutes: <Route path="/tricot/:id" element={<p>Projet ouvert</p>} /> })
     await user.upload(screen.getByLabelText('Patron (PDF)'), new File(['%PDF-1.4'], 'p.pdf', { type: 'application/pdf' }))
-    await user.type(screen.getByLabelText('Taille choisie'), 'M')
+    await user.type(screen.getByLabelText('Taille', { selector: 'input' }), 'M')
     await user.click(screen.getByRole('button', { name: 'Lire le patron' }))
 
     const list = await screen.findByRole('list', { name: 'Étapes lues' })

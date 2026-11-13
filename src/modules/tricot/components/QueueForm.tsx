@@ -87,7 +87,7 @@ export function QueueForm({ pdf, onPdf, size, onSize }: Props) {
         </div>
         <div className="grid grid-cols-2 gap-3">
           <div className="grid gap-1.5">
-            <Label htmlFor="queue-size">Taille visée</Label>
+            <Label htmlFor="queue-size">Taille</Label>
             <Input id="queue-size" className="h-10" maxLength={40} value={size} onChange={(e) => onSize(e.target.value)} placeholder="M, 4 ans…" />
           </div>
           <div className="grid gap-1.5">

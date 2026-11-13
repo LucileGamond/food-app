@@ -6,7 +6,9 @@ import { cn } from '@/lib/utils'
 import type { KnitStep } from '../lib/pattern'
 import { parseDecimal, yarnTitle, type Yarn } from '../lib/yarn'
 import { projectRowsDone, yarnVerdict, type YarnCheck } from '../lib/yarnLeft'
+import { Link } from 'react-router-dom'
 import { Fold } from './Fold'
+import { Note } from './Note'
 
 interface Props {
   /** Laines du projet : chaque coloris est une laine, pesée à part. */
@@ -48,9 +50,15 @@ export function YarnCheckCard({ yarns, steps, checks, onSave }: Props) {
         </p>
       </div>
       {yarns.length === 0 ? (
-        <p className="rounded-xl bg-muted/40 p-3 text-sm">
-          Ajoute la laine du projet (poids et métrage d’une pelote, nombre de pelotes) pour l’estimer.
-        </p>
+        <Note kind="todo">
+          <span>
+            Ajoute la laine du projet (poids et métrage d’une pelote, nombre de pelotes) dans{' '}
+            <Link to="?onglet=demarrer" className="font-medium underline underline-offset-4">
+              Démarrer
+            </Link>{' '}
+            pour l’estimer.
+          </span>
+        </Note>
       ) : (
         <ul className="divide-y">
           {yarns.map((yarn, index) => (

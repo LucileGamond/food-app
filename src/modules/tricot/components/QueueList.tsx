@@ -52,7 +52,7 @@ export function QueueList({ items, onChange }: { items: QueuedPattern[]; onChang
                 </p>
                 {item.notes && <p className="mt-1 text-sm whitespace-pre-line">{item.notes}</p>}
               </div>
-              <Button variant="ghost" size="icon" aria-label={`Retirer ${item.title}`} onClick={() => setRemoving(item)}>
+              <Button variant="ghost" size="icon-touch" aria-label={`Supprimer ${item.title}`} onClick={() => setRemoving(item)}>
                 <Trash2 />
               </Button>
             </div>
@@ -79,9 +79,9 @@ export function QueueList({ items, onChange }: { items: QueuedPattern[]; onChang
       <ConfirmDialog
         open={removing !== null}
         onOpenChange={(open) => !open && setRemoving(null)}
-        title="Retirer ce patron ?"
+        title="Supprimer ce patron ?"
         description="Il quitte la liste des patrons à faire plus tard, avec son PDF."
-        confirmLabel="Retirer"
+        confirmLabel="Supprimer"
         onConfirm={remove}
       />
     </>

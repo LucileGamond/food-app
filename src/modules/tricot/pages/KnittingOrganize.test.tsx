@@ -59,14 +59,14 @@ describe('organiser les étapes', () => {
   it('regroupe une étape avec la suivante', async () => {
     const user = userEvent.setup()
     const api = open()
-    await user.click(await screen.findByRole('button', { name: 'Regrouper avec la suivante : « Dos – côtes »' }))
+    await user.click(await screen.findByRole('button', { name: 'Regrouper avec « Dos – jersey »' }))
     const dialog = await screen.findByRole('alertdialog', { name: 'Regrouper avec l’étape suivante ?' })
     expect(dialog).toHaveTextContent('« Dos – jersey » devient la suite de « Dos – côtes »')
     await user.click(within(dialog).getByRole('button', { name: 'Regrouper' }))
     expect(api.knitting.mergeSteps).toHaveBeenCalledWith('s1', { sections: [rows(18, 'côtes'), rows(40, 'jersey'), rows(20, 'emmanchures')], totalRows: 78 })
     expect(api.knitting.getProject).toHaveBeenCalledTimes(2)
-    // Dernière étape : rien à regrouper
-    expect(screen.getByRole('button', { name: 'Regrouper avec la suivante : « Manche »' })).toBeDisabled()
+    // Chaque étape sauf la dernière propose de regrouper, en nommant la suivante
+    expect(screen.getAllByRole('button', { name: /^Regrouper avec/ }).map((b) => b.textContent?.trim())).toEqual(['Regrouper avec « Dos – jersey »', 'Regrouper avec « Manche »'])
   })
 
   it('déplace une sous-étape vers une autre étape, à la fin', async () => {
@@ -103,7 +103,9 @@ describe('organiser les étapes', () => {
   it('une étape commencée ou un patron adapté ne se réorganise pas', async () => {
     open({ ...PROJECT, steps: [PROJECT.steps[0]!, { ...PROJECT.steps[1]!, rowCount: 3 }, PROJECT.steps[2]!] })
     expect(await actions('40 rangs : jersey')).toBeDisabled()
-    expect(screen.getByRole('button', { name: 'Regrouper avec la suivante : « Dos – côtes »' })).toBeDisabled()
+    // Bloqué, avec la raison affichée
+    expect(screen.getByRole('button', { name: 'Regrouper avec « Dos – jersey »' })).toBeDisabled()
+    expect(screen.getByText('L’étape suivante est commencée : elle ne peut plus être regroupée.')).toBeInTheDocument()
     expect(screen.getByText('Commencée : ses sous-étapes ne bougent plus.')).toBeInTheDocument()
   })
 

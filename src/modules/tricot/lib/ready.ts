@@ -12,7 +12,11 @@ import { describeSection, type KnitStep, type StepSection } from './pattern'
 export interface ReadyIssue {
   /** Sous-étape concernée (0 = première). */
   index: number
-  /** « Sous-étape 2 (5 cm (à régler) : jersey) : nombre de rangs à régler. » */
+  /** Ce qui manque : « nombre de rangs à régler ». */
+  what: string
+  /** La sous-étape concernée : « 5 cm (à régler) : jersey ». */
+  section: string
+  /** La phrase entière, pour la lire d'un trait : « Sous-étape 2 (…) : nombre de rangs à régler. » */
   text: string
 }
 
@@ -33,7 +37,9 @@ export function readyIssues(step: Pick<KnitStep, 'sections' | 'needleFrom'>, nee
   const own = effectiveNeedles(step.sections, needles, step.needleFrom ?? null)
   return step.sections.flatMap((section, index) => {
     const issue = issueOf(section, isChecked(needleGauges, own[index] ?? null)) ?? (needles.length > 1 && own[index] === null ? 'aiguille à choisir' : null)
-    return issue ? [{ index, text: `Sous-étape ${index + 1} (${describeSection(section)}) : ${issue}.` }] : []
+    if (!issue) return []
+    const described = describeSection(section)
+    return [{ index, what: issue, section: described, text: `Sous-étape ${index + 1} (${described}) : ${issue}.` }]
   })
 }
 

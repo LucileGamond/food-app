@@ -69,19 +69,19 @@ export function StepStartStitches({ start, set, previous, fromPattern, onSave }:
         )}
         <Label htmlFor="start-stitches">Mailles au début de l’étape</Label>
         <div className="flex flex-wrap gap-2">
-          <Input id="start-stitches" className="h-9 w-28" inputMode="numeric" value={value} onChange={(e) => setValue(e.target.value)} aria-invalid={!!error} />
-          <Button type="submit" className="h-9">
-            Enregistrer
-          </Button>
-          {set && (
-            <Button type="button" variant="ghost" className="h-9" onClick={() => void onSave(null).then((ok) => ok && setEditing(false))}>
-              Laisser le patron décider
-            </Button>
-          )}
-          <Button type="button" variant="ghost" className="h-9" onClick={() => setEditing(false)}>
+          <Input id="start-stitches" className="h-10 w-28" inputMode="numeric" value={value} onChange={(e) => setValue(e.target.value)} aria-invalid={!!error} />
+          <Button type="button" variant="outline" className="h-10" onClick={() => setEditing(false)}>
             Annuler
           </Button>
+          <Button type="submit" className="h-10">
+            Enregistrer
+          </Button>
         </div>
+        {set && (
+          <Button type="button" variant="ghost" className="h-10 px-2" onClick={() => void onSave(null).then((ok) => ok && setEditing(false))}>
+            Laisser le patron décider
+          </Button>
+        )}
         <p className="text-xs text-muted-foreground">Les mailles de chaque rang et de la fin se recalculent : les augmentations et diminutions s’ajoutent à ce nombre.</p>
         {error && (
           <p role="alert" className="text-xs text-destructive">
@@ -100,7 +100,7 @@ export function StepStartStitches({ start, set, previous, fromPattern, onSave }:
       </span>
       <Button
         variant="ghost"
-        className="h-8 px-2"
+        className="h-10 px-2"
         onClick={() => {
           setValue(start === null ? '' : String(start))
           setError(null)

@@ -122,7 +122,7 @@ export function StepCharts({ projectId, pdfPath, step, steps, charts, hints, onC
         </h3>
         <HelpTip label="diagrammes">Un diagramme calé sur une sous-étape la suit : ses rangs se recalculent avec elle, et il la suit si elle change d’étape.</HelpTip>
       </div>
-      {shown.length === 0 && <p className="text-xs text-muted-foreground">Aucun diagramme pour cette étape.</p>}
+      {shown.length === 0 && <p className="text-sm text-muted-foreground">Aucun diagramme : ajoute-le pour suivre ses rangs pendant que tu tricotes.</p>}
       {shown.map((chart) => (
         <ChartView key={chart.id} chart={chart} rowCount={step.rowCount} onEdit={() => setEditing(chart)} onDelete={() => setDeleting(chart)} />
       ))}

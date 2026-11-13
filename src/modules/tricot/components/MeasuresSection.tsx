@@ -150,10 +150,10 @@ export function MeasuresSection() {
                   <span className="block font-medium">{profile.name}</span>
                   <span className="text-muted-foreground">{describeProfile(profile)}</span>
                 </p>
-                <Button variant="ghost" size="icon" aria-label={`Modifier la fiche de ${profile.name}`} onClick={() => setEditing(profile)}>
+                <Button variant="ghost" size="icon-touch" aria-label={`Modifier la fiche de ${profile.name}`} onClick={() => setEditing(profile)}>
                   <Pencil />
                 </Button>
-                <Button variant="ghost" size="icon" aria-label={`Supprimer la fiche de ${profile.name}`} onClick={() => setRemoving(profile)}>
+                <Button variant="ghost" size="icon-touch" aria-label={`Supprimer la fiche de ${profile.name}`} onClick={() => setRemoving(profile)}>
                   <Trash2 />
                 </Button>
               </li>

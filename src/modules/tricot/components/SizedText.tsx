@@ -131,12 +131,12 @@ export function StepText({ text, sizes, sizeIndex, highlights, onChange, abbrevi
       {editing && <p className="text-xs text-muted-foreground">Touche un nombre pour le surligner ou retirer son surlignage.</p>}
       <div className="flex flex-wrap gap-2">
         {english && !translation && onTranslate && !editing && (
-          <Button type="button" variant="outline" size="sm" disabled={translating} onClick={() => void translate()}>
+          <Button type="button" variant="outline" className="h-10" disabled={translating} onClick={() => void translate()}>
             {translating ? <Loader2 className="animate-spin" aria-hidden /> : <Languages />}
             {translating ? 'Traduction…' : 'Traduire en français'}
           </Button>
         )}
-        <Button type="button" variant={editing ? 'default' : 'outline'} size="sm" onClick={() => setEditing((e) => !e)}>
+        <Button type="button" variant={editing ? 'default' : 'outline'} className="h-10" onClick={() => setEditing((e) => !e)}>
           {editing ? <Check /> : <Highlighter />}
           {editing ? 'Terminé' : 'Corriger le surlignage'}
         </Button>
@@ -144,7 +144,7 @@ export function StepText({ text, sizes, sizeIndex, highlights, onChange, abbrevi
           <Button
             type="button"
             variant="ghost"
-            size="sm"
+            className="h-10"
             onClick={() => {
               const rest = { ...highlights }
               delete rest[highlightKey(sizeIndex)]

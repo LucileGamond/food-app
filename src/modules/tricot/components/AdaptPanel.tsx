@@ -17,6 +17,7 @@ import { ADAPT_REQUEST_MAX, adaptationPaused, describeChange, type Adaptation, t
 import type { KnitProject } from '../lib/pattern'
 import { formatGauge, gaugeDiffers } from '../lib/yarn'
 import { Fold } from './Fold'
+import { Note } from './Note'
 
 interface Props {
   project: KnitProject
@@ -96,9 +97,9 @@ export function AdaptPanel({ project, size, onSaved }: Props) {
             {adaptation.size && <> (taille {adaptation.size})</>}.
           </p>
           {paused && (
-            <p role="status" className="rounded-xl bg-muted/50 p-3 text-sm">
+            <Note kind="todo" role="status">
               Adaptation en pause : elle a été faite pour la taille {adaptation.size}, tu suis maintenant la taille {size}. Refais l’adaptation pour la taille {size}.
-            </p>
+            </Note>
           )}
           <div className="flex items-center gap-2">
             <Checkbox

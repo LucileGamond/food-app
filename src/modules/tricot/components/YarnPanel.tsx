@@ -8,6 +8,7 @@ import { useState, type FormEvent } from 'react'
 import { toast } from 'sonner'
 import { errorMessage } from '@/api'
 import { useApi } from '@/app/ApiContext'
+import { ConfirmDialog } from '@/components/ConfirmDialog'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
@@ -290,6 +291,8 @@ export function YarnPanel({
 }) {
   const api = useApi()
   const [editing, setEditing] = useState<number | 'new' | null>(null)
+  // Supprimer une laine emporte ses pesées : on confirme, comme partout ailleurs.
+  const [removing, setRemoving] = useState<number | null>(null)
   // Stock de laine, pour prendre une laine du stock (sans erreur bloquante : le stock est un plus).
   const stash = useAsync(() => api.knitting.listStash(), [api])
   const total = totalLength(info.yarns)
@@ -324,10 +327,10 @@ export function YarnPanel({
                 <span className="block font-medium">{yarnTitle(yarn)}</span>
                 <span className="text-muted-foreground">{yarnDetails(yarn)}</span>
               </p>
-              <Button variant="ghost" size="icon" aria-label={`Modifier ${yarnTitle(yarn)}`} onClick={() => setEditing(index)}>
+              <Button variant="ghost" size="icon-touch" aria-label={`Modifier ${yarnTitle(yarn)}`} onClick={() => setEditing(index)}>
                 <Pencil />
               </Button>
-              <Button variant="ghost" size="icon" aria-label={`Retirer ${yarnTitle(yarn)}`} onClick={() => void onSave({ ...info, yarns: info.yarns.filter((_, i) => i !== index) }, index)}>
+              <Button variant="ghost" size="icon-touch" aria-label={`Supprimer ${yarnTitle(yarn)}`} onClick={() => setRemoving(index)}>
                 <Trash2 />
               </Button>
             </li>
@@ -335,6 +338,17 @@ export function YarnPanel({
         </ul>
       )}
       {total !== null && <p className="text-sm text-muted-foreground">Environ {total} m de laine en tout.</p>}
+
+      <ConfirmDialog
+        open={removing !== null}
+        onOpenChange={(open) => !open && setRemoving(null)}
+        title="Supprimer cette laine ?"
+        description={removing !== null && info.yarns[removing] ? `« ${yarnTitle(info.yarns[removing])} » et ses pesées seront supprimées du projet.` : undefined}
+        confirmLabel="Supprimer"
+        onConfirm={async () => {
+          if (removing !== null) await onSave({ ...info, yarns: info.yarns.filter((_, i) => i !== removing) }, removing)
+        }}
+      />
 
       <GaugeForm
         key={JSON.stringify([info.patternGauge, info.myGauge])}

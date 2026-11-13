@@ -109,7 +109,7 @@ export function SizeAdvice({ chart, sizes, readIndex, onReread, rereading }: Pro
               <legend className="mb-1.5 text-sm font-medium">Aisance{chart.easeCm !== null && ` (patron : ${cm(chart.easeCm)} cm)`}</legend>
               <div className="flex flex-wrap items-center gap-1.5">
                 {EASE_STYLES.map((s) => (
-                  <Button key={s.key} type="button" size="sm" variant={style === s.key ? 'default' : 'outline'} aria-pressed={style === s.key} title={s.range} onClick={() => pickEase(s.cm)}>
+                  <Button key={s.key} type="button" className="h-10" variant={style === s.key ? 'default' : 'outline'} aria-pressed={style === s.key} title={s.range} onClick={() => pickEase(s.cm)}>
                     {s.label}
                   </Button>
                 ))}
@@ -135,7 +135,7 @@ export function SizeAdvice({ chart, sizes, readIndex, onReread, rereading }: Pro
       )}
 
       {advice && (
-        <div role="status" className="rounded-xl bg-muted/40 p-3 text-sm">
+        <div role="status" className="rounded-xl bg-muted/50 p-3 text-sm">
           {advice.kind === 'size' ? (
             <>
               <p className="font-medium">Taille conseillée : {sizes[advice.index]}</p>

@@ -43,7 +43,7 @@ export function StepQuestion({ stepTitle, text, row, size, abbreviations }: Prop
 
   if (!open) {
     return (
-      <Button type="button" variant="ghost" size="sm" className="text-muted-foreground" onClick={() => setOpen(true)}>
+      <Button type="button" variant="ghost" className="h-10 text-muted-foreground" onClick={() => setOpen(true)}>
         <MessageCircleQuestion /> Une question sur ce rang ?
       </Button>
     )
@@ -51,7 +51,7 @@ export function StepQuestion({ stepTitle, text, row, size, abbreviations }: Prop
   return (
     <section aria-label="Question sur ce rang" className="space-y-2 rounded-xl border p-3">
       {answer && (
-        <div role="status" className="space-y-1 rounded-lg bg-muted/40 p-3 text-sm">
+        <div role="status" className="space-y-1 rounded-xl bg-muted/50 p-3 text-sm">
           <p className="font-medium">{answer.question}</p>
           <p className="whitespace-pre-line">{answer.text}</p>
         </div>
@@ -67,11 +67,11 @@ export function StepQuestion({ stepTitle, text, row, size, abbreviations }: Prop
           </p>
         )}
         <div className="flex flex-wrap gap-2">
-          <Button type="submit" size="sm" disabled={asking}>
+          <Button type="submit" className="h-10" disabled={asking}>
             {asking ? <Loader2 className="animate-spin" aria-hidden /> : <Send />}
             {asking ? 'Réflexion…' : 'Demander'}
           </Button>
-          <Button type="button" variant="ghost" size="sm" onClick={() => setOpen(false)}>
+          <Button type="button" variant="ghost" className="h-10" onClick={() => setOpen(false)}>
             Fermer
           </Button>
         </div>

@@ -34,12 +34,12 @@ export function ProjectNeedles({ needles, onSave }: Props) {
       <form onSubmit={submit} noValidate aria-label="Aiguilles du patron" className="space-y-1.5">
         <Label htmlFor="knit-needles">Aiguilles du patron (mm)</Label>
         <div className="flex gap-2">
-          <Input id="knit-needles" className="h-9 max-w-48" value={text} onChange={(e) => setText(e.target.value)} placeholder="3 ; 3,5" aria-invalid={!!error} />
-          <Button type="submit" className="h-9">
-            Enregistrer
-          </Button>
-          <Button type="button" variant="ghost" className="h-9" onClick={() => setEditing(false)}>
+          <Input id="knit-needles" className="h-10 max-w-48" value={text} onChange={(e) => setText(e.target.value)} placeholder="3 ; 3,5" aria-invalid={!!error} />
+          <Button type="button" variant="outline" className="h-10" onClick={() => setEditing(false)}>
             Annuler
+          </Button>
+          <Button type="submit" className="h-10">
+            Enregistrer
           </Button>
         </div>
         {error && (
@@ -53,8 +53,8 @@ export function ProjectNeedles({ needles, onSave }: Props) {
   return (
     <div className="flex flex-wrap items-center gap-2 text-sm">
       <span className="text-muted-foreground">Aiguilles :</span>
-      {needles.length ? <span>{needles.map(formatNeedle).join(' · ')}</span> : <span className="text-muted-foreground">pas encore indiquées (chaque sous-étape pourra choisir la sienne)</span>}
-      <Button variant="ghost" className="h-8 px-2" onClick={edit}>
+      {needles.length ? <span>{needles.map(formatNeedle).join(' · ')}</span> : <span className="text-muted-foreground">aucune : indique-les pour que chaque sous-étape choisisse la sienne</span>}
+      <Button variant="ghost" className="h-10 px-2" onClick={edit}>
         <Pencil /> Modifier <span className="sr-only">les aiguilles du patron</span>
       </Button>
     </div>

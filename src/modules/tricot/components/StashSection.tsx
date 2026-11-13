@@ -21,13 +21,13 @@ import { YarnDialog } from './YarnPanel'
 function PatternLink({ item }: { item: QueuedPattern }) {
   if (item.pdfPath) {
     return (
-      <Link to={`/tricot/nouveau?patron=${item.id}`} className={cn(buttonVariants({ variant: 'outline' }), 'h-9')} aria-label={`Commencer ${item.title}`}>
+      <Link to={`/tricot/nouveau?patron=${item.id}`} className={cn(buttonVariants({ variant: 'outline' }), 'h-10')} aria-label={`Commencer ${item.title}`}>
         <Play /> Commencer
       </Link>
     )
   }
   return item.url ? (
-    <a href={item.url} target="_blank" rel="noreferrer" className={cn(buttonVariants({ variant: 'outline' }), 'h-9')}>
+    <a href={item.url} target="_blank" rel="noreferrer" className={cn(buttonVariants({ variant: 'outline' }), 'h-10')}>
       <ExternalLink /> Lien
     </a>
   ) : null
@@ -221,10 +221,10 @@ export function StashSection({ queue }: { queue: QueuedPattern[] }) {
                     <span className="block font-medium">{yarnTitle(item.yarn)}</span>
                     <span className="text-muted-foreground">{yarnDetails(item.yarn)}</span>
                   </p>
-                  <Button variant="ghost" size="icon" aria-label={`Modifier ${yarnTitle(item.yarn)}`} onClick={() => setEditing(item)}>
+                  <Button variant="ghost" size="icon-touch" aria-label={`Modifier ${yarnTitle(item.yarn)}`} onClick={() => setEditing(item)}>
                     <Pencil />
                   </Button>
-                  <Button variant="ghost" size="icon" aria-label={`Retirer ${yarnTitle(item.yarn)} du stock`} onClick={() => setRemoving(item)}>
+                  <Button variant="ghost" size="icon-touch" aria-label={`Supprimer ${yarnTitle(item.yarn)} du stock`} onClick={() => setRemoving(item)}>
                     <Trash2 />
                   </Button>
                 </div>
@@ -248,9 +248,9 @@ export function StashSection({ queue }: { queue: QueuedPattern[] }) {
       <ConfirmDialog
         open={removing !== null}
         onOpenChange={(open) => !open && setRemoving(null)}
-        title="Retirer cette laine du stock ?"
+        title="Supprimer cette laine du stock ?"
         description="Elle n’apparaîtra plus dans le stock."
-        confirmLabel="Retirer"
+        confirmLabel="Supprimer"
         onConfirm={remove}
       />
     </Fold>

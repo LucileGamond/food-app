@@ -1,4 +1,4 @@
-import { Check, ChevronLeft, ChevronRight, CircleAlert, FileText, ListChecks, ListTree, MoreHorizontal, Play, SearchX, Trash2, Undo2, Wand2 } from 'lucide-react'
+import { Check, ChevronLeft, ChevronRight, FileText, ListChecks, ListTree, Play, SearchX, Trash2, Undo2, Wand2 } from 'lucide-react'
 import { useState } from 'react'
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { toast } from 'sonner'
@@ -8,7 +8,6 @@ import { ConfirmDialog } from '@/components/ConfirmDialog'
 import { EmptyState } from '@/components/EmptyState'
 import { PageHeader } from '@/components/PageHeader'
 import { Button, buttonVariants } from '@/components/ui/button'
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { LoadError } from '@/components/LoadError'
@@ -41,6 +40,7 @@ import { isReady, readyIssues } from '../lib/ready'
 import { describePass } from '../lib/passes'
 import { defaultTab, isProjectTab, startIssues, stepsToPrepare, type ProjectTab } from '../lib/phases'
 import { CurrentStepCard } from '../components/CurrentStepCard'
+import { Note } from '../components/Note'
 import { OrganizeSteps } from '../components/OrganizeSteps'
 
 export function KnittingProjectPage() {
@@ -377,24 +377,17 @@ export function KnittingProjectPage() {
       <PageHeader
         title={project.title}
         description={`Taille ${followedSize} · ${doneCount} / ${steps.length} étapes`}
-        actions={
-          <>
+        titleAction={
+          <div className="flex items-center gap-1">
             {project.pdfPath && (
-              <Button variant="outline" className="h-10" onClick={() => void openPdf()}>
-                <FileText /> Voir le PDF
+              <Button variant="ghost" size="icon-touch" aria-label="Voir le PDF" onClick={() => void openPdf()}>
+                <FileText />
               </Button>
             )}
-            <DropdownMenu>
-              <DropdownMenuTrigger render={<Button variant="ghost" size="icon-lg" aria-label="Actions sur le projet" />}>
-                <MoreHorizontal />
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-48">
-                <DropdownMenuItem variant="destructive" onClick={() => setConfirmDelete(true)}>
-                  <Trash2 /> Supprimer le projet
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </>
+            <Button variant="ghost" size="icon-touch" aria-label="Supprimer le projet" onClick={() => setConfirmDelete(true)}>
+              <Trash2 />
+            </Button>
+          </div>
         }
       />
       {offlineNote}
@@ -411,16 +404,13 @@ export function KnittingProjectPage() {
 
         <TabsContent value="demarrer" className="space-y-4">
           {toStart.length > 0 && (
-            <div role="note" aria-labelledby="knit-start-title" className="space-y-1 rounded-xl border border-amber-500/40 bg-amber-500/10 p-3 text-sm">
-              <p id="knit-start-title" className="flex items-center gap-1.5 font-medium">
-                <CircleAlert className="size-4 shrink-0 text-amber-700 dark:text-amber-400" aria-hidden /> Avant de préparer les étapes
-              </p>
+            <Note kind="todo" title="Avant de préparer les étapes">
               <ul className="list-inside list-disc">
                 {toStart.map((issue) => (
                   <li key={issue}>{issue}</li>
                 ))}
               </ul>
-            </div>
+            </Note>
           )}
           <div className="space-y-2">
             <SizePicker id="knit-size-index" sizes={project.sizes} sizeIndex={project.sizeIndex} fallback={project.size} onChange={(i) => void changeSize(i)} />
@@ -453,7 +443,7 @@ export function KnittingProjectPage() {
           ) : (
             <nav aria-label="Étapes">
               {steps.length === 0 ? (
-                <p className="text-sm text-muted-foreground">Aucune étape dans ce patron.</p>
+                <p className="text-sm text-muted-foreground">Aucune étape : la lecture du patron n’en a trouvé aucune.</p>
               ) : (
                 <ol className="flex flex-col gap-2">
                   {steps.map((s, i) => {
@@ -468,11 +458,15 @@ export function KnittingProjectPage() {
                             isCurrent ? 'border-brand bg-brand/5' : 'bg-background hover:bg-muted/50',
                           )}
                         >
-                          <span className={cn('flex size-6 shrink-0 items-center justify-center rounded-full text-xs', s.done ? 'bg-brand text-white' : 'bg-muted')} aria-hidden>
-                            {s.done ? <Check className="size-3.5" /> : i + 1}
+                          {/* Le numéro reste lisible même terminée : la numérotation ne saute pas. */}
+                          <span className={cn('flex size-6 shrink-0 items-center justify-center rounded-full text-xs', s.done ? 'bg-brand/15 font-medium text-brand' : 'bg-muted')} aria-hidden>
+                            {i + 1}
                           </span>
                           <span className="min-w-0 flex-1">
-                            <span className={cn('block truncate', isCurrent && 'font-medium')}>{s.title}</span>
+                            <span className={cn('flex items-center gap-1.5', isCurrent && 'font-medium')}>
+                              {s.done && <Check className="size-3.5 shrink-0 text-brand" aria-hidden />}
+                              <span className="truncate">{s.title}</span>
+                            </span>
                             {(s.rowCount > 0 || s.totalRows !== null || s.times > 1) && (
                               <span className="block text-xs text-muted-foreground tabular-nums">
                                 {s.rowCount}
@@ -480,10 +474,15 @@ export function KnittingProjectPage() {
                                 {describePass(s) && ` · ${describePass(s)}`}
                               </span>
                             )}
+                            {/* Les pastilles sous le titre : elles ne le rognent pas. */}
+                            {(isCurrent || (!s.done && !isReady(s, needles, needleGauges))) && (
+                              <span className="mt-1 flex flex-wrap gap-1">
+                                {isCurrent && <span className="rounded-full bg-brand/15 px-2 py-0.5 text-xs font-medium">En cours</span>}
+                                {!s.done && !isReady(s, needles, needleGauges) && <span className="rounded-full bg-amber-500/15 px-2 py-0.5 text-xs font-medium">À préparer</span>}
+                              </span>
+                            )}
                           </span>
                           {s.done && <span className="sr-only">(terminée)</span>}
-                          {!s.done && !isReady(s, needles, needleGauges) && <span className="shrink-0 rounded-full bg-amber-500/15 px-2 py-0.5 text-xs font-medium">À préparer</span>}
-                          {isCurrent && <span className="shrink-0 rounded-full bg-brand/15 px-2 py-0.5 text-xs font-medium">En cours</span>}
                           <ChevronRight className="size-4 shrink-0 text-muted-foreground" aria-hidden />
                         </Link>
                       </li>

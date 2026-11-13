@@ -33,8 +33,8 @@ export function Fold({ id, title, summary, action, variant = 'card', defaultOpen
       aria-labelledby={id}
       className={cn(variant === 'card' && 'rounded-2xl border bg-background p-4 shadow-xs sm:p-5', variant === 'section' && 'space-y-2', className)}
     >
-      <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-        <h2 id={id} className={cn('min-w-0', variant === 'card' ? 'font-semibold' : 'text-lg font-semibold tracking-tight')}>
+      <div className="flex items-center gap-3">
+        <h2 id={id} className={cn('min-w-0 flex-1', variant === 'card' ? 'font-semibold' : 'text-lg font-semibold tracking-tight')}>
           <button
             type="button"
             aria-expanded={isOpen}
@@ -46,9 +46,10 @@ export function Fold({ id, title, summary, action, variant = 'card', defaultOpen
             {title}
           </button>
         </h2>
-        {!isOpen && summary && <p className="min-w-0 flex-1 truncate text-sm text-muted-foreground">{summary}</p>}
-        {action && <div className="ml-auto">{action}</div>}
+        {action && <div className="shrink-0">{action}</div>}
       </div>
+      {/* Le résumé a sa propre ligne : un bouton d'action ne doit jamais le rogner. */}
+      {!isOpen && summary && <p className="mt-0.5 text-sm text-muted-foreground">{summary}</p>}
       <div id={`${id}-content`} hidden={!isOpen} className={cn(variant === 'card' && 'mt-4 space-y-4', variant === 'section' && 'space-y-3')}>
         {children}
       </div>
