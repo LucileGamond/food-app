@@ -212,7 +212,8 @@ test('ajoute un patron à la bibliothèque, le commence, puis note la laine (ét
   // « tous les 5 cm » converti avec l'échantillon du patron (30 rangs pour 10 cm) : calcul expliqué, à valider
   await page.getByRole('button', { name: 'Étape suivante', exact: true }).click()
   const sections = page.getByRole('region', { name: 'Sous-étapes' })
-  const check = sections.getByRole('note')
+  // L'étape annonce 30 rangs et les diminutions vont plus loin : cet encadré-là est à part
+  const check = sections.getByRole('note').filter({ hasText: 'Converti' })
   // Mon échantillon (30 rangs pour 10 cm) prend le pas sur celui du patron pour la conversion
   await expect(check).toContainText('Converti depuis le patron : 5 cm × 30 rangs pour 10 cm (ton échantillon) ≈ 15 rangs (arrondi).')
   await expect(sections).toContainText('1 diminution de chaque côté — tous les 15 rangs (≈ 5 cm) (4 fois)')
@@ -222,6 +223,9 @@ test('ajoute un patron à la bibliothèque, le commence, puis note la laine (ét
   await expect(sections).toContainText('Vérifié pour ce projet.')
   await expect(check).toHaveCount(0)
   await expect(page.getByRole('link', { name: 'Tricoter cette étape' })).toBeVisible()
+  // Les diminutions vont jusqu'au rang 60 alors que l'étape en annonce 30 : signalé, et le total se reprend d'un geste
+  await expect(page.getByText('À préparer avant de tricoter')).toBeVisible()
+  await sections.getByRole('button', { name: 'Compter 60 rangs pour l’étape' }).click()
   await expect(page.getByText('À préparer avant de tricoter')).toHaveCount(0)
   // Étape tricotée 2 fois : le nombre de fois se change en touchant l'avancée
   await page.getByRole('button', { name: 'Nombre de fois : à tricoter 1 fois' }).click()
@@ -332,6 +336,7 @@ test('suit un diagramme ajouté depuis une image, rang par rang', async ({ page 
   await page.getByLabel('Image du diagramme').setInputFiles({ name: 'torsade.png', mimeType: 'image/png', buffer: png })
   const setup = page.getByRole('dialog', { name: 'Caler le diagramme' })
   await setup.getByLabel('Lignes de la grille').fill('6')
+  await setup.getByRole('tab', { name: 'Où il va' }).click()
   await setup.getByLabel('Nom (facultatif)').fill('Torsade')
   await expectNoA11yViolations(page)
   await setup.getByRole('button', { name: 'Enregistrer' }).click()

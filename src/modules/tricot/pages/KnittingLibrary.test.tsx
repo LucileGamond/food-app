@@ -58,6 +58,11 @@ describe('page Tricot : accès à la bibliothèque', () => {
     expect(await within(link).findByText('3 patrons · 2 à faire')).toBeInTheDocument()
   })
 
+  it('met un patron de côté depuis la page Tricot, sans traverser la bibliothèque', async () => {
+    renderWithApp(<KnittingPage />, { api: fakeApi() })
+    expect(await screen.findByRole('link', { name: 'Ajouter un patron' })).toHaveAttribute('href', '/tricot/patrons/nouveau')
+  })
+
   it('bibliothèque vide : invite à y garder des patrons', async () => {
     renderWithApp(<KnittingPage />)
     expect(await screen.findByText('Garde ici les patrons qui te font envie')).toBeInTheDocument()

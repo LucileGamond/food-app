@@ -96,11 +96,12 @@ describe('taille selon les mesures, après la lecture', () => {
     const status = await within(card).findByRole('status')
     expect(status).toHaveTextContent('Taille conseillée : M')
     expect(status).toHaveTextContent('Tour de poitrine 92 cm + 8 cm d’aisance = 100 cm → M (101 cm fini, aisance réelle 9 cm).')
-    expect(within(card).getByRole('button', { name: 'Classique' })).toHaveAttribute('aria-pressed', 'true')
+    // La plage est écrite sur le bouton (pas dans une infobulle de survol)
+    expect(within(card).getByRole('button', { name: 'Classique 5 à 10 cm' })).toHaveAttribute('aria-pressed', 'true')
     expect(within(card).getByText('Les rangs et mailles ont été comptés pour la taille S.')).toBeInTheDocument()
 
     // Ajusté : S, la taille lue, rien à relire
-    await user.click(within(card).getByRole('button', { name: 'Ajusté' }))
+    await user.click(within(card).getByRole('button', { name: 'Ajusté 0 à 5 cm' }))
     expect(status).toHaveTextContent('Taille conseillée : S')
     expect(within(card).queryByRole('button', { name: /Relire/ })).not.toBeInTheDocument()
     // Aisance à soi : 18 cm pour moi → L
@@ -108,7 +109,7 @@ describe('taille selon les mesures, après la lecture', () => {
     await user.clear(within(card).getByLabelText('Aisance en cm'))
     await user.type(within(card).getByLabelText('Aisance en cm'), '9')
     expect(status).toHaveTextContent('Taille conseillée : L')
-    expect(within(card).getByRole('button', { name: 'Classique' })).toHaveAttribute('aria-pressed', 'false')
+    expect(within(card).getByRole('button', { name: 'Classique 5 à 10 cm' })).toHaveAttribute('aria-pressed', 'false')
 
     await user.clear(screen.getByLabelText('Nom du projet'))
     await user.type(screen.getByLabelText('Nom du projet'), 'Pull de Noël')

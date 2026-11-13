@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { NativeSelect } from '@/components/ui/native-select'
 import { formatGaugeCounts, gaugeOf, withGauge, withoutGauge, MAX_GAUGES, type ProjectGauge } from '../lib/gauges'
-import { formatNeedle } from '../lib/needles'
+import { formatNeedle, parseNeedle } from '../lib/needles'
 import { parseGauge } from '../lib/yarn'
 import { HelpTip } from './HelpTip'
 import { Note } from './Note'
@@ -14,7 +14,7 @@ import { Note } from './Note'
 interface Props {
   /** Les échantillons du projet : la seule source pour tous les calculs. */
   gauges: ProjectGauge[]
-  /** Aiguilles du patron, proposées dans le choix. */
+  /** Aiguilles du patron, proposées dans le choix (on peut en saisir une autre). */
   needles: number[]
   onSave: (gauges: ProjectGauge[]) => Promise<boolean>
   /** Aiguille dont on veut noter l'échantillon tout de suite (venue d'une sous-étape à convertir). */
@@ -27,25 +27,34 @@ const text = (value: number | null) => (value === null ? '' : String(value).repl
 /** « Aiguille 3,5 mm », « Toutes aiguilles » pour celui qui vaut par défaut. */
 export const gaugeName = (needle: number | null): string => (needle === null ? 'Toutes aiguilles' : `Aiguille ${formatNeedle(needle)}`)
 
-/** Saisie d'un échantillon : son aiguille (ou aucune), ses mailles et ses rangs pour 10 cm. */
+/** Saisie d'un échantillon : son aiguille (du patron ou une autre), ses mailles et ses rangs pour 10 cm. */
 function GaugeForm({ gauge, taken, needles, onSave, onCancel }: { gauge: ProjectGauge | null; taken: (number | null)[]; needles: number[]; onSave: (g: ProjectGauge) => Promise<boolean>; onCancel: () => void }) {
-  const [needle, setNeedle] = useState(gauge ? (gauge.needle === null ? '' : String(gauge.needle)) : '')
-  const [values, setValues] = useState({ stitches: text(gauge?.stitches ?? null), rows: text(gauge?.rows ?? null) })
-  const [error, setError] = useState<string | null>(null)
-  const [saving, setSaving] = useState(false)
   // Les aiguilles déjà notées ne sont plus proposées (une seule ligne par aiguille).
   const free = needles.filter((n) => n === gauge?.needle || !taken.includes(n))
   const freeDefault = gauge?.needle === null || !taken.includes(null)
+  // Une aiguille hors patron se tape : « autre » ouvre le champ.
+  const other = gauge?.needle != null && !free.includes(gauge.needle)
+  const [choice, setChoice] = useState(other ? 'autre' : gauge && gauge.needle !== null ? String(gauge.needle) : freeDefault ? '' : free.length ? String(free[0]) : 'autre')
+  const [typed, setTyped] = useState(other ? text(gauge.needle) : '')
+  const [values, setValues] = useState({ stitches: text(gauge?.stitches ?? null), rows: text(gauge?.rows ?? null) })
+  const [error, setError] = useState<string | null>(null)
+  const [saving, setSaving] = useState(false)
 
   async function submit(event: FormEvent) {
     event.preventDefault()
+    let needle: number | null = null
+    if (choice === 'autre') {
+      needle = parseNeedle(typed)
+      if (needle === null) return setError('Une taille d’aiguille en mm, entre 0,5 et 30 (ex. 4,5).')
+      if (needle !== gauge?.needle && taken.includes(needle)) return setError('Tu as déjà un échantillon pour cette aiguille : modifie-le.')
+    } else if (choice !== '') needle = Number(choice)
     const stitches = parseGauge(values.stitches)
     const rows = parseGauge(values.rows)
     if (stitches === undefined || rows === undefined) return setError('Mailles et rangs : un nombre entre 1 et 100 pour 10 cm.')
     if (stitches === null && rows === null) return setError('Note au moins les mailles ou les rangs.')
     setError(null)
     setSaving(true)
-    const ok = await onSave({ needle: needle === '' ? null : Number(needle), stitches, rows, checked: gauge?.checked ?? false })
+    const ok = await onSave({ needle, stitches, rows, checked: (needle === gauge?.needle && gauge?.checked) ?? false })
     setSaving(false)
     if (!ok) setError('L’échantillon n’a pas pu être enregistré. Réessaie.')
   }
@@ -54,15 +63,23 @@ function GaugeForm({ gauge, taken, needles, onSave, onCancel }: { gauge: Project
     <form onSubmit={(e) => void submit(e)} noValidate aria-label="Échantillon" className="space-y-3 rounded-xl border bg-background p-3">
       <div className="grid gap-1.5">
         <Label htmlFor="gauge-needle">Aiguille</Label>
-        <NativeSelect id="gauge-needle" className="h-10" value={needle} onChange={(e) => setNeedle(e.target.value)}>
+        <NativeSelect id="gauge-needle" className="h-10" value={choice} onChange={(e) => setChoice(e.target.value)}>
           {freeDefault && <option value="">Toutes aiguilles</option>}
           {free.map((n) => (
             <option key={n} value={String(n)}>
               {formatNeedle(n)}
             </option>
           ))}
+          <option value="autre">Une autre aiguille…</option>
         </NativeSelect>
       </div>
+      {choice === 'autre' && (
+        <div className="grid gap-1.5">
+          <Label htmlFor="gauge-needle-other">Taille de l’aiguille (mm)</Label>
+          <Input id="gauge-needle-other" className="h-10 max-w-32" inputMode="decimal" placeholder="4,5" value={typed} onChange={(e) => setTyped(e.target.value)} aria-invalid={!!error} />
+          <p className="text-xs text-muted-foreground">Celle que tu utilises vraiment, même si le patron en conseille une autre.</p>
+        </div>
+      )}
       <div className="grid grid-cols-2 gap-3">
         {(['stitches', 'rows'] as const).map((key) => (
           <div key={key} className="grid gap-1.5">
@@ -116,7 +133,10 @@ export function GaugesList({ gauges, needles, onSave, openFor, onOpened }: Props
   }, [openFor])
 
   async function save(gauge: ProjectGauge): Promise<boolean> {
-    const ok = await onSave(withGauge(gauges, gauge))
+    // Changer l'aiguille d'un échantillon le déplace : l'ancienne ligne ne reste pas.
+    const before = editing?.gauge ?? null
+    const list = before && before.needle !== gauge.needle ? withoutGauge(gauges, before.needle) : gauges
+    const ok = await onSave(withGauge(list, gauge))
     if (ok) setEditing(null)
     return ok
   }
@@ -128,7 +148,7 @@ export function GaugesList({ gauges, needles, onSave, openFor, onOpened }: Props
           Mes échantillons
         </h3>
         <HelpTip label="mes échantillons">
-          Un échantillon par aiguille : c’est celui de l’aiguille d’une sous-étape qui sert à convertir ses centimètres en rangs et à estimer ses mailles. « Toutes aiguilles » sert quand une aiguille n’a pas le sien.
+          Un échantillon par aiguille, celles du patron comme les autres : c’est celui de l’aiguille d’une sous-étape qui sert à convertir ses centimètres en rangs et à estimer ses mailles. « Toutes aiguilles » sert quand une aiguille n’a pas le sien.
         </HelpTip>
       </div>
       {gauges.length === 0 ? (
@@ -154,15 +174,12 @@ export function GaugesList({ gauges, needles, onSave, openFor, onOpened }: Props
 
       {editing ? (
         <GaugeForm gauge={editing.gauge} taken={taken} needles={needles} onSave={save} onCancel={() => setEditing(null)} />
+      ) : gauges.length < MAX_GAUGES ? (
+        <Button variant="outline" className="h-10" onClick={() => setEditing({ gauge: null })}>
+          <Plus /> Ajouter un échantillon
+        </Button>
       ) : (
-        gauges.length < MAX_GAUGES &&
-        (needles.some((n) => !taken.includes(n)) || !taken.includes(null) ? (
-          <Button variant="outline" className="h-10" onClick={() => setEditing({ gauge: null })}>
-            <Plus /> Ajouter un échantillon
-          </Button>
-        ) : (
-          <Note>Chaque aiguille du patron a son échantillon.</Note>
-        ))
+        <Note>Tu as autant d’échantillons que possible ({MAX_GAUGES}).</Note>
       )}
 
       <ConfirmDialog

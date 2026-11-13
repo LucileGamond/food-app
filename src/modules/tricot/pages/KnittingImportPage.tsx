@@ -3,6 +3,7 @@ import { useEffect, useState, type FormEvent } from 'react'
 import { Navigate, useNavigate, useSearchParams } from 'react-router-dom'
 import { toast } from 'sonner'
 import { errorMessage } from '@/api'
+import { ConfirmDialog } from '@/components/ConfirmDialog'
 import { useApi } from '@/app/ApiContext'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -50,6 +51,8 @@ export function KnittingImportPage() {
   const [readings, setReadings] = useState<StoredReading[]>([])
   /** Date de la lecture gardée reprise ; null : lecture faite à l'instant par le modèle. */
   const [reusedAt, setReusedAt] = useState<string | null>(null)
+  /** Confirmation avant de jeter la lecture vérifiée. */
+  const [dropping, setDropping] = useState(false)
 
   useEffect(() => {
     if (!sourceId) return
@@ -208,15 +211,28 @@ export function KnittingImportPage() {
               Autres diagrammes repérés : {hints.filter((h) => h.step === null).map(describeHint).join(' ; ')}
             </p>
           )}
+          {/* Enregistrer d'abord : abandonner jette une lecture qui a pu prendre deux minutes, et se confirme. */}
           <div className="flex flex-wrap gap-2">
-            <Button variant="outline" className="h-10" onClick={() => setPattern(null)} disabled={saving}>
-              <RotateCcw /> Recommencer
-            </Button>
             <Button className="h-10" onClick={() => void save()} disabled={saving}>
               {saving ? <Loader2 className="animate-spin" aria-hidden /> : <Save />}
               Enregistrer le projet
             </Button>
+            <Button variant="outline" className="h-10" onClick={() => setDropping(true)} disabled={saving}>
+              <RotateCcw /> Abandonner cette lecture
+            </Button>
           </div>
+          <ConfirmDialog
+            open={dropping}
+            onOpenChange={setDropping}
+            title="Abandonner cette lecture ?"
+            description={
+              storedFor(size.trim())
+                ? 'Les corrections faites ici seront perdues ; la lecture gardée, elle, se reprend sans relire le patron.'
+                : 'Les étapes lues seront perdues ; il faudra relire le patron, ce qui prend jusqu’à deux minutes.'
+            }
+            confirmLabel="Abandonner"
+            onConfirm={async () => setPattern(null)}
+          />
         </div>
       </>
     )

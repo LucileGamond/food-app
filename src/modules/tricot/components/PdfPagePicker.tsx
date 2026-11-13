@@ -1,5 +1,6 @@
 import { Loader2 } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
+import { LoadError } from '@/components/LoadError'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { openPdf, type OpenedPdf } from '@/lib/pdf'
@@ -26,6 +27,8 @@ export function PdfPagePicker({ load, hints, onCancel, onPick }: Props) {
   const [thumbs, setThumbs] = useState<string[]>([])
   const [error, setError] = useState<string | null>(null)
   const [picking, setPicking] = useState<number | null>(null)
+  /** Changé par « Réessayer » : le PDF est rouvert. */
+  const [attempt, setAttempt] = useState(0)
   const loadRef = useRef(load)
 
   // Ouverture du PDF, puis vignettes page après page ; tout est libéré à la fermeture.
@@ -54,10 +57,19 @@ export function PdfPagePicker({ load, hints, onCancel, onPick }: Props) {
       urls.forEach((u) => URL.revokeObjectURL(u))
       void opened?.close()
     }
-  }, [])
+  }, [attempt])
+
+  /** Rouvre le PDF depuis le début. */
+  function retry() {
+    setError(null)
+    setThumbs([])
+    setPdf(null)
+    setAttempt((a) => a + 1)
+  }
 
   async function pick(page: number) {
     if (!pdf) return
+    setError(null)
     setPicking(page)
     try {
       onPick(await pdf.renderPage(page, CHART_MAX_SIDE), page)
@@ -68,6 +80,7 @@ export function PdfPagePicker({ load, hints, onCancel, onPick }: Props) {
   }
 
   const pages = pdf ? Array.from({ length: pdf.pageCount }, (_, i) => i + 1) : []
+  const thumbCount = pdf ? Math.min(pdf.pageCount, MAX_THUMBS) : 0
   return (
     <Dialog open onOpenChange={(open) => !open && picking === null && onCancel()}>
       <DialogContent className="max-h-[95svh] overflow-y-auto sm:max-w-2xl">
@@ -78,15 +91,17 @@ export function PdfPagePicker({ load, hints, onCancel, onPick }: Props) {
           </DialogDescription>
         </DialogHeader>
 
-        {error && (
-          <p role="alert" className="text-sm text-destructive">
-            {error}
-          </p>
-        )}
+        {/* Échec de l'ouverture : le même bloc qu'ailleurs, avec « Réessayer » — sinon il ne reste qu'Annuler. */}
+        {error && (pdf ? <LoadError message={`${error} Choisis une autre page, ou réessaie.`} onRetry={retry} /> : <LoadError message={error} onRetry={retry} />)}
         {!pdf && !error && (
           <div className="flex justify-center py-8">
             <Loader2 className="size-6 animate-spin text-muted-foreground" aria-label="Ouverture du PDF" />
           </div>
+        )}
+        {pdf && thumbs.length < thumbCount && (
+          <p role="status" className="text-sm text-muted-foreground tabular-nums">
+            Aperçus : {thumbs.length} / {thumbCount} page{thumbCount > 1 ? 's' : ''}…
+          </p>
         )}
         {pdf && (
           <ul aria-label="Pages du patron" className="grid grid-cols-2 gap-3 sm:grid-cols-3">

@@ -18,6 +18,14 @@ export function sanitizeNeedles(raw: unknown): number[] {
 /** « 3,5 mm ». */
 export const formatNeedle = (mm: number) => `${mm.toLocaleString('fr-FR')} mm`
 
+/** « 3,5 » ou « 3.5 mm » → 3.5 (null : saisie illisible). Une taille libre : pas forcément celle du patron. */
+export function parseNeedle(text: string): number | null {
+  const trimmed = text.replace(/mm$/i, '').trim().replace(',', '.')
+  if (!trimmed) return null
+  const value = Number(trimmed)
+  return valid(value) ? Math.round(value * 100) / 100 : null
+}
+
 /** « 3 ; 3,5 » ou « 3 3.5 » → [3, 3.5] (null : saisie illisible). */
 export function parseNeedles(text: string): number[] | null {
   const parts = text.split(/\s*;\s*|\s+|,\s+/).map((p) => p.replace(/mm$/i, '').trim()).filter(Boolean)

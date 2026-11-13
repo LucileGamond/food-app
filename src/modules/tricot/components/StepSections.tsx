@@ -19,7 +19,7 @@ import { HelpTip } from './HelpTip'
 import { Note } from './Note'
 import type { KnitChart } from '../lib/chart'
 import { isChecked, type ProjectGauge } from '../lib/gauges'
-import { readyIssues } from '../lib/ready'
+import { readyIssues, rowsOverflow } from '../lib/ready'
 import {
   describeRange,
   describeSection,
@@ -116,7 +116,7 @@ function guessPlaceholder(text: string): string {
 }
 
 interface NeedleChoice {
-  /** Aiguilles du patron. */
+  /** Aiguilles proposées : celles du patron et celles des échantillons. */
   needles: number[]
   /** Aiguille de la sous-étape d'avant (héritée si on n'en choisit pas). */
   inherited: number | null
@@ -292,26 +292,33 @@ export function StepSections({
   step,
   onChange,
   needles = [],
+  choices,
   text,
   charts = [],
   gauges = [],
   onCheckNeedle,
+  onSetTotalRows,
   open = null,
   onOpened,
 }: {
   step: KnitStep
   onChange: (sections: StepSection[]) => Promise<boolean>
   needles?: number[]
+  /** Aiguilles proposées au choix : celles du patron plus celles des échantillons (par défaut, celles du patron). */
+  choices?: number[]
   text?: TextProps
   /** Diagrammes de l'étape : chacun montré dans la sous-étape où il commence. */
   charts?: Pick<KnitChart, 'id' | 'title' | 'startRow' | 'endRow'>[]
   /** Les échantillons du projet : ils disent si la conversion de chaque aiguille est vérifiée. */
   gauges?: ProjectGauge[]
   onCheckNeedle?: (needle: number | null) => Promise<void>
+  /** Reprend pour l'étape le total des sous-étapes, quand elles le dépassent. */
+  onSetTotalRows?: (totalRows: number) => Promise<void>
   /** Sous-étape à ouvrir (demandée depuis « À préparer ») ; `onOpened` quand c'est fait. */
   open?: number | null
   onOpened?: () => void
 }) {
+  const offered = choices ?? needles
   const base = useBaseGlossary()
   const glossary = text ? mergeGlossary(text.abbreviations, base, looksEnglish(step.instructions)) : []
   const own = effectiveNeedles(step.sections, needles, step.needleFrom ?? null)
@@ -325,6 +332,8 @@ export function StepSections({
   const current = sectionIndicesAt(plan, row)
   // Ce qui manque à chaque sous-étape : la sienne est signalée, et « À préparer » l'ouvre.
   const issues = new Set(readyIssues(step, needles, gauges).map((i) => i.index))
+  // Sous-étapes plus longues que l'étape : le patron et la lecture ne sont pas d'accord.
+  const over = rowsOverflow(step)
 
   useEffect(() => {
     if (open === null || open === undefined) return
@@ -360,13 +369,25 @@ export function StepSections({
         </h3>
         <HelpTip label="sous-étapes">Vérifie et corrige ce que la lecture a compris : le mode tricoter suit ces sous-étapes rang par rang.</HelpTip>
       </div>
+      {over && (
+        <Note kind="problem" title="Les sous-étapes dépassent l’étape">
+          <p>
+            L’étape annonce {over.total} rangs, mais les sous-étapes vont jusqu’au rang {over.end}. Corrige la sous-étape signalée, ou compte {over.end} rangs pour l’étape.
+          </p>
+          {onSetTotalRows && (
+            <Button variant="outline" className="mt-2 h-10" onClick={() => void onSetTotalRows(over.end)}>
+              Compter {over.end} rangs pour l’étape
+            </Button>
+          )}
+        </Note>
+      )}
       <ol className="space-y-2 text-sm">
         {plan.map((p) => {
           const { section, index } = p
           if (editing === index) {
             return (
               <li key={index} id={`section-${step.id}-${index}`}>
-                <SectionForm section={section} needle={{ needles, inherited: inheritedAt(index) }} onSave={(s) => void save(index, s)} onCancel={() => setEditing(null)} />
+                <SectionForm section={section} needle={{ needles: offered, inherited: inheritedAt(index) }} onSave={(s) => void save(index, s)} onCancel={() => setEditing(null)} />
               </li>
             )
           }
@@ -391,7 +412,7 @@ export function StepSections({
                     {done && <Check className="mr-1 inline size-3.5" aria-label="Faite" />}
                     {describeSection(section)}
                   </p>
-                  {needles.length > 0 && (
+                  {offered.length > 0 && (
                     <button
                       type="button"
                       onClick={() => setEditing(index)}
@@ -471,7 +492,7 @@ export function StepSections({
         })}
         {editing === step.sections.length && (
           <li>
-            <SectionForm section={EMPTY} needle={{ needles, inherited: inheritedAt(step.sections.length) }} onSave={(s) => void save(step.sections.length, s)} onCancel={() => setEditing(null)} />
+            <SectionForm section={EMPTY} needle={{ needles: offered, inherited: inheritedAt(step.sections.length) }} onSave={(s) => void save(step.sections.length, s)} onCancel={() => setEditing(null)} />
           </li>
         )}
       </ol>

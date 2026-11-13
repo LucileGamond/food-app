@@ -208,8 +208,10 @@ describe('KnittingImportPage', () => {
     expect(await screen.findByRole('alert')).toHaveTextContent('Tailles du patron : S, M, L.')
 
     await user.click(screen.getByRole('button', { name: 'Lire le patron' }))
-    await user.click(await screen.findByRole('button', { name: 'Recommencer' }))
-    expect(screen.getByRole('button', { name: 'Lire le patron' })).toBeInTheDocument()
+    // Abandonner jette une lecture longue : ça se confirme
+    await user.click(await screen.findByRole('button', { name: 'Abandonner cette lecture' }))
+    await user.click(within(await screen.findByRole('alertdialog')).getByRole('button', { name: 'Abandonner' }))
+    expect(await screen.findByRole('button', { name: 'Lire le patron' })).toBeInTheDocument()
   })
 
   it('refuse un PDF trop lourd et signale un enregistrement impossible', async () => {
@@ -464,6 +466,20 @@ describe('KnittingProjectPage', () => {
     ])
   })
 
+  it('aiguille hors patron : l’échantillon la fait proposer aux sous-étapes', async () => {
+    const user = userEvent.setup()
+    const project = structuredClone(PROJECT)
+    project.needles = [3, 3.5]
+    // Elle tricote trop serré : son échantillon est sur une 4,5 mm, que le patron ne conseille pas
+    project.gauges = [{ needle: 4.5, stitches: 20, rows: 26, checked: false }]
+    project.steps[1]!.sections = [{ kind: 'rows', rows: 10, every: null, times: null, text: 'jersey', pattern: null, needle: 3 }]
+    renderProject(fakeApi(), project, `${STEP}=s2`)
+    await user.click(await screen.findByRole('button', { name: 'Actions pour « 10 rangs : jersey »' }))
+    await user.click(await screen.findByRole('menuitem', { name: 'Modifier' }))
+    const form = screen.getByRole('form', { name: 'Sous-étape' })
+    expect(Array.from((within(form).getByLabelText('Aiguille') as HTMLSelectElement).options).map((o) => o.textContent)).toEqual(['À choisir', '3 mm', '3,5 mm', '4,5 mm'])
+  })
+
   it('aiguilles vérifiées : plus rien à valider, l’étape est prête', async () => {
     const project = structuredClone(PROJECT)
     project.patternGauge = { stitches: 22, rows: 30 }
@@ -476,11 +492,32 @@ describe('KnittingProjectPage', () => {
       { kind: 'rows', rows: null, every: null, times: null, text: 'côtes', pattern: '5 cm', needle: 3 },
       { kind: 'rows', rows: null, every: null, times: null, text: 'jersey', pattern: '10 cm', needle: 3.5 },
     ]
+    // 20 + 30 rangs convertis : le total de l'étape suit, sinon les sous-étapes la dépassent
+    project.steps[1]!.totalRows = 50
     renderProject(fakeApi(), project, `${STEP}=s2`)
     expect(await screen.findByRole('link', { name: 'Tricoter cette étape' })).toBeInTheDocument()
     expect(screen.queryByText('À préparer avant de tricoter')).not.toBeInTheDocument()
     expect(screen.getByText(/Vérifié pour l’aiguille 3 mm/)).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: /^Valider/ })).not.toBeInTheDocument()
+  })
+
+  it('sous-étapes plus longues que l’étape : signalé dans « À préparer », avec le total à reprendre', async () => {
+    const user = userEvent.setup()
+    const project = structuredClone(PROJECT)
+    // L'étape annonce 30 rangs, les sous-étapes vont jusqu'au rang 40
+    project.steps[1]!.sections = [{ kind: 'rows', rows: 40, every: null, times: null, text: 'jersey', pattern: null }]
+    const { api } = renderProject(fakeApi(), project, `${STEP}=s2`)
+    expect(await screen.findByText('À préparer avant de tricoter')).toBeInTheDocument()
+    expect(screen.getByRole('alert')).toHaveTextContent('sous-étapes plus longues que l’étape (jusqu’au rang 40, pour 30 rangs annoncés)')
+    // Signalé, mais l'étape se tricote quand même : c'est à elle de trancher
+    expect(screen.getByRole('link', { name: 'Tricoter cette étape' })).toBeInTheDocument()
+    const sections = screen.getByRole('region', { name: 'Sous-étapes' })
+    expect(within(sections).getByText(/L’étape annonce 30 rangs, mais les sous-étapes vont jusqu’au rang 40/)).toBeInTheDocument()
+
+    await user.click(within(sections).getByRole('button', { name: 'Compter 40 rangs pour l’étape' }))
+    expect(api.knitting.saveSections).toHaveBeenLastCalledWith([
+      { id: 's2', sections: project.steps[1]!.sections, totalRows: 40, instructions: project.steps[1]!.instructions },
+    ])
   })
 
   it('mes échantillons : une liste, un par aiguille ; changer les rangs le fait revérifier', async () => {
@@ -507,7 +544,7 @@ describe('KnittingProjectPage', () => {
     await user.click(await screen.findByRole('button', { name: 'Ajouter un échantillon' }))
     const form = await screen.findByRole('form', { name: 'Échantillon' })
     // L'aiguille déjà notée n'est plus proposée
-    expect(Array.from((within(form).getByLabelText('Aiguille') as HTMLSelectElement).options).map((o) => o.textContent)).toEqual(['Toutes aiguilles', '3 mm'])
+    expect(Array.from((within(form).getByLabelText('Aiguille') as HTMLSelectElement).options).map((o) => o.textContent)).toEqual(['Toutes aiguilles', '3 mm', 'Une autre aiguille…'])
     await user.selectOptions(within(form).getByLabelText('Aiguille'), '3 mm')
     await user.type(within(form).getByLabelText('Mailles'), '24')
     await user.type(within(form).getByLabelText('Rangs'), '32')
@@ -520,6 +557,33 @@ describe('KnittingProjectPage', () => {
     await user.click(screen.getByRole('button', { name: 'Supprimer l’échantillon : Aiguille 3,5 mm' }))
     await user.click(within(await screen.findByRole('alertdialog')).getByRole('button', { name: 'Supprimer' }))
     expect(api.knitting.saveGauges).toHaveBeenLastCalledWith('p1', [])
+  })
+
+  it('mes échantillons : une aiguille hors patron se tape, et les sous-étapes peuvent la choisir', async () => {
+    const user = userEvent.setup()
+    const project = { ...structuredClone(PROJECT), needles: [3, 3.5], gauges: [] }
+    const { api } = renderProject(fakeApi(), project, START)
+    await user.click(await screen.findByRole('button', { name: 'Ajouter un échantillon' }))
+    const form = await screen.findByRole('form', { name: 'Échantillon' })
+    // Elle tricote trop serré : son échantillon est sur une aiguille que le patron ne conseille pas
+    await user.selectOptions(within(form).getByLabelText('Aiguille'), 'Une autre aiguille…')
+    await user.type(within(form).getByLabelText('Taille de l’aiguille (mm)'), '4,5')
+    await user.type(within(form).getByLabelText('Mailles'), '20')
+    await user.type(within(form).getByLabelText('Rangs'), '26')
+    await user.click(within(form).getByRole('button', { name: 'Enregistrer' }))
+    expect(api.knitting.saveGauges).toHaveBeenLastCalledWith('p1', [{ needle: 4.5, stitches: 20, rows: 26, checked: false }])
+  })
+
+  it('mes échantillons : une taille d’aiguille illisible est refusée', async () => {
+    const user = userEvent.setup()
+    renderProject(fakeApi(), { ...structuredClone(PROJECT), needles: [3] }, START)
+    await user.click(await screen.findByRole('button', { name: 'Ajouter un échantillon' }))
+    const form = await screen.findByRole('form', { name: 'Échantillon' })
+    await user.selectOptions(within(form).getByLabelText('Aiguille'), 'Une autre aiguille…')
+    await user.type(within(form).getByLabelText('Taille de l’aiguille (mm)'), 'grosses')
+    await user.type(within(form).getByLabelText('Mailles'), '20')
+    await user.click(within(form).getByRole('button', { name: 'Enregistrer' }))
+    expect(within(form).getByRole('alert')).toHaveTextContent('Une taille d’aiguille en mm, entre 0,5 et 30')
   })
 
   it('mes échantillons : sans rien de noté, la saisie est refusée', async () => {
@@ -705,6 +769,8 @@ describe('KnittingProjectPage', () => {
       { kind: 'rows', rows: null, every: null, times: null, text: 'jersey', pattern: '5 cm' },
       { kind: 'repeat', rows: null, every: null, times: 3, actions: [{ text: '1 augmentation', rank: null }], text: '', pattern: 'tous les 2,5 cm' },
     ]
+    // 13 + 3 × 7 rangs convertis : le total de l'étape suit
+    project.steps[1]!.totalRows = 34
     const { api } = renderProject(fakeApi(), project)
     const sections = await screen.findByRole('region', { name: 'Sous-étapes' })
     // 5 cm × 26 rangs pour 10 cm = 13 rangs ; 2,5 cm × 26 = 6,5 → 7 rangs

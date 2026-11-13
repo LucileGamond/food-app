@@ -27,7 +27,7 @@ import { useKnitProject } from '../hooks/useKnitProject'
 import { forgetProject } from '../lib/offline'
 import { currentStepIndex, newSectionId, stepFacts, type StepSection } from '../lib/pattern'
 import { placeCharts } from '../lib/chartPlace'
-import { effectiveNeedles } from '../lib/needles'
+import { effectiveNeedles, sanitizeNeedles } from '../lib/needles'
 import { OfflineNote } from '../components/OfflineNote'
 import { Fold } from '../components/Fold'
 import { StepNotes } from '../components/StepNotes'
@@ -100,6 +100,8 @@ export function KnittingProjectPage() {
   const adaptation = project.adaptation ?? null
   const needles = project.needles ?? []
   const projectGauges = project.gauges ?? []
+  // Les aiguilles proposées aux sous-étapes : celles du patron, plus celles où elle a tricoté un échantillon.
+  const needleChoices = sanitizeNeedles([...needles, ...projectGauges.map((g) => g.needle)])
   const { size: followedSize, steps, following } = stepsToFollow(project)
   // Diagrammes rattachés à une sous-étape : placés sur ses rangs d'aujourd'hui
   const charts = placeCharts(project.charts, steps)
@@ -179,6 +181,16 @@ export function KnittingProjectPage() {
     } catch (error) {
       toast.error(errorMessage(error))
       return false
+    }
+  }
+
+  /** Total de rangs de l'étape repris sur ses sous-étapes (elles le dépassaient). */
+  async function setTotalRows(target: ShownStep, totalRows: number): Promise<void> {
+    try {
+      await api.knitting.saveSections([{ id: target.id, sections: target.sections, totalRows, instructions: target.instructions }])
+      await reload()
+    } catch (error) {
+      toast.error(errorMessage(error))
     }
   }
 
@@ -338,7 +350,7 @@ export function KnittingProjectPage() {
             ) : (
               stepText
             ))}
-          <StepSections step={step} needles={needles} text={{ sizes: project.sizes, sizeIndex: project.sizeIndex, abbreviations: project.abbreviations ?? [] }} charts={charts.filter((c) => c.stepId === step.id)} gauges={projectGauges} onCheckNeedle={checkNeedle} open={fixSection} onOpened={() => setFixSection(null)} onChange={(sections) => saveSections(step, sections)} />
+          <StepSections step={step} needles={needles} choices={needleChoices} text={{ sizes: project.sizes, sizeIndex: project.sizeIndex, abbreviations: project.abbreviations ?? [] }} charts={charts.filter((c) => c.stepId === step.id)} gauges={projectGauges} onCheckNeedle={checkNeedle} onSetTotalRows={step.adapted ? undefined : (rows) => setTotalRows(step, rows)} open={fixSection} onOpened={() => setFixSection(null)} onChange={(sections) => saveSections(step, sections)} />
           <StepCharts
             projectId={project.id}
             pdfPath={project.pdfPath}

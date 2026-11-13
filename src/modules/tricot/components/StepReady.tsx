@@ -53,7 +53,7 @@ export function StepReady({ issues, setupTo, onFix }: Props) {
       </p>
       <ul className="space-y-0.5">
         {issues.map((issue) => (
-          <Row key={issue.index} issue={issue} onFix={onFix} />
+          <Row key={`${issue.index}-${issue.what}`} issue={issue} onFix={onFix} />
         ))}
       </ul>
       {setupTo ? (

@@ -31,7 +31,7 @@ export function sanitizeGauges(raw: unknown): ProjectGauge[] {
   const gauges = raw.flatMap((value): ProjectGauge[] => {
     if (typeof value !== 'object' || value === null) return []
     const v = value as Record<string, unknown>
-    const needle = typeof v.needle === 'number' && v.needle >= 0.5 && v.needle <= 30 ? Math.round(v.needle * 10) / 10 : v.needle === null ? null : undefined
+    const needle = typeof v.needle === 'number' && v.needle >= 0.5 && v.needle <= 30 ? Math.round(v.needle * 100) / 100 : v.needle === null ? null : undefined
     if (needle === undefined || seen.has(needle)) return []
     seen.add(needle)
     return [{ needle, stitches: gaugeValue(v.stitches), rows: gaugeValue(v.rows), checked: v.checked === true }]

@@ -1,4 +1,4 @@
-import { BookOpen, ChevronRight, FilePlus2, Play, Spool } from 'lucide-react'
+import { BookOpen, ChevronRight, FilePlus2, Play, Plus, Spool } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { useApi } from '@/app/ApiContext'
 import { buttonVariants } from '@/components/ui/button'
@@ -79,18 +79,24 @@ export function KnittingPage() {
   )
 }
 
-/** Accès à la bibliothèque de patrons, avec ce qu'elle contient. */
+/** Accès à la bibliothèque de patrons, avec ce qu'elle contient et de quoi en ajouter un sans la traverser. */
 function LibraryLink({ patterns }: { patterns: KnitPattern[] | undefined }) {
   const todo = patterns ? filterPatterns(patterns, '', 'todo').length : 0
   const summary = patterns === undefined ? null : patterns.length === 0 ? 'Garde ici les patrons qui te font envie' : [`${patterns.length} patron${patterns.length > 1 ? 's' : ''}`, todo > 0 && `${todo} à faire`].filter(Boolean).join(' · ')
   return (
-    <Link to="/tricot/patrons" className="mt-8 flex items-center gap-3 rounded-2xl border bg-background p-4 shadow-xs transition-colors hover:bg-muted/50 focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none">
-      <BookOpen className="size-5 shrink-0 text-muted-foreground" aria-hidden />
-      <span className="min-w-0 flex-1">
-        <span className="block font-medium">Bibliothèque de patrons</span>
-        {summary && <span className="block truncate text-sm text-muted-foreground">{summary}</span>}
-      </span>
-      <ChevronRight className="size-4 shrink-0 text-muted-foreground" aria-hidden />
-    </Link>
+    <div className="mt-8 flex items-center gap-2 rounded-2xl border bg-background shadow-xs transition-colors hover:bg-muted/50">
+      <Link to="/tricot/patrons" className="flex min-w-0 flex-1 items-center gap-3 rounded-2xl p-4 focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none">
+        <BookOpen className="size-5 shrink-0 text-muted-foreground" aria-hidden />
+        <span className="min-w-0 flex-1">
+          <span className="block font-medium">Bibliothèque de patrons</span>
+          {summary && <span className="block truncate text-sm text-muted-foreground">{summary}</span>}
+        </span>
+        <ChevronRight className="size-4 shrink-0 text-muted-foreground" aria-hidden />
+      </Link>
+      {/* Mettre un patron de côté sans passer par la bibliothèque. */}
+      <Link to="/tricot/patrons/nouveau" aria-label="Ajouter un patron" className={cn(buttonVariants({ variant: 'outline' }), 'mr-3 h-10 shrink-0')}>
+        <Plus /> Ajouter
+      </Link>
+    </div>
   )
 }

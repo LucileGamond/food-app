@@ -109,8 +109,18 @@ export function SizeAdvice({ chart, sizes, readIndex, onReread, rereading }: Pro
               <legend className="mb-1.5 text-sm font-medium">Aisance{chart.easeCm !== null && ` (patron : ${cm(chart.easeCm)} cm)`}</legend>
               <div className="flex flex-wrap items-center gap-1.5">
                 {EASE_STYLES.map((s) => (
-                  <Button key={s.key} type="button" className="h-10" variant={style === s.key ? 'default' : 'outline'} aria-pressed={style === s.key} title={s.range} onClick={() => pickEase(s.cm)}>
-                    {s.label}
+                  // La plage est écrite sous le nom : une infobulle de survol n'existe pas au doigt.
+                  <Button
+                    key={s.key}
+                    type="button"
+                    className="h-auto min-h-11 flex-col gap-0 px-3 py-1.5"
+                    variant={style === s.key ? 'default' : 'outline'}
+                    aria-pressed={style === s.key}
+                    onClick={() => pickEase(s.cm)}
+                  >
+                    {/* L'espace garde le nom lu (« Classique 5 à 10 cm ») identique au texte vu. */}
+                    <span>{s.label}</span>{' '}
+                    <span className="text-xs font-normal opacity-75">{s.range}</span>
                   </Button>
                 ))}
                 <Label htmlFor={`${id}-ease`} className="sr-only">

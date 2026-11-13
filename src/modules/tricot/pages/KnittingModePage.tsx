@@ -100,7 +100,8 @@ function Knitting({ project, knit, projectTo }: KnittingProps) {
   const glossary = mergeGlossary(project.abbreviations ?? [], base, looksEnglish(step.instructions))
   const setupTo = `${projectTo}?etape=${encodeURIComponent(step.id)}`
   const issues = readyIssues(step, project.needles ?? [], project.gauges ?? [])
-  const ready = issues.length === 0
+  // Les sous-étapes plus longues que l'étape sont signalées dans la préparation, mais n'empêchent pas de tricoter.
+  const ready = !issues.some((i) => i.blocking)
   const substeps = finished ? [] : substepCounts(step, row)
   const needles = effectiveNeedles(step.sections, project.needles ?? [], step.needleFrom ?? null)
   const needle = substeps[0] ? (needles[substeps[0].index] ?? null) : null
