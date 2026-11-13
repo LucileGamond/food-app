@@ -36,7 +36,7 @@ function project(step: Partial<KnitStep>, extra: Partial<KnitProject> = {}): Kni
     pdfPath: null,
     yarns: [],
     patternGauge: { stitches: null, rows: null },
-    myGauge: { stitches: null, rows: null },
+    gauges: [],
     charts: [],
     chartHints: [],
     abbreviations: [],
@@ -269,7 +269,7 @@ describe('mode tricoter : patron adapté et cas limites', () => {
 
   it('calcul validé : plus de rappel', async () => {
     const sections = [{ ...rows(15, 'jersey'), pattern: '5 cm' }]
-    const { line } = await open(project({ rowCount: 3, sections, totalRows: 15 }, { patternGauge: { stitches: 22, rows: 30 }, myGauge: { stitches: 20, rows: 20 } }))
+    const { line } = await open(project({ rowCount: 3, sections, totalRows: 15 }, { patternGauge: { stitches: 22, rows: 30 }, gauges: [{ needle: null, stitches: 20, rows: 20, checked: false }] }))
     expect(screen.queryByRole('note')).not.toBeInTheDocument()
     // Validé à 15 rangs : l'échantillon (20 rangs pour 10 cm, soit 10 rangs) ne le change plus
     expect(line).toHaveTextContent('Rang 4 à tricoter15 rangs : jersey')

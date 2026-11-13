@@ -44,7 +44,7 @@ function project(): KnitProject {
     steps: [step({ id: 's1', done: true }), step({ id: 's2', position: 1, title: 'Emmanchures' })],
     yarns: [],
     patternGauge: { stitches: null, rows: null },
-    myGauge: { stitches: null, rows: null },
+    gauges: [],
   }
 }
 

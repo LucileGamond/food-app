@@ -145,8 +145,8 @@ describe('knitting api', () => {
     expect((await api.knitting.getProject(id))!.steps[0]!.startStitches).toBe(70)
     await api.knitting.saveProgress(step.id, { startStitches: null })
     expect((await api.knitting.getProject(id))!.steps[0]!.startStitches).toBeNull()
-    await api.knitting.saveNeedleGauges(id, [{ needle: 4, stitches: 20, rows: 28, checked: true }])
-    expect((await api.knitting.getProject(id))!.needleGauges).toEqual([{ needle: 4, stitches: 20, rows: 28, checked: true }])
+    await api.knitting.saveGauges(id, [{ needle: 4, stitches: 20, rows: 28, checked: true }])
+    expect((await api.knitting.getProject(id))!.gauges).toEqual([{ needle: 4, stitches: 20, rows: 28, checked: true }])
     const other = await api.knitting.createProject({ title: 'Bonnet', size: 'M', pdf: null, steps: STEPS })
     expect((await api.knitting.getProject(other))!.needles).toEqual([])
   })
@@ -209,16 +209,18 @@ describe('laine et échantillon', () => {
     const { api } = await signedInApi()
     const id = await api.knitting.createProject({ title: 'Pull', size: 'M', pdf: null, steps: STEPS, gauge: { stitches: 22, rows: null } })
     let project = (await api.knitting.getProject(id))!
-    expect(project).toMatchObject({ yarns: [], patternGauge: { stitches: 22, rows: null }, myGauge: { stitches: null, rows: null } })
+    expect(project).toMatchObject({ yarns: [], patternGauge: { stitches: 22, rows: null }, gauges: [] })
 
     const yarn = { brand: 'Phildar', name: 'Partner 3.5', color: null, dye_lot: '4471', composition: null, weight_g: 50, length_m: 125, skeins: 6.5, needle_mm: 3.5 }
-    await api.knitting.saveProjectInfo(id, { yarns: [yarn], patternGauge: { stitches: 22, rows: 30 }, myGauge: { stitches: 24, rows: 28.5 } })
+    await api.knitting.saveProjectInfo(id, { yarns: [yarn], patternGauge: { stitches: 22, rows: 30 } })
+    // Les échantillons de la tricoteuse vivent dans leur propre liste, par aiguille
+    await api.knitting.saveGauges(id, [{ needle: null, stitches: 24, rows: 28.5, checked: false }])
     project = (await api.knitting.getProject(id))!
     expect(project.yarns).toEqual([yarn])
     expect(project.patternGauge).toEqual({ stitches: 22, rows: 30 })
-    expect(project.myGauge).toEqual({ stitches: 24, rows: 28.5 })
+    expect(project.gauges).toEqual([{ needle: null, stitches: 24, rows: 28.5, checked: false }])
 
-    await expect(api.knitting.saveProjectInfo(id, { yarns: [{ ...yarn, skeins: -2 }], patternGauge: project.patternGauge, myGauge: project.myGauge })).rejects.toThrow()
+    await expect(api.knitting.saveProjectInfo(id, { yarns: [{ ...yarn, skeins: -2 }], patternGauge: project.patternGauge })).rejects.toThrow()
   })
 
 })
@@ -300,6 +302,7 @@ describe('bibliothèque de patrons : erreurs', () => {
     await expect(anon.savePattern(fields, { pdfPath: null, newPdf: pdf(), photos: [], newPhotos: [] }, null)).rejects.toThrow('Reconnecte-toi')
     await expect(anon.deletePattern({ id: crypto.randomUUID(), pdfPath: null, photos: [], projects: [] })).rejects.toThrow()
     await expect(anon.downloadPdf('perdu/perdu.pdf', 'Perdu')).rejects.toThrow('Impossible de récupérer le PDF du patron.')
+    await expect(anon.saveProjectInfo(crypto.randomUUID(), { yarns: [], patternGauge: { stitches: null, rows: null } })).rejects.toThrow()
 
     const { api, db } = await signedInApi()
     const { data: session } = await db.auth.getSession()

@@ -1,8 +1,8 @@
 // Laine et échantillon d'un projet : laines utilisées (saisies ou lues sur la photo de l'étiquette) et échantillons
 // du patron et de la tricoteuse, qui recalculent les mailles et les rangs affichés dans les étapes.
 
-import { NeedleGaugesForm } from './NeedleGaugesForm'
-import type { NeedleGauge } from '../lib/needleGauges'
+import { GaugesList } from './GaugesList'
+import type { ProjectGauge } from '../lib/gauges'
 import { Camera, Loader2, Pencil, Plus, Trash2 } from 'lucide-react'
 import { useState, type FormEvent } from 'react'
 import { toast } from 'sonner'
@@ -19,7 +19,6 @@ import { useOnOpen } from '@/hooks/useOnOpen'
 import { ACCEPTED_IMAGE_TYPES } from '@/lib/image'
 import {
   EMPTY_YARN,
-  formatGauge,
   MAX_YARNS,
   parseGauge,
   parseYarn,
@@ -39,7 +38,6 @@ import { HelpTip } from './HelpTip'
 export interface ProjectInfo {
   yarns: Yarn[]
   patternGauge: Gauge
-  myGauge: Gauge
 }
 
 const FIELDS: { key: keyof YarnDraft; label: string; placeholder?: string; numeric?: boolean; unit?: string }[] = [
@@ -207,29 +205,23 @@ export function YarnDialog({
 
 const gaugeText = (value: number | null) => (value === null ? '' : String(value).replace('.', ','))
 
-function GaugeForm({ info, onSave }: { info: ProjectInfo; onSave: (patternGauge: Gauge, myGauge: Gauge) => Promise<boolean> }) {
+function GaugeForm({ info, onSave }: { info: ProjectInfo; onSave: (patternGauge: Gauge) => Promise<boolean> }) {
   const [values, setValues] = useState(() => ({
     patternStitches: gaugeText(info.patternGauge.stitches),
     patternRows: gaugeText(info.patternGauge.rows),
-    myStitches: gaugeText(info.myGauge.stitches),
-    myRows: gaugeText(info.myGauge.rows),
   }))
   const [error, setError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
 
   const parsed = Object.fromEntries(Object.entries(values).map(([k, v]) => [k, parseGauge(v)])) as Record<keyof typeof values, number | null | undefined>
-  const unchanged =
-    parsed.patternStitches === info.patternGauge.stitches &&
-    parsed.patternRows === info.patternGauge.rows &&
-    parsed.myStitches === info.myGauge.stitches &&
-    parsed.myRows === info.myGauge.rows
+  const unchanged = parsed.patternStitches === info.patternGauge.stitches && parsed.patternRows === info.patternGauge.rows
 
   async function submit(event: FormEvent) {
     event.preventDefault()
     if (Object.values(parsed).some((v) => v === undefined)) return setError('Échantillon : un nombre entre 1 et 100 pour 10 cm.')
     setError(null)
     setSaving(true)
-    await onSave({ stitches: parsed.patternStitches!, rows: parsed.patternRows! }, { stitches: parsed.myStitches!, rows: parsed.myRows! })
+    await onSave({ stitches: parsed.patternStitches!, rows: parsed.patternRows! })
     setSaving(false)
   }
 
@@ -243,19 +235,15 @@ function GaugeForm({ info, onSave }: { info: ProjectInfo; onSave: (patternGauge:
   )
 
   return (
-    <form onSubmit={(e) => void submit(e)} noValidate aria-label="Échantillon" className="space-y-3">
+    <form onSubmit={(e) => void submit(e)} noValidate aria-label="Échantillon du patron" className="space-y-3">
       <fieldset className="space-y-1.5">
-        <legend className="text-sm font-medium">Échantillon du patron (pour 10 cm)</legend>
+        <legend className="flex items-center gap-1 text-sm font-medium">
+          Échantillon du patron (pour 10 cm)
+          <HelpTip label="échantillon du patron">Celui imprimé sur le modèle. Il sert quand aucun de tes échantillons ne correspond à l’aiguille, et de référence pour les « ≈ avec ton échantillon ».</HelpTip>
+        </legend>
         <div className="grid grid-cols-2 gap-3">
           {field('patternStitches', 'Mailles du patron')}
           {field('patternRows', 'Rangs du patron')}
-        </div>
-      </fieldset>
-      <fieldset className="space-y-1.5">
-        <legend className="text-sm font-medium">Ton échantillon (pour 10 cm)</legend>
-        <div className="grid grid-cols-2 gap-3">
-          {field('myStitches', 'Tes mailles')}
-          {field('myRows', 'Tes rangs')}
         </div>
       </fieldset>
       {error && (
@@ -263,13 +251,10 @@ function GaugeForm({ info, onSave }: { info: ProjectInfo; onSave: (patternGauge:
           {error}
         </p>
       )}
-      <div className="flex items-center gap-1">
-        <Button type="submit" variant="outline" className="h-10" disabled={saving || unchanged}>
-          {saving && <Loader2 className="animate-spin" aria-hidden />}
-          Enregistrer l’échantillon
-        </Button>
-        <HelpTip label="échantillon">Si les deux diffèrent, les mailles et les rangs des étapes sont recalculés pour ton échantillon.</HelpTip>
-      </div>
+      <Button type="submit" variant="outline" className="h-10" disabled={saving || unchanged}>
+        {saving && <Loader2 className="animate-spin" aria-hidden />}
+        Enregistrer l’échantillon du patron
+      </Button>
     </form>
   )
 }
@@ -279,13 +264,13 @@ function GaugeForm({ info, onSave }: { info: ProjectInfo; onSave: (patternGauge:
 export function YarnPanel({
   info,
   onSave,
-  needleGauges,
+  gauges,
   defaultOpen = false,
 }: {
   info: ProjectInfo
   onSave: (info: ProjectInfo, removedYarn?: number) => Promise<boolean>
-  /** Échantillon par aiguille (projet à plusieurs aiguilles). */
-  needleGauges?: { needles: number[]; gauges: NeedleGauge[]; onSave: (gauges: NeedleGauge[]) => Promise<boolean> }
+  /** Les échantillons du projet : la seule source pour les calculs. */
+  gauges: { needles: number[]; list: ProjectGauge[]; onSave: (gauges: ProjectGauge[]) => Promise<boolean>; openFor?: number | null; onOpened?: () => void }
   /** Ouverte d'office (onglet Démarrer). */
   defaultOpen?: boolean
 }) {
@@ -305,9 +290,10 @@ export function YarnPanel({
       id="knit-yarn"
       defaultOpen={defaultOpen}
       title="Laine et échantillon"
-      summary={[info.yarns.length ? `${info.yarns.length} laine${info.yarns.length > 1 ? 's' : ''}` : 'aucune laine notée', formatGauge(info.myGauge) ?? 'échantillon pas noté']
-        .filter(Boolean)
-        .join(' · ')}
+      summary={[
+        info.yarns.length ? `${info.yarns.length} laine${info.yarns.length > 1 ? 's' : ''}` : 'aucune laine notée',
+        gauges.list.length ? `${gauges.list.length} échantillon${gauges.list.length > 1 ? 's' : ''}` : 'aucun échantillon',
+      ].join(' · ')}
       action={
         info.yarns.length < MAX_YARNS && (
           <Button variant="outline" className="h-10" onClick={() => setEditing('new')}>
@@ -350,13 +336,9 @@ export function YarnPanel({
         }}
       />
 
-      <GaugeForm
-        key={JSON.stringify([info.patternGauge, info.myGauge])}
-        info={info}
-        onSave={(patternGauge, myGauge) => onSave({ ...info, patternGauge, myGauge })}
-      />
+      <GaugeForm key={JSON.stringify(info.patternGauge)} info={info} onSave={(patternGauge) => onSave({ ...info, patternGauge })} />
 
-      {needleGauges && <NeedleGaugesForm key={JSON.stringify([needleGauges.needles, needleGauges.gauges])} needles={needleGauges.needles} gauges={needleGauges.gauges} onSave={needleGauges.onSave} />}
+      <GaugesList gauges={gauges.list} needles={gauges.needles} onSave={gauges.onSave} openFor={gauges.openFor} onOpened={gauges.onOpened} />
 
       <YarnDialog
         yarn={typeof editing === 'number' ? (info.yarns[editing] ?? null) : null}

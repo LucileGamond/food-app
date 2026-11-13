@@ -7,7 +7,7 @@
 // qui demande quelque chose.
 
 import { parseMeasure } from './measure'
-import type { NeedleGauge } from './needleGauges'
+import type { ProjectGauge } from './gauges'
 import { currentStepIndex, type KnitStep } from './pattern'
 import { isReady } from './ready'
 import type { Gauge } from './yarn'
@@ -26,17 +26,16 @@ interface StartInput {
   size: string
   needles: number[]
   patternGauge: Gauge
-  myGauge: Gauge
-  needleGauges: NeedleGauge[]
+  gauges: ProjectGauge[]
   steps: Step[]
 }
 
 /** Ce qui manque au matériel avant de préparer les étapes ; vide : démarrage fait. */
 export function startIssues(project: StartInput): string[] {
-  const { sizes, sizeIndex, size, needles, patternGauge, myGauge, needleGauges, steps } = project
+  const { sizes, sizeIndex, size, needles, patternGauge, gauges, steps } = project
   // Une hauteur en cm se convertit en rangs avec un échantillon (le sien, celui d'une aiguille ou celui du patron)
   const measured = steps.some((s) => s.sections.some((x) => parseMeasure(x.pattern) !== null || parseMeasure(x.at?.pattern ?? null) !== null))
-  const gauge = myGauge.rows !== null || patternGauge.rows !== null || needleGauges.some((g) => g.rows !== null)
+  const gauge = patternGauge.rows !== null || gauges.some((g) => g.rows !== null)
   return [
     sizes.length > 1 && sizeIndex === null && !sizes.includes(size) && 'Taille à choisir',
     needles.length === 0 && 'Aiguilles à indiquer',
@@ -45,8 +44,8 @@ export function startIssues(project: StartInput): string[] {
 }
 
 /** Étapes pas terminées qui ne sont pas encore prêtes à tricoter. */
-export function stepsToPrepare(steps: Step[], needles: number[], needleGauges: NeedleGauge[]): number {
-  return steps.filter((s) => !s.done && !isReady(s, needles, needleGauges)).length
+export function stepsToPrepare(steps: Step[], needles: number[], gauges: ProjectGauge[]): number {
+  return steps.filter((s) => !s.done && !isReady(s, needles, gauges)).length
 }
 
 /**
@@ -54,10 +53,10 @@ export function stepsToPrepare(steps: Step[], needles: number[], needleGauges: N
  * n'est pas prête, sinon Tricoter.
  */
 export function defaultTab(project: StartInput): ProjectTab {
-  const { steps, needles, needleGauges } = project
+  const { steps, needles, gauges } = project
   const started = steps.some((s) => s.done || s.rowCount > 0)
   if (!started && startIssues(project).length > 0) return 'demarrer'
   const current = steps[currentStepIndex(steps)]
-  if (current && !current.done && !isReady(current, needles, needleGauges)) return 'preparer'
+  if (current && !current.done && !isReady(current, needles, gauges)) return 'preparer'
   return 'tricoter'
 }

@@ -14,7 +14,7 @@ const PROJECT: KnitProject = {
   chartHints: [],
   yarns: [],
   patternGauge: { stitches: null, rows: null },
-  myGauge: { stitches: null, rows: null },
+  gauges: [],
 }
 
 beforeEach(() => localStorage.clear())

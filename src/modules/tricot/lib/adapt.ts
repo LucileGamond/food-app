@@ -3,7 +3,7 @@
 
 import { convertSection } from './measure'
 import { chainNeedles, effectiveNeedles } from './needles'
-import { rowGaugeFor } from './needleGauges'
+import { rowGaugeFor } from './gauges'
 import { sanitizeSections, type KnitProject, type KnitStep, type StepSection } from './pattern'
 
 export const ADAPT_REQUEST_MAX = 1000
@@ -96,7 +96,7 @@ export function describeChange(before: Pick<KnitStep, 'totalRows' | 'stitches'>,
  * Ce qui se tricote : la taille suivie et les étapes à suivre (adaptées si l'adaptation est suivie et faite pour cette
  * taille), leurs mesures (« 5 cm ») converties en rangs avec l'échantillon tant qu'elles ne sont pas validées.
  */
-export function stepsToFollow(project: Pick<KnitProject, 'steps' | 'sizes' | 'sizeIndex' | 'size' | 'adaptation' | 'patternGauge' | 'myGauge' | 'needles' | 'needleGauges'>): {
+export function stepsToFollow(project: Pick<KnitProject, 'steps' | 'sizes' | 'sizeIndex' | 'size' | 'adaptation' | 'patternGauge' | 'needles' | 'gauges'>): {
   size: string
   steps: ShownStep[]
   following: boolean
@@ -104,7 +104,7 @@ export function stepsToFollow(project: Pick<KnitProject, 'steps' | 'sizes' | 'si
   const size = (project.sizeIndex !== null ? project.sizes[project.sizeIndex] : undefined) ?? project.size
   const adaptation = project.adaptation ?? null
   // Chaque sous-étape avec l'échantillon de son aiguille
-  const gauges = { needleGauges: project.needleGauges ?? [], mine: project.myGauge, pattern: project.patternGauge }
+  const gauges = { gauges: project.gauges ?? [], pattern: project.patternGauge }
   return {
     size,
     steps: withNeedleFrom(applyAdaptation(project.steps, adaptation, size), project.needles ?? []).map((s) => {

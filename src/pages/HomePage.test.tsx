@@ -33,7 +33,7 @@ const PROJECT: KnitProject = {
   sizeIndex: null,
   yarns: [],
   patternGauge: { stitches: null, rows: null },
-  myGauge: { stitches: null, rows: null },
+  gauges: [],
   id: 'p1',
   title: 'Pull Bergamote',
   size: 'M',

@@ -363,7 +363,6 @@ test('aides pendant le tricot : abréviations, pesée de la laine et rangs compt
   await api.knitting.saveProjectInfo(id, {
     yarns: [{ brand: 'DROPS', name: 'Merino', color: null, dye_lot: null, composition: null, weight_g: 50, length_m: 100, skeins: 10, needle_mm: 4 }],
     patternGauge: { stitches: null, rows: null },
-    myGauge: { stitches: null, rows: null },
   })
   await api.knitting.saveProgress(project.steps[0]!.id, { rowCount: 100, done: true })
   await login(page)

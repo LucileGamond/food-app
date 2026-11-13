@@ -27,6 +27,7 @@ import { useKnitProject } from '../hooks/useKnitProject'
 import { forgetProject } from '../lib/offline'
 import { currentStepIndex, newSectionId, stepFacts, type StepSection } from '../lib/pattern'
 import { placeCharts } from '../lib/chartPlace'
+import { effectiveNeedles } from '../lib/needles'
 import { OfflineNote } from '../components/OfflineNote'
 import { Fold } from '../components/Fold'
 import { StepNotes } from '../components/StepNotes'
@@ -35,7 +36,7 @@ import { StepReady } from '../components/StepReady'
 import { StepStartStitches } from '../components/StepStartStitches'
 import { endStitches, startStitchesOf } from '../lib/stitches'
 import { ProjectNeedles } from '../components/ProjectNeedles'
-import { withChecked, withGauges, type NeedleGauge } from '../lib/needleGauges'
+import { countsFor, withChecked, type ProjectGauge } from '../lib/gauges'
 import { isReady, readyIssues } from '../lib/ready'
 import { describePass } from '../lib/passes'
 import { defaultTab, isProjectTab, startIssues, stepsToPrepare, type ProjectTab } from '../lib/phases'
@@ -52,6 +53,8 @@ export function KnittingProjectPage() {
   // Préparation d'une étape (?etape=<id>, vide : l'étape en cours) ; sans paramètre, la vue du projet (liste des étapes).
   // On tricote dans le mode tricoter (/tricot/:id/tricoter) ; ici, on prépare : texte, sections, diagrammes.
   const stepParam = params.get('etape')
+  // Arrivée depuis une sous-étape à convertir : l'échantillon de cette aiguille s'ouvre (« defaut » : celui par défaut).
+  const gaugeParam = params.get('echantillon')
   const [confirmDelete, setConfirmDelete] = useState(false)
   // Sous-étape à ouvrir, demandée depuis « À préparer ».
   const [fixSection, setFixSection] = useState<number | null>(null)
@@ -96,7 +99,7 @@ export function KnittingProjectPage() {
   // Patron adapté suivi : ses rangs, mailles et sections remplacent ceux du patron d'origine (gardé tel quel).
   const adaptation = project.adaptation ?? null
   const needles = project.needles ?? []
-  const needleGauges = project.needleGauges ?? []
+  const projectGauges = project.gauges ?? []
   const { size: followedSize, steps, following } = stepsToFollow(project)
   // Diagrammes rattachés à une sous-étape : placés sur ses rangs d'aujourd'hui
   const charts = placeCharts(project.charts, steps)
@@ -111,14 +114,17 @@ export function KnittingProjectPage() {
     await openInNewTab(() => api.knitting.pdfUrl(project!.pdfPath!)).catch((error: unknown) => toast.error(errorMessage(error)))
   }
 
-  // L'estimation (≈) d'après l'échantillon n'a plus lieu d'être quand le patron adapté est suivi.
-  const noGauge = { stitches: null, rows: null }
-  const gauges = following ? { pattern: noGauge, mine: noGauge } : { pattern: project.patternGauge, mine: project.myGauge }
+  /**
+   * Mailles et rangs à suivre pour une étape : l'échantillon de son aiguille (celle de sa première sous-étape, ou
+   * celle héritée). L'estimation (≈) n'a plus lieu d'être quand le patron adapté est déjà recalculé.
+   */
+  const gaugeOfStep = (s: ShownStep) =>
+    following ? project.patternGauge : countsFor(projectGauges, effectiveNeedles(s.sections, needles, s.needleFrom ?? null)[0] ?? s.needleFrom ?? null, project.patternGauge)
 
-  /** Échantillons par aiguille : une aiguille dont l'échantillon change est à revérifier. */
-  async function saveNeedleGauges(next: NeedleGauge[]): Promise<boolean> {
+  /** Les échantillons du projet : la seule source pour les calculs des étapes. */
+  async function saveGauges(next: ProjectGauge[]): Promise<boolean> {
     try {
-      await api.knitting.saveNeedleGauges(project!.id, withGauges(needleGauges, next, false))
+      await api.knitting.saveGauges(project!.id, next)
       await reload()
       return true
     } catch (error) {
@@ -130,9 +136,6 @@ export function KnittingProjectPage() {
   async function saveInfo(info: ProjectInfo, removedYarn?: number): Promise<boolean> {
     try {
       await api.knitting.saveProjectInfo(project!.id, info)
-      // Échantillon général (ou du patron) changé : les aiguilles qui s'en servent sont à revérifier
-      const generalChanged = info.myGauge.rows !== project!.myGauge.rows || info.patternGauge.rows !== project!.patternGauge.rows
-      if (generalChanged && needleGauges.some((g) => g.checked && g.rows === null)) await api.knitting.saveNeedleGauges(project!.id, withGauges(needleGauges, needleGauges, true))
       // Laine retirée : les pesées restent liées à la bonne laine.
       const checks = project!.yarnChecks ?? []
       if (removedYarn !== undefined && checks.some((c) => c.yarn >= removedYarn)) await api.knitting.saveYarnChecks(project!.id, withoutYarn(checks, removedYarn))
@@ -193,7 +196,7 @@ export function KnittingProjectPage() {
   /** Conversions de l'aiguille vérifiées : valable pour toutes ses sous-étapes. */
   async function checkNeedle(needle: number | null) {
     try {
-      await api.knitting.saveNeedleGauges(project!.id, withChecked(needleGauges, needle))
+      await api.knitting.saveGauges(project!.id, withChecked(projectGauges, needle))
       await reload()
     } catch (error) {
       toast.error(errorMessage(error))
@@ -241,8 +244,9 @@ export function KnittingProjectPage() {
   if (stepParam !== null && step) {
     // Mailles de fin : déduites du début saisi, sinon celles du patron
     const stepEnd = endStitches(step)
-    const adjustedStitches = adjustCount(stepEnd, gauges.pattern.stitches, gauges.mine.stitches)
-    const adjustedRows = adjustCount(step.totalRows, gauges.pattern.rows, gauges.mine.rows)
+    const mine = gaugeOfStep(step)
+    const adjustedStitches = adjustCount(stepEnd, project.patternGauge.stitches, mine.stitches)
+    const adjustedRows = adjustCount(step.totalRows, project.patternGauge.rows, mine.rows)
     const stepText = (
       <StepText
         text={step.instructions}
@@ -261,7 +265,7 @@ export function KnittingProjectPage() {
           <ChevronLeft className="size-4 shrink-0" aria-hidden /> <span className="truncate">{project.title}</span>
         </Link>
         <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
-          {step.done || isReady(step, needles, needleGauges) ? (
+          {step.done || isReady(step, needles, projectGauges) ? (
             <Link to={knitTo(step.id)} className={cn(buttonVariants(), 'h-10')}>
               <Play /> Tricoter cette étape
             </Link>
@@ -301,7 +305,7 @@ export function KnittingProjectPage() {
             </p>
             {!step.done && (
               <div className="mt-2">
-                <StepReady issues={readyIssues(step, needles, needleGauges)} onFix={setFixSection} />
+                <StepReady issues={readyIssues(step, needles, projectGauges)} onFix={setFixSection} />
               </div>
             )}
             <div className="mt-2">
@@ -334,7 +338,7 @@ export function KnittingProjectPage() {
             ) : (
               stepText
             ))}
-          <StepSections step={step} needles={needles} text={{ sizes: project.sizes, sizeIndex: project.sizeIndex, abbreviations: project.abbreviations ?? [] }} charts={charts.filter((c) => c.stepId === step.id)} needleGauges={needleGauges} onCheckNeedle={checkNeedle} onSaveGauges={saveNeedleGauges} open={fixSection} onOpened={() => setFixSection(null)} onChange={(sections) => saveSections(step, sections)} />
+          <StepSections step={step} needles={needles} text={{ sizes: project.sizes, sizeIndex: project.sizeIndex, abbreviations: project.abbreviations ?? [] }} charts={charts.filter((c) => c.stepId === step.id)} gauges={projectGauges} onCheckNeedle={checkNeedle} open={fixSection} onOpened={() => setFixSection(null)} onChange={(sections) => saveSections(step, sections)} />
           <StepCharts
             projectId={project.id}
             pdfPath={project.pdfPath}
@@ -357,11 +361,11 @@ export function KnittingProjectPage() {
   }
 
   // Le projet en trois onglets : Démarrer (matériel), Préparer (étapes), Tricoter (étape en cours et suivi)
-  const tabInput = { ...project, needles, needleGauges, steps }
+  const tabInput = { ...project, needles, gauges: projectGauges, steps }
   const tabParam = params.get('onglet')
   const tab: ProjectTab = isProjectTab(tabParam) ? tabParam : defaultTab(tabInput)
   const toStart = startIssues(tabInput)
-  const toPrepare = stepsToPrepare(steps, needles, needleGauges)
+  const toPrepare = stepsToPrepare(steps, needles, projectGauges)
   const organizing = tab === 'preparer' && params.get('vue') === 'organiser'
   const doneCount = steps.filter((s) => s.done).length
   const finished = steps.length > 0 && doneCount === steps.length
@@ -418,9 +422,15 @@ export function KnittingProjectPage() {
           </div>
           <YarnPanel
             defaultOpen
-            info={{ yarns: project.yarns, patternGauge: project.patternGauge, myGauge: project.myGauge }}
+            info={{ yarns: project.yarns, patternGauge: project.patternGauge }}
             onSave={saveInfo}
-            needleGauges={{ needles, gauges: needleGauges, onSave: saveNeedleGauges }}
+            gauges={{
+              needles,
+              list: projectGauges,
+              onSave: saveGauges,
+              openFor: gaugeParam === null ? undefined : gaugeParam === 'defaut' ? null : Number(gaugeParam),
+              onOpened: () => setParams({ onglet: 'demarrer' }, { replace: true }),
+            }}
           />
           <AdaptPanel project={project} size={followedSize} onSaved={reload} />
         </TabsContent>
@@ -475,10 +485,10 @@ export function KnittingProjectPage() {
                               </span>
                             )}
                             {/* Les pastilles sous le titre : elles ne le rognent pas. */}
-                            {(isCurrent || (!s.done && !isReady(s, needles, needleGauges))) && (
+                            {(isCurrent || (!s.done && !isReady(s, needles, projectGauges))) && (
                               <span className="mt-1 flex flex-wrap gap-1">
                                 {isCurrent && <span className="rounded-full bg-brand/15 px-2 py-0.5 text-xs font-medium">En cours</span>}
-                                {!s.done && !isReady(s, needles, needleGauges) && <span className="rounded-full bg-amber-500/15 px-2 py-0.5 text-xs font-medium">À préparer</span>}
+                                {!s.done && !isReady(s, needles, projectGauges) && <span className="rounded-full bg-amber-500/15 px-2 py-0.5 text-xs font-medium">À préparer</span>}
                               </span>
                             )}
                           </span>
@@ -499,7 +509,7 @@ export function KnittingProjectPage() {
             step={current && !current.done ? current : null}
             number={current ? steps.indexOf(current) + 1 : 0}
             total={steps.length}
-            issues={current && !current.done ? readyIssues(current, needles, needleGauges) : []}
+            issues={current && !current.done ? readyIssues(current, needles, projectGauges) : []}
             knitTo={knitTo()}
             setupTo={current ? `?etape=${encodeURIComponent(current.id)}` : ''}
           />

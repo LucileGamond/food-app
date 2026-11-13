@@ -33,7 +33,7 @@ const PROJECT: KnitProject = {
   pdfPath: null,
   yarns: [],
   patternGauge: { stitches: null, rows: null },
-  myGauge: { stitches: null, rows: null },
+  gauges: [],
   charts: [],
   chartHints: [],
   abbreviations: [],

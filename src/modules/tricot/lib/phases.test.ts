@@ -11,8 +11,7 @@ const PROJECT = {
   size: 'M',
   needles: [4],
   patternGauge: noGauge,
-  myGauge: noGauge,
-  needleGauges: [],
+  gauges: [],
   steps: [step([rows(10, 'côtes')]), step([rows(20, 'jersey')])],
 }
 
@@ -36,11 +35,11 @@ describe('démarrer un projet : ce qui manque au matériel', () => {
     const steps = [step([rows(null, 'jersey', '30 cm')]), step([{ ...rows(4, 'col'), at: { row: null, pattern: 'à 15 cm' } }])]
     expect(startIssues({ ...PROJECT, steps })).toEqual(['Échantillon à noter (le patron donne des hauteurs en cm)'])
     expect(startIssues({ ...PROJECT, steps: [steps[1]!] })).toHaveLength(1)
-    expect(startIssues({ ...PROJECT, steps, myGauge: { stitches: 22, rows: 30 } })).toEqual([])
+    expect(startIssues({ ...PROJECT, steps, gauges: [{ needle: null, stitches: 22, rows: 30, checked: false }] })).toEqual([])
     expect(startIssues({ ...PROJECT, steps, patternGauge: { stitches: null, rows: 28 } })).toEqual([])
-    expect(startIssues({ ...PROJECT, steps, needleGauges: [{ needle: 4, stitches: null, rows: 30, checked: false }] })).toEqual([])
+    expect(startIssues({ ...PROJECT, steps, gauges: [{ needle: 4, stitches: null, rows: 30, checked: false }] })).toEqual([])
     // Mailles seules : pas de quoi convertir des cm en rangs
-    expect(startIssues({ ...PROJECT, steps, myGauge: { stitches: 22, rows: null } })).toHaveLength(1)
+    expect(startIssues({ ...PROJECT, steps, gauges: [{ needle: null, stitches: 22, rows: null, checked: false }] })).toHaveLength(1)
   })
 })
 

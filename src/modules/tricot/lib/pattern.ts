@@ -8,7 +8,7 @@
 // une piste qui avance en parallèle des autres, et les sections suivantes s'enchaînent derrière elle.
 // Le compteur compte les rangs terminés : ce qui est annoncé concerne le rang à tricoter (rangs faits + 1).
 
-import type { NeedleGauge } from './needleGauges'
+import type { ProjectGauge } from './gauges'
 import type { SizeChart } from './sizing'
 import type { Adaptation } from './adapt'
 import type { ChartHint, KnitChart } from './chart'
@@ -141,15 +141,14 @@ export interface KnitProject {
   /** Dernière pesée de la laine principale (« assez de laine pour finir ? »). */
   yarnChecks?: YarnCheck[]
   yarns: Yarn[]
-  /** Échantillon du patron (lu avec le patron, ou saisi) et celui de la tricoteuse. */
+  /** Échantillon du patron (lu avec le patron, ou saisi) : la donnée du modèle, à part des siens. */
   patternGauge: Gauge
-  myGauge: Gauge
   /** « Patron adapté à moi » (facultatif) : étapes recalculées, le patron d'origine reste tel quel. */
   adaptation?: Adaptation | null
   /** Aiguilles du patron (mm), de la plus fine à la plus grosse. */
   needles?: number[]
-  /** Échantillon par aiguille, et conversions vérifiées par aiguille. */
-  needleGauges?: NeedleGauge[]
+  /** Les échantillons de la tricoteuse : autant qu'elle veut, un par aiguille (plus celui par défaut). */
+  gauges?: ProjectGauge[]
 }
 
 /** Étape telle que lue dans le patron (avant enregistrement). */

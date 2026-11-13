@@ -16,7 +16,8 @@ test('patron adapté à moi : échantillon et retouches, avant / après, bascule
     ],
     gauge: { stitches: 22, rows: 30 },
   })
-  await api.knitting.saveProjectInfo(id, { yarns: [], patternGauge: { stitches: 22, rows: 30 }, myGauge: { stitches: 24, rows: 30 } })
+  await api.knitting.saveProjectInfo(id, { yarns: [], patternGauge: { stitches: 22, rows: 30 } })
+  await api.knitting.saveGauges(id, [{ needle: null, stitches: 24, rows: 30, checked: false }])
 
   // Réponse du modèle simulée : seule la manche change.
   await page.route('**/functions/v1/knit-pattern', async (route) => {

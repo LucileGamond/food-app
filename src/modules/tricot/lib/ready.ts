@@ -6,7 +6,7 @@
 
 import { describeConversion } from './measure'
 import { effectiveNeedles } from './needles'
-import { isChecked, type NeedleGauge } from './needleGauges'
+import { isChecked, type ProjectGauge } from './gauges'
 import { describeSection, type KnitStep, type StepSection } from './pattern'
 
 export interface ReadyIssue {
@@ -33,14 +33,14 @@ function issueOf(section: StepSection, checked: boolean): string | null {
  * Ce qui manque pour tricoter l'étape ; vide : prête. Aiguilles : à choisir quand le projet en a plusieurs (une seule
  * vaut partout ; sans aiguille au projet, rien n'est demandé).
  */
-export function readyIssues(step: Pick<KnitStep, 'sections' | 'needleFrom'>, needles: number[] = [], needleGauges: NeedleGauge[] = []): ReadyIssue[] {
+export function readyIssues(step: Pick<KnitStep, 'sections' | 'needleFrom'>, needles: number[] = [], gauges: ProjectGauge[] = []): ReadyIssue[] {
   const own = effectiveNeedles(step.sections, needles, step.needleFrom ?? null)
   return step.sections.flatMap((section, index) => {
-    const issue = issueOf(section, isChecked(needleGauges, own[index] ?? null)) ?? (needles.length > 1 && own[index] === null ? 'aiguille à choisir' : null)
+    const issue = issueOf(section, isChecked(gauges, own[index] ?? null)) ?? (needles.length > 1 && own[index] === null ? 'aiguille à choisir' : null)
     if (!issue) return []
     const described = describeSection(section)
     return [{ index, what: issue, section: described, text: `Sous-étape ${index + 1} (${described}) : ${issue}.` }]
   })
 }
 
-export const isReady = (step: Pick<KnitStep, 'sections' | 'needleFrom'>, needles: number[] = [], needleGauges: NeedleGauge[] = []) => readyIssues(step, needles, needleGauges).length === 0
+export const isReady = (step: Pick<KnitStep, 'sections' | 'needleFrom'>, needles: number[] = [], gauges: ProjectGauge[] = []) => readyIssues(step, needles, gauges).length === 0

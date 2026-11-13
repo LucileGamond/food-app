@@ -18,6 +18,7 @@ import type { KnitProject } from '../lib/pattern'
 import { formatGauge, gaugeDiffers } from '../lib/yarn'
 import { Fold } from './Fold'
 import { Note } from './Note'
+import { defaultGauge } from '../lib/gauges'
 
 interface Props {
   project: KnitProject
@@ -37,15 +38,17 @@ export function AdaptPanel({ project, size, onSaved }: Props) {
   const [saving, setSaving] = useState(false)
   const paused = adaptationPaused(adaptation, size)
 
-  const gaugeChanged = gaugeDiffers(project.patternGauge, project.myGauge)
-  const myGauge = formatGauge(project.myGauge)
+  // L'IA part de l'échantillon qui vaut pour tout le projet (celui sans aiguille, sinon le premier noté).
+  const mine = defaultGauge(project.gauges ?? [])
+  const gaugeChanged = gaugeDiffers(project.patternGauge, mine)
+  const myGauge = formatGauge(mine)
   const canAdapt = gaugeChanged || request.trim() !== ''
   const showForm = adaptation === null || editing
 
   async function adapt() {
     setWorking(true)
     try {
-      setPreview(await api.knitting.adaptPattern({ request: request.trim(), size, patternGauge: project.patternGauge, myGauge: project.myGauge, steps: project.steps }))
+      setPreview(await api.knitting.adaptPattern({ request: request.trim(), size, patternGauge: project.patternGauge, myGauge: mine, steps: project.steps }))
     } catch (error) {
       toast.error(errorMessage(error))
     } finally {

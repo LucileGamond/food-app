@@ -34,7 +34,7 @@ const PROJECT: KnitProject = {
   pdfPath: null,
   yarns: [],
   patternGauge: { stitches: null, rows: null },
-  myGauge: { stitches: null, rows: null },
+  gauges: [],
   steps: [step({ id: 's1', instructions: 'Tricoter 2 m. ens. puis 1 jeté, C4F.', rowCount: 11 })],
   charts: [],
   chartHints: [],

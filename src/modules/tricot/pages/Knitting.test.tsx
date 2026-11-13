@@ -37,7 +37,7 @@ const PROJECT: KnitProject = {
   sizeIndex: null,
   yarns: [],
   patternGauge: { stitches: null, rows: null },
-  myGauge: { stitches: null, rows: null },
+  gauges: [],
   id: 'p1',
   title: 'Pull Bergamote',
   size: 'M',
@@ -446,7 +446,7 @@ describe('KnittingProjectPage', () => {
     const project = structuredClone(PROJECT)
     project.patternGauge = { stitches: 22, rows: 30 }
     project.needles = [3, 3.5]
-    project.needleGauges = [{ needle: 3, stitches: null, rows: 40, checked: false }]
+    project.gauges = [{ needle: 3, stitches: null, rows: 40, checked: false }]
     project.steps[1]!.sections = [
       { kind: 'rows', rows: null, every: null, times: null, text: 'côtes', pattern: '5 cm', needle: 3 },
       { kind: 'rows', rows: null, every: null, times: null, text: 'jersey', pattern: '10 cm', needle: 3.5 },
@@ -458,7 +458,7 @@ describe('KnittingProjectPage', () => {
     expect(within(sections).getByText('30 rangs (≈ 10 cm) : jersey')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Tricoter cette étape' })).toBeDisabled()
     await user.click(within(sections).getByRole('button', { name: 'Valider pour l’aiguille 3,5 mm' }))
-    expect(api.knitting.saveNeedleGauges).toHaveBeenLastCalledWith('p1', [
+    expect(api.knitting.saveGauges).toHaveBeenLastCalledWith('p1', [
       { needle: 3, stitches: null, rows: 40, checked: false },
       { needle: 3.5, stitches: null, rows: null, checked: true },
     ])
@@ -468,7 +468,7 @@ describe('KnittingProjectPage', () => {
     const project = structuredClone(PROJECT)
     project.patternGauge = { stitches: 22, rows: 30 }
     project.needles = [3, 3.5]
-    project.needleGauges = [
+    project.gauges = [
       { needle: 3, stitches: null, rows: 40, checked: true },
       { needle: 3.5, stitches: null, rows: null, checked: true },
     ]
@@ -483,17 +483,52 @@ describe('KnittingProjectPage', () => {
     expect(screen.queryByRole('button', { name: /^Valider/ })).not.toBeInTheDocument()
   })
 
-  it('échantillon par aiguille saisi dans « Laine et échantillon » : l’aiguille changée est à revérifier', async () => {
+  it('mes échantillons : une liste, un par aiguille ; changer les rangs le fait revérifier', async () => {
     const user = userEvent.setup()
-    const project = { ...structuredClone(PROJECT), needles: [3, 3.5], needleGauges: [{ needle: 3.5, stitches: null, rows: null, checked: true }] }
+    const project = { ...structuredClone(PROJECT), needles: [3, 3.5], gauges: [{ needle: 3.5, stitches: 22, rows: 30, checked: true }] }
     const { api } = renderProject(fakeApi(), project, START)
-    const form = await screen.findByRole('form', { name: 'Échantillon par aiguille' })
-    await user.type(within(form).getByLabelText('Rangs (3,5 mm)'), '28')
-    await user.click(within(form).getByRole('button', { name: 'Enregistrer les échantillons par aiguille' }))
-    expect(api.knitting.saveNeedleGauges).toHaveBeenLastCalledWith('p1', [
-      { needle: 3, stitches: null, rows: null, checked: false },
-      { needle: 3.5, stitches: null, rows: 28, checked: false },
+    const list = await screen.findByRole('region', { name: 'Mes échantillons' })
+    expect(within(list).getByText('Aiguille 3,5 mm')).toBeInTheDocument()
+    expect(within(list).getByText('22 m. × 30 rangs pour 10 cm')).toBeInTheDocument()
+
+    // Modifier ses rangs : la conversion de cette aiguille est à revérifier
+    await user.click(within(list).getByRole('button', { name: 'Modifier l’échantillon : Aiguille 3,5 mm' }))
+    const form = await screen.findByRole('form', { name: 'Échantillon' })
+    await user.clear(within(form).getByLabelText('Rangs'))
+    await user.type(within(form).getByLabelText('Rangs'), '28')
+    await user.click(within(form).getByRole('button', { name: 'Enregistrer' }))
+    expect(api.knitting.saveGauges).toHaveBeenLastCalledWith('p1', [{ needle: 3.5, stitches: 22, rows: 28, checked: false }])
+  })
+
+  it('mes échantillons : ajout pour une autre aiguille, et suppression', async () => {
+    const user = userEvent.setup()
+    const project = { ...structuredClone(PROJECT), needles: [3, 3.5], gauges: [{ needle: 3.5, stitches: 22, rows: 30, checked: false }] }
+    const { api } = renderProject(fakeApi(), project, START)
+    await user.click(await screen.findByRole('button', { name: 'Ajouter un échantillon' }))
+    const form = await screen.findByRole('form', { name: 'Échantillon' })
+    // L'aiguille déjà notée n'est plus proposée
+    expect(Array.from((within(form).getByLabelText('Aiguille') as HTMLSelectElement).options).map((o) => o.textContent)).toEqual(['Toutes aiguilles', '3 mm'])
+    await user.selectOptions(within(form).getByLabelText('Aiguille'), '3 mm')
+    await user.type(within(form).getByLabelText('Mailles'), '24')
+    await user.type(within(form).getByLabelText('Rangs'), '32')
+    await user.click(within(form).getByRole('button', { name: 'Enregistrer' }))
+    expect(api.knitting.saveGauges).toHaveBeenLastCalledWith('p1', [
+      { needle: 3, stitches: 24, rows: 32, checked: false },
+      { needle: 3.5, stitches: 22, rows: 30, checked: false },
     ])
+
+    await user.click(screen.getByRole('button', { name: 'Supprimer l’échantillon : Aiguille 3,5 mm' }))
+    await user.click(within(await screen.findByRole('alertdialog')).getByRole('button', { name: 'Supprimer' }))
+    expect(api.knitting.saveGauges).toHaveBeenLastCalledWith('p1', [])
+  })
+
+  it('mes échantillons : sans rien de noté, la saisie est refusée', async () => {
+    const user = userEvent.setup()
+    renderProject(fakeApi(), { ...structuredClone(PROJECT), needles: [3] }, START)
+    await user.click(await screen.findByRole('button', { name: 'Ajouter un échantillon' }))
+    const form = await screen.findByRole('form', { name: 'Échantillon' })
+    await user.click(within(form).getByRole('button', { name: 'Enregistrer' }))
+    expect(within(form).getByRole('alert')).toHaveTextContent('Note au moins les mailles ou les rangs.')
   })
 
   it('mailles au début : saisies, elles font foi ; reprendre celles de l’étape d’avant ; revenir au patron', async () => {
@@ -655,7 +690,7 @@ describe('KnittingProjectPage', () => {
     renderProject(fakeApi(), project)
     const sections = await screen.findByRole('region', { name: 'Sous-étapes' })
     expect(within(sections).getByText('1 augmentation — tous les 5 cm (rangs à régler)')).toBeInTheDocument()
-    expect(within(sections).getByRole('button', { name: 'Noter mon échantillon' })).toBeInTheDocument()
+    expect(within(sections).getByRole('link', { name: 'Noter mon échantillon' })).toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: /^Actions pour « 1 augmentation/ }))
     await user.click(await screen.findByRole('menuitem', { name: 'Modifier' }))
     expect(screen.getByText('tous les 5 cm', { selector: 'span' })).toBeInTheDocument()
@@ -665,7 +700,7 @@ describe('KnittingProjectPage', () => {
     const user = userEvent.setup()
     const project = structuredClone(PROJECT)
     project.patternGauge = { stitches: 22, rows: 30 }
-    project.myGauge = { stitches: 20, rows: 26 }
+    project.gauges = [{ needle: null, stitches: 20, rows: 26, checked: false }]
     project.steps[1]!.sections = [
       { kind: 'rows', rows: null, every: null, times: null, text: 'jersey', pattern: '5 cm' },
       { kind: 'repeat', rows: null, every: null, times: 3, actions: [{ text: '1 augmentation', rank: null }], text: '', pattern: 'tous les 2,5 cm' },
@@ -681,7 +716,7 @@ describe('KnittingProjectPage', () => {
 
     // Valider : vaut pour tout le projet (sans aiguille choisie), une seule fois
     await user.click(within(notes[0]!).getByRole('button', { name: 'Valider' }))
-    expect(api.knitting.saveNeedleGauges).toHaveBeenLastCalledWith('p1', [{ needle: null, stitches: null, rows: null, checked: true }])
+    expect(api.knitting.saveGauges).toHaveBeenLastCalledWith('p1', [{ needle: null, stitches: 20, rows: 26, checked: true }])
 
     // Régler : le formulaire part du nombre calculé ; enregistré, il est validé
     await user.click(within(notes[1]!).getByRole('button', { name: 'Modifier' }))
@@ -728,25 +763,22 @@ describe('KnittingProjectPage', () => {
     expect(api.knitting.saveProgress).toHaveBeenLastCalledWith('s2', { sections: [expect.anything(), expect.not.objectContaining({ at: expect.anything() })] })
   })
 
-  it('cm du patron sans échantillon : il se note sans quitter l’étape', async () => {
+  it('cm du patron sans échantillon : le lien mène à « Démarrer », sur l’aiguille concernée', async () => {
     const user = userEvent.setup()
-    const project = structuredClone(PROJECT)
-    project.steps[1]!.sections = [{ kind: 'rows', rows: null, every: null, times: null, text: 'jersey', pattern: '5 cm' }]
-    const { api } = renderProject(fakeApi(), project)
+    const project = { ...structuredClone(PROJECT), needles: [3, 3.5] }
+    project.steps[1]!.sections = [{ kind: 'rows', rows: null, every: null, times: null, text: 'jersey', pattern: '5 cm', needle: 3.5 }]
+    renderProject(fakeApi(), project)
     const sections = await screen.findByRole('region', { name: 'Sous-étapes' })
     expect(within(sections).getByText('5 cm (à régler) : jersey')).toBeInTheDocument()
     expect(within(sections).getByText(/Sans échantillon, les centimètres ne se convertissent pas/)).toBeInTheDocument()
     expect(within(sections).queryByRole('note')).not.toBeInTheDocument()
 
-    // L'échantillon se note sans quitter l'étape
-    await user.click(within(sections).getByRole('button', { name: 'Noter mon échantillon' }))
-    const form = await screen.findByRole('form', { name: 'Ton échantillon' })
-    await user.type(within(form).getByLabelText('Tes mailles'), '22')
-    await user.click(within(form).getByRole('button', { name: 'Enregistrer' }))
-    expect(within(form).getByRole('alert')).toHaveTextContent('Indique les rangs')
-    await user.type(within(form).getByLabelText('Tes rangs'), '30')
-    await user.click(within(form).getByRole('button', { name: 'Enregistrer' }))
-    expect(api.knitting.saveNeedleGauges).toHaveBeenLastCalledWith('p1', [{ needle: null, stitches: 22, rows: 30, checked: false }])
+    // Les échantillons se notent au même endroit, dans « Démarrer » : le lien ouvre celui de cette aiguille
+    const link = within(sections).getByRole('link', { name: 'Noter mon échantillon à l’aiguille 3,5 mm' })
+    expect(link).toHaveAttribute('href', '/tricot/p1?onglet=demarrer&echantillon=3.5')
+    await user.click(link)
+    const form = await screen.findByRole('form', { name: 'Échantillon' })
+    expect(within(form).getByLabelText('Aiguille')).toHaveDisplayValue('3,5 mm')
   })
 
   it('prépare une étape : notes, étape suivante ou précédente, reprise d’une étape terminée, sans compteur', async () => {
@@ -833,7 +865,7 @@ describe('KnittingProjectPage', () => {
     const project = {
       ...structuredClone(PROJECT),
       yarns: [{ ...EMPTY_YARN, brand: 'Phildar', name: 'Partner 3.5' }],
-      myGauge: { stitches: 22, rows: 30 },
+      gauges: [{ needle: null, stitches: 22, rows: 30, checked: false }],
       yarnChecks: [{ yarn: 0, grams: 220, rowsDone: 10, at: '2026-11-10T09:00:00.000Z' }],
     }
     renderProject(fakeApi(), project, START)
@@ -846,7 +878,7 @@ describe('KnittingProjectPage', () => {
     expect(screen.getByRole('region', { name: 'Patron adapté à moi' })).not.toHaveTextContent('pas encore adapté')
     // Replié, chaque bloc dit ce qu'il contient
     await user.click(screen.getByRole('button', { name: 'Laine et échantillon' }))
-    expect(screen.getByRole('region', { name: 'Laine et échantillon' })).toHaveTextContent('1 laine · 22 m. × 30 rangs pour 10 cm')
+    expect(screen.getByRole('region', { name: 'Laine et échantillon' })).toHaveTextContent('1 laine · 1 échantillon')
     await user.click(screen.getByRole('tab', { name: /3. Tricoter/ }))
     expect(await screen.findByRole('region', { name: 'Assez de laine pour finir ?' })).toHaveTextContent('pesée le 10/11')
     expect(screen.getByRole('region', { name: 'Notes et photos' })).toHaveTextContent('rien de noté')
@@ -940,7 +972,6 @@ describe('laine et échantillon du projet', () => {
       expect(api.knitting.saveProjectInfo).toHaveBeenCalledWith('p1', {
         yarns: [{ ...EMPTY_YARN, brand: 'Phildar', name: 'Partner 3.5', length_m: 125, needle_mm: 3.5, skeins: 6 }],
         patternGauge: { stitches: null, rows: null },
-        myGauge: { stitches: null, rows: null },
       }),
     )
   })
@@ -1011,7 +1042,7 @@ describe('laine et échantillon du projet', () => {
   it('recalcule mailles et rangs avec l’échantillon de la tricoteuse', async () => {
     const user = userEvent.setup()
     const api = fakeApi()
-    await renderProject(api, { ...PROJECT, patternGauge: { stitches: 22, rows: 30 }, myGauge: { stitches: 24, rows: 30 } })
+    await renderProject(api, { ...PROJECT, patternGauge: { stitches: 22, rows: 30 }, gauges: [{ needle: null, stitches: 24, rows: 30, checked: false }] })
     expect(screen.getByLabelText('Mailles du patron')).toHaveValue('22')
     // Étape en cours : 30 rangs, 56 mailles à la fin → 61 mailles à 24 m./10 cm, rangs inchangés.
     await user.click(screen.getByRole('tab', { name: /2. Préparer/ }))
@@ -1021,18 +1052,19 @@ describe('laine et échantillon du projet', () => {
     await user.click(screen.getByRole('link', { name: 'Pull Bergamote' }))
     await user.click(await screen.findByRole('tab', { name: /1. Démarrer/ }))
 
-    const form = screen.getByRole('form', { name: 'Échantillon' })
-    const save = within(form).getByRole('button', { name: 'Enregistrer l’échantillon' })
-    expect(save).toBeDisabled()
-    await user.clear(within(form).getByLabelText('Tes rangs'))
-    await user.type(within(form).getByLabelText('Tes rangs'), '0')
-    await user.click(save)
+    // Son échantillon se modifie dans la liste ; celui du patron a son propre formulaire
+    const list = screen.getByRole('region', { name: 'Mes échantillons' })
+    await user.click(within(list).getByRole('button', { name: 'Modifier l’échantillon : Toutes aiguilles' }))
+    const form = await screen.findByRole('form', { name: 'Échantillon' })
+    await user.clear(within(form).getByLabelText('Rangs'))
+    await user.type(within(form).getByLabelText('Rangs'), '0')
+    await user.click(within(form).getByRole('button', { name: 'Enregistrer' }))
     expect(within(form).getByRole('alert')).toHaveTextContent('un nombre entre 1 et 100')
-    await user.clear(within(form).getByLabelText('Tes rangs'))
-    await user.type(within(form).getByLabelText('Tes rangs'), '27')
-    api.knitting.getProject.mockResolvedValue({ ...structuredClone(PROJECT), patternGauge: { stitches: 22, rows: 30 }, myGauge: { stitches: 24, rows: 27 } })
-    await user.click(save)
-    expect(api.knitting.saveProjectInfo).toHaveBeenCalledWith('p1', { yarns: [], patternGauge: { stitches: 22, rows: 30 }, myGauge: { stitches: 24, rows: 27 } })
+    await user.clear(within(form).getByLabelText('Rangs'))
+    await user.type(within(form).getByLabelText('Rangs'), '27')
+    api.knitting.getProject.mockResolvedValue({ ...structuredClone(PROJECT), patternGauge: { stitches: 22, rows: 30 }, gauges: [{ needle: null, stitches: 24, rows: 27, checked: false }] })
+    await user.click(within(form).getByRole('button', { name: 'Enregistrer' }))
+    expect(api.knitting.saveGauges).toHaveBeenCalledWith('p1', [{ needle: null, stitches: 24, rows: 27, checked: false }])
     await waitFor(() => expect(api.knitting.getProject).toHaveBeenCalledTimes(2))
     await user.click(screen.getByRole('tab', { name: /2. Préparer/ }))
     await user.click(await screen.findByRole('link', { name: /Emmanchures/ }))

@@ -99,7 +99,7 @@ function Knitting({ project, knit, projectTo }: KnittingProps) {
   const line = guide.at(row)
   const glossary = mergeGlossary(project.abbreviations ?? [], base, looksEnglish(step.instructions))
   const setupTo = `${projectTo}?etape=${encodeURIComponent(step.id)}`
-  const issues = readyIssues(step, project.needles ?? [], project.needleGauges ?? [])
+  const issues = readyIssues(step, project.needles ?? [], project.gauges ?? [])
   const ready = issues.length === 0
   const substeps = finished ? [] : substepCounts(step, row)
   const needles = effectiveNeedles(step.sections, project.needles ?? [], step.needleFrom ?? null)

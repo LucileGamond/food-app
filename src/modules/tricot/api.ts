@@ -16,7 +16,7 @@ import { sanitizeSizeChart, type MeasureProfile } from './lib/sizing'
 import { sanitizeHints, sanitizeSetup, type ChartHint, type ChartSetup, type KnitChart } from './lib/chart'
 import type { SectionsChange, Split } from './lib/organize'
 import { sanitizeNeedles } from './lib/needles'
-import { sanitizeNeedleGauges, type NeedleGauge } from './lib/needleGauges'
+import { sanitizeGauges, type ProjectGauge } from './lib/gauges'
 import { MAX_PDF_BYTES, type KnitProject, type KnitProjectSummary, type KnitStep, type PatternStep, type ReadPattern, type StepSection, readMissingParts, sanitizeSections } from './lib/pattern'
 
 const PATTERN_BUCKET = 'knit-patterns'
@@ -261,7 +261,7 @@ export function createKnittingApi(db: AppSupabaseClient) {
       const { data, error } = await db
         .from('knit_projects')
         .select(
-          `id, title, size, sizes, size_index, pdf_path, chart_hints, abbreviations, yarn_checks, yarns, pattern_gauge_stitches, pattern_gauge_rows, my_gauge_stitches, my_gauge_rows, adaptation, needles, needle_gauges, knit_steps(id, position, title, instructions, total_rows, stitches, start_stitches, sections, row_count, times, pass, notes, done, highlights, translation), knit_charts(${CHART_COLUMNS})`,
+          `id, title, size, sizes, size_index, pdf_path, chart_hints, abbreviations, yarn_checks, yarns, pattern_gauge_stitches, pattern_gauge_rows, adaptation, needles, needle_gauges, knit_steps(id, position, title, instructions, total_rows, stitches, start_stitches, sections, row_count, times, pass, notes, done, highlights, translation), knit_charts(${CHART_COLUMNS})`,
         )
         .eq('id', id)
         .order('position', { referencedTable: 'knit_steps' })
@@ -286,8 +286,7 @@ export function createKnittingApi(db: AppSupabaseClient) {
         patternGauge: { stitches: data.pattern_gauge_stitches, rows: data.pattern_gauge_rows },
         adaptation: sanitizeAdaptation(data.adaptation),
         needles: sanitizeNeedles(data.needles),
-        myGauge: { stitches: data.my_gauge_stitches, rows: data.my_gauge_rows },
-        needleGauges: sanitizeNeedleGauges(data.needle_gauges),
+        gauges: sanitizeGauges(data.needle_gauges),
       }
     },
 
@@ -425,7 +424,7 @@ export function createKnittingApi(db: AppSupabaseClient) {
 
     /** Taille dont les nombres sont mis en valeur dans le texte des étapes (null : aucune). */
     /** Échantillon par aiguille et conversions vérifiées par aiguille. */
-    async saveNeedleGauges(id: string, gauges: NeedleGauge[]): Promise<void> {
+    async saveGauges(id: string, gauges: ProjectGauge[]): Promise<void> {
       const { error } = await db.from('knit_projects').update({ needle_gauges: gauges as unknown as Json[] }).eq('id', id)
       if (error) throw toAppError(error, 'Impossible d’enregistrer l’échantillon.')
     },
@@ -442,15 +441,13 @@ export function createKnittingApi(db: AppSupabaseClient) {
     },
 
     /** Laines et échantillons du projet. */
-    async saveProjectInfo(id: string, info: { yarns: Yarn[]; patternGauge: Gauge; myGauge: Gauge }): Promise<void> {
+    async saveProjectInfo(id: string, info: { yarns: Yarn[]; patternGauge: Gauge }): Promise<void> {
       const { error } = await db
         .from('knit_projects')
         .update({
           yarns: info.yarns as unknown as Json[],
           pattern_gauge_stitches: info.patternGauge.stitches,
           pattern_gauge_rows: info.patternGauge.rows,
-          my_gauge_stitches: info.myGauge.stitches,
-          my_gauge_rows: info.myGauge.rows,
         })
         .eq('id', id)
       if (error) throw toAppError(error, 'Impossible d’enregistrer la laine et l’échantillon.')

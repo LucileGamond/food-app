@@ -17,9 +17,8 @@ import { useBaseGlossary } from '../hooks/useBaseGlossary'
 import { SizedText } from './SizedText'
 import { HelpTip } from './HelpTip'
 import { Note } from './Note'
-import { GaugeDialog } from './GaugeDialog'
 import type { KnitChart } from '../lib/chart'
-import { isChecked, type NeedleGauge } from '../lib/needleGauges'
+import { isChecked, type ProjectGauge } from '../lib/gauges'
 import { readyIssues } from '../lib/ready'
 import {
   describeRange,
@@ -295,11 +294,10 @@ export function StepSections({
   needles = [],
   text,
   charts = [],
-  needleGauges = [],
+  gauges = [],
   onCheckNeedle,
   open = null,
   onOpened,
-  onSaveGauges,
 }: {
   step: KnitStep
   onChange: (sections: StepSection[]) => Promise<boolean>
@@ -307,14 +305,12 @@ export function StepSections({
   text?: TextProps
   /** Diagrammes de l'étape : chacun montré dans la sous-étape où il commence. */
   charts?: Pick<KnitChart, 'id' | 'title' | 'startRow' | 'endRow'>[]
-  /** Conversions vérifiées par aiguille ; avec `onCheckNeedle`, valider vaut pour toute l'aiguille. */
-  needleGauges?: NeedleGauge[]
+  /** Les échantillons du projet : ils disent si la conversion de chaque aiguille est vérifiée. */
+  gauges?: ProjectGauge[]
   onCheckNeedle?: (needle: number | null) => Promise<void>
   /** Sous-étape à ouvrir (demandée depuis « À préparer ») ; `onOpened` quand c'est fait. */
   open?: number | null
   onOpened?: () => void
-  /** Noter l'échantillon d'une aiguille sans quitter l'étape (sinon, on renvoie vers « Démarrer »). */
-  onSaveGauges?: (gauges: NeedleGauge[]) => Promise<boolean>
 }) {
   const base = useBaseGlossary()
   const glossary = text ? mergeGlossary(text.abbreviations, base, looksEnglish(step.instructions)) : []
@@ -324,13 +320,11 @@ export function StepSections({
   // Index en cours de modification ; `step.sections.length` = nouvelle section.
   const [editing, setEditing] = useState<number | null>(null)
   const [removing, setRemoving] = useState<number | null>(null)
-  // Échantillon à noter pour l'aiguille d'une sous-étape (sa position ; -1 : fermé).
-  const [gauging, setGauging] = useState<number | null>(null)
   const plan = planSections(step.sections, step.totalRows)
   const row = step.rowCount + 1
   const current = sectionIndicesAt(plan, row)
   // Ce qui manque à chaque sous-étape : la sienne est signalée, et « À préparer » l'ouvre.
-  const issues = new Set(readyIssues(step, needles, needleGauges).map((i) => i.index))
+  const issues = new Set(readyIssues(step, needles, gauges).map((i) => i.index))
 
   useEffect(() => {
     if (open === null || open === undefined) return
@@ -413,26 +407,15 @@ export function StepSections({
                   <p className="text-xs text-muted-foreground">
                     {toSet ? (
                       (parseMeasure(section.pattern) ?? parseMeasure(section.at?.pattern ?? null)) !== null ? (
-                        onSaveGauges ? (
-                          <>
-                            Sans échantillon, les centimètres ne se convertissent pas en rangs.{' '}
-                            <button
-                              type="button"
-                              onClick={() => setGauging(index)}
-                              className="font-medium text-foreground underline underline-offset-4 focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none"
-                            >
-                              {own[index] === null ? 'Noter mon échantillon' : `Noter mon échantillon à l’aiguille ${formatNeedle(own[index]!)}`}
-                            </button>
-                          </>
-                        ) : (
-                          <>
-                            Note ton échantillon (ou celui du patron) dans{' '}
-                            <Link to="?onglet=demarrer" className="font-medium text-foreground underline underline-offset-4">
-                              Démarrer
-                            </Link>{' '}
-                            pour convertir en rangs, ou modifie le nombre de rangs.
-                          </>
-                        )
+                        <>
+                          Sans échantillon, les centimètres ne se convertissent pas en rangs.{' '}
+                          <Link
+                            to={`?onglet=demarrer&echantillon=${own[index] === null ? 'defaut' : own[index]}`}
+                            className="font-medium text-foreground underline underline-offset-4"
+                          >
+                            {own[index] === null ? 'Noter mon échantillon' : `Noter mon échantillon à l’aiguille ${formatNeedle(own[index]!)}`}
+                          </Link>
+                        </>
                       ) : (
                         'Indique le nombre de rangs pour que la suite se calcule.'
                       )
@@ -454,7 +437,7 @@ export function StepSections({
                   )}
                   <ConversionCheck
                     section={section}
-                    check={onCheckNeedle ? { needle: own[index] ?? null, checked: isChecked(needleGauges, own[index] ?? null) } : undefined}
+                    check={onCheckNeedle ? { needle: own[index] ?? null, checked: isChecked(gauges, own[index] ?? null) } : undefined}
                     onValidate={() => void (onCheckNeedle ? onCheckNeedle(own[index] ?? null) : save(index, validateSection(section)))}
                     onEdit={() => setEditing(index)}
                   />
@@ -492,15 +475,6 @@ export function StepSections({
           </li>
         )}
       </ol>
-      {gauging !== null && onSaveGauges && (
-        <GaugeDialog
-          open
-          onOpenChange={(value) => !value && setGauging(null)}
-          needle={own[gauging] ?? null}
-          gauges={needleGauges}
-          onSave={onSaveGauges}
-        />
-      )}
       <ConfirmDialog
         open={removing !== null}
         onOpenChange={(open) => !open && setRemoving(null)}

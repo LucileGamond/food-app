@@ -53,11 +53,14 @@ select is(
 );
 select is((select row(count(*), bool_and(wish is null))::text from public.knit_patterns), row(1::bigint, true)::text, 'patron commencé : il reste dans la bibliothèque, sans envie');
 
-update public.knit_projects set yarns = '[{"brand": "Phildar", "skeins": 6}]', my_gauge_stitches = 24, my_gauge_rows = 27
+-- Les échantillons de la tricoteuse vivent tous dans needle_gauges, un par aiguille (null : toutes aiguilles).
+update public.knit_projects
+set yarns = '[{"brand": "Phildar", "skeins": 6}]',
+    needle_gauges = '[{"needle": null, "stitches": 24, "rows": 27, "checked": false}, {"needle": 3.5, "stitches": 22, "rows": 30, "checked": true}]'
 where id = (select v from ids where k = 'project');
-select is((select my_gauge_stitches from public.knit_projects), 24.0::numeric(4, 1), 'échantillon de la tricoteuse enregistré');
+select is((select jsonb_array_length(needle_gauges) from public.knit_projects), 2, 'échantillons de la tricoteuse enregistrés');
 select throws_ok($$update public.knit_projects set yarns = '[{"skeins": -1}]'$$, '23514', null, 'laine invalide refusée');
-select throws_ok($$update public.knit_projects set my_gauge_rows = 0$$, '23514', null, 'échantillon borné');
+select throws_ok($$update public.knit_projects set needle_gauges = '{}'$$, '23514', null, 'échantillons : une liste seulement');
 
 -- Autre patron, pas encore commencé
 insert into public.knit_patterns (title, pdf_path) values ('Bonnet', '11111111-1111-1111-1111-111111111111/aaaaaaaa-0000-0000-0000-000000000003.pdf');

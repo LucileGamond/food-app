@@ -41,7 +41,7 @@ function project(adaptation: Adaptation | null = null): KnitProject {
     chartHints: [],
     yarns: [],
     patternGauge: { stitches: 22, rows: 30 },
-    myGauge: { stitches: 24, rows: 30 },
+    gauges: [{ needle: null, stitches: 24, rows: 30, checked: false }],
     adaptation,
   }
 }
@@ -221,7 +221,7 @@ describe('patron adapté : écran', () => {
     const user = userEvent.setup()
     const api = fakeApi()
     api.knitting.adaptPattern.mockRejectedValue(new AppError('L’adaptation du patron a échoué.'))
-    renderProject(api, { ...project(), myGauge: { stitches: null, rows: null } }, OVERVIEW)
+    renderProject(api, { ...project(), gauges: [] }, OVERVIEW)
     await openFold('Patron adapté à moi')
     const panel = await screen.findByRole('region', { name: /Patron adapté à moi/ })
     expect(panel).toHaveTextContent('seules tes retouches seront appliquées')

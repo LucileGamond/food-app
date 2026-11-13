@@ -18,7 +18,7 @@ const project = (id = 'p1', rowCount = 0): KnitProject => ({
   chartHints: [],
   yarns: [],
   patternGauge: { stitches: null, rows: null },
-  myGauge: { stitches: null, rows: null },
+  gauges: [],
 })
 
 /** Promesse résolue à la main. */

@@ -64,7 +64,7 @@ const PROJECT: KnitProject = {
   pdfPath: null,
   yarns: [],
   patternGauge: { stitches: null, rows: null },
-  myGauge: { stitches: null, rows: null },
+  gauges: [],
   steps: [step({ id: 's1', done: true, rowCount: 40 }), step({ id: 's2', position: 1, title: 'Devant torsadé', rowCount: 8 })],
   charts: [TORSADE],
   chartHints: [],
