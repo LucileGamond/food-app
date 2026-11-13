@@ -1,4 +1,4 @@
-import { FileText, ImagePlus } from 'lucide-react'
+import { FileText, Grid3x3, ImagePlus, Plus } from 'lucide-react'
 import { useEffect, useId, useState } from 'react'
 import { toast } from 'sonner'
 import { errorMessage } from '@/api'
@@ -11,7 +11,9 @@ import { FULL_CROP } from '@/lib/photoEdit'
 import { CHART_MAX_SIDE, MAX_CHART_IMAGE_BYTES, newChartForm, setupToForm, type ChartHint, type ChartSetup, type KnitChart } from '../lib/chart'
 import type { KnitStep } from '../lib/pattern'
 import { ChartSetupDialog } from './ChartSetupDialog'
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { ChartView } from './ChartView'
+import { HelpTip } from './HelpTip'
 import { PdfPagePicker } from './PdfPagePicker'
 
 interface Props {
@@ -113,17 +115,19 @@ export function StepCharts({ projectId, pdfPath, step, steps, charts, hints, onC
   }
 
   return (
-    <div className="space-y-3">
+    <section aria-labelledby={`charts-${step.id}`} className="space-y-3">
+      <div className="flex items-center gap-1">
+        <h3 id={`charts-${step.id}`} className="flex items-center gap-1.5 text-sm font-medium">
+          <Grid3x3 className="size-4" aria-hidden /> Diagrammes
+        </h3>
+        <HelpTip label="diagrammes">Un diagramme calé sur une sous-étape la suit : ses rangs se recalculent avec elle, et il la suit si elle change d’étape.</HelpTip>
+      </div>
+      {shown.length === 0 && <p className="text-xs text-muted-foreground">Aucun diagramme pour cette étape.</p>}
       {shown.map((chart) => (
         <ChartView key={chart.id} chart={chart} rowCount={step.rowCount} onEdit={() => setEditing(chart)} onDelete={() => setDeleting(chart)} />
       ))}
 
       <div className="flex flex-wrap gap-2">
-        {pdfPath && (
-          <Button type="button" variant="outline" className="h-10" onClick={() => setPicking(true)}>
-            <FileText /> Diagramme du PDF
-          </Button>
-        )}
         <label htmlFor={inputId} className="sr-only">
           Image du diagramme
         </label>
@@ -137,9 +141,25 @@ export function StepCharts({ projectId, pdfPath, step, steps, charts, hints, onC
             e.target.value = ''
           }}
         />
-        <Button type="button" variant="outline" className="h-10" onClick={() => document.getElementById(inputId)?.click()}>
-          <ImagePlus /> {pdfPath ? 'Diagramme d’une image' : 'Ajouter un diagramme'}
-        </Button>
+        {pdfPath ? (
+          <DropdownMenu>
+            <DropdownMenuTrigger render={<Button type="button" variant="outline" className="h-10" />}>
+              <Plus /> Ajouter un diagramme
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start" className="w-56">
+              <DropdownMenuItem onClick={() => setPicking(true)}>
+                <FileText /> Depuis le PDF du patron
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => document.getElementById(inputId)?.click()}>
+                <ImagePlus /> Depuis une image
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        ) : (
+          <Button type="button" variant="outline" className="h-10" onClick={() => document.getElementById(inputId)?.click()}>
+            <Plus /> Ajouter un diagramme
+          </Button>
+        )}
       </div>
 
       {picking && pdfPath && (
@@ -196,6 +216,6 @@ export function StepCharts({ projectId, pdfPath, step, steps, charts, hints, onC
           if (deleting) await remove(deleting)
         }}
       />
-    </div>
+    </section>
   )
 }

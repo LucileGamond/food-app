@@ -43,7 +43,7 @@ test('patron adapté à moi : échantillon et retouches, avant / après, bascule
   await page.getByRole('link', { name: /Manches/ }).click()
   const article = page.getByRole('article')
   await expect(article).toContainText('Patron adapté : 16 rangs de plus pour 5 cm.')
-  await expect(article).toContainText('sur 136')
+  await expect(article).toContainText('0 / 136 rangs')
 
   // Retour au patron d'origine
   await page.getByRole('link', { name: 'Pull Bergamote' }).click()
@@ -53,7 +53,7 @@ test('patron adapté à moi : échantillon et retouches, avant / après, bascule
   await page.getByRole('tab', { name: /2. Préparer/ }).click()
   await expect(page.getByRole('link', { name: /Manches/ })).toContainText('0 / 120 rangs')
   await page.getByRole('link', { name: /Manches/ }).click()
-  await expect(article).toContainText('sur 120')
+  await expect(article).toContainText('0 / 120 rangs')
   await expect(article).not.toContainText('Patron adapté :')
   // Le patron d'origine n'a pas changé
   expect((await api.knitting.getProject(id))!.steps[0]!.totalRows).toBe(120)

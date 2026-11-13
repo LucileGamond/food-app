@@ -6,10 +6,12 @@ interface Props {
   issues: ReadyIssue[]
   /** Mode tricoter : lien vers la préparation de l'étape (absent dans la préparation elle-même). */
   setupTo?: string
+  /** Préparation : ouvrir la sous-étape à corriger (son numéro, 0 = la première). */
+  onFix?: (index: number) => void
 }
 
 /** Ce qu'il reste à préparer avant de tricoter, sous-étape par sous-étape (rien quand l'étape est prête). */
-export function StepReady({ issues, setupTo }: Props) {
+export function StepReady({ issues, setupTo, onFix }: Props) {
   // Prête : le bouton « Tricoter » actif le dit déjà
   if (issues.length === 0) return null
   return (
@@ -19,7 +21,15 @@ export function StepReady({ issues, setupTo }: Props) {
       </p>
       <ul className="list-inside list-disc space-y-0.5">
         {issues.map((issue) => (
-          <li key={issue.index}>{issue.text}</li>
+          <li key={issue.index}>
+            {onFix ? (
+              <button type="button" onClick={() => onFix(issue.index)} className="text-left underline underline-offset-4 focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none">
+                {issue.text}
+              </button>
+            ) : (
+              issue.text
+            )}
+          </li>
         ))}
       </ul>
       {setupTo ? (
@@ -27,7 +37,7 @@ export function StepReady({ issues, setupTo }: Props) {
           Préparer l’étape
         </Link>
       ) : (
-        <p className="text-xs text-muted-foreground">Corrige-les plus bas : Valider ou Modifier.</p>
+        <p className="text-xs text-muted-foreground">Touche une ligne pour corriger la sous-étape.</p>
       )}
     </div>
   )

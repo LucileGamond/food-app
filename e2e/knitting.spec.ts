@@ -208,12 +208,14 @@ test('met un patron de côté, le commence, puis note la laine (étiquette) et s
   await expect(check).toHaveCount(0)
   await expect(page.getByRole('link', { name: 'Tricoter cette étape' })).toBeVisible()
   await expect(page.getByText('À préparer avant de tricoter')).toHaveCount(0)
-  // Étape tricotée 2 fois
-  await page.getByLabel('À tricoter').selectOption('2 fois')
-  await expect(page.getByText('0 rang fait sur 30 · 1re fois sur 2')).toBeVisible()
+  // Étape tricotée 2 fois : le nombre de fois se change en touchant l'avancée
+  await page.getByRole('button', { name: 'Nombre de fois : à tricoter 1 fois' }).click()
+  await page.getByLabel('À tricoter', { exact: true }).selectOption('2 fois')
+  await expect(page.getByRole('button', { name: 'Nombre de fois : 1re fois sur 2' })).toBeVisible()
+  await page.keyboard.press('Escape')
   await expectNoA11yViolations(page)
   await page.reload()
-  await expect(page.getByText('0 rang fait sur 30 · 1re fois sur 2')).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Nombre de fois : 1re fois sur 2' })).toBeVisible()
   await expect(sections).toContainText('Vérifié pour ce projet.')
 
   // La liste d'attente est vide

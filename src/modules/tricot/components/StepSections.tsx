@@ -1,5 +1,5 @@
 import { ArrowDown, ArrowUp, Check, ListOrdered, MoreHorizontal, Pencil, Plus, Ruler, Trash2, X, Grid3x3 } from 'lucide-react'
-import { useId, useState, type FormEvent } from 'react'
+import { useEffect, useId, useState, type FormEvent } from 'react'
 import { Link } from 'react-router-dom'
 import { ConfirmDialog } from '@/components/ConfirmDialog'
 import { Button } from '@/components/ui/button'
@@ -16,8 +16,10 @@ import { looksEnglish, mergeGlossary, type Abbreviation } from '../lib/glossary'
 import { useBaseGlossary } from '../hooks/useBaseGlossary'
 import { SizedText } from './SizedText'
 import { HelpTip } from './HelpTip'
+import { GaugeDialog } from './GaugeDialog'
 import type { KnitChart } from '../lib/chart'
 import { isChecked, type NeedleGauge } from '../lib/needleGauges'
+import { readyIssues } from '../lib/ready'
 import {
   describeRange,
   describeSection,
@@ -297,6 +299,9 @@ export function StepSections({
   charts = [],
   needleGauges = [],
   onCheckNeedle,
+  open = null,
+  onOpened,
+  onSaveGauges,
 }: {
   step: KnitStep
   onChange: (sections: StepSection[]) => Promise<boolean>
@@ -307,6 +312,11 @@ export function StepSections({
   /** Conversions vérifiées par aiguille ; avec `onCheckNeedle`, valider vaut pour toute l'aiguille. */
   needleGauges?: NeedleGauge[]
   onCheckNeedle?: (needle: number | null) => Promise<void>
+  /** Sous-étape à ouvrir (demandée depuis « À préparer ») ; `onOpened` quand c'est fait. */
+  open?: number | null
+  onOpened?: () => void
+  /** Noter l'échantillon d'une aiguille sans quitter l'étape (sinon, on renvoie vers « Démarrer »). */
+  onSaveGauges?: (gauges: NeedleGauge[]) => Promise<boolean>
 }) {
   const base = useBaseGlossary()
   const glossary = text ? mergeGlossary(text.abbreviations, base, looksEnglish(step.instructions)) : []
@@ -316,9 +326,24 @@ export function StepSections({
   // Index en cours de modification ; `step.sections.length` = nouvelle section.
   const [editing, setEditing] = useState<number | null>(null)
   const [removing, setRemoving] = useState<number | null>(null)
+  // Échantillon à noter pour l'aiguille d'une sous-étape (sa position ; -1 : fermé).
+  const [gauging, setGauging] = useState<number | null>(null)
   const plan = planSections(step.sections, step.totalRows)
   const row = step.rowCount + 1
   const current = sectionIndicesAt(plan, row)
+  // Ce qui manque à chaque sous-étape : la sienne est signalée, et « À préparer » l'ouvre.
+  const issues = new Set(readyIssues(step, needles, needleGauges).map((i) => i.index))
+
+  useEffect(() => {
+    if (open === null || open === undefined) return
+    setEditing(open)
+    onOpened?.()
+  }, [open, onOpened])
+
+  useEffect(() => {
+    if (editing === null) return
+    document.getElementById(`section-${step.id}-${editing}`)?.scrollIntoView({ block: 'center' })
+  }, [editing, step.id])
 
   async function save(index: number, section: StepSection) {
     const next = [...step.sections]
@@ -348,7 +373,7 @@ export function StepSections({
           const { section, index } = p
           if (editing === index) {
             return (
-              <li key={index}>
+              <li key={index} id={`section-${step.id}-${index}`}>
                 <SectionForm section={section} needle={{ needles, inherited: inheritedAt(index) }} onSave={(s) => void save(index, s)} onCancel={() => setEditing(null)} />
               </li>
             )
@@ -360,8 +385,13 @@ export function StepSections({
           return (
             <li
               key={index}
+              id={`section-${step.id}-${index}`}
               aria-current={current.includes(index) ? 'step' : undefined}
-              className={cn('rounded-xl border px-3 py-2', current.includes(index) ? 'border-brand bg-brand/5' : 'bg-background', done && 'text-muted-foreground')}
+              className={cn(
+                'rounded-xl border px-3 py-2',
+                issues.has(index) ? 'border-amber-500/40 bg-amber-500/5' : current.includes(index) ? 'border-brand bg-brand/5' : 'bg-background',
+                done && 'text-muted-foreground',
+              )}
             >
               <div className="flex items-start gap-2">
                 <div className="min-w-0 flex-1">
@@ -369,16 +399,42 @@ export function StepSections({
                     {done && <Check className="mr-1 inline size-3.5" aria-label="Faite" />}
                     {describeSection(section)}
                   </p>
+                  {needles.length > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => setEditing(index)}
+                      className={cn(
+                        'mt-1 inline-flex min-h-7 items-center gap-1 rounded-full px-2 text-xs focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none',
+                        own[index] === null ? 'bg-amber-500/15 font-medium' : 'bg-muted text-muted-foreground',
+                      )}
+                    >
+                      <Ruler className="size-3" aria-hidden />
+                      {own[index] === null ? 'Aiguille à choisir' : `Aiguille ${formatNeedle(own[index]!)}`}
+                    </button>
+                  )}
                   <p className="text-xs text-muted-foreground">
                     {toSet ? (
                       (parseMeasure(section.pattern) ?? parseMeasure(section.at?.pattern ?? null)) !== null ? (
-                        <>
-                          Note ton échantillon (ou celui du patron) dans{' '}
-                          <Link to="?onglet=demarrer" className="font-medium text-foreground underline underline-offset-4">
-                            Démarrer
-                          </Link>{' '}
-                          pour convertir en rangs, ou modifie le nombre de rangs.
-                        </>
+                        onSaveGauges ? (
+                          <>
+                            Sans échantillon, les centimètres ne se convertissent pas en rangs.{' '}
+                            <button
+                              type="button"
+                              onClick={() => setGauging(index)}
+                              className="font-medium text-foreground underline underline-offset-4 focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none"
+                            >
+                              {own[index] === null ? 'Noter mon échantillon' : `Noter mon échantillon à l’aiguille ${formatNeedle(own[index]!)}`}
+                            </button>
+                          </>
+                        ) : (
+                          <>
+                            Note ton échantillon (ou celui du patron) dans{' '}
+                            <Link to="?onglet=demarrer" className="font-medium text-foreground underline underline-offset-4">
+                              Démarrer
+                            </Link>{' '}
+                            pour convertir en rangs, ou modifie le nombre de rangs.
+                          </>
+                        )
                       ) : (
                         'Indique le nombre de rangs pour que la suite se calcule.'
                       )
@@ -438,6 +494,15 @@ export function StepSections({
           </li>
         )}
       </ol>
+      {gauging !== null && onSaveGauges && (
+        <GaugeDialog
+          open
+          onOpenChange={(value) => !value && setGauging(null)}
+          needle={own[gauging] ?? null}
+          gauges={needleGauges}
+          onSave={onSaveGauges}
+        />
+      )}
       <ConfirmDialog
         open={removing !== null}
         onOpenChange={(open) => !open && setRemoving(null)}

@@ -218,7 +218,8 @@ describe('diagrammes d’une étape', () => {
     const user = userEvent.setup()
     const api = fakeApi()
     renderProject({ ...PROJECT, pdfPath: 'u-lucile/abc.pdf', charts: [] }, api)
-    await user.click(await screen.findByRole('button', { name: 'Diagramme du PDF' }))
+    await user.click(await screen.findByRole('button', { name: 'Ajouter un diagramme' }))
+    await user.click(await screen.findByRole('menuitem', { name: 'Depuis le PDF du patron' }))
     expect(api.knitting.downloadPdf).toHaveBeenCalledWith('u-lucile/abc.pdf', 'patron')
     const pages = await screen.findByRole('list', { name: 'Pages du patron' })
     await waitFor(() => expect(pdf.renderPage).toHaveBeenCalledTimes(2))
@@ -240,7 +241,8 @@ describe('diagrammes d’une étape', () => {
     const user = userEvent.setup()
     openPdf.mockRejectedValue(new Error('PDF abîmé'))
     renderProject({ ...PROJECT, pdfPath: 'u-lucile/abc.pdf', charts: [] })
-    await user.click(await screen.findByRole('button', { name: 'Diagramme du PDF' }))
+    await user.click(await screen.findByRole('button', { name: 'Ajouter un diagramme' }))
+    await user.click(await screen.findByRole('menuitem', { name: 'Depuis le PDF du patron' }))
     expect(await screen.findByRole('alert')).toHaveTextContent('Le PDF du patron n’a pas pu être ouvert.')
     await user.click(screen.getByRole('button', { name: 'Annuler' }))
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
@@ -248,8 +250,9 @@ describe('diagrammes d’une étape', () => {
 
   it('sans PDF, propose seulement une image', async () => {
     renderProject()
+    // Sans PDF : le bouton ouvre directement le choix d'une image, sans menu
     expect(await screen.findByRole('button', { name: 'Ajouter un diagramme' })).toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: 'Diagramme du PDF' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('menuitem', { name: 'Depuis le PDF du patron' })).not.toBeInTheDocument()
   })
 
   it('donne le sens de lecture à plat, et les rangs envers non dessinés', async () => {
@@ -313,7 +316,8 @@ describe('diagrammes d’une étape', () => {
     const api = fakeApi()
     const hint = { page: 2, title: 'Jacquard', rows: 12, step: 1, flat: true, oddOnly: true }
     renderProject({ ...PROJECT, pdfPath: 'u-lucile/abc.pdf', charts: [], chartHints: [hint] }, api)
-    await user.click(await screen.findByRole('button', { name: 'Diagramme du PDF' }))
+    await user.click(await screen.findByRole('button', { name: 'Ajouter un diagramme' }))
+    await user.click(await screen.findByRole('menuitem', { name: 'Depuis le PDF du patron' }))
     const pages = await screen.findByRole('list', { name: 'Pages du patron' })
     expect(within(pages).getByRole('button', { name: /Page 2/ })).toHaveTextContent('Page 2Jacquard')
     expect(within(pages).getByRole('button', { name: 'Page 1' })).toBeInTheDocument()

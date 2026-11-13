@@ -52,6 +52,8 @@ export function KnittingProjectPage() {
   // On tricote dans le mode tricoter (/tricot/:id/tricoter) ; ici, on prépare : texte, sections, diagrammes.
   const stepParam = params.get('etape')
   const [confirmDelete, setConfirmDelete] = useState(false)
+  // Sous-étape à ouvrir, demandée depuis « À préparer ».
+  const [fixSection, setFixSection] = useState<number | null>(null)
 
   const back = (
     <Link to="/tricot" className="mb-2 inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
@@ -281,15 +283,24 @@ export function KnittingProjectPage() {
         <article key={step.id} aria-labelledby="step-title" className="space-y-4 rounded-2xl border bg-background p-4 shadow-xs sm:p-5">
           <header>
             <p className="text-xs text-muted-foreground">
-              {[`Étape ${index + 1} sur ${steps.length}`, ...stepFacts({ ...step, stitches: stepEnd })].join(' · ')}
+              {[`Étape ${index + 1} sur ${steps.length}`, ...stepFacts({ ...step, stitches: stepEnd, times: 1 })].join(' · ')}
               {adjustedStitches !== null && ` (≈ ${adjustedStitches} avec ton échantillon)`}
             </p>
             <h1 id="step-title" className="text-xl font-semibold tracking-tight">
               {step.title}
             </h1>
+            <p className="mt-0.5 flex flex-wrap items-center gap-x-1 text-sm text-muted-foreground tabular-nums">
+              <span>
+                {step.rowCount}
+                {step.totalRows !== null && ` / ${step.totalRows}`} rang{(step.totalRows ?? step.rowCount) > 1 ? 's' : ''}
+                {adjustedRows !== null && ` (≈ ${adjustedRows} avec ton échantillon)`}
+              </span>
+              <span aria-hidden>·</span>
+              <StepTimes step={step} onChange={(progress) => void saveStep(step.id, progress)} />
+            </p>
             {!step.done && (
               <div className="mt-2">
-                <StepReady issues={readyIssues(step, needles, needleGauges)} />
+                <StepReady issues={readyIssues(step, needles, needleGauges)} onFix={setFixSection} />
               </div>
             )}
             <div className="mt-2">
@@ -297,6 +308,7 @@ export function KnittingProjectPage() {
                 start={startStitchesOf(step)}
                 set={(step.startStitches ?? null) !== null}
                 previous={index > 0 ? endStitches(steps[index - 1]!) : null}
+                fromPattern={startStitchesOf({ ...step, startStitches: null })}
                 onSave={(startStitches) => saveStep(step.id, { startStitches })}
               />
             </div>
@@ -322,14 +334,7 @@ export function KnittingProjectPage() {
             ) : (
               stepText
             ))}
-          <p className="text-sm text-muted-foreground">
-            {step.rowCount} rang{step.rowCount > 1 ? 's' : ''} fait{step.rowCount > 1 ? 's' : ''}
-            {step.totalRows !== null && ` sur ${step.totalRows}`}
-            {adjustedRows !== null && ` (≈ ${adjustedRows} rangs avec ton échantillon)`}
-            {describePass(step) && ` · ${describePass(step)}`}
-          </p>
-          <StepTimes step={step} onChange={(progress) => void saveStep(step.id, progress)} />
-          <StepSections step={step} needles={needles} text={{ sizes: project.sizes, sizeIndex: project.sizeIndex, abbreviations: project.abbreviations ?? [] }} charts={charts.filter((c) => c.stepId === step.id)} needleGauges={needleGauges} onCheckNeedle={checkNeedle} onChange={(sections) => saveSections(step, sections)} />
+          <StepSections step={step} needles={needles} text={{ sizes: project.sizes, sizeIndex: project.sizeIndex, abbreviations: project.abbreviations ?? [] }} charts={charts.filter((c) => c.stepId === step.id)} needleGauges={needleGauges} onCheckNeedle={checkNeedle} onSaveGauges={saveNeedleGauges} open={fixSection} onOpened={() => setFixSection(null)} onChange={(sections) => saveSections(step, sections)} />
           <StepCharts
             projectId={project.id}
             pdfPath={project.pdfPath}

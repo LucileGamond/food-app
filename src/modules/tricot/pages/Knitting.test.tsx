@@ -316,6 +316,45 @@ describe('KnittingProjectPage', () => {
     expect(screen.getByRole('link', { name: 'Tricoter cette étape' })).toHaveAttribute('href', '/tricot/p1/tricoter?etape=s2')
   })
 
+  it('« À préparer » : chaque ligne ouvre sa sous-étape, qui est signalée', async () => {
+    const user = userEvent.setup()
+    const project = structuredClone(PROJECT)
+    project.steps[1]!.sections = [project.steps[1]!.sections[0]!, { kind: 'rows', rows: null, every: null, times: null, text: 'jersey', pattern: '5 cm' }]
+    renderProject(fakeApi(), project, `${STEP}=s2`)
+    const alert = await screen.findByRole('alert')
+    // La sous-étape qui manque de quelque chose est encadrée en ambre
+    const items = within(screen.getByRole('region', { name: 'Sous-étapes' })).getAllByRole('listitem')
+    expect(items[0]!.className).not.toContain('amber')
+    expect(items[1]!.className).toContain('amber')
+    // Toucher la ligne ouvre le formulaire de cette sous-étape
+    await user.click(within(alert).getByRole('button', { name: /^Sous-étape 2/ }))
+    const form = await screen.findByRole('form', { name: 'Sous-étape' })
+    expect(within(form).getByLabelText('Description (facultatif)')).toHaveValue('jersey')
+  })
+
+  it('aiguille de la sous-étape : lisible sur la ligne, modifiable d’un toucher', async () => {
+    const user = userEvent.setup()
+    const project = structuredClone(PROJECT)
+    project.steps[1]!.sections = [{ ...project.steps[1]!.sections[0]!, needle: 3 }, project.steps[1]!.sections[1]!]
+    renderProject(fakeApi(), { ...project, needles: [3, 3.5] }, `${STEP}=s2`)
+    // La 2e hérite de l'aiguille de la 1re
+    const pills = await screen.findAllByRole('button', { name: /^Aiguille/ })
+    expect(pills.map((b) => b.textContent)).toEqual(['Aiguille 3 mm', 'Aiguille 3 mm'])
+    await user.click(pills[1]!)
+    const form = await screen.findByRole('form', { name: 'Sous-étape' })
+    expect(within(form).getByLabelText('Aiguille')).toHaveDisplayValue('Comme avant (3 mm)')
+  })
+
+  it('aiguille pas encore choisie : signalée sur la sous-étape ; aucune aiguille au projet : rien', async () => {
+    const project = structuredClone(PROJECT)
+    renderProject(fakeApi(), { ...project, needles: [3, 3.5] }, `${STEP}=s2`)
+    expect((await screen.findAllByRole('button', { name: 'Aiguille à choisir' })).length).toBe(2)
+    cleanup()
+    renderProject(fakeApi(), project, `${STEP}=s2`)
+    await screen.findByRole('heading', { name: 'Emmanchures' })
+    expect(screen.queryByRole('button', { name: /Aiguille/ })).not.toBeInTheDocument()
+  })
+
   it('liste des étapes : « À préparer » sur celles qui ne sont pas prêtes', async () => {
     const project = structuredClone(PROJECT)
     project.steps[2]!.sections = [{ kind: 'rows', rows: null, every: null, times: null, text: '', pattern: '3 cm' }]
@@ -475,13 +514,28 @@ describe('KnittingProjectPage', () => {
     const user = userEvent.setup()
     const project = structuredClone(PROJECT)
     project.steps[1]!.startStitches = 70
+    // L'étape d'avant finit à 60 mailles, le patron en donne 64 au début de celle-ci : les deux sont proposés
+    project.steps[0]!.stitches = 60
     project.steps[1]!.sections = [project.steps[1]!.sections[0]!, { ...project.steps[1]!.sections[1]!, actions: [{ text: '1 diminution de chaque côté', rank: null, stitches: -2 }] }]
     const { api } = renderProject(fakeApi(), project, `${STEP}=s2`)
     expect(await screen.findByText('Étape 2 sur 3 · 30 rangs · 62 mailles à la fin')).toBeInTheDocument()
     expect(screen.getByText(/Mailles au début :/).parentElement).toHaveTextContent('Mailles au début : 70 mailles')
-    await user.click(screen.getByRole('button', { name: 'Reprendre les 64 mailles de l’étape d’avant' }))
-    expect(api.knitting.saveProgress).toHaveBeenLastCalledWith('s2', { startStitches: 64 })
-    await user.click(screen.getByRole('button', { name: 'Revenir au patron' }))
+    // Un seul bouton ouvre le choix : étape d'avant, patron, ou un autre nombre
+    await user.click(screen.getByRole('button', { name: 'Modifier les mailles au début' }))
+    const form = await screen.findByRole('form', { name: 'Mailles au début' })
+    const choice = within(form).getByLabelText('Reprendre')
+    expect(Array.from((choice as HTMLSelectElement).options).map((o) => o.textContent)).toEqual([
+      'Comme l’étape d’avant (60 mailles)',
+      'Comme le patron (64 mailles)',
+      'Un autre nombre',
+    ])
+    await user.selectOptions(choice, 'Comme l’étape d’avant (60 mailles)')
+    expect(within(form).getByLabelText('Mailles au début de l’étape')).toHaveValue('60')
+    await user.click(within(form).getByRole('button', { name: 'Enregistrer' }))
+    expect(api.knitting.saveProgress).toHaveBeenLastCalledWith('s2', { startStitches: 60 })
+    // Laisser le patron décider : la saisie est effacée
+    await user.click(screen.getByRole('button', { name: 'Modifier les mailles au début' }))
+    await user.click(within(await screen.findByRole('form', { name: 'Mailles au début' })).getByRole('button', { name: 'Laisser le patron décider' }))
     expect(api.knitting.saveProgress).toHaveBeenLastCalledWith('s2', { startStitches: null })
   })
 
@@ -595,7 +649,7 @@ describe('KnittingProjectPage', () => {
     renderProject(fakeApi(), project)
     const sections = await screen.findByRole('region', { name: 'Sous-étapes' })
     expect(within(sections).getByText('1 augmentation — tous les 5 cm (rangs à régler)')).toBeInTheDocument()
-    expect(within(sections).getByText(/^Note ton échantillon/)).toBeInTheDocument()
+    expect(within(sections).getByRole('button', { name: 'Noter mon échantillon' })).toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: /^Actions pour « 1 augmentation/ }))
     await user.click(await screen.findByRole('menuitem', { name: 'Modifier' }))
     expect(screen.getByText('tous les 5 cm', { selector: 'span' })).toBeInTheDocument()
@@ -668,15 +722,25 @@ describe('KnittingProjectPage', () => {
     expect(api.knitting.saveProgress).toHaveBeenLastCalledWith('s2', { sections: [expect.anything(), expect.not.objectContaining({ at: expect.anything() })] })
   })
 
-  it('cm du patron sans échantillon : invite à le renseigner', async () => {
+  it('cm du patron sans échantillon : il se note sans quitter l’étape', async () => {
+    const user = userEvent.setup()
     const project = structuredClone(PROJECT)
     project.steps[1]!.sections = [{ kind: 'rows', rows: null, every: null, times: null, text: 'jersey', pattern: '5 cm' }]
-    renderProject(fakeApi(), project)
+    const { api } = renderProject(fakeApi(), project)
     const sections = await screen.findByRole('region', { name: 'Sous-étapes' })
     expect(within(sections).getByText('5 cm (à régler) : jersey')).toBeInTheDocument()
-    expect(within(sections).getByText(/Note ton échantillon \(ou celui du patron\) dans/)).toBeInTheDocument()
-    expect(within(sections).getByRole('link', { name: 'Démarrer' })).toHaveAttribute('href', '/tricot/p1?onglet=demarrer')
+    expect(within(sections).getByText(/Sans échantillon, les centimètres ne se convertissent pas/)).toBeInTheDocument()
     expect(within(sections).queryByRole('note')).not.toBeInTheDocument()
+
+    // L'échantillon se note sans quitter l'étape
+    await user.click(within(sections).getByRole('button', { name: 'Noter mon échantillon' }))
+    const form = await screen.findByRole('form', { name: 'Ton échantillon' })
+    await user.type(within(form).getByLabelText('Tes mailles'), '22')
+    await user.click(within(form).getByRole('button', { name: 'Enregistrer' }))
+    expect(within(form).getByRole('alert')).toHaveTextContent('Indique les rangs')
+    await user.type(within(form).getByLabelText('Tes rangs'), '30')
+    await user.click(within(form).getByRole('button', { name: 'Enregistrer' }))
+    expect(api.knitting.saveNeedleGauges).toHaveBeenLastCalledWith('p1', [{ needle: null, stitches: 22, rows: 30, checked: false }])
   })
 
   it('prépare une étape : notes, étape suivante ou précédente, reprise d’une étape terminée, sans compteur', async () => {
@@ -684,7 +748,7 @@ describe('KnittingProjectPage', () => {
     const { api } = renderProject()
     expect(await screen.findByRole('heading', { name: 'Emmanchures' })).toBeInTheDocument()
     expect(screen.getByText('Étape 2 sur 3 · 30 rangs · 56 mailles à la fin')).toBeInTheDocument()
-    expect(screen.getByText('8 rangs faits sur 30')).toBeInTheDocument()
+    expect(screen.getByText('8 / 30 rangs')).toBeInTheDocument()
     expect(screen.getByText('Rangs 5 à 28 · prochaine fois : rang 10')).toBeInTheDocument()
     // On tricote dans le mode tricoter : pas de compteur ni d'écran allumé ici
     expect(screen.queryByRole('button', { name: 'Ajouter 1 rang' })).not.toBeInTheDocument()
@@ -710,14 +774,18 @@ describe('KnittingProjectPage', () => {
     expect(api.knitting.saveProgress).toHaveBeenLastCalledWith('s1', { done: false })
   })
 
-  it('étape à tricoter plusieurs fois : nombre de fois et fois en cours, rappelés dans la liste', async () => {
+  it('étape à tricoter plusieurs fois : le nombre de fois se change en touchant l’avancée', async () => {
     const user = userEvent.setup()
     const { api } = renderProject()
     await screen.findByRole('heading', { name: 'Emmanchures' })
+    // L'en-tête ne dit le nombre de fois qu'une fois, dans la ligne d'avancée
+    expect(screen.getByText('Étape 2 sur 3 · 30 rangs · 56 mailles à la fin')).toBeInTheDocument()
+    expect(screen.queryByLabelText('À tricoter')).not.toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'Nombre de fois : à tricoter 1 fois' }))
     expect(screen.queryByLabelText('En cours')).not.toBeInTheDocument()
-    await user.selectOptions(screen.getByLabelText('À tricoter'), '2 fois')
+    await user.selectOptions(await screen.findByLabelText('À tricoter'), '2 fois')
     expect(api.knitting.saveProgress).toHaveBeenLastCalledWith('s2', { times: 2, pass: 1 })
-    expect(screen.getByText('8 rangs faits sur 30 · 1re fois sur 2')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Nombre de fois : 1re fois sur 2' })).toBeInTheDocument()
     await user.selectOptions(screen.getByLabelText('En cours'), '2e fois')
     expect(api.knitting.saveProgress).toHaveBeenLastCalledWith('s2', { pass: 2 })
     // Moins de fois que la fois en cours : elle redescend avec.
@@ -749,7 +817,8 @@ describe('KnittingProjectPage', () => {
     await user.click(screen.getByRole('button', { name: 'Aide : sous-étapes' }))
     expect(await screen.findByText(/Vérifie et corrige ce que la lecture a compris/)).toBeInTheDocument()
     await user.keyboard('{Escape}')
-    await user.click(screen.getByRole('button', { name: 'Aide : nombre de fois' }))
+    // Le nombre de fois explique dans sa propre bulle
+    await user.click(screen.getByRole('button', { name: 'Nombre de fois : à tricoter 1 fois' }))
     expect(await screen.findByText(/Ex. 2 pour les deux manches/)).toBeInTheDocument()
   })
 
@@ -934,7 +1003,7 @@ describe('laine et échantillon du projet', () => {
     await waitFor(() => expect(api.knitting.getProject).toHaveBeenCalledTimes(2))
     await user.click(screen.getByRole('tab', { name: /2. Préparer/ }))
     await user.click(await screen.findByRole('link', { name: /Emmanchures/ }))
-    expect(await screen.findByText('8 rangs faits sur 30 (≈ 27 rangs avec ton échantillon)')).toBeInTheDocument()
+    expect(await screen.findByText('8 / 30 rangs (≈ 27 avec ton échantillon)')).toBeInTheDocument()
   })
 })
 

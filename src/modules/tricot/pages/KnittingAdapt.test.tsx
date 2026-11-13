@@ -132,7 +132,7 @@ describe('patron adapté : écran', () => {
     await user.click(await screen.findByRole('link', { name: /Manches/ }))
     expect(await screen.findByText(/Patron adapté : 16 rangs de plus pour 5 cm\./)).toBeInTheDocument()
     expect(screen.getByText('Patron d’origine : 120 rangs, 60 mailles à la fin.')).toBeInTheDocument()
-    expect(screen.getByText(/rangs? faits? sur 136/)).toBeInTheDocument()
+    expect(screen.getByText(/\/ 136 rangs/)).toBeInTheDocument()
     // Plus d'estimation (≈) d'après l'échantillon
     expect(screen.queryByText(/avec ton échantillon/)).not.toBeInTheDocument()
   })
@@ -169,7 +169,7 @@ describe('patron adapté : écran', () => {
     const api = fakeApi()
     renderProject(api, { ...project(ADAPTATION), sizes: ['M', 'L'], sizeIndex: 1 })
     // L'étape suit le patron d'origine (pas les chiffres de M)
-    expect(await screen.findByText(/rangs? faits? sur 120/)).toBeInTheDocument()
+    expect(await screen.findByText(/\/ 120 rangs/)).toBeInTheDocument()
     expect(screen.queryByText(/Patron adapté :/)).not.toBeInTheDocument()
     await user.click(screen.getByRole('link', { name: /Pull Bergamote/ }))
     // Le retour d'une étape ramène à « Préparer » ; le patron adapté est dans « Démarrer »
@@ -184,7 +184,7 @@ describe('patron adapté : écran', () => {
     const api = fakeApi()
     renderProject(api, project({ ...ADAPTATION, active: false }))
     expect(await screen.findByText(/≈ 65 avec ton échantillon/)).toBeInTheDocument()
-    expect(screen.getByText(/rangs? faits? sur 120/)).toBeInTheDocument()
+    expect(screen.getByText(/\/ 120 rangs/)).toBeInTheDocument()
     expect(screen.queryByText(/Patron d’origine :/)).not.toBeInTheDocument()
   })
 
