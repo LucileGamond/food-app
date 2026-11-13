@@ -28,6 +28,8 @@ describe('trackUsage', () => {
       cache_creation_tokens: 5,
       cache_read_tokens: 7,
       web_searches: 2,
+      // 150 × 0,10 + 30 × 0,50 + 5 × 0,125 + 7 × 0,01 par million, plus 2 recherches à 0,01 $
+      cost_usd: expect.closeTo((150 * 0.1 + 30 * 0.5 + 5 * 0.125 + 7 * 0.01) / 1_000_000 + 0.02, 10),
     })
   })
 
@@ -46,8 +48,12 @@ describe('trackUsage', () => {
 
   it('prend le modèle demandé quand la réponse ne le donne pas', async () => {
     const tracked = trackUsage(vi.fn<typeof fetch>().mockResolvedValue(reply({ usage: { input_tokens: 1, output_tokens: 2 } })), 'claude-sonnet-5-5')
+    // Modèle inconnu : coût inconnu
+    const unknown = trackUsage(vi.fn<typeof fetch>().mockResolvedValue(reply({ model: 'gpt-9', usage: { input_tokens: 1, output_tokens: 2 } })))
+    await unknown.fetch(API_URL)
+    expect(unknown.total()).toMatchObject({ model: 'gpt-9', cost_usd: null })
     await tracked.fetch(API_URL)
-    expect(tracked.total()).toMatchObject({ model: 'claude-sonnet-5-5', requests: 1 })
+    expect(tracked.total()).toMatchObject({ model: 'claude-sonnet-5-5', requests: 1, cost_usd: expect.closeTo(0.000022, 10) })
   })
 })
 
@@ -63,6 +69,7 @@ describe('createUsageRecorder', () => {
     cache_creation_tokens: 0,
     cache_read_tokens: 0,
     web_searches: 0,
+    cost_usd: 0.000002,
   }
 
   it('écrit la ligne avec la clé de service, nom de la fonction compris', async () => {

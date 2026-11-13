@@ -307,4 +307,12 @@ describe('import-recipe : consommation', () => {
     await call(handle, { mode: 'orient', images: [] })
     expect(recordUsage).not.toHaveBeenCalled()
   })
+
+  it('budget du mois atteint : refuse l’import (402) sans appeler le modèle, mais lit encore les titres', async () => {
+    const { deps } = setup({ 'https://cuisine.exemple.fr/titre': html('<title>Crêpes</title>') })
+    const handle = createHandler({ ...deps, checkBudget: async () => 'Budget atteint.' })
+    expect(await call(handle, { url: PAGE_URL })).toMatchObject({ status: 402, body: { error: 'Budget atteint.' } })
+    expect(deps.fetchModel).not.toHaveBeenCalled()
+    expect((await call(handle, { url: 'https://cuisine.exemple.fr/titre', mode: 'title' })).status).toBe(200)
+  })
 })

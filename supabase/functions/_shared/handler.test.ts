@@ -55,6 +55,7 @@ describe('createModelHandler : consommation', () => {
       cache_creation_tokens: 0,
       cache_read_tokens: 10,
       web_searches: 0,
+      cost_usd: expect.closeTo((120 * 0.1 + 30 * 0.5 + 10 * 0.01) / 1_000_000, 12),
     })
   })
 
@@ -87,5 +88,18 @@ describe('createModelHandler : consommation', () => {
     const { handler } = setup({ fetchModel })
     await handler(post({}))
     expect(fetchModel).toHaveBeenCalledWith(API_URL, expect.anything())
+  })
+
+  it('budget du mois atteint : refuse (402) sans appeler le modèle ni rien enregistrer', async () => {
+    const checkBudget = vi.fn(async () => 'Budget atteint.')
+    const { handler, deps, recordUsage } = setup({ checkBudget })
+    const response = await handler(post({}))
+    expect(response.status).toBe(402)
+    expect(await response.json()).toEqual({ error: 'Budget atteint.' })
+    expect(deps.fetchModel).not.toHaveBeenCalled()
+    expect(recordUsage).not.toHaveBeenCalled()
+
+    const open = setup({ checkBudget: async () => null })
+    expect((await open.handler(post({}))).status).toBe(200)
   })
 })

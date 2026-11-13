@@ -35,6 +35,8 @@ import type { AgendaEvent, CalendarSource } from '@/modules/agenda/lib/agenda'
 import { DEFAULT_RULE, type PresenceRule } from '@/modules/repas/lib/presence'
 import type { Dish } from '@/modules/repas/lib/weekPlan'
 import type { UsageRow } from '@/lib/llmUsage'
+import type { BudgetStatus, CreditStatus } from '@/lib/llmBudget'
+import type { LlmCredit, RealCost } from '@/api/llmUsage'
 
 export const LUCILE: Profile = { id: 'u-lucile', display_name: 'Lucile' }
 export const ERIC: Profile = { id: 'u-eric', display_name: 'Eric' }
@@ -251,6 +253,13 @@ export function fakeApi(): FakeApi {
     },
     llmUsage: {
       summary: vi.fn(async () => [] as UsageRow[]),
+      budgetStatus: vi.fn(async (): Promise<BudgetStatus> => ({ monthlyEur: null, spentUsd: 0 })),
+      setBudget: vi.fn(async () => undefined),
+      creditStatus: vi.fn(async (): Promise<CreditStatus> => ({ creditsUsd: 0, since: null, spentUsd: 0 })),
+      listCredits: vi.fn(async () => [] as LlmCredit[]),
+      addCredit: vi.fn(async () => undefined),
+      deleteCredit: vi.fn(async () => undefined),
+      realCost: vi.fn(async (): Promise<RealCost> => ({ available: false })),
     },
     activity: {
       listRecent: vi.fn(async () => [] as ActivityEvent[]),

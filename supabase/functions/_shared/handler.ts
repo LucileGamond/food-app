@@ -5,6 +5,7 @@
 
 import { CORS_HEADERS, HttpError, json, MISCONFIGURED, type ModelOptions } from './anthropic.ts'
 import type { SignedInCheck } from './auth.ts'
+import type { BudgetCheck } from './budget.ts'
 import { trackUsage, type RecordUsage } from './usage.ts'
 
 /** Dépendances injectées (testables sans Deno ni réseau). */
@@ -17,6 +18,8 @@ export interface ModelDeps {
   isSignedIn: SignedInCheck
   /** Enregistre la consommation de chaque appel (voir _shared/usage.ts). */
   recordUsage?: RecordUsage
+  /** Budget IA du mois (voir _shared/budget.ts) : un message refuse l'appel (402). */
+  checkBudget?: BudgetCheck
 }
 
 export interface ModelHandlerSpec<Deps extends ModelDeps, Input> {
@@ -50,6 +53,8 @@ export function createModelHandler<Deps extends ModelDeps, Input>(deps: Deps, sp
     let ok = false
     try {
       input = spec.parse(body)
+      const overBudget = await deps.checkBudget?.()
+      if (overBudget) throw new HttpError(overBudget, 402)
       if (!deps.apiKey) throw new HttpError(MISCONFIGURED, 500)
       const result = await spec.run(input, { apiKey: deps.apiKey, model: deps.model, fetch: tracked.fetch }, deps)
       ok = true

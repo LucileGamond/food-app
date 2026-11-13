@@ -20,6 +20,7 @@ import { checkPublicUrl, resolvesToPublic, type ResolveDns } from './url.ts'
 import { fetchYoutubeVideo, findWrittenRecipe, INSTAGRAM_CAPTION, isInstagram, NOT_WRITTEN, videoText, youtubeId } from './video.ts'
 import { asRecord } from '../_shared/sanitize.ts'
 import type { SignedInCheck } from '../_shared/auth.ts'
+import type { BudgetCheck } from '../_shared/budget.ts'
 import { trackUsage, type RecordUsage } from '../_shared/usage.ts'
 
 export const MAX_PAGE_BYTES = 3_000_000
@@ -62,6 +63,8 @@ export interface Deps {
   isSignedIn: SignedInCheck
   /** Enregistre la consommation de chaque appel (voir _shared/usage.ts). */
   recordUsage?: RecordUsage
+  /** Budget IA du mois (voir _shared/budget.ts) : un message refuse l'import (402). */
+  checkBudget?: BudgetCheck
 }
 
 /** Télécharge une ressource publique : redirections vérifiées une à une, taille et durée bornées. */
@@ -352,6 +355,8 @@ export function createHandler(baseDeps: Deps) {
     let ok = false
     try {
       if (mode === 'title') return json(await fetchTitle(body, deps))
+      const overBudget = await deps.checkBudget?.()
+      if (overBudget) return json({ error: overBudget }, 402)
       if (mode === 'orient') {
         const { usage, rotation } = await orientPhoto(body, deps)
         ok = true

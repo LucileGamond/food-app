@@ -2,6 +2,7 @@
 // fonctions), puis enregistrée dans `llm_usage` avec la clé de service (le client ne peut pas y écrire).
 
 import { API_URL, DEFAULT_MODEL } from './anthropic.ts'
+import { costUsd } from './pricing.ts'
 
 /** Consommation d'un appel de fonction (toutes ses requêtes au modèle). */
 export interface UsageTotal {
@@ -12,6 +13,8 @@ export interface UsageTotal {
   cache_creation_tokens: number
   cache_read_tokens: number
   web_searches: number
+  /** Coût au tarif du jour (null : modèle sans tarif connu). */
+  cost_usd: number | null
 }
 
 /** Ligne de `llm_usage`, sans le nom de la fonction (ajouté par l'enregistreur). */
@@ -35,7 +38,7 @@ function urlOf(input: string | URL | Request): string {
 
 /** Enveloppe le fetch du modèle pour totaliser l'usage des réponses reçues (réponse coupée comprise : elle est facturée). */
 export function trackUsage(doFetch: typeof fetch, requestedModel: string = DEFAULT_MODEL) {
-  let total: UsageTotal | null = null
+  let total: Omit<UsageTotal, 'cost_usd'> | null = null
 
   const tracked: typeof fetch = async (input, init) => {
     const response = await doFetch(input, init)
@@ -56,7 +59,21 @@ export function trackUsage(doFetch: typeof fetch, requestedModel: string = DEFAU
     return response
   }
 
-  return { fetch: tracked, total: () => (total ? { ...total } : null) }
+  return {
+    fetch: tracked,
+    total: (): UsageTotal | null =>
+      total && {
+        ...total,
+        cost_usd: costUsd({
+          model: total.model,
+          inputTokens: total.input_tokens,
+          outputTokens: total.output_tokens,
+          cacheCreationTokens: total.cache_creation_tokens,
+          cacheReadTokens: total.cache_read_tokens,
+          webSearches: total.web_searches,
+        }),
+      },
+  }
 }
 
 export type RecordUsage = (entry: UsageEntry) => Promise<void>

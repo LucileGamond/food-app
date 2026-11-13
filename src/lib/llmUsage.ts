@@ -1,5 +1,9 @@
 // Consommation du modèle (Claude) : périodes, coût estimé et regroupements affichés dans Réglages.
 
+import { costUsd, USD_TO_EUR } from '../../supabase/functions/_shared/pricing.ts'
+
+export { USD_TO_EUR }
+
 /** Totaux d'un groupe (personne, fonction, mode, modèle), tels que renvoyés par llm_usage_summary. */
 export interface UsageRow {
   userId: string | null
@@ -38,32 +42,12 @@ export function periodRange(period: UsagePeriod, now: Date = new Date()): { sinc
   return { since: null, until: null }
 }
 
-/**
- * Tarifs Anthropic en dollars par million de tokens (novembre 2026). Écriture du cache : 1,25 × l'entrée (5 min) ;
- * lecture : tarif propre. Haiku 5.5 : tarif des requêtes de moins de 100 000 tokens.
- */
-const PRICES: Record<string, { input: number; output: number; cacheWrite: number; cacheRead: number }> = {
-  'claude-haiku-5-5': { input: 0.1, output: 0.5, cacheWrite: 0.125, cacheRead: 0.01 },
-  'claude-sonnet-5-5': { input: 2, output: 10, cacheWrite: 2.5, cacheRead: 0.2 },
-  'claude-opus-5-5': { input: 4, output: 20, cacheWrite: 5, cacheRead: 0.2 },
-  'claude-fable-5-1': { input: 10, output: 50, cacheWrite: 12.5, cacheRead: 0.25 },
-}
-/** Recherche web : 10 $ les 1 000. */
-const WEB_SEARCH_USD = 0.01
-/** Taux de conversion fixe, pour une estimation. */
-export const USD_TO_EUR = 0.86
-
 type Tokens = Pick<UsageRow, 'model' | 'inputTokens' | 'outputTokens' | 'cacheCreationTokens' | 'cacheReadTokens' | 'webSearches'>
 
 /** Coût estimé en euros, ou null si le modèle n'a pas de tarif connu. */
 export function costEur(row: Tokens): number | null {
-  // L'API peut renvoyer l'identifiant daté (claude-haiku-5-5-20261001) : même tarif que l'alias.
-  const price = PRICES[row.model] ?? PRICES[row.model.replace(/-\d{8}$/, '')]
-  if (!price) return null
-  const usd =
-    (row.inputTokens * price.input + row.outputTokens * price.output + row.cacheCreationTokens * price.cacheWrite + row.cacheReadTokens * price.cacheRead) / 1_000_000 +
-    row.webSearches * WEB_SEARCH_USD
-  return usd * USD_TO_EUR
+  const usd = costUsd(row)
+  return usd === null ? null : usd * USD_TO_EUR
 }
 
 const FEATURES: Record<string, { label: string; modes?: Record<string, string> }> = {

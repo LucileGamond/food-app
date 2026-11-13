@@ -361,16 +361,70 @@ isOneToOne: false
       referencedColumns: ["id"]
     }
                   ]
-                },"llm_usage": {
+                },"llm_budget": {
                   Row: {
-                    "cache_creation_tokens": number,"cache_read_tokens": number,"created_at": string,"function": string,"id": number,"input_tokens": number,"mode": string | null,"model": string,"ok": boolean,"output_tokens": number,"requests": number,"user_id": string | null,"web_searches": number
+                    "id": boolean,"monthly_eur": number | null,"updated_at": string,"updated_by": string | null
                   }
                   ComputedFields: never
                   Insert: {
-                    "cache_creation_tokens"?: number,"cache_read_tokens"?: number,"created_at"?: string,"function": string,"id"?: never,"input_tokens"?: number,"mode"?: string | null,"model": string,"ok"?: boolean,"output_tokens"?: number,"requests"?: number,"user_id"?: string | null,"web_searches"?: number
+                    "id"?: boolean,"monthly_eur"?: number | null,"updated_at"?: string,"updated_by"?: string | null
                   }
                   Update: {
-                    "cache_creation_tokens"?: number,"cache_read_tokens"?: number,"created_at"?: string,"function"?: string,"id"?: never,"input_tokens"?: number,"mode"?: string | null,"model"?: string,"ok"?: boolean,"output_tokens"?: number,"requests"?: number,"user_id"?: string | null,"web_searches"?: number
+                    "id"?: boolean,"monthly_eur"?: number | null,"updated_at"?: string,"updated_by"?: string | null
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "llm_budget_updated_by_fkey"
+      columns: ["updated_by"]
+isOneToOne: false
+      referencedRelation: "profiles"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"llm_cost_cache": {
+                  Row: {
+                    "cost_usd": number,"fetched_at": string,"id": boolean,"since": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "cost_usd": number,"fetched_at": string,"id"?: boolean,"since": string
+                  }
+                  Update: {
+                    "cost_usd"?: number,"fetched_at"?: string,"id"?: boolean,"since"?: string
+                  }
+                  Relationships: [
+                    
+                  ]
+                },"llm_credits": {
+                  Row: {
+                    "added_on": string,"amount_usd": number,"created_at": string,"created_by": string | null,"id": string,"note": string | null
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "added_on"?: string,"amount_usd": number,"created_at"?: string,"created_by"?: string | null,"id"?: string,"note"?: string | null
+                  }
+                  Update: {
+                    "added_on"?: string,"amount_usd"?: number,"created_at"?: string,"created_by"?: string | null,"id"?: string,"note"?: string | null
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "llm_credits_created_by_fkey"
+      columns: ["created_by"]
+isOneToOne: false
+      referencedRelation: "profiles"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"llm_usage": {
+                  Row: {
+                    "cache_creation_tokens": number,"cache_read_tokens": number,"cost_usd": number | null,"created_at": string,"function": string,"id": number,"input_tokens": number,"mode": string | null,"model": string,"ok": boolean,"output_tokens": number,"requests": number,"user_id": string | null,"web_searches": number
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "cache_creation_tokens"?: number,"cache_read_tokens"?: number,"cost_usd"?: number | null,"created_at"?: string,"function": string,"id"?: never,"input_tokens"?: number,"mode"?: string | null,"model": string,"ok"?: boolean,"output_tokens"?: number,"requests"?: number,"user_id"?: string | null,"web_searches"?: number
+                  }
+                  Update: {
+                    "cache_creation_tokens"?: number,"cache_read_tokens"?: number,"cost_usd"?: number | null,"created_at"?: string,"function"?: string,"id"?: never,"input_tokens"?: number,"mode"?: string | null,"model"?: string,"ok"?: boolean,"output_tokens"?: number,"requests"?: number,"user_id"?: string | null,"web_searches"?: number
                   }
                   Relationships: [
                     {
@@ -906,6 +960,22 @@ isOneToOne: false
 "linkable_recipe":
 { Args: { "p_linked_recipe_id": string,"p_recipe_id": string }; Returns: string
                            },
+"llm_budget_status":
+{ Args: Record<PropertyKey, never>; Returns: {
+              "monthly_eur": number,"spent_usd": number
+            }[]
+                           },
+"llm_cost_of":
+{ Args: { "p_cache_read": number,"p_cache_write": number,"p_input": number,"p_model": string,"p_output": number,"p_web_searches": number }; Returns: number
+                           },
+"llm_credit_status":
+{ Args: Record<PropertyKey, never>; Returns: {
+              "credits_usd": number,"since": string,"spent_usd": number
+            }[]
+                           },
+"llm_month_start":
+{ Args: { "p_now"?: string }; Returns: string
+                           },
 "llm_usage_summary":
 { Args: { "p_since"?: string,"p_until"?: string }; Returns: {
               "cache_creation_tokens": number,"cache_read_tokens": number,"calls": number,"failures": number,"function": string,"input_tokens": number,"mode": string,"model": string,"output_tokens": number,"requests": number,"user_id": string,"web_searches": number
@@ -979,6 +1049,9 @@ isOneToOne: false
                            },
 "set_knit_sections":
 { Args: { "p_steps": Json }; Returns: undefined
+                           },
+"set_llm_budget":
+{ Args: { "p_monthly_eur": number }; Returns: undefined
                            },
 "split_knit_step":
 { Args: { "p_instructions": string,"p_new_instructions": string,"p_new_sections": Json,"p_new_title": string,"p_new_total_rows": number,"p_sections": Json,"p_step": string,"p_total_rows": number }; Returns: string

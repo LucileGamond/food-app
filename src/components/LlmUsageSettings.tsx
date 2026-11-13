@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { errorMessage } from '@/api'
 import { useApi } from '@/app/ApiContext'
 import { useAuth } from '@/auth/AuthProvider'
+import { LlmBudgetSettings } from '@/components/LlmBudgetSettings'
 import { Label } from '@/components/ui/label'
 import { NativeSelect } from '@/components/ui/native-select'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -53,6 +54,10 @@ export function LlmUsageSettings() {
         Consommation IA
       </h2>
       <p className="mt-0.5 text-sm text-muted-foreground">Tokens utilisés par les imports, le tricot, les idées de repas… et coût estimé (tarif Anthropic, en euros).</p>
+
+      <div className="mt-3">
+        <LlmBudgetSettings />
+      </div>
 
       <div className="mt-3 flex items-center gap-2">
         <Label htmlFor="conso-ia-periode">Période</Label>
