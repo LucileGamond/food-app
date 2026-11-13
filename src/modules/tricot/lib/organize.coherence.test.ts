@@ -29,12 +29,14 @@ function randomProject(rand: (n: number) => number): Step[] {
   return Array.from({ length: 2 + rand(4) }, (_, i) => {
     const sections = Array.from({ length: 1 + rand(4) }, (_, j) => (rand(2) ? rows(1 + rand(30), `r${i}.${j}`) : repeat(1 + rand(6), 1 + rand(8), `a${i}.${j}`)))
     if (rand(2)) return { id: `s${i}`, title: `Étape ${i}`, totalRows: planEnd(sections), sections, instructions: `Texte de l’étape ${i}.` }
-    const sourced = sections.map((x, j) => ({ ...x, source: `Paragraphe ${i}.${j}.` }))
+    const sourced = sections.map((x, j) => ({ ...x, source: `Paragraphe ${i}.${j}.`, id: `id${i}.${j}` }))
     return { id: `s${i}`, title: `Étape ${i}`, totalRows: planEnd(sourced), sections: sourced, instructions: textOf(sourced) }
   })
 }
 
 /** Tous les paragraphes du projet : ceux des étapes sans texte par sous-étape, et ceux des sous-étapes. */
+/** Identifiants des sous-étapes (diagrammes rattachés) : aucun perdu ni dupliqué. */
+const ids = (steps: Step[]) => steps.flatMap((s) => s.sections.flatMap((x) => (x.id ? [x.id] : []))).sort()
 const paragraphs = (steps: Step[]) => steps.flatMap((s) => (s.sections.some((x) => x.source) ? s.sections.flatMap((x) => (x.source ? x.source.split('\n\n') : [])) : s.instructions ? [s.instructions] : [])).sort()
 
 describe('cohérence des réorganisations', () => {
@@ -77,7 +79,7 @@ describe('cohérence des réorganisations', () => {
     for (let seed = 1; seed <= 200; seed++) {
       const rand = rng(seed)
       let steps = randomProject(rand)
-      const before = { rows: allRows(steps), texts: texts(steps), paragraphs: paragraphs(steps) }
+      const before = { rows: allRows(steps), texts: texts(steps), paragraphs: paragraphs(steps), ids: ids(steps) }
       for (let op = 0; op < 30; op++) {
         const i = rand(steps.length)
         const step = steps[i]!
@@ -107,6 +109,8 @@ describe('cohérence des réorganisations', () => {
       expect(texts(steps)).toEqual(before.texts)
       // Aucun paragraphe perdu ni dupliqué
       expect(paragraphs(steps), `graine ${seed}`).toEqual(before.paragraphs)
+      // Chaque sous-étape garde son identifiant : les diagrammes qui la suivent la retrouvent
+      expect(ids(steps), `graine ${seed}`).toEqual(before.ids)
     }
     // Les trois opérations ont bien été essayées, souvent
     expect(Math.min(done.merge, done.split, done.move)).toBeGreaterThan(200)

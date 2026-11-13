@@ -351,6 +351,30 @@ describe('diagrammes', () => {
     expect(await images(db, chart!.imagePath.split('/')[0]!)).not.toContain(chart!.imagePath)
   })
 
+  it('un diagramme lié à une sous-étape la suit quand elle change d’étape', async () => {
+    const { api } = await signedInApi()
+    const r = (n: number, text: string, id: string) => ({ kind: 'rows' as const, rows: n, every: null, times: null, text, pattern: null, id })
+    const id = await api.knitting.createProject({
+      title: 'Pull',
+      size: 'M',
+      pdf: null,
+      steps: [
+        { title: 'Dos', instructions: '', totalRows: 30, stitches: null, sections: [r(10, 'côtes', 'a1'), r(20, 'torsades', 'a2')] },
+        { title: 'Manche', instructions: '', totalRows: 12, stitches: null, sections: [r(12, 'côtes', 'b1')] },
+      ],
+    })
+    let steps = (await api.knitting.getProject(id))!.steps
+    await api.knitting.addChart(id, image(), { ...SETUP, stepId: steps[0]!.id, sectionId: 'a2', startRow: 11, endRow: 30 })
+    const { moveSection } = await import('@/modules/tricot/lib/organize')
+    await api.knitting.saveSections(moveSection(steps[0]!, 1, steps[1]!))
+    const project = (await api.knitting.getProject(id))!
+    steps = project.steps
+    expect(project.charts[0]).toMatchObject({ stepId: steps[1]!.id, sectionId: 'a2' })
+    // Placé sur ses rangs dans la manche : après les 12 rangs de côtes
+    const { placeCharts } = await import('@/modules/tricot/lib/chartPlace')
+    expect(placeCharts(project.charts, steps)[0]).toMatchObject({ startRow: 13, endRow: 32 })
+  })
+
   it('supprime les images des diagrammes avec le projet ; chacun ses diagrammes', async () => {
     const lucile = await signedInApi()
     const eric = await signedInApi(ERIC.email)

@@ -2,7 +2,7 @@ import { screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { fakeApi, renderWithApp } from '@/test/fakes'
 import type { KnitChart } from '../lib/chart'
-import type { KnitProject, KnitStep } from '../lib/pattern'
+import type { KnitProject, KnitStep, StepSection } from '../lib/pattern'
 import { KnittingModePage } from './KnittingModePage'
 import { KnittingProjectPage } from './KnittingProjectPage'
 
@@ -165,6 +165,36 @@ describe('diagrammes d’une étape', () => {
     await user.upload(await screen.findByLabelText('Image du diagramme'), new File(['%PDF'], 'patron.pdf', { type: 'application/pdf' }))
     expect(await screen.findByText('Choisis une image (capture d’écran ou photo).')).toBeInTheDocument()
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+  })
+
+  it('calé sur une sous-étape : elle reçoit un identifiant, le diagramme la suit quand sa longueur change', async () => {
+    const user = userEvent.setup()
+    const api = fakeApi()
+    const sections: StepSection[] = [
+      { kind: 'rows', rows: 4, every: null, times: null, text: 'côtes', pattern: null },
+      { kind: 'rows', rows: 30, every: null, times: null, text: 'torsades', pattern: null },
+    ]
+    renderProject({ ...PROJECT, steps: [PROJECT.steps[0]!, { ...PROJECT.steps[1]!, sections }] }, api)
+    await user.click(await screen.findByRole('button', { name: 'Régler Torsade' }))
+    const dialog = await screen.findByRole('dialog', { name: 'Caler le diagramme' })
+    await user.selectOptions(within(dialog).getByLabelText('Sous-étape'), '2. 30 rangs : torsades (rangs 5 à 34)')
+    await user.click(within(dialog).getByRole('button', { name: 'Enregistrer' }))
+    await waitFor(() => expect(api.knitting.updateChart).toHaveBeenCalled())
+    const saved = api.knitting.saveProgress.mock.calls.at(-1)!
+    const id = (saved[1] as { sections: StepSection[] }).sections[1]!.id!
+    expect(id).toMatch(/^\w{12}$/)
+    expect(api.knitting.updateChart).toHaveBeenCalledWith('c1', expect.objectContaining({ sectionId: id, startRow: 5, endRow: 34 }))
+  })
+
+  it('suit sa sous-étape : affiché sur ses rangs d’aujourd’hui', async () => {
+    const sections: StepSection[] = [
+      { kind: 'rows', rows: 6, every: null, times: null, text: 'côtes', pattern: null },
+      { kind: 'rows', rows: 40, every: null, times: null, text: 'torsades', pattern: null, id: 'tors' },
+    ]
+    // Enregistré sur les rangs 5 à 34 ; la sous-étape va maintenant de 7 à 46
+    renderProject({ ...PROJECT, steps: [PROJECT.steps[0]!, { ...PROJECT.steps[1]!, totalRows: 46, sections }], charts: [{ ...TORSADE, sectionId: 'tors', startRow: 5, endRow: 34 }] })
+    const region = (await screen.findByRole('region', { name: 'Sous-étapes' })).querySelector('ol')!
+    expect(within(region).getAllByRole('listitem')[1]).toHaveTextContent('Diagramme « Torsade » : rangs 7 à 46')
   })
 
   it('règle et supprime un diagramme', async () => {

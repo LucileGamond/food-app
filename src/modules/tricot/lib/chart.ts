@@ -24,6 +24,10 @@ export interface ChartSetup {
   startRow: number
   /** Dernier rang de l'étape où il sert (fin de sa sous-étape) ; absent ou null : jusqu'à la fin de l'étape. */
   endRow?: number | null
+  /** Sous-étape suivie : ses rangs de début et de fin font foi (startRow / endRow ne servent qu'à défaut). */
+  sectionId?: string | null
+  /** Calage : sous-étape choisie (position dans l'étape), pas encore identifiée ; jamais enregistrée. */
+  sectionIndex?: number
   repeats: boolean
   /** À plat (allers-retours) ; sinon en rond. */
   flat: boolean
@@ -98,7 +102,7 @@ export function rowBand(chart: Pick<ChartSetup, 'gridTop' | 'gridBottom' | 'rows
 }
 
 /** Calage lu en base : valeurs bornées, pour qu'une donnée abîmée ne fasse pas planter l'écran. */
-export function sanitizeSetup(raw: { grid_top: number | string; grid_bottom: number | string; rows: number; start_row: number; end_row?: number | null }): Pick<ChartSetup, 'gridTop' | 'gridBottom' | 'rows' | 'startRow' | 'endRow'> {
+export function sanitizeSetup(raw: { grid_top: number | string; grid_bottom: number | string; rows: number; start_row: number; end_row?: number | null; section_id?: string | null }): Pick<ChartSetup, 'gridTop' | 'gridBottom' | 'rows' | 'startRow' | 'endRow' | 'sectionId'> {
   const fraction = (v: number | string, fallback: number) => {
     const n = Number(v)
     return Number.isFinite(n) ? Math.min(Math.max(n, 0), 1) : fallback
@@ -112,6 +116,7 @@ export function sanitizeSetup(raw: { grid_top: number | string; grid_bottom: num
     rows: count(raw.rows, MAX_CHART_ROWS),
     startRow: count(raw.start_row, 5000),
     ...(typeof raw.end_row === 'number' && Number.isInteger(raw.end_row) && raw.end_row >= raw.start_row ? { endRow: Math.min(raw.end_row, 5000) } : {}),
+    ...(typeof raw.section_id === 'string' && raw.section_id ? { sectionId: raw.section_id } : {}),
   }
 }
 
@@ -124,14 +129,17 @@ export interface ChartForm {
   startRow: string
   /** Dernier rang (vide : jusqu'à la fin de l'étape). */
   endRow?: string
+  /** Sous-étape suivie (choisie dans le calage) : son identifiant, ou sa position si elle n'en a pas encore. */
+  sectionId?: string
+  sectionIndex?: number
   repeats: boolean
   flat: boolean
   oddOnly: boolean
 }
 
 export function setupToForm(setup: ChartSetup): ChartForm {
-  const { endRow, ...rest } = setup
-  return { ...rest, stepId: setup.stepId ?? '', rows: String(setup.rows), startRow: String(setup.startRow), ...(endRow ? { endRow: String(endRow) } : {}) }
+  const { endRow, sectionId, sectionIndex: _sectionIndex, ...rest } = setup
+  return { ...rest, stepId: setup.stepId ?? '', rows: String(setup.rows), startRow: String(setup.startRow), ...(endRow ? { endRow: String(endRow) } : {}), ...(sectionId ? { sectionId } : {}) }
 }
 
 /** Plus petit écart entre le haut et le bas du diagramme (fraction de l'image). */
@@ -163,6 +171,8 @@ export function formToSetup(form: ChartForm): ChartSetup | string {
     // En rond, chaque tour est dessiné.
     oddOnly: form.flat && form.oddOnly,
     ...(endRow !== null ? { endRow } : {}),
+    ...(form.sectionId ? { sectionId: form.sectionId } : {}),
+    ...(form.sectionIndex !== undefined && !form.sectionId ? { sectionIndex: form.sectionIndex } : {}),
   }
 }
 

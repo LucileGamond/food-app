@@ -191,14 +191,14 @@ isOneToOne: false
                   ]
                 },"knit_charts": {
                   Row: {
-                    "created_at": string,"end_row": number | null,"flat": boolean,"grid_bottom": number,"grid_top": number,"id": string,"image_path": string,"odd_only": boolean,"project_id": string,"repeats": boolean,"rows": number,"start_row": number,"step_id": string | null,"title": string
+                    "created_at": string,"end_row": number | null,"flat": boolean,"grid_bottom": number,"grid_top": number,"id": string,"image_path": string,"odd_only": boolean,"project_id": string,"repeats": boolean,"rows": number,"section_id": string | null,"start_row": number,"step_id": string | null,"title": string
                   }
                   ComputedFields: never
                   Insert: {
-                    "created_at"?: string,"end_row"?: number | null,"flat"?: boolean,"grid_bottom": number,"grid_top": number,"id"?: string,"image_path": string,"odd_only"?: boolean,"project_id": string,"repeats"?: boolean,"rows": number,"start_row"?: number,"step_id"?: string | null,"title"?: string
+                    "created_at"?: string,"end_row"?: number | null,"flat"?: boolean,"grid_bottom": number,"grid_top": number,"id"?: string,"image_path": string,"odd_only"?: boolean,"project_id": string,"repeats"?: boolean,"rows": number,"section_id"?: string | null,"start_row"?: number,"step_id"?: string | null,"title"?: string
                   }
                   Update: {
-                    "created_at"?: string,"end_row"?: number | null,"flat"?: boolean,"grid_bottom"?: number,"grid_top"?: number,"id"?: string,"image_path"?: string,"odd_only"?: boolean,"project_id"?: string,"repeats"?: boolean,"rows"?: number,"start_row"?: number,"step_id"?: string | null,"title"?: string
+                    "created_at"?: string,"end_row"?: number | null,"flat"?: boolean,"grid_bottom"?: number,"grid_top"?: number,"id"?: string,"image_path"?: string,"odd_only"?: boolean,"project_id"?: string,"repeats"?: boolean,"rows"?: number,"section_id"?: string | null,"start_row"?: number,"step_id"?: string | null,"title"?: string
                   }
                   Relationships: [
                     {

@@ -72,7 +72,12 @@ export interface StepSection {
   source?: string
   /** Aiguille (mm) de cette sous-étape ; absente : celle de la sous-étape d'avant. */
   needle?: number
+  /** Identifiant stable (diagramme rattaché à cette sous-étape) ; donné à la première occasion. */
+  id?: string
 }
+
+/** Identifiant court d'une sous-étape. */
+export const newSectionId = () => crypto.randomUUID().replace(/-/g, '').slice(0, 12)
 
 export const MAX_SECTIONS = 30
 /** Texte d'une étape, au plus (comme en base). */
@@ -207,6 +212,7 @@ export function sanitizeSections(raw: unknown): StepSection[] {
     if (measured) section.measured = measured
     if (typeof s.source === 'string' && s.source.trim()) section.source = s.source.slice(0, MAX_INSTRUCTIONS)
     if (typeof s.needle === 'number' && s.needle >= 0.5 && s.needle <= 30) section.needle = Math.round(s.needle * 100) / 100
+    if (typeof s.id === 'string' && /^[\w-]{1,40}$/.test(s.id)) section.id = s.id
     if (typeof s.at === 'object' && s.at !== null) {
       const a = s.at as Record<string, unknown>
       const at: SectionStart = { row: count(a.row, 5000), pattern: typeof a.pattern === 'string' && a.pattern.trim() ? a.pattern.slice(0, 100) : null }

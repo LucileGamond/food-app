@@ -321,8 +321,8 @@ export function StepSections({
   async function save(index: number, section: StepSection) {
     const next = [...step.sections]
     // Le texte du patron de la sous-étape reste avec elle quand on la règle.
-    const source = step.sections[index]?.source
-    next[index] = source ? { ...section, source } : section
+    const { source, id } = step.sections[index] ?? {}
+    next[index] = { ...section, ...(source ? { source } : {}), ...(id ? { id } : {}) }
     if (await onChange(next)) setEditing(null)
   }
 

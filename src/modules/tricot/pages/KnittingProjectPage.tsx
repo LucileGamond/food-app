@@ -25,7 +25,8 @@ import { YarnPanel, type ProjectInfo } from '../components/YarnPanel'
 import { adjustCount } from '../lib/yarn'
 import { useKnitProject } from '../hooks/useKnitProject'
 import { forgetProject } from '../lib/offline'
-import { currentStepIndex, stepFacts, type StepSection } from '../lib/pattern'
+import { currentStepIndex, newSectionId, stepFacts, type StepSection } from '../lib/pattern'
+import { placeCharts } from '../lib/chartPlace'
 import { OfflineNote } from '../components/OfflineNote'
 import { StepNotes } from '../components/StepNotes'
 import { StepTimes } from '../components/StepTimes'
@@ -91,6 +92,8 @@ export function KnittingProjectPage() {
   const needles = project.needles ?? []
   const needleGauges = project.needleGauges ?? []
   const { size: followedSize, steps, following } = stepsToFollow(project)
+  // Diagrammes rattachés à une sous-étape : placés sur ses rangs d'aujourd'hui
+  const charts = placeCharts(project.charts, steps)
   const knitTo = (stepId?: string) => `/tricot/${project.id}/tricoter${stepId ? `?etape=${encodeURIComponent(stepId)}` : ''}`
   const current = steps[currentStepIndex(steps)]
   const step = steps.find((s) => s.id === stepParam) ?? current
@@ -189,6 +192,17 @@ export function KnittingProjectPage() {
     } catch (error) {
       toast.error(errorMessage(error))
     }
+  }
+
+  /** La sous-étape reçoit un identifiant (enregistré avec ses sous-étapes) pour qu'un diagramme la suive. */
+  async function identifySection(stepId: string, index: number): Promise<string | null> {
+    const target = steps.find((s) => s.id === stepId)
+    const section = target?.sections[index]
+    if (!target || !section) return null
+    if (section.id) return section.id
+    const id = newSectionId()
+    const saved = await saveSections(target, target.sections.map((s, i) => (i === index ? { ...s, id } : s)))
+    return saved ? id : null
   }
 
   async function changeSize(sizeIndex: number | null) {
@@ -312,9 +326,18 @@ export function KnittingProjectPage() {
             {describePass(step) && ` · ${describePass(step)}`}
           </p>
           <StepTimes step={step} onChange={(progress) => void saveStep(step.id, progress)} />
-          <StepSections step={step} needles={needles} text={{ sizes: project.sizes, sizeIndex: project.sizeIndex, abbreviations: project.abbreviations ?? [] }} charts={project.charts.filter((c) => c.stepId === step.id)} needleGauges={needleGauges} onCheckNeedle={checkNeedle} onChange={(sections) => saveSections(step, sections)} />
+          <StepSections step={step} needles={needles} text={{ sizes: project.sizes, sizeIndex: project.sizeIndex, abbreviations: project.abbreviations ?? [] }} charts={charts.filter((c) => c.stepId === step.id)} needleGauges={needleGauges} onCheckNeedle={checkNeedle} onChange={(sections) => saveSections(step, sections)} />
           <StepOutline step={step} nextTitle={steps[index + 1]?.title ?? null} showCurrent={!step.done && step.rowCount > 0} />
-          <StepCharts projectId={project.id} pdfPath={project.pdfPath} step={step} steps={steps} charts={project.charts} hints={project.chartHints} onChanged={reload} />
+          <StepCharts
+            projectId={project.id}
+            pdfPath={project.pdfPath}
+            step={step}
+            steps={steps}
+            charts={charts}
+            hints={project.chartHints}
+            onChanged={reload}
+            identifySection={identifySection}
+          />
           <StepNotes key={step.id} step={step} onSave={(notes) => void saveStep(step.id, { notes })} />
           {step.done && (
             <Button variant="outline" className="h-10" onClick={() => void saveStep(step.id, { done: false })}>

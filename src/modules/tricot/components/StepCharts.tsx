@@ -26,6 +26,8 @@ interface Props {
   hints: ChartHint[]
   /** Après un ajout, un réglage ou une suppression : recharge le projet. */
   onChanged: () => Promise<void>
+  /** Donne un identifiant à la sous-étape `index` de l'étape (pour qu'un diagramme la suive) ; null : échec. */
+  identifySection?: (stepId: string, index: number) => Promise<string | null>
 }
 
 /** Image choisie pour un nouveau diagramme, recadrée ou non. */
@@ -37,7 +39,7 @@ interface Draft {
 }
 
 /** Diagrammes de l'étape (préparation) : calage, réglage, et ajout d'un diagramme depuis le PDF ou une image. */
-export function StepCharts({ projectId, pdfPath, step, steps, charts, hints, onChanged }: Props) {
+export function StepCharts({ projectId, pdfPath, step, steps, charts, hints, onChanged, identifySection }: Props) {
   const api = useApi()
   const inputId = useId()
   const [draft, setDraft] = useState<Draft | null>(null)
@@ -60,9 +62,18 @@ export function StepCharts({ projectId, pdfPath, step, steps, charts, hints, onC
     else setDraft({ file, url: URL.createObjectURL(file), hint: null })
   }
 
-  async function add(setup: ChartSetup): Promise<boolean> {
+  /** Sous-étape choisie sans identifiant : elle en reçoit un, que le diagramme garde pour la suivre. */
+  async function linked(setup: ChartSetup): Promise<ChartSetup> {
+    const { sectionIndex, ...rest } = setup
+    if (sectionIndex === undefined || !rest.stepId || !identifySection) return rest
+    const sectionId = await identifySection(rest.stepId, sectionIndex)
+    return sectionId ? { ...rest, sectionId } : rest
+  }
+
+  async function add(raw: ChartSetup): Promise<boolean> {
     if (!draft) return false
     try {
+      const setup = await linked(raw)
       // JPEG réduit à une taille qui reste nette au zoom.
       const image = await editImage(draft.file, { rotation: 0, crop: FULL_CROP, maxSide: CHART_MAX_SIDE }).catch(() => {
         throw new Error('L’image n’a pas pu être lue.')
@@ -78,8 +89,9 @@ export function StepCharts({ projectId, pdfPath, step, steps, charts, hints, onC
     }
   }
 
-  async function update(chart: KnitChart, setup: ChartSetup): Promise<boolean> {
+  async function update(chart: KnitChart, raw: ChartSetup): Promise<boolean> {
     try {
+      const setup = await linked(raw)
       await api.knitting.updateChart(chart.id, setup)
       setEditing(null)
       await onChanged()

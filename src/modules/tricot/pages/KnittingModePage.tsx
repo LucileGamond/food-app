@@ -20,6 +20,7 @@ import { StepDone } from '../components/mode/StepDone'
 import { OfflineNote } from '../components/OfflineNote'
 import { StepReady } from '../components/StepReady'
 import { readyIssues } from '../lib/ready'
+import { placeCharts } from '../lib/chartPlace'
 import { effectiveNeedles, formatNeedle } from '../lib/needles'
 import { StepOutline } from '../components/StepOutline'
 import { useBaseGlossary } from '../hooks/useBaseGlossary'
@@ -90,7 +91,8 @@ function Knitting({ project, knit, projectTo }: KnittingProps) {
   const step: ShownStep = steps.find((s) => s.id === params.get('etape')) ?? steps[currentStepIndex(steps)]!
   const index = steps.indexOf(step)
   const next = steps[index + 1] ?? null
-  const charts = project.charts.filter((c) => c.stepId === step.id)
+  // Diagrammes rattachés à une sous-étape : sur ses rangs d'aujourd'hui
+  const charts = placeCharts(project.charts, steps).filter((c) => c.stepId === step.id)
   const guide = stepGuide(step, charts, next?.title ?? null)
   const row = step.rowCount + 1
   const finished = step.done || (step.totalRows !== null && step.rowCount >= step.totalRows)

@@ -65,7 +65,7 @@ export function ChartSetupDialog({ open, imageUrl, initial, steps, onCrop, onCan
   // Sous-étapes de l'étape choisie, aux rangs connus : la choisir cale le diagramme sur elle
   const step = steps.find((s) => s.id === form.stepId)
   const substeps = step ? planSections(step.sections, step.totalRows).filter((p) => p.start !== null) : []
-  const chosen = substeps.findIndex((p) => String(p.start) === form.startRow && String(p.end ?? '') === (form.endRow ?? ''))
+  const chosen = substeps.findIndex((p) => (form.sectionId ? p.section.id === form.sectionId : p.index === form.sectionIndex))
 
   const rows = Number(form.rows)
   const showRows = Number.isInteger(rows) && rows >= 1 && rows <= 500
@@ -175,7 +175,9 @@ export function ChartSetupDialog({ open, imageUrl, initial, steps, onCrop, onCan
                 value={chosen === -1 ? '' : String(chosen)}
                 onChange={(e) => {
                   const p = substeps[Number(e.target.value)]
-                  if (p) update({ startRow: String(p.start), endRow: p.end === null ? '' : String(p.end) })
+                  // Suivie : ses rangs feront foi, même si sa longueur change ensuite
+                  if (p) update({ startRow: String(p.start), endRow: p.end === null ? '' : String(p.end), sectionId: p.section.id, sectionIndex: p.section.id ? undefined : p.index })
+                  else update({ sectionId: undefined, sectionIndex: undefined })
                 }}
               >
                 <option value="">Rangs choisis à la main</option>
@@ -189,7 +191,7 @@ export function ChartSetupDialog({ open, imageUrl, initial, steps, onCrop, onCan
           )}
           <div className="grid gap-1.5">
             <Label htmlFor={`${id}-start`}>Rang 1 du diagramme au rang de l’étape</Label>
-            <Input id={`${id}-start`} className="h-10" inputMode="numeric" maxLength={4} value={form.startRow} onChange={(e) => update({ startRow: e.target.value })} />
+            <Input id={`${id}-start`} className="h-10" inputMode="numeric" maxLength={4} value={form.startRow} onChange={(e) => update({ startRow: e.target.value, sectionId: undefined, sectionIndex: undefined })} />
           </div>
           <div className="grid gap-1.5">
             <Label htmlFor={`${id}-end`}>Dernier rang (facultatif)</Label>
