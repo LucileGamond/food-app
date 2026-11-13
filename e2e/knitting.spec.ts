@@ -189,12 +189,16 @@ test('ajoute un patron à la bibliothèque, le commence, puis note la laine (ét
   await expect(panel).toContainText('Phildar Partner 3.5')
   await expect(panel).toContainText('Environ 750 m de laine en tout.')
 
-  // Échantillon plus serré : mailles recalculées (64 → 70)
-  const gauge = panel.getByRole('form', { name: 'Échantillon' })
-  await expect(gauge.getByLabel('Mailles du patron')).toHaveValue('22')
-  await gauge.getByLabel('Tes mailles').fill('24')
-  await gauge.getByRole('button', { name: 'Enregistrer l’échantillon' }).click()
-  await expect(gauge.getByRole('button', { name: 'Enregistrer l’échantillon' })).toBeDisabled()
+  // L'échantillon du patron est lu avec le patron ; le mien va dans la liste des échantillons du projet
+  await expect(panel.getByRole('form', { name: 'Échantillon du patron' }).getByLabel('Mailles du patron')).toHaveValue('22')
+
+  // Mon échantillon, plus serré : mailles recalculées (64 → 70)
+  await panel.getByRole('button', { name: 'Ajouter un échantillon' }).click()
+  const gauge = page.getByRole('form', { name: 'Échantillon', exact: true })
+  await gauge.getByLabel('Mailles').fill('24')
+  await gauge.getByLabel('Rangs').fill('30')
+  await gauge.getByRole('button', { name: 'Enregistrer' }).click()
+  await expect(panel.getByText('24 m. × 30 rangs pour 10 cm')).toBeVisible()
 
   // Gardé au rechargement
   await page.reload()
@@ -207,7 +211,8 @@ test('ajoute un patron à la bibliothèque, le commence, puis note la laine (ét
   await page.getByRole('button', { name: 'Étape suivante', exact: true }).click()
   const sections = page.getByRole('region', { name: 'Sous-étapes' })
   const check = sections.getByRole('note')
-  await expect(check).toContainText('Converti depuis le patron : 5 cm × 30 rangs pour 10 cm (échantillon du patron) ≈ 15 rangs (arrondi).')
+  // Mon échantillon (30 rangs pour 10 cm) prend le pas sur celui du patron pour la conversion
+  await expect(check).toContainText('Converti depuis le patron : 5 cm × 30 rangs pour 10 cm (ton échantillon) ≈ 15 rangs (arrondi).')
   await expect(sections).toContainText('1 diminution de chaque côté — tous les 15 rangs (≈ 5 cm) (4 fois)')
   await expectNoA11yViolations(page)
   await check.getByRole('button', { name: 'Valider' }).click()
