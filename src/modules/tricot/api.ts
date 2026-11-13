@@ -5,7 +5,8 @@ import type { Json } from '@/lib/database.types'
 import type { AppSupabaseClient } from '@/api/client'
 import { compressForReading } from '@/lib/image'
 import type { ProgressPhoto, ProjectProgress } from './lib/progress'
-import { describeYarn, yarnFromJson, yarnMeters, yarnsFromJson, type Gauge, type QueueInput, type QueuedPattern, type QueuePriority, type StashItem, type Yarn, type YarnIdea } from './lib/yarn'
+import { describeYarn, yarnFromJson, yarnMeters, yarnsFromJson, type Gauge, type StashItem, type Yarn, type YarnIdea } from './lib/yarn'
+import type { KnitPattern, PatternFields, PatternFiles, PatternWish } from './lib/library'
 import { sanitizeHighlights } from './lib/sizes'
 import { readTimes } from './lib/passes'
 import { adaptationPaused, adaptationToJson, sanitizeAdaptation, type Adaptation, type AdaptedStep } from './lib/adapt'
@@ -23,7 +24,7 @@ const CHART_BUCKET = 'knit-charts'
 /** Lecture d'un long patron : jusqu'à 2 minutes côté modèle. */
 const READ_TIMEOUT_MS = 150_000
 const SIGNED_URL_TTL_SECONDS = 60 * 60
-/** Photos d'avancement : dossier par personne (<uid>/<uuid>.jpg). */
+/** Photos d'avancement et photos des patrons : dossier par personne (<uid>/<uuid>.jpg). */
 const PROGRESS_BUCKET = 'knit-photos'
 
 export type StepProgress = Partial<Pick<KnitStep, 'rowCount' | 'times' | 'pass' | 'notes' | 'done' | 'sections' | 'highlights' | 'translation' | 'startStitches'>>
@@ -114,35 +115,53 @@ function toStep(row: StepRow): KnitStep {
   }
 }
 
-const QUEUE_COLUMNS = 'id, title, pdf_path, url, size, yarn_idea, notes, priority, created_at, meters_needed, needle_mm'
+/** Patron de la bibliothèque, avec ses projets (les plus récents d'abord). */
+const PATTERN_COLUMNS = 'id, title, pdf_path, photos, url, size, yarn_idea, notes, meters_needed, needle_mm, wish, created_at, knit_projects(id, title, size, updated_at)'
 
-interface QueueRow {
+interface PatternRow {
   id: string
   title: string
   pdf_path: string | null
+  photos: string[]
   url: string | null
   size: string | null
   yarn_idea: string
   notes: string
-  priority: number
-  created_at: string
   meters_needed: number | null
   needle_mm: number | null
+  wish: number | null
+  created_at: string
+  knit_projects: { id: string; title: string; size: string; updated_at: string }[]
 }
 
-function toQueued(r: QueueRow): QueuedPattern {
+function toPattern(r: PatternRow): KnitPattern {
   return {
     id: r.id,
     title: r.title,
     pdfPath: r.pdf_path,
+    photos: r.photos,
     url: r.url,
     size: r.size,
     yarnIdea: r.yarn_idea,
     notes: r.notes,
-    priority: r.priority as QueuePriority,
-    createdAt: r.created_at,
     metersNeeded: r.meters_needed,
     needleMm: r.needle_mm,
+    wish: r.wish as PatternWish | null,
+    createdAt: r.created_at,
+    projects: r.knit_projects.toSorted((a, b) => b.updated_at.localeCompare(a.updated_at)).map((p) => ({ id: p.id, title: p.title, size: p.size })),
+  }
+}
+
+function toPatternColumns(fields: PatternFields) {
+  return {
+    title: fields.title,
+    url: fields.url,
+    size: fields.size,
+    yarn_idea: fields.yarnIdea,
+    notes: fields.notes,
+    meters_needed: fields.metersNeeded,
+    needle_mm: fields.needleMm,
+    wish: fields.wish,
   }
 }
 
@@ -165,6 +184,21 @@ export function createKnittingApi(db: AppSupabaseClient) {
     const { error } = await db.storage.from(PATTERN_BUCKET).upload(path, pdf, { contentType: 'application/pdf' })
     if (error) throw new AppError('Impossible d’envoyer le PDF.')
     return path
+  }
+
+  /** Envoie des photos de patron (déjà réduites, en JPEG) ; renvoie leurs chemins. Rien ne reste si l'une échoue. */
+  async function uploadPatternPhotos(photos: Blob[]): Promise<string[]> {
+    if (photos.length === 0) return []
+    const { data: session } = await db.auth.getSession()
+    const userId = session.session?.user.id
+    if (!userId) throw toAppError({ code: '42501' })
+    const paths = photos.map(() => `${userId}/${crypto.randomUUID()}.jpg`)
+    const results = await Promise.all(photos.map((photo, i) => db.storage.from(PROGRESS_BUCKET).upload(paths[i]!, photo, { contentType: 'image/jpeg' })))
+    if (results.some((r) => r.error)) {
+      await db.storage.from(PROGRESS_BUCKET).remove(paths)
+      throw new AppError('Impossible d’envoyer les photos.')
+    }
+    return paths
   }
 
   /** Diagrammes lus en base, avec l'adresse temporaire de leur image (null si elle n'a pas pu être obtenue). */
@@ -250,9 +284,9 @@ export function createKnittingApi(db: AppSupabaseClient) {
         yarnChecks: sanitizeYarnChecks(data.yarn_checks),
         yarns: yarnsFromJson(data.yarns),
         patternGauge: { stitches: data.pattern_gauge_stitches, rows: data.pattern_gauge_rows },
-        myGauge: { stitches: data.my_gauge_stitches, rows: data.my_gauge_rows },
         adaptation: sanitizeAdaptation(data.adaptation),
         needles: sanitizeNeedles(data.needles),
+        myGauge: { stitches: data.my_gauge_stitches, rows: data.my_gauge_rows },
         needleGauges: sanitizeNeedleGauges(data.needle_gauges),
       }
     },
@@ -271,8 +305,9 @@ export function createKnittingApi(db: AppSupabaseClient) {
     },
 
     /**
-     * Enregistre le projet, ses étapes, l'échantillon du patron et le PDF d'origine. Depuis un patron en attente
-     * (`queued`) : son PDF déjà envoyé est repris, et il quitte la liste.
+     * Enregistre le projet, ses étapes, l'échantillon du patron et le PDF d'origine. Depuis un patron de la bibliothèque
+     * (`pattern`) : le projet lui est relié, et son PDF déjà envoyé (`pattern.pdfPath`) est repris. Sinon, le patron est
+     * rangé dans la bibliothèque.
      */
     async createProject(input: {
       title: string
@@ -280,7 +315,8 @@ export function createKnittingApi(db: AppSupabaseClient) {
       pdf: File | null
       steps: PatternStep[]
       gauge?: Gauge | null
-      queued?: Pick<QueuedPattern, 'id' | 'pdfPath'> | null
+      /** Patron de la bibliothèque ; `pdfPath` : son PDF, repris tel quel (null : `pdf` est envoyé). */
+      pattern?: Pick<KnitPattern, 'id' | 'pdfPath'> | null
       /** Diagrammes repérés à la lecture, gardés pour les proposer plus tard. */
       chartHints?: ChartHint[]
       /** Tailles du patron et celle à mettre en valeur dans le texte des étapes. */
@@ -291,8 +327,8 @@ export function createKnittingApi(db: AppSupabaseClient) {
       /** Aiguilles du patron (mm). */
       needles?: number[]
     }): Promise<string> {
-      // PDF du patron en attente déjà envoyé ; sinon celui choisi, envoyé maintenant.
-      const reused = input.queued?.pdfPath ?? null
+      // PDF du patron déjà envoyé ; sinon celui choisi, envoyé maintenant.
+      const reused = input.pattern?.pdfPath ?? null
       const uploaded = !reused && input.pdf ? await uploadPdf(input.pdf) : null
       const path = reused ?? uploaded
       const { data, error } = await db.rpc('create_knit_project', {
@@ -311,7 +347,7 @@ export function createKnittingApi(db: AppSupabaseClient) {
         // Facultatifs : null (voir p_pdf_path).
         p_pattern_gauge_stitches: (input.gauge?.stitches ?? null) as number,
         p_pattern_gauge_rows: (input.gauge?.rows ?? null) as number,
-        p_queue_id: (input.queued?.id ?? null) as string,
+        p_pattern_id: (input.pattern?.id ?? null) as string,
       })
       if (error) {
         if (uploaded) await db.storage.from(PATTERN_BUCKET).remove([uploaded])
@@ -498,47 +534,55 @@ export function createKnittingApi(db: AppSupabaseClient) {
       if (error) throw toAppError(error, 'Impossible d’enregistrer la pesée.')
     },
 
-    async listQueue(): Promise<QueuedPattern[]> {
-      const { data, error } = await db.from('knit_queue').select(QUEUE_COLUMNS).order('created_at')
-      if (error) throw toAppError(error, 'Impossible de charger les patrons en attente.')
-      return data.map(toQueued)
+    /** Bibliothèque de patrons (triée par l'écran). */
+    async listPatterns(): Promise<KnitPattern[]> {
+      const { data, error } = await db.from('knit_patterns').select(PATTERN_COLUMNS).order('created_at', { ascending: false })
+      if (error) throw toAppError(error, 'Impossible de charger les patrons.')
+      return data.map(toPattern)
     },
 
-    async getQueued(id: string): Promise<QueuedPattern | null> {
-      const { data, error } = await db.from('knit_queue').select(QUEUE_COLUMNS).eq('id', id).maybeSingle()
+    async getPattern(id: string): Promise<KnitPattern | null> {
+      const { data, error } = await db.from('knit_patterns').select(PATTERN_COLUMNS).eq('id', id).maybeSingle()
       if (error) throw toAppError(error, 'Impossible de charger le patron.')
-      return data && toQueued(data)
+      return data && toPattern(data)
     },
 
-    /** Met un patron de côté (PDF envoyé dans le dossier de la personne). */
-    async addToQueue(input: QueueInput): Promise<string> {
-      const path = input.pdf ? await uploadPdf(input.pdf) : null
-      const { data, error } = await db
-        .from('knit_queue')
-        .insert({
-          title: input.title,
-          pdf_path: path,
-          url: input.url,
-          size: input.size,
-          yarn_idea: input.yarnIdea,
-          notes: input.notes,
-          priority: input.priority,
-          meters_needed: input.metersNeeded,
-          needle_mm: input.needleMm,
-        })
-        .select('id')
-        .single()
+    /**
+     * Ajoute un patron (`existing` null) ou le modifie : les nouveaux fichiers sont envoyés, ceux retirés supprimés.
+     * Le PDF d'un patron déjà commencé n'est pas supprimé ici (ses projets le lisent) : le ménage de nuit s'en charge.
+     */
+    async savePattern(fields: PatternFields, files: PatternFiles, existing: Pick<KnitPattern, 'id' | 'pdfPath' | 'photos' | 'projects'> | null): Promise<string> {
+      const newPdf = files.newPdf ? await uploadPdf(files.newPdf) : null
+      let newPhotos: string[]
+      try {
+        newPhotos = await uploadPatternPhotos(files.newPhotos)
+      } catch (e) {
+        if (newPdf) await db.storage.from(PATTERN_BUCKET).remove([newPdf])
+        throw e
+      }
+      const row = { ...toPatternColumns(fields), pdf_path: newPdf ?? files.pdfPath, photos: [...files.photos, ...newPhotos] }
+      const { data, error } = existing
+        ? await db.from('knit_patterns').update(row).eq('id', existing.id).select('id').single()
+        : await db.from('knit_patterns').insert(row).select('id').single()
       if (error) {
-        if (path) await db.storage.from(PATTERN_BUCKET).remove([path])
+        if (newPdf) await db.storage.from(PATTERN_BUCKET).remove([newPdf])
+        if (newPhotos.length) await db.storage.from(PROGRESS_BUCKET).remove(newPhotos)
         throw toAppError(error, 'Impossible d’enregistrer le patron.')
+      }
+      if (existing) {
+        const removedPhotos = existing.photos.filter((p) => !row.photos.includes(p))
+        if (removedPhotos.length) await db.storage.from(PROGRESS_BUCKET).remove(removedPhotos)
+        if (existing.pdfPath && existing.pdfPath !== row.pdf_path && existing.projects.length === 0) await db.storage.from(PATTERN_BUCKET).remove([existing.pdfPath])
       }
       return data.id
     },
 
-    async deleteQueued(item: Pick<QueuedPattern, 'id' | 'pdfPath'>): Promise<void> {
-      const { error } = await db.from('knit_queue').delete().eq('id', item.id)
-      if (error) throw toAppError(error, 'Impossible de retirer le patron.')
-      if (item.pdfPath) await db.storage.from(PATTERN_BUCKET).remove([item.pdfPath])
+    /** Supprime un patron ; ses projets restent (avec leur PDF), seuls ses fichiers inutilisés sont supprimés. */
+    async deletePattern(pattern: Pick<KnitPattern, 'id' | 'pdfPath' | 'photos' | 'projects'>): Promise<void> {
+      const { error } = await db.from('knit_patterns').delete().eq('id', pattern.id)
+      if (error) throw toAppError(error, 'Impossible de supprimer le patron.')
+      if (pattern.photos.length) await db.storage.from(PROGRESS_BUCKET).remove(pattern.photos)
+      if (pattern.pdfPath && pattern.projects.length === 0) await db.storage.from(PATTERN_BUCKET).remove([pattern.pdfPath])
     },
 
     async listStash(): Promise<StashItem[]> {
@@ -646,17 +690,17 @@ export function createKnittingApi(db: AppSupabaseClient) {
       await db.storage.from(PROGRESS_BUCKET).remove([photo.storagePath])
     },
 
-    /** URL temporaires des photos d'avancement. */
+    /** URL temporaires des photos du bucket knit-photos : photos d'avancement et photos des patrons. */
     async progressPhotoUrls(paths: string[]): Promise<Record<string, string>> {
       const { data, error } = await db.storage.from(PROGRESS_BUCKET).createSignedUrls(paths, SIGNED_URL_TTL_SECONDS)
       if (error) throw new AppError('Impossible de charger les photos.')
       return Object.fromEntries(data.flatMap((item) => (item.path && item.signedUrl ? [[item.path, item.signedUrl]] : [])))
     },
 
-    async deleteProject(project: Pick<KnitProject, 'id' | 'pdfPath'> & { charts?: Pick<KnitChart, 'imagePath'>[] }): Promise<void> {
+    /** Supprime un projet et ses diagrammes. Son PDF reste à son patron, dans la bibliothèque (le ménage de nuit retire un PDF orphelin). */
+    async deleteProject(project: Pick<KnitProject, 'id'> & { charts?: Pick<KnitChart, 'imagePath'>[] }): Promise<void> {
       const { error } = await db.from('knit_projects').delete().eq('id', project.id)
       if (error) throw toAppError(error, 'Impossible de supprimer le projet.')
-      if (project.pdfPath) await db.storage.from(PATTERN_BUCKET).remove([project.pdfPath])
       if (project.charts?.length) await db.storage.from(CHART_BUCKET).remove(project.charts.map((c) => c.imagePath))
     },
 

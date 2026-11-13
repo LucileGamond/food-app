@@ -512,7 +512,7 @@ export function KnittingProjectPage() {
         open={confirmDelete}
         onOpenChange={setConfirmDelete}
         title="Supprimer le projet ?"
-        description="Les étapes, rangs comptés, notes et le PDF seront supprimés."
+        description="Les étapes, rangs comptés et notes seront supprimés. Le patron reste dans ta bibliothèque."
         confirmLabel="Supprimer"
         onConfirm={remove}
       />

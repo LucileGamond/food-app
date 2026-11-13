@@ -1,7 +1,6 @@
 import {
   adjustCount,
   describeYarn,
-  matchPatterns,
   parseMeters,
   patternSearchUrl,
   siteOf,
@@ -10,15 +9,12 @@ import {
   formatGauge,
   gaugeDiffers,
   parseGauge,
-  parseQueueDraft,
   parseYarn,
-  sortQueue,
   toYarnDraft,
   totalLength,
   yarnDetails,
   yarnsFromJson,
   yarnTitle,
-  type QueuedPattern,
   type Yarn,
 } from './yarn'
 
@@ -81,58 +77,7 @@ describe('échantillon', () => {
   })
 })
 
-describe('patrons à faire plus tard', () => {
-  const draft = { title: ' Pull ', url: '', size: ' M ', yarnIdea: '', notes: '', priority: 2 as const, metersNeeded: '', needleMm: '' }
-  const pdf = new File(['%PDF'], 'pull.pdf', { type: 'application/pdf' })
-
-  it('exige un nom et un PDF ou un lien valide', () => {
-    expect(parseQueueDraft(draft, pdf)).toEqual({ input: { title: 'Pull', pdf, url: null, size: 'M', yarnIdea: '', notes: '', priority: 2, metersNeeded: null, needleMm: null } })
-    expect(parseQueueDraft({ ...draft, metersNeeded: '350', needleMm: '4,5' }, pdf)).toMatchObject({ input: { metersNeeded: 350, needleMm: 4.5 } })
-    expect(parseQueueDraft({ ...draft, metersNeeded: '35,5' }, pdf)).toEqual({ error: 'Métrage : un nombre entier de mètres (1 à 20 000).' })
-    expect(parseQueueDraft({ ...draft, needleMm: '50' }, pdf)).toEqual({ error: 'Aiguilles : entre 1 et 30 mm.' })
-    expect(parseQueueDraft({ ...draft, url: 'https://patrons.exemple/pull' }, null)).toMatchObject({ input: { url: 'https://patrons.exemple/pull', pdf: null } })
-    expect(parseQueueDraft({ ...draft, title: ' ' }, pdf)).toEqual({ error: 'Donne un nom au patron.' })
-    expect(parseQueueDraft(draft, null)).toEqual({ error: 'Ajoute le PDF du patron ou un lien.' })
-    expect(parseQueueDraft({ ...draft, url: 'patrons.exemple' }, null)).toEqual({ error: 'Le lien doit commencer par http:// ou https://.' })
-    expect(parseQueueDraft({ ...draft, size: 'x'.repeat(41) }, pdf)).toEqual({ error: 'Taille : 40 caractères au plus.' })
-    expect(parseQueueDraft({ ...draft, title: 'x'.repeat(201) }, pdf)).toEqual({ error: 'Nom : 200 caractères au plus.' })
-    expect(parseQueueDraft({ ...draft, yarnIdea: 'x'.repeat(201) }, pdf)).toEqual({ error: 'Laine envisagée : 200 caractères au plus.' })
-    expect(parseQueueDraft({ ...draft, notes: 'x'.repeat(2001) }, pdf)).toEqual({ error: 'Notes : 2000 caractères au plus.' })
-  })
-
-  it('les plus pressés d’abord, puis les plus anciens', () => {
-    const item = (id: string, priority: 1 | 2 | 3, createdAt: string): QueuedPattern => ({ id, title: id, pdfPath: null, url: null, size: null, yarnIdea: '', notes: '', priority, createdAt, metersNeeded: null, needleMm: null })
-    expect(sortQueue([item('c', 3, '2026-01-01'), item('b', 1, '2026-03-01'), item('a', 1, '2026-02-01')]).map((i) => i.id)).toEqual(['a', 'b', 'c'])
-  })
-})
-
 describe('quel patron pour ma laine', () => {
-  const queued = (id: string, metersNeeded: number | null, needleMm: number | null, priority: 1 | 2 | 3 = 2): QueuedPattern => ({
-    id,
-    title: id,
-    pdfPath: null,
-    url: null,
-    size: null,
-    yarnIdea: '',
-    notes: '',
-    priority,
-    createdAt: '2026-11-01',
-    metersNeeded,
-    needleMm,
-  })
-
-  it('garde les patrons dont le métrage et les aiguilles conviennent, met à part ceux qu’on ne peut pas juger', () => {
-    // 6 pelotes de 125 m (750 m), aiguilles 3,5 mm.
-    const result = matchPatterns(PARTNER, [queued('Pull', 900, 3.5), queued('Gilet', 600, 4, 1), queued('Châle', 400, 6), queued('Bonnet', null, null), queued('Snood', 200, null)])
-    expect(result.fits.map((m) => [m.item.id, m.reasons])).toEqual([
-      ['Gilet', ['600 m nécessaires, 750 m en stock', 'aiguilles 4 mm (laine : 3,5 mm)']],
-      ['Snood', ['200 m nécessaires, 750 m en stock']],
-    ])
-    expect(result.unknown.map((p) => p.id)).toEqual(['Bonnet'])
-    // Métrage de la laine inconnu : seules les aiguilles comptent.
-    expect(matchPatterns({ ...PARTNER, skeins: null }, [queued('Pull', 900, 3.5)]).fits.map((m) => m.reasons)).toEqual([['aiguilles 3,5 mm (laine : 3,5 mm)']])
-  })
-
   it('décrit la laine, le métrage disponible et la recherche de patrons', () => {
     expect(yarnMeters(PARTNER)).toBe(750)
     expect(yarnMeters({ ...PARTNER, length_m: null })).toBeNull()

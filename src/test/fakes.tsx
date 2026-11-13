@@ -28,7 +28,8 @@ import type { Plant, PlantPhoto, WateringEvent } from '@/modules/plantes/lib/pla
 import type { KnitProject, KnitProjectSummary, ReadPattern } from '@/modules/tricot/lib/pattern'
 import type { ProjectProgress } from '@/modules/tricot/lib/progress'
 import type { AdaptedStep } from '@/modules/tricot/lib/adapt'
-import { EMPTY_YARN, type QueuedPattern, type StashItem, type Yarn, type YarnIdea } from '@/modules/tricot/lib/yarn'
+import { EMPTY_YARN, type StashItem, type Yarn, type YarnIdea } from '@/modules/tricot/lib/yarn'
+import type { KnitPattern } from '@/modules/tricot/lib/library'
 import { DEFAULT_SETTINGS, type UserSettings } from '@/lib/settings'
 import type { AgendaEvent, CalendarSource } from '@/modules/agenda/lib/agenda'
 import { DEFAULT_RULE, type PresenceRule } from '@/modules/repas/lib/presence'
@@ -191,10 +192,10 @@ export function fakeApi(): FakeApi {
       pdfUrl: vi.fn(async (path: string) => `https://cdn.test/${path}`),
       saveProjectInfo: vi.fn(async () => undefined),
       readYarnLabel: vi.fn(async (): Promise<Yarn> => ({ ...EMPTY_YARN, brand: 'Phildar' })),
-      listQueue: vi.fn(async () => [] as QueuedPattern[]),
-      getQueued: vi.fn(async () => null as QueuedPattern | null),
-      addToQueue: vi.fn(async () => 'new-queued'),
-      deleteQueued: vi.fn(async () => undefined),
+      listPatterns: vi.fn(async () => [] as KnitPattern[]),
+      getPattern: vi.fn(async () => null as KnitPattern | null),
+      savePattern: vi.fn(async () => 'new-pattern'),
+      deletePattern: vi.fn(async () => undefined),
       getProgress: vi.fn(async (): Promise<ProjectProgress> => ({ notes: '', photos: [] })),
       saveProjectNotes: vi.fn(async () => undefined),
       addProgressPhoto: vi.fn(async () => undefined),

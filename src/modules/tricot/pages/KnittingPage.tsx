@@ -1,5 +1,4 @@
-import { ChevronRight, FilePlus2, Play, Spool } from 'lucide-react'
-import { useState } from 'react'
+import { BookOpen, ChevronRight, FilePlus2, Play, Spool } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { useApi } from '@/app/ApiContext'
 import { buttonVariants } from '@/components/ui/button'
@@ -9,11 +8,10 @@ import { PageHeader } from '@/components/PageHeader'
 import { LoadError } from '@/components/LoadError'
 import { useAsync } from '@/hooks/useAsync'
 import { cn } from '@/lib/utils'
-import { Fold } from '../components/Fold'
-import { QueueList } from '../components/QueueList'
 import { StashSection } from '../components/StashSection'
 import { MeasuresSection } from '../components/MeasuresSection'
 import type { KnitProjectSummary } from '../lib/pattern'
+import { filterPatterns, type KnitPattern } from '../lib/library'
 import { describePass } from '../lib/passes'
 
 /** « Taille M · étape 3 sur 8 : Manches », « Taille M · terminé ». */
@@ -27,19 +25,16 @@ function currentLine(c: NonNullable<KnitProjectSummary['current']>): string {
   return [`${c.rowCount}${c.totalRows !== null ? ` / ${c.totalRows}` : ''} rang${(c.totalRows ?? c.rowCount) > 1 ? 's' : ''}`, describePass(c)].filter(Boolean).join(' · ')
 }
 
-/** Module Tricot : projets en cours (un patron suivi pour une taille), stock de laine et patrons à faire plus tard. */
+/** Module Tricot : projets en cours (un patron suivi pour une taille), bibliothèque de patrons, stock de laine et mesures. */
 export function KnittingPage() {
   const api = useApi()
   const list = useAsync(() => api.knitting.listProjects(), [api])
   const projects = list.data ?? null
-  const queue = useAsync(() => api.knitting.listQueue(), [api])
-  // Patrons pour plus tard : repliés, la page reste centrée sur les projets en cours.
-  const [queueOpen, setQueueOpen] = useState(false)
-  const queueCount = queue.data?.length ?? 0
+  const patterns = useAsync(() => api.knitting.listPatterns(), [api])
 
   const newLink = (
     <Link to="/tricot/nouveau" className={cn(buttonVariants(), 'h-10 px-4')}>
-      <FilePlus2 /> Nouveau patron
+      <FilePlus2 /> Nouveau projet
     </Link>
   )
 
@@ -77,30 +72,25 @@ export function KnittingPage() {
         </ul>
       )}
 
-      <Fold
-        id="knit-queue"
-        variant="section"
-        className="mt-8"
-        title="À faire plus tard"
-        open={queueOpen}
-        onToggle={() => setQueueOpen((o) => !o)}
-        summary={queueCount > 0 ? `${queueCount} patron${queueCount > 1 ? 's' : ''}` : 'aucun'}
-      >
-        <div>
-          {queue.error ? (
-            <LoadError message={queue.error} onRetry={queue.reload} />
-          ) : !queue.data ? (
-            <Skeleton className="h-16 rounded-2xl" aria-busy="true" aria-label="Chargement des patrons en attente" />
-          ) : queue.data.length === 0 ? (
-            <p className="text-sm text-muted-foreground">Aucun patron en attente : choisis « Mettre de côté » dans « Nouveau patron ».</p>
-          ) : (
-            <QueueList items={queue.data} onChange={queue.reload} />
-          )}
-        </div>
-      </Fold>
-
-      <StashSection queue={queue.data ?? []} />
+      <LibraryLink patterns={patterns.data} />
+      <StashSection patterns={patterns.data ?? []} />
       <MeasuresSection />
     </>
+  )
+}
+
+/** Accès à la bibliothèque de patrons, avec ce qu'elle contient. */
+function LibraryLink({ patterns }: { patterns: KnitPattern[] | undefined }) {
+  const todo = patterns ? filterPatterns(patterns, '', 'todo').length : 0
+  const summary = patterns === undefined ? null : patterns.length === 0 ? 'Garde ici les patrons qui te font envie' : [`${patterns.length} patron${patterns.length > 1 ? 's' : ''}`, todo > 0 && `${todo} à faire`].filter(Boolean).join(' · ')
+  return (
+    <Link to="/tricot/patrons" className="mt-8 flex items-center gap-3 rounded-2xl border bg-background p-4 shadow-xs transition-colors hover:bg-muted/50 focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none">
+      <BookOpen className="size-5 shrink-0 text-muted-foreground" aria-hidden />
+      <span className="min-w-0 flex-1">
+        <span className="block font-medium">Bibliothèque de patrons</span>
+        {summary && <span className="block truncate text-sm text-muted-foreground">{summary}</span>}
+      </span>
+      <ChevronRight className="size-4 shrink-0 text-muted-foreground" aria-hidden />
+    </Link>
   )
 }

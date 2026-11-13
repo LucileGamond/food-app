@@ -1,6 +1,6 @@
-import { BookmarkPlus, ChevronLeft, FileText, Grid3x3, Loader2, Play, RotateCcw, Save } from 'lucide-react'
+import { FileText, Grid3x3, Loader2, RotateCcw, Save } from 'lucide-react'
 import { useEffect, useState, type FormEvent } from 'react'
-import { Link, useNavigate, useSearchParams } from 'react-router-dom'
+import { Navigate, useNavigate, useSearchParams } from 'react-router-dom'
 import { toast } from 'sonner'
 import { errorMessage } from '@/api'
 import { useApi } from '@/app/ApiContext'
@@ -8,35 +8,32 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { PageHeader } from '@/components/PageHeader'
-import { QueueForm } from '../components/QueueForm'
+import { BackLink } from '../components/BackLink'
 import { Note } from '../components/Note'
 import { SizedText, SizePicker } from '../components/SizedText'
 import { SizeAdvice } from '../components/SizeAdvice'
-import { cn } from '@/lib/utils'
 import { describeHint } from '../lib/chart'
 import { useBaseGlossary } from '../hooks/useBaseGlossary'
 import { looksEnglish, mergeGlossary } from '../lib/glossary'
 import { sizeIndexOf } from '../lib/sizes'
 import { describeSection, MAX_PDF_BYTES, stepFacts, type ReadPattern } from '../lib/pattern'
-import { formatGauge, type QueuedPattern } from '../lib/yarn'
-
-type Mode = 'start' | 'later'
+import { formatGauge } from '../lib/yarn'
+import type { KnitPattern } from '../lib/library'
 
 /**
- * Nouveau patron, à commencer maintenant ou à mettre de côté :
- * - commencer : PDF du patron (+ taille, facultative) → étapes lues par le modèle, vérifiées puis enregistrées ;
- * - mettre de côté : PDF ou lien, taille visée, laine envisagée, priorité (`?plus-tard` : ce choix d'emblée).
- * `?patron=<id>` : commence un patron mis de côté (son PDF et sa taille sont repris, rien n'est redemandé).
+ * Nouveau projet : PDF du patron (+ taille, facultative) → étapes lues par le modèle, vérifiées puis enregistrées. Le
+ * patron est rangé dans la bibliothèque.
+ * `?patron=<id>` : projet d'après un patron de la bibliothèque (son PDF et sa taille sont repris ; sans PDF, il est demandé).
+ * `?plus-tard` (ancienne adresse de « Mettre de côté ») : ajout d'un patron à la bibliothèque.
  */
 export function KnittingImportPage() {
   const api = useApi()
   const glossary = useBaseGlossary()
   const navigate = useNavigate()
   const [params] = useSearchParams()
-  const queuedId = params.get('patron')
-  const [mode, setMode] = useState<Mode>(params.has('plus-tard') && !queuedId ? 'later' : 'start')
-  const [queued, setQueued] = useState<QueuedPattern | null>(null)
-  /** Patron mis de côté : PDF repris ; « Choisir un autre PDF » le remplace. */
+  const sourceId = params.get('patron')
+  const [source, setSource] = useState<KnitPattern | null>(null)
+  /** Patron de la bibliothèque : PDF repris ; « Choisir un autre PDF » le remplace pour ce projet. */
   const [changingPdf, setChangingPdf] = useState(false)
   const [pdf, setPdf] = useState<File | null>(null)
   const [size, setSize] = useState('')
@@ -48,18 +45,19 @@ export function KnittingImportPage() {
   const [saving, setSaving] = useState(false)
 
   useEffect(() => {
-    if (!queuedId) return
+    if (!sourceId) return
     let active = true
     void (async () => {
       try {
-        const item = await api.knitting.getQueued(queuedId)
+        const item = await api.knitting.getPattern(sourceId)
         if (!active) return
-        if (!item?.pdfPath) return setError('Patron introuvable, ou sans PDF.')
-        const file = await api.knitting.downloadPdf(item.pdfPath, item.title)
-        if (!active) return
-        setQueued(item)
-        setPdf(file)
+        if (!item) return setError('Patron introuvable.')
+        setSource(item)
         setSize((current) => current || item.size || '')
+        // Sans PDF (photos ou lien seulement) : il est demandé ci-dessous.
+        if (!item.pdfPath) return setChangingPdf(true)
+        const file = await api.knitting.downloadPdf(item.pdfPath, item.title)
+        if (active) setPdf(file)
       } catch (e) {
         if (active) setError(errorMessage(e))
       }
@@ -67,7 +65,7 @@ export function KnittingImportPage() {
     return () => {
       active = false
     }
-  }, [api, queuedId])
+  }, [api, sourceId])
 
   async function read(event: FormEvent) {
     event.preventDefault()
@@ -83,7 +81,7 @@ export function KnittingImportPage() {
     try {
       const read = await api.knitting.readPattern(file, chosenSize)
       setSize(chosenSize)
-      setTitle((current) => (pattern && current.trim() && current !== pattern.title ? current : read.title))
+      setTitle((current) => (pattern && current.trim() && current !== pattern.title ? current : (source?.title ?? read.title)))
       setPattern(read)
       setSizeIndex(read.sizeIndex ?? sizeIndexOf(read.sizes, chosenSize))
     } catch (e) {
@@ -103,7 +101,7 @@ export function KnittingImportPage() {
     if (!pattern) return
     setSaving(true)
     try {
-      const id = await api.knitting.createProject({ title: title.trim() || pattern.title, size: readSize(pattern), pdf, steps: pattern.steps, gauge: pattern.gauge ?? null, queued, chartHints: pattern.charts ?? [], sizes: pattern.sizes, sizeIndex, abbreviations: pattern.abbreviations ?? [], needles: pattern.needles ?? [] })
+      const id = await api.knitting.createProject({ title: title.trim() || pattern.title, size: readSize(pattern), pdf, steps: pattern.steps, gauge: pattern.gauge ?? null, pattern: source && { id: source.id, pdfPath: changingPdf ? null : source.pdfPath }, chartHints: pattern.charts ?? [], sizes: pattern.sizes, sizeIndex, abbreviations: pattern.abbreviations ?? [], needles: pattern.needles ?? [] })
       toast.success('Projet enregistré')
       navigate(`/tricot/${id}`)
     } catch (e) {
@@ -185,8 +183,10 @@ export function KnittingImportPage() {
     )
   }
 
-  // Patron mis de côté : son PDF est repris, il n'y a rien à choisir.
-  const fromQueue = queuedId !== null
+  if (params.has('plus-tard') && !sourceId) return <Navigate to="/tricot/patrons/nouveau" replace />
+
+  // Patron de la bibliothèque : son PDF est repris, il n'y a rien à choisir.
+  const fromLibrary = sourceId !== null
   const pdfField = (
     <div className="grid gap-1.5">
       <Label htmlFor="knit-pdf">Patron (PDF)</Label>
@@ -195,11 +195,7 @@ export function KnittingImportPage() {
         type="file"
         accept="application/pdf,.pdf"
         className="h-10"
-        onChange={(e) => {
-          setPdf(e.target.files?.[0] ?? null)
-          // Autre PDF choisi : ce n'est plus le patron mis de côté.
-          setQueued(null)
-        }}
+        onChange={(e) => setPdf(e.target.files?.[0] ?? null)}
       />
       {pdf && (
         <p className="flex items-center gap-1.5 text-sm text-muted-foreground">
@@ -208,7 +204,7 @@ export function KnittingImportPage() {
       )}
     </div>
   )
-  const queuedPdf = (
+  const libraryPdf = (
     <div className="grid gap-1.5 text-sm">
       <p className="font-medium">Patron (PDF)</p>
       {pdf ? (
@@ -216,14 +212,18 @@ export function KnittingImportPage() {
           <span className="flex items-center gap-1.5">
             <FileText className="size-4" aria-hidden /> {pdf.name}
           </span>
-          <button type="button" className="font-medium text-brand underline-offset-4 hover:underline" onClick={() => setChangingPdf(true)}>
+          <button type="button" className="font-medium text-brand underline-offset-4 hover:underline" onClick={() => {
+              setChangingPdf(true)
+              setPdf(null)
+            }}
+          >
             Choisir un autre PDF
           </button>
         </p>
       ) : (
         !error && (
           <p className="flex items-center gap-1.5 text-muted-foreground">
-            <Loader2 className="size-4 animate-spin" aria-hidden /> Récupération du PDF mis de côté…
+            <Loader2 className="size-4 animate-spin" aria-hidden /> Récupération du PDF du patron…
           </p>
         )
       )}
@@ -232,65 +232,31 @@ export function KnittingImportPage() {
 
   return (
     <>
-      <Link to="/tricot" className="mb-2 inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
-        <ChevronLeft className="size-4" aria-hidden /> Tricot
-      </Link>
+      <BackLink to={fromLibrary ? `/tricot/patrons/${sourceId}` : '/tricot'}>{fromLibrary ? 'Patron' : 'Tricot'}</BackLink>
       <PageHeader
-        title={fromQueue ? `Commencer « ${queued?.title ?? '…'} »` : 'Nouveau patron'}
-        description={
-          mode === 'later'
-            ? 'Garde-le ici ; « Commencer » le découpera en étapes le moment venu.'
-            : 'Le patron est découpé en étapes ; son texte est gardé tel quel, avec les nombres de ta taille mis en valeur.'
-        }
+        title={fromLibrary ? `Commencer « ${source?.title ?? '…'} »` : 'Nouveau projet'}
+        description="Le patron est découpé en étapes ; son texte est gardé tel quel, avec les nombres de ta taille mis en valeur."
       />
-      {!fromQueue && (
-        <div role="radiogroup" aria-label="Que faire de ce patron ?" className="mb-4 grid max-w-lg grid-cols-2 gap-2">
-          {(
-            [
-              { value: 'start', label: 'Commencer maintenant', icon: Play },
-              { value: 'later', label: 'Mettre de côté', icon: BookmarkPlus },
-            ] as const
-          ).map((option) => (
-            <button
-              key={option.value}
-              type="button"
-              role="radio"
-              aria-checked={mode === option.value}
-              onClick={() => setMode(option.value)}
-              className={cn(
-                'flex h-11 items-center justify-center gap-2 rounded-xl border text-sm font-medium focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none',
-                mode === option.value ? 'border-brand bg-brand/10 text-foreground' : 'bg-background text-muted-foreground hover:bg-muted/50',
-              )}
-            >
-              <option.icon className="size-4" aria-hidden /> {option.label}
-            </button>
-          ))}
+      <form onSubmit={(e) => void read(e)} className="max-w-lg space-y-4" noValidate>
+        {fromLibrary && !changingPdf ? libraryPdf : pdfField}
+        <div className="grid gap-1.5">
+          <Label htmlFor="knit-size">Taille</Label>
+          <Input id="knit-size" className="h-10 w-40" value={size} onChange={(e) => setSize(e.target.value)} maxLength={40} placeholder="M, 38, 4 ans…" aria-describedby="knit-size-hint" />
+          <p id="knit-size-hint" className="text-xs text-muted-foreground">
+            Facultatif : sans taille, les rangs et mailles comptés sont ceux de la première taille du patron. Tu pourras changer la taille mise en valeur.
+          </p>
         </div>
-      )}
-      {mode === 'later' ? (
-        <QueueForm pdf={pdf} onPdf={setPdf} size={size} onSize={setSize} />
-      ) : (
-        <form onSubmit={(e) => void read(e)} className="max-w-lg space-y-4" noValidate>
-          {fromQueue && !changingPdf ? queuedPdf : pdfField}
-          <div className="grid gap-1.5">
-            <Label htmlFor="knit-size">Taille</Label>
-            <Input id="knit-size" className="h-10 w-40" value={size} onChange={(e) => setSize(e.target.value)} maxLength={40} placeholder="M, 38, 4 ans…" aria-describedby="knit-size-hint" />
-            <p id="knit-size-hint" className="text-xs text-muted-foreground">
-              Facultatif : sans taille, les rangs et mailles comptés sont ceux de la première taille du patron. Tu pourras changer la taille mise en valeur.
-            </p>
-          </div>
-          {error && (
-            <p role="alert" className="text-sm text-destructive">
-              {error}
-            </p>
-          )}
-          <Button type="submit" className="h-10" disabled={reading || (fromQueue && !pdf)}>
-            {reading && <Loader2 className="animate-spin" aria-hidden />}
-            {reading ? 'Lecture du patron…' : 'Lire le patron'}
-          </Button>
-          {reading && <p className="text-sm text-muted-foreground">Ça peut prendre jusqu’à 2 minutes pour un long patron.</p>}
-        </form>
-      )}
+        {error && (
+          <p role="alert" className="text-sm text-destructive">
+            {error}
+          </p>
+        )}
+        <Button type="submit" className="h-10" disabled={reading || (fromLibrary && !pdf)}>
+          {reading && <Loader2 className="animate-spin" aria-hidden />}
+          {reading ? 'Lecture du patron…' : 'Lire le patron'}
+        </Button>
+        {reading && <p className="text-sm text-muted-foreground">Ça peut prendre jusqu’à 2 minutes pour un long patron.</p>}
+      </form>
     </>
   )
 }

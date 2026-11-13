@@ -1,5 +1,6 @@
 import { createKnittingApi, fileToBase64 } from '@/modules/tricot/api'
 import type { PatternStep } from '@/modules/tricot/lib/pattern'
+import type { PatternFields, PatternFiles } from '@/modules/tricot/lib/library'
 import { ERIC, LUCILE, anonClient, resetData, signedInApi } from './helpers'
 
 beforeEach(async () => {
@@ -52,8 +53,13 @@ describe('knitting api', () => {
     const url = await api.knitting.pdfUrl(project.pdfPath!)
     expect(await (await fetch(url)).text()).toContain('%PDF-1.4')
 
+    // Projet supprimé : son patron reste dans la bibliothèque, avec le PDF ; supprimé à son tour, le PDF part avec lui.
     await api.knitting.deleteProject(project)
     expect(await api.knitting.listProjects()).toEqual([])
+    const [kept] = await api.knitting.listPatterns()
+    expect([kept!.title, kept!.pdfPath, kept!.projects]).toEqual(['Pull Bergamote', project.pdfPath, []])
+    expect(await (await fetch(await api.knitting.pdfUrl(project.pdfPath!))).text()).toContain('%PDF-1.4')
+    await api.knitting.deletePattern(kept!)
     await expect(api.knitting.pdfUrl(project.pdfPath!)).rejects.toThrow('Impossible d’ouvrir le PDF.')
   })
 
@@ -168,7 +174,7 @@ describe('knitting api', () => {
     await expect(anon.listProjects()).rejects.toThrow()
     await expect(anon.getProject('00000000-0000-0000-0000-000000000000')).rejects.toThrow()
     await expect(anon.saveProgress('00000000-0000-0000-0000-000000000000', { rowCount: 1 })).rejects.toThrow()
-    await expect(anon.deleteProject({ id: '00000000-0000-0000-0000-000000000000', pdfPath: null })).rejects.toThrow()
+    await expect(anon.deleteProject({ id: '00000000-0000-0000-0000-000000000000' })).rejects.toThrow()
     await expect(createKnittingApi(anonClient()).createProject({ title: 'Pull', size: 'M', pdf: null, steps: STEPS })).rejects.toThrow()
     await expect(createKnittingApi(anonClient()).createProject({ title: 'Pull', size: 'M', pdf: pdf(), steps: STEPS })).rejects.toThrow('Reconnecte-toi')
   })
@@ -187,7 +193,7 @@ describe('knitting api', () => {
 
     // Projet sans PDF : suppression sans fichier à retirer
     const id = await api.knitting.createProject({ title: 'Écharpe', size: 'Unique', pdf: null, steps: STEPS })
-    await api.knitting.deleteProject({ id, pdfPath: null })
+    await api.knitting.deleteProject({ id })
     expect(await api.knitting.listProjects()).toEqual([])
   })
 
@@ -198,7 +204,7 @@ describe('knitting api', () => {
   })
 })
 
-describe('laine, échantillon et patrons en attente', () => {
+describe('laine et échantillon', () => {
   it('enregistre la laine et les échantillons du projet', async () => {
     const { api } = await signedInApi()
     const id = await api.knitting.createProject({ title: 'Pull', size: 'M', pdf: null, steps: STEPS, gauge: { stitches: 22, rows: null } })
@@ -215,61 +221,108 @@ describe('laine, échantillon et patrons en attente', () => {
     await expect(api.knitting.saveProjectInfo(id, { yarns: [{ ...yarn, skeins: -2 }], patternGauge: project.patternGauge, myGauge: project.myGauge })).rejects.toThrow()
   })
 
-  it('met un patron de côté, le commence (PDF repris) et le retire de la liste', async () => {
+})
+
+describe('bibliothèque de patrons', () => {
+  const FIELDS: PatternFields = { title: 'Gilet', url: null, size: 'M', yarnIdea: 'Mérinos', notes: '', metersNeeded: 600, needleMm: 4, wish: 1 }
+  const NO_FILES: PatternFiles = { pdfPath: null, newPdf: null, photos: [], newPhotos: [] }
+  const jpeg = () => new Blob(['\xff\xd8\xff photo'], { type: 'image/jpeg' })
+
+  it('range chaque nouveau projet dans la bibliothèque ; un patron sert à plusieurs projets', async () => {
+    const { api } = await signedInApi()
+    const first = await api.knitting.createProject({ title: 'Pull Bergamote', size: 'M', pdf: pdf(), steps: STEPS })
+    const [library] = await api.knitting.listPatterns()
+    expect(library).toMatchObject({ title: 'Pull Bergamote', size: 'M', wish: null, projects: [{ id: first, title: 'Pull Bergamote', size: 'M' }] })
+
+    // Deuxième projet du même patron (autre taille) : le PDF est repris, rien n'est renvoyé.
+    const second = await api.knitting.createProject({ title: 'Pull pour Eric', size: 'L', pdf: null, steps: STEPS, pattern: { id: library!.id, pdfPath: library!.pdfPath } })
+    expect((await api.knitting.getProject(second))!.pdfPath).toBe(library!.pdfPath)
+    const patterns = await api.knitting.listPatterns()
+    expect(patterns).toHaveLength(1)
+    expect(patterns[0]!.projects.map((p) => p.id).toSorted()).toEqual([first, second].toSorted())
+  })
+
+  it('ajoute un patron en PDF, photos et lien, le commence (PDF repris), le modifie puis le supprime', async () => {
     const { api } = await signedInApi()
     const eric = await signedInApi(ERIC.email)
-    const queuedId = await api.knitting.addToQueue({ title: 'Gilet', pdf: pdf(), url: null, size: 'M', yarnIdea: 'Mérinos', notes: '', priority: 1, metersNeeded: 600, needleMm: 4 })
-    await api.knitting.addToQueue({ title: 'Bonnet', pdf: null, url: 'https://patrons.exemple/bonnet', size: null, yarnIdea: '', notes: 'Pour Eric', priority: 3, metersNeeded: null, needleMm: null })
+    const id = await api.knitting.savePattern({ ...FIELDS, url: 'https://patrons.exemple/gilet' }, { ...NO_FILES, newPdf: pdf(), newPhotos: [jpeg(), jpeg()] }, null)
+    await api.knitting.savePattern({ ...FIELDS, title: 'Bonnet', url: 'https://patrons.exemple/bonnet', size: null, wish: 3, metersNeeded: null, needleMm: null }, NO_FILES, null)
 
-    const queue = await api.knitting.listQueue()
-    expect(queue.map((q) => [q.title, q.size, q.priority, q.url])).toEqual([
-      ['Gilet', 'M', 1, null],
-      ['Bonnet', null, 3, 'https://patrons.exemple/bonnet'],
+    expect((await api.knitting.listPatterns()).map((p) => [p.title, p.wish, p.url, p.photos.length, p.pdfPath !== null]).toSorted()).toEqual([
+      ['Bonnet', 3, 'https://patrons.exemple/bonnet', 0, false],
+      ['Gilet', 1, 'https://patrons.exemple/gilet', 2, true],
     ])
-    expect(await eric.api.knitting.listQueue()).toEqual([])
+    expect(await eric.api.knitting.listPatterns()).toEqual([])
+    expect(await eric.api.knitting.getPattern(id)).toBeNull()
 
-    const queued = (await api.knitting.getQueued(queuedId))!
-    const file = await api.knitting.downloadPdf(queued.pdfPath!, queued.title)
+    const gilet = (await api.knitting.getPattern(id))!
+    const urls = await api.knitting.progressPhotoUrls(gilet.photos)
+    expect(Object.keys(urls).toSorted()).toEqual(gilet.photos.toSorted())
+    const file = await api.knitting.downloadPdf(gilet.pdfPath!, gilet.title)
     expect(await file.text()).toContain('%PDF-1.4')
 
-    const id = await api.knitting.createProject({ title: 'Gilet', size: 'M', pdf: file, steps: STEPS, queued })
-    expect((await api.knitting.getProject(id))!.pdfPath).toBe(queued.pdfPath)
-    expect((await api.knitting.listQueue()).map((q) => q.title)).toEqual(['Bonnet'])
+    // Commencé : relié au projet, il reste dans la bibliothèque et n'est plus une envie.
+    const project = await api.knitting.createProject({ title: 'Gilet', size: 'M', pdf: file, steps: STEPS, pattern: { id, pdfPath: gilet.pdfPath } })
+    expect((await api.knitting.getProject(project))!.pdfPath).toBe(gilet.pdfPath)
+    const started = (await api.knitting.getPattern(id))!
+    expect([started.wish, started.projects.map((p) => p.id)]).toEqual([null, [project]])
 
-    const bonnet = (await api.knitting.listQueue())[0]!
-    await api.knitting.deleteQueued(bonnet)
-    expect(await api.knitting.listQueue()).toEqual([])
-    expect(await api.knitting.getQueued(bonnet.id)).toBeNull()
+    // Modifié : une photo retirée (fichier supprimé), une ajoutée ; le PDF, lu par le projet, est gardé.
+    const [removed, keptPhoto] = started.photos
+    await api.knitting.savePattern({ ...FIELDS, notes: 'Col en V', wish: null }, { pdfPath: null, newPdf: null, photos: [keptPhoto!], newPhotos: [jpeg()] }, started)
+    const edited = (await api.knitting.getPattern(id))!
+    expect([edited.notes, edited.photos.length, edited.photos[0], edited.pdfPath]).toEqual(['Col en V', 2, keptPhoto, null])
+    expect(await api.knitting.progressPhotoUrls([removed!])).toEqual({})
+    expect(await (await fetch(await api.knitting.pdfUrl(started.pdfPath!))).text()).toContain('%PDF-1.4')
 
-    // Patron retiré avec son PDF : le fichier part avec lui
-    const coatId = await api.knitting.addToQueue({ title: 'Manteau', pdf: pdf(), url: null, size: null, yarnIdea: '', notes: '', priority: 2, metersNeeded: null, needleMm: null })
-    const coat = (await api.knitting.getQueued(coatId))!
-    await api.knitting.deleteQueued(coat)
-    expect(await api.knitting.listQueue()).toEqual([])
+    // Supprimé : son projet reste, avec son PDF ; ses photos partent.
+    await api.knitting.deletePattern(edited)
+    expect(await api.knitting.getPattern(id)).toBeNull()
+    expect((await api.knitting.getProject(project))!.pdfPath).toBe(started.pdfPath)
+    expect(await api.knitting.progressPhotoUrls(edited.photos)).toEqual({})
+  })
+
+  it('patron sans projet supprimé : son PDF part avec lui', async () => {
+    const { api } = await signedInApi()
+    const id = await api.knitting.savePattern(FIELDS, { ...NO_FILES, newPdf: pdf() }, null)
+    const coat = (await api.knitting.getPattern(id))!
+    await api.knitting.deletePattern(coat)
     await expect(api.knitting.downloadPdf(coat.pdfPath!, coat.title)).rejects.toThrow()
   })
 })
 
-describe('patrons en attente : erreurs', () => {
+describe('bibliothèque de patrons : erreurs', () => {
   it('refuse sans connexion, et n’enregistre rien d’invalide', async () => {
     const anon = createKnittingApi(anonClient())
-    await expect(anon.listQueue()).rejects.toThrow()
-    await expect(anon.getQueued(crypto.randomUUID())).rejects.toThrow()
-    await expect(anon.addToQueue({ title: 'Gilet', pdf: pdf(), url: null, size: null, yarnIdea: '', notes: '', priority: 2, metersNeeded: null, needleMm: null })).rejects.toThrow('Reconnecte-toi')
-    await expect(anon.deleteQueued({ id: crypto.randomUUID(), pdfPath: null })).rejects.toThrow()
+    const fields: PatternFields = { title: 'Gilet', url: null, size: null, yarnIdea: '', notes: '', metersNeeded: null, needleMm: null, wish: 2 }
+    await expect(anon.listPatterns()).rejects.toThrow()
+    await expect(anon.getPattern(crypto.randomUUID())).rejects.toThrow()
+    await expect(anon.savePattern(fields, { pdfPath: null, newPdf: pdf(), photos: [], newPhotos: [] }, null)).rejects.toThrow('Reconnecte-toi')
+    await expect(anon.deletePattern({ id: crypto.randomUUID(), pdfPath: null, photos: [], projects: [] })).rejects.toThrow()
     await expect(anon.downloadPdf('perdu/perdu.pdf', 'Perdu')).rejects.toThrow('Impossible de récupérer le PDF du patron.')
-    await expect(anon.saveProjectInfo(crypto.randomUUID(), { yarns: [], patternGauge: { stitches: null, rows: null }, myGauge: { stitches: null, rows: null } })).rejects.toThrow()
 
-    const { api } = await signedInApi()
-    // Priorité hors bornes : refusé, et le PDF déjà envoyé est retiré.
-    await expect(api.knitting.addToQueue({ title: 'Gilet', pdf: pdf(), url: null, size: null, yarnIdea: '', notes: '', priority: 9 as 1, metersNeeded: null, needleMm: null })).rejects.toThrow()
-    expect(await api.knitting.listQueue()).toEqual([])
-    // Lien invalide, sans PDF : refusé.
-    await expect(api.knitting.addToQueue({ title: 'Gilet', pdf: null, url: 'ftp://patrons', size: null, yarnIdea: '', notes: '', priority: 2, metersNeeded: null, needleMm: null })).rejects.toThrow()
-    // Lecture par le modèle impossible ici (pas de clé) : erreur lisible.
-    await expect(api.knitting.readPattern(pdf(), 'M')).rejects.toThrow()
+    const { api, db } = await signedInApi()
+    const { data: session } = await db.auth.getSession()
+    const folder = session.session!.user.id
+    // Envie hors bornes : refusé, et les fichiers déjà envoyés sont retirés.
+    await expect(
+      api.knitting.savePattern({ ...fields, wish: 9 as 1 }, { pdfPath: null, newPdf: pdf(), photos: [], newPhotos: [new Blob(['photo'], { type: 'image/jpeg' })] }, null),
+    ).rejects.toThrow()
+    expect(await api.knitting.listPatterns()).toEqual([])
+    expect((await db.storage.from('knit-patterns').list(folder)).data ?? []).toEqual([])
+    expect((await db.storage.from('knit-photos').list(folder)).data ?? []).toEqual([])
+    // Lien invalide : refusé.
+    await expect(api.knitting.savePattern({ ...fields, url: 'ftp://patrons' }, { pdfPath: null, newPdf: null, photos: [], newPhotos: [] }, null)).rejects.toThrow()
+    // Photo d'une autre personne : refusée.
+    await expect(api.knitting.savePattern(fields, { pdfPath: null, newPdf: null, photos: [`${crypto.randomUUID()}/${crypto.randomUUID()}.jpg`], newPhotos: [] }, null)).rejects.toThrow()
+    // Projet depuis le patron d'une autre : refusé.
+    const eric = await signedInApi(ERIC.email)
+    const ericPattern = await eric.api.knitting.savePattern(fields, { pdfPath: null, newPdf: null, photos: [], newPhotos: [] }, null)
+    await expect(api.knitting.createProject({ title: 'Pull', size: 'M', pdf: null, steps: STEPS, pattern: { id: ericPattern, pdfPath: null } })).rejects.toThrow()
+    expect(await api.knitting.listProjects()).toEqual([])
     // Projet refusé (aucune étape) : le PDF envoyé est retiré aussi.
     await expect(api.knitting.createProject({ title: 'Pull', size: 'M', pdf: pdf(), steps: [] })).rejects.toThrow()
+    expect(await api.knitting.listPatterns()).toEqual([])
   })
 })
 

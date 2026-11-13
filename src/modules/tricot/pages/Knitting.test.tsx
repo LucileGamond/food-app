@@ -4,7 +4,8 @@ import { Route } from 'react-router-dom'
 import { fakeApi, renderWithApp } from '@/test/fakes'
 import { AppError } from '@/api'
 import type { KnitProject, KnitStep, ReadPattern } from '../lib/pattern'
-import { EMPTY_YARN, type QueuedPattern, type StashItem } from '../lib/yarn'
+import { EMPTY_YARN, type StashItem } from '../lib/yarn'
+import type { KnitPattern } from '../lib/library'
 import { KnittingImportPage } from './KnittingImportPage'
 import { KnittingPage } from './KnittingPage'
 import { KnittingProjectPage } from './KnittingProjectPage'
@@ -91,10 +92,14 @@ describe('KnittingPage', () => {
     expect(within(list).getByText('1 rang')).toBeInTheDocument()
   })
 
-  it('range « À faire plus tard » juste sous les projets', async () => {
+  it('range la bibliothèque juste sous les projets, puis le stock et les mesures', async () => {
     renderWithApp(<KnittingPage />, { api: fakeApi() })
-    const titles = (await screen.findAllByRole('heading', { level: 2 })).map((h) => h.textContent)
-    expect(titles.indexOf('À faire plus tard')).toBeLessThan(titles.indexOf('Stock de laine'))
+    const library = await screen.findByRole('link', { name: /Bibliothèque de patrons/ })
+    expect(library).toHaveAttribute('href', '/tricot/patrons')
+    const headings = await screen.findAllByRole('heading', { level: 2 })
+    const stock = headings.find((h) => h.textContent === 'Stock de laine')!
+    expect(library.compareDocumentPosition(stock) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    const titles = headings.map((h) => h.textContent)
     expect(titles.indexOf('Stock de laine')).toBeLessThan(titles.indexOf('Fiches de mesures'))
   })
 
@@ -106,7 +111,7 @@ describe('KnittingPage', () => {
     expect(await screen.findByRole('alert')).toHaveTextContent('Une erreur est survenue.')
     await user.click(screen.getByRole('button', { name: 'Réessayer' }))
     expect(await screen.findByText('Aucun projet')).toBeInTheDocument()
-    expect(screen.getAllByRole('link', { name: 'Nouveau patron' })[0]).toHaveAttribute('href', '/tricot/nouveau')
+    expect(screen.getAllByRole('link', { name: 'Nouveau projet' })[0]).toHaveAttribute('href', '/tricot/nouveau')
   })
 })
 
@@ -156,7 +161,7 @@ describe('KnittingImportPage', () => {
     await user.clear(screen.getByLabelText('Nom du projet'))
     await user.type(screen.getByLabelText('Nom du projet'), 'Pull de Noël')
     await user.click(screen.getByRole('button', { name: 'Enregistrer le projet' }))
-    expect(api.knitting.createProject).toHaveBeenCalledWith({ title: 'Pull de Noël', size: 'M', pdf: file, steps: PATTERN.steps, gauge: { stitches: 22, rows: 30 }, queued: null, chartHints: charts, sizes: ['S', 'M', 'L'], sizeIndex: 1, abbreviations: [], needles: [] })
+    expect(api.knitting.createProject).toHaveBeenCalledWith({ title: 'Pull de Noël', size: 'M', pdf: file, steps: PATTERN.steps, gauge: { stitches: 22, rows: 30 }, pattern: null, chartHints: charts, sizes: ['S', 'M', 'L'], sizeIndex: 1, abbreviations: [], needles: [] })
     expect(await screen.findByText('Projet ouvert')).toBeInTheDocument()
   })
 
@@ -1035,101 +1040,27 @@ describe('laine et échantillon du projet', () => {
   })
 })
 
-describe('patrons à faire plus tard', () => {
-  const QUEUED: QueuedPattern = {
+describe('projet d’après un patron de la bibliothèque', () => {
+  const GILET: KnitPattern = {
     id: 'q1',
     title: 'Gilet Rosée',
     pdfPath: 'u-lucile/gilet.pdf',
+    photos: [],
     url: null,
     size: 'M',
     yarnIdea: 'Restes de mérinos',
     notes: 'Pour l’hiver',
-    priority: 1,
-    createdAt: '2026-11-01T10:00:00Z',
     metersNeeded: null,
     needleMm: null,
+    wish: 1,
+    createdAt: '2026-11-01T10:00:00Z',
+    projects: [],
   }
 
-  it('liste les patrons en attente, les ouvre et les retire', async () => {
+  it('reprend le PDF et la taille du patron, puis crée le projet relié au patron', async () => {
     const user = userEvent.setup()
     const api = fakeApi()
-    api.knitting.listQueue.mockResolvedValue([{ ...QUEUED, id: 'q2', title: 'Bonnet', pdfPath: null, url: 'https://patrons.exemple/bonnet', priority: 3, size: null, yarnIdea: '', notes: '' }, QUEUED])
-    renderWithApp(<KnittingPage />, { api })
-    // Repliée par défaut, avec le nombre de patrons
-    const toggle = await screen.findByRole('button', { name: 'À faire plus tard' })
-    expect(toggle).toHaveAttribute('aria-expanded', 'false')
-    expect(await screen.findByText('2 patrons')).toBeInTheDocument()
-    expect(screen.queryByRole('list', { name: 'Patrons à faire plus tard' })).not.toBeInTheDocument()
-    await user.click(toggle)
-    const list = await screen.findByRole('list', { name: 'Patrons à faire plus tard' })
-    const items = within(list).getAllByRole('listitem')
-    expect(items.map((i) => i.querySelector('p')?.textContent)).toEqual(['Gilet Rosée', 'Bonnet'])
-    expect(items[0]).toHaveTextContent('Bientôt · taille M · Restes de mérinos')
-    expect(within(items[0]!).getByRole('link', { name: 'Commencer Gilet Rosée' })).toHaveAttribute('href', '/tricot/nouveau?patron=q1')
-    expect(within(items[1]!).getByRole('link', { name: 'Lien' })).toHaveAttribute('href', 'https://patrons.exemple/bonnet')
-    expect(within(items[1]!).queryByRole('link', { name: /Commencer/ })).not.toBeInTheDocument()
-
-    const tab = { location: { href: '' }, close: vi.fn() }
-    const open = vi.spyOn(window, 'open').mockReturnValue(tab as unknown as Window)
-    await user.click(within(items[0]!).getByRole('button', { name: 'PDF' }))
-    await waitFor(() => expect(tab.location.href).toBe('https://cdn.test/u-lucile/gilet.pdf'))
-    open.mockRestore()
-
-    await user.click(within(items[0]!).getByRole('button', { name: 'Supprimer Gilet Rosée' }))
-    await user.click(within(await screen.findByRole('alertdialog')).getByRole('button', { name: 'Supprimer' }))
-    await waitFor(() => expect(api.knitting.deleteQueued).toHaveBeenCalledWith(QUEUED))
-    expect(api.knitting.listQueue).toHaveBeenCalledTimes(2)
-  })
-
-  it('invite à mettre un patron de côté depuis « Nouveau patron »', async () => {
-    renderWithApp(<KnittingPage />)
-    expect(await screen.findByText(/Aucun patron en attente : choisis « Mettre de côté »/)).toBeInTheDocument()
-    expect(screen.getAllByRole('link', { name: 'Nouveau patron' })[0]).toHaveAttribute('href', '/tricot/nouveau')
-  })
-
-  it('met un patron de côté, avec son PDF', async () => {
-    const user = userEvent.setup()
-    const api = fakeApi()
-    renderWithApp(<KnittingImportPage />, { api, route: '/tricot/nouveau', path: '/tricot/nouveau', extraRoutes: <Route path="/tricot" element={<p>Tricot</p>} /> })
-    // PDF et taille choisis d'abord pour « Commencer maintenant » : repris en changeant d'avis
-    const pdf = new File(['%PDF'], 'Gilet Rosée.pdf', { type: 'application/pdf' })
-    await user.upload(screen.getByLabelText('Patron (PDF)'), pdf)
-    await user.type(screen.getByLabelText('Taille', { selector: 'input' }), 'M')
-    expect(screen.getByRole('radio', { name: 'Commencer maintenant' })).toBeChecked()
-    await user.click(screen.getByRole('radio', { name: 'Mettre de côté' }))
-    expect(screen.getByRole('radio', { name: 'Mettre de côté' })).toBeChecked()
-    expect(screen.getByLabelText('Nom du patron')).toHaveValue('Gilet Rosée')
-    expect(screen.getByLabelText('Taille', { selector: 'input' })).toHaveValue('M')
-    await user.clear(screen.getByLabelText('Nom du patron'))
-    await user.click(screen.getByRole('button', { name: 'Mettre de côté' }))
-    expect(screen.getByRole('alert')).toHaveTextContent('Donne un nom au patron.')
-    await user.type(screen.getByLabelText('Nom du patron'), 'Gilet Rosée')
-    await user.selectOptions(screen.getByLabelText('Quand'), 'Bientôt')
-    await user.type(screen.getByLabelText('Laine envisagée'), 'Mérinos')
-    await user.type(screen.getByLabelText('Métrage nécessaire (m)'), '600')
-    await user.type(screen.getByLabelText('Aiguilles (mm)'), '4')
-    await user.click(screen.getByRole('button', { name: 'Mettre de côté' }))
-    expect(api.knitting.addToQueue).toHaveBeenCalledWith({ title: 'Gilet Rosée', pdf, url: null, size: 'M', yarnIdea: 'Mérinos', notes: '', priority: 1, metersNeeded: 600, needleMm: 4 })
-    expect(await screen.findByText('Tricot')).toBeInTheDocument()
-  }, 30_000)
-
-  it('signale un enregistrement impossible', async () => {
-    const user = userEvent.setup()
-    const api = fakeApi()
-    api.knitting.addToQueue.mockRejectedValue(new AppError('Impossible d’envoyer le PDF.'))
-    // Ancienne adresse et `?plus-tard` : « Mettre de côté » d'emblée
-    renderWithApp(<KnittingImportPage />, { api, route: '/tricot/nouveau?plus-tard', path: '/tricot/nouveau' })
-    expect(screen.getByRole('radio', { name: 'Mettre de côté' })).toBeChecked()
-    await user.type(screen.getByLabelText('Nom du patron'), 'Bonnet')
-    await user.type(screen.getByLabelText('Ou lien vers le patron'), 'https://patrons.exemple/bonnet')
-    await user.click(screen.getByRole('button', { name: 'Mettre de côté' }))
-    expect(await screen.findByRole('alert')).toHaveTextContent('Impossible d’envoyer le PDF.')
-  })
-
-  it('commence un patron mis de côté : PDF et taille repris, puis projet créé', async () => {
-    const user = userEvent.setup()
-    const api = fakeApi()
-    api.knitting.getQueued.mockResolvedValue(QUEUED)
+    api.knitting.getPattern.mockResolvedValue(GILET)
     api.knitting.readPattern.mockResolvedValue(PATTERN)
     renderWithApp(<KnittingImportPage />, {
       api,
@@ -1138,16 +1069,22 @@ describe('patrons à faire plus tard', () => {
       extraRoutes: <Route path="/tricot/:id" element={<p>Projet ouvert</p>} />,
     })
     expect(await screen.findByRole('heading', { name: 'Commencer « Gilet Rosée »' })).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Patron' })).toHaveAttribute('href', '/tricot/patrons/q1')
     expect(api.knitting.downloadPdf).toHaveBeenCalledWith('u-lucile/gilet.pdf', 'Gilet Rosée')
     expect(screen.getByLabelText('Taille', { selector: 'input' })).toHaveValue('M')
-    // PDF repris : rien à choisir, ni « Mettre de côté »
+    // PDF repris : rien à choisir
     expect(await screen.findByText('Gilet Rosée.pdf')).toBeInTheDocument()
     expect(screen.queryByLabelText('Patron (PDF)')).not.toBeInTheDocument()
-    expect(screen.queryByRole('radiogroup')).not.toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: 'Lire le patron' }))
     expect(await screen.findByText(/échantillon 22 m\. × 30 rangs pour 10 cm/)).toBeInTheDocument()
+    // Le projet prend le nom du patron, pas celui lu dans le PDF
+    expect(screen.getByLabelText('Nom du projet')).toHaveValue('Gilet Rosée')
     await user.click(screen.getByRole('button', { name: 'Enregistrer le projet' }))
-    await waitFor(() => expect(api.knitting.createProject).toHaveBeenCalledWith(expect.objectContaining({ queued: QUEUED, gauge: { stitches: 22, rows: 30 } })))
+    await waitFor(() =>
+      expect(api.knitting.createProject).toHaveBeenCalledWith(
+        expect.objectContaining({ title: 'Gilet Rosée', pattern: { id: 'q1', pdfPath: 'u-lucile/gilet.pdf' }, gauge: { stitches: 22, rows: 30 } }),
+      ),
+    )
   })
 
   it('lit un patron sans taille : la première taille du patron est prise', async () => {
@@ -1164,40 +1101,65 @@ describe('patrons à faire plus tard', () => {
     expect(api.knitting.createProject).toHaveBeenCalledWith(expect.objectContaining({ size: 'S', sizeIndex: 0 }))
   })
 
-  it('patron mis de côté : un autre PDF peut le remplacer', async () => {
+  it('un autre PDF peut remplacer celui du patron, pour ce projet', async () => {
     const user = userEvent.setup()
     const api = fakeApi()
-    api.knitting.getQueued.mockResolvedValue(QUEUED)
-    renderWithApp(<KnittingImportPage />, { api, route: '/tricot/nouveau?patron=q1', path: '/tricot/nouveau' })
+    api.knitting.getPattern.mockResolvedValue(GILET)
+    api.knitting.readPattern.mockResolvedValue(PATTERN)
+    renderWithApp(<KnittingImportPage />, { api, route: '/tricot/nouveau?patron=q1', path: '/tricot/nouveau', extraRoutes: <Route path="/tricot/:id" element={<p>Projet ouvert</p>} /> })
     await user.click(await screen.findByRole('button', { name: 'Choisir un autre PDF' }))
+    // Rien à lire tant qu'un autre PDF n'est pas choisi
+    expect(screen.getByRole('button', { name: 'Lire le patron' })).toBeDisabled()
     const other = new File(['%PDF-1.4'], 'autre.pdf', { type: 'application/pdf' })
     await user.upload(screen.getByLabelText('Patron (PDF)'), other)
     await user.click(screen.getByRole('button', { name: 'Lire le patron' }))
     expect(api.knitting.readPattern).toHaveBeenCalledWith(other, 'M')
+    await user.click(await screen.findByRole('button', { name: 'Enregistrer le projet' }))
+    await waitFor(() => expect(api.knitting.createProject).toHaveBeenCalledWith(expect.objectContaining({ pdf: other, pattern: { id: 'q1', pdfPath: null } })))
   })
 
-  it('patron mis de côté introuvable', async () => {
+  it('patron sans PDF (photos ou lien) : le PDF est demandé', async () => {
+    const api = fakeApi()
+    api.knitting.getPattern.mockResolvedValue({ ...GILET, pdfPath: null, url: 'https://patrons.exemple/gilet' })
+    renderWithApp(<KnittingImportPage />, { api, route: '/tricot/nouveau?patron=q1', path: '/tricot/nouveau' })
+    expect(await screen.findByRole('heading', { name: 'Commencer « Gilet Rosée »' })).toBeInTheDocument()
+    expect(await screen.findByLabelText('Patron (PDF)')).toBeInTheDocument()
+    expect(api.knitting.downloadPdf).not.toHaveBeenCalled()
+  })
+
+  it('patron introuvable', async () => {
     const api = fakeApi()
     renderWithApp(<KnittingImportPage />, { api, route: '/tricot/nouveau?patron=perdu', path: '/tricot/nouveau' })
-    expect(await screen.findByRole('alert')).toHaveTextContent('Patron introuvable, ou sans PDF.')
+    expect(await screen.findByRole('alert')).toHaveTextContent('Patron introuvable.')
+  })
+
+  it('ancienne adresse « Mettre de côté » : ajout à la bibliothèque', async () => {
+    renderWithApp(<KnittingImportPage />, {
+      route: '/tricot/nouveau?plus-tard',
+      path: '/tricot/nouveau',
+      extraRoutes: <Route path="/tricot/patrons/nouveau" element={<p>Ajouter un patron</p>} />,
+    })
+    expect(await screen.findByText('Ajouter un patron')).toBeInTheDocument()
   })
 })
 
 describe('stock de laine', () => {
   const MERINO = { ...EMPTY_YARN, brand: 'DROPS', name: 'Merino', length_m: 105, skeins: 8, needle_mm: 4 }
   const STASH: StashItem[] = [{ id: 'st1', yarn: MERINO, notes: '', createdAt: '2026-11-01' }]
-  const pattern = (id: string, metersNeeded: number | null, needleMm: number | null, pdfPath: string | null = null): QueuedPattern => ({
+  const pattern = (id: string, metersNeeded: number | null, needleMm: number | null, pdfPath: string | null = null): KnitPattern => ({
     id,
     title: id,
     pdfPath,
+    photos: [],
     url: pdfPath ? null : 'https://patrons.exemple/' + id,
     size: null,
     yarnIdea: '',
     notes: '',
-    priority: 2,
-    createdAt: '2026-11-01',
     metersNeeded,
     needleMm,
+    wish: 2,
+    createdAt: '2026-11-01',
+    projects: [],
   })
 
   it('ajoute, modifie et retire une laine du stock', async () => {
@@ -1238,12 +1200,12 @@ describe('stock de laine', () => {
     await waitFor(() => expect(api.knitting.deleteStashItem).toHaveBeenCalledWith('st1'))
   })
 
-  it('cherche d’abord dans les patrons mis de côté, puis des idées avec l’IA', async () => {
+  it('cherche d’abord dans la bibliothèque, puis des idées avec l’IA', async () => {
     const user = userEvent.setup()
     const api = fakeApi()
     api.knitting.listStash.mockResolvedValue(STASH)
     // 840 m, aiguilles 4 mm
-    api.knitting.listQueue.mockResolvedValue([pattern('Gilet', 600, 4, 'u-lucile/gilet.pdf'), pattern('Pull', 1200, 4), pattern('Bonnet', null, null)])
+    api.knitting.listPatterns.mockResolvedValue([pattern('Gilet', 600, 4, 'u-lucile/gilet.pdf'), pattern('Pull', 1200, 4), pattern('Bonnet', null, null)])
     api.knitting.yarnIdeas.mockResolvedValue([
       {
         title: 'Snood torsadé',
@@ -1263,7 +1225,7 @@ describe('stock de laine', () => {
     const fits = within(dialog).getByRole('list', { name: 'Patrons qui conviennent' })
     expect(within(fits).getAllByRole('listitem')).toHaveLength(1)
     expect(fits).toHaveTextContent('600 m nécessaires, 840 m en stock')
-    expect(within(fits).getByRole('link', { name: 'Commencer Gilet' })).toHaveAttribute('href', '/tricot/nouveau?patron=Gilet')
+    expect(within(fits).getByRole('link', { name: /^Gilet/ })).toHaveAttribute('href', '/tricot/patrons/Gilet')
     expect(dialog).toHaveTextContent('À vérifier (métrage ou aiguilles non notés) : Bonnet.')
 
     await user.click(within(dialog).getByRole('button', { name: 'Des idées avec l’IA' }))
@@ -1288,7 +1250,7 @@ describe('stock de laine', () => {
     await user.click(await screen.findByRole('button', { name: 'Stock de laine' }))
     await user.click(await screen.findByRole('button', { name: 'Quel patron pour DROPS Merino ?' }))
     const dialog = await screen.findByRole('dialog')
-    expect(dialog).toHaveTextContent('Aucun patron mis de côté.')
+    expect(dialog).toHaveTextContent('Aucun patron dans ta bibliothèque.')
     await user.click(within(dialog).getByRole('button', { name: 'Des idées avec l’IA' }))
     expect(await within(dialog).findByRole('alert')).toHaveTextContent('La recherche d’idées a échoué.')
   })

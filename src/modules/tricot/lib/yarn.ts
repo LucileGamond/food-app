@@ -1,4 +1,4 @@
-// Tricot : laine du projet, échantillon (mailles et rangs pour 10 cm) et patrons à faire plus tard.
+// Tricot : laine du projet, échantillon (mailles et rangs pour 10 cm), stock de laine et idées de modèles.
 
 /** Laine utilisée pour un projet (champs facultatifs ; mêmes bornes que la base : knit_yarns_are_valid). */
 export interface Yarn {
@@ -37,7 +37,8 @@ const NUMBERS: Record<YarnNumber, { min: number; max: number; step: number; labe
   needle_mm: { min: 1, max: 30, step: 0.01, label: 'Aiguilles : entre 1 et 30 mm.' },
 }
 
-const decimal = (n: number) => String(n).replace('.', ',')
+/** 3.5 → « 3,5 ». */
+export const decimal = (n: number) => String(n).replace('.', ',')
 
 export function toYarnDraft(yarn: Yarn): YarnDraft {
   const text = (v: string | null) => v ?? ''
@@ -164,91 +165,6 @@ export function formatGauge(gauge: Gauge): string | null {
 }
 
 // ---------------------------------------------------------------------------
-// Patrons à faire plus tard
-// ---------------------------------------------------------------------------
-
-export type QueuePriority = 1 | 2 | 3
-
-export const PRIORITIES: { value: QueuePriority; label: string }[] = [
-  { value: 1, label: 'Bientôt' },
-  { value: 2, label: 'Un jour' },
-  { value: 3, label: 'Peut-être' },
-]
-
-export interface QueuedPattern {
-  id: string
-  title: string
-  pdfPath: string | null
-  url: string | null
-  size: string | null
-  yarnIdea: string
-  notes: string
-  priority: QueuePriority
-  createdAt: string
-  /** Besoins du patron (taille visée), s'ils sont connus. */
-  metersNeeded: number | null
-  needleMm: number | null
-}
-
-export interface QueueInput {
-  title: string
-  pdf: File | null
-  url: string | null
-  size: string | null
-  yarnIdea: string
-  notes: string
-  priority: QueuePriority
-  metersNeeded: number | null
-  needleMm: number | null
-}
-
-export interface QueueDraft {
-  title: string
-  url: string
-  size: string
-  yarnIdea: string
-  notes: string
-  priority: QueuePriority
-  metersNeeded: string
-  needleMm: string
-}
-
-/** Patron saisi → patron enregistrable (PDF à part), ou le premier problème. */
-export function parseQueueDraft(draft: QueueDraft, pdf: File | null): { input: QueueInput } | { error: string } {
-  const title = draft.title.trim()
-  const url = draft.url.trim()
-  if (!title) return { error: 'Donne un nom au patron.' }
-  if (title.length > 200) return { error: 'Nom : 200 caractères au plus.' }
-  if (url && !/^https?:\/\/\S+$/i.test(url)) return { error: 'Le lien doit commencer par http:// ou https://.' }
-  if (!pdf && !url) return { error: 'Ajoute le PDF du patron ou un lien.' }
-  if (draft.size.trim().length > 40) return { error: 'Taille : 40 caractères au plus.' }
-  if (draft.yarnIdea.trim().length > 200) return { error: 'Laine envisagée : 200 caractères au plus.' }
-  if (draft.notes.trim().length > 2000) return { error: 'Notes : 2000 caractères au plus.' }
-  const metersNeeded = parseMeters(draft.metersNeeded)
-  if (metersNeeded === undefined) return { error: 'Métrage : un nombre entier de mètres (1 à 20 000).' }
-  const needle = parseDecimal(draft.needleMm)
-  if (needle !== null && (!Number.isFinite(needle) || needle < 1 || needle > 30)) return { error: 'Aiguilles : entre 1 et 30 mm.' }
-  return {
-    input: {
-      title,
-      pdf,
-      url: url || null,
-      size: draft.size.trim() || null,
-      yarnIdea: draft.yarnIdea.trim(),
-      notes: draft.notes.trim(),
-      priority: draft.priority,
-      metersNeeded,
-      needleMm: needle === null ? null : Math.round(needle * 100) / 100,
-    },
-  }
-}
-
-/** Les plus pressés d'abord, puis les plus anciens. */
-export function sortQueue(items: QueuedPattern[]): QueuedPattern[] {
-  return items.toSorted((a, b) => a.priority - b.priority || a.createdAt.localeCompare(b.createdAt))
-}
-
-// ---------------------------------------------------------------------------
 // Stock de laine et « Quel patron pour ma laine ? »
 // ---------------------------------------------------------------------------
 
@@ -267,40 +183,6 @@ export function yarnMeters(yarn: Yarn): number | null {
 
 /** Écart d'aiguilles toléré entre la laine et le patron. */
 export const NEEDLE_TOLERANCE_MM = 0.5
-
-export interface PatternMatch {
-  item: QueuedPattern
-  /** « 350 m nécessaires, 750 m en stock », « aiguilles 4 mm (laine : 3,5 mm) ». */
-  reasons: string[]
-}
-
-/**
- * Patrons mis de côté comparés à une laine : ceux qui conviennent (métrage suffisant, aiguilles proches) et ceux qu'on
- * ne peut pas juger (besoins du patron ou de la laine inconnus). Les patrons qui ne conviennent pas sont écartés.
- */
-export function matchPatterns(yarn: Yarn, queue: QueuedPattern[]): { fits: PatternMatch[]; unknown: QueuedPattern[] } {
-  const available = yarnMeters(yarn)
-  const fits: PatternMatch[] = []
-  const unknown: QueuedPattern[] = []
-  for (const item of sortQueue(queue)) {
-    const reasons: string[] = []
-    let judged = false
-    let fails = false
-    if (item.metersNeeded !== null && available !== null) {
-      judged = true
-      if (item.metersNeeded > available) fails = true
-      else reasons.push(`${item.metersNeeded} m nécessaires, ${available} m en stock`)
-    }
-    if (item.needleMm !== null && yarn.needle_mm !== null) {
-      judged = true
-      if (Math.abs(item.needleMm - yarn.needle_mm) > NEEDLE_TOLERANCE_MM) fails = true
-      else reasons.push(`aiguilles ${decimal(item.needleMm)} mm (laine : ${decimal(yarn.needle_mm)} mm)`)
-    }
-    if (!judged) unknown.push(item)
-    else if (!fails) fits.push({ item, reasons })
-  }
-  return { fits, unknown }
-}
 
 /** Description d'une laine pour le modèle (idées de modèles). */
 export function describeYarn(yarn: Yarn): string {

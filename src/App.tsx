@@ -34,6 +34,9 @@ const KnittingImportPage = lazy(() => import('@/modules/tricot/pages/KnittingImp
 const KnittingProjectPage = lazy(() => import('@/modules/tricot/pages/KnittingProjectPage').then((m) => ({ default: m.KnittingProjectPage })))
 const KnittingOrganizePage = lazy(() => import('@/modules/tricot/pages/KnittingOrganizePage').then((m) => ({ default: m.KnittingOrganizePage })))
 const KnittingModePage = lazy(() => import('@/modules/tricot/pages/KnittingModePage').then((m) => ({ default: m.KnittingModePage })))
+const KnittingLibraryPage = lazy(() => import('@/modules/tricot/pages/KnittingLibraryPage').then((m) => ({ default: m.KnittingLibraryPage })))
+const KnittingPatternPage = lazy(() => import('@/modules/tricot/pages/KnittingPatternPage').then((m) => ({ default: m.KnittingPatternPage })))
+const KnittingPatternEditPage = lazy(() => import('@/modules/tricot/pages/KnittingPatternEditPage').then((m) => ({ default: m.KnittingPatternEditPage })))
 // Module Plantes (indépendant de la cuisine, partagé par le foyer).
 const PlantsPage = lazy(() => import('@/modules/plantes/pages/PlantsPage').then((m) => ({ default: m.PlantsPage })))
 const PlantFormPage = lazy(() => import('@/modules/plantes/pages/PlantFormPage').then((m) => ({ default: m.PlantFormPage })))
@@ -101,8 +104,12 @@ export function App({ api, auth }: { api: Api; auth: AuthClient }) {
                 <Route path="/reglages" element={<SettingsPage />} />
                 <Route path="/tricot" element={<KnittingPage />} />
                 <Route path="/tricot/nouveau" element={<KnittingImportPage />} />
-                {/* Ancienne adresse de « Mettre un patron de côté », réunie avec « Nouveau patron ». */}
-                <Route path="/tricot/a-faire" element={<Navigate to="/tricot/nouveau?plus-tard" replace />} />
+                {/* Bibliothèque de patrons ; « Mettre un patron de côté » (ancienne adresse) y ajoute un patron. */}
+                <Route path="/tricot/patrons" element={<KnittingLibraryPage />} />
+                <Route path="/tricot/patrons/nouveau" element={<KnittingPatternEditPage />} />
+                <Route path="/tricot/patrons/:id" element={<KnittingPatternPage />} />
+                <Route path="/tricot/patrons/:id/modifier" element={<KnittingPatternEditPage />} />
+                <Route path="/tricot/a-faire" element={<Navigate to="/tricot/patrons/nouveau" replace />} />
                 <Route path="/tricot/:id" element={<KnittingProjectPage />} />
                 <Route path="/tricot/:id/organiser" element={<KnittingOrganizePage />} />
                 <Route path="/plantes" element={<PlantsPage />} />

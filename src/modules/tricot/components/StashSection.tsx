@@ -1,46 +1,31 @@
-// Stock de laine (page Tricot) : pelotes à la maison, et « Quel patron ? » pour chacune — d'abord parmi les patrons
-// mis de côté (métrage et aiguilles comparés dans l'application), puis des idées du modèle si besoin.
+// Stock de laine (page Tricot) : pelotes à la maison, et « Quel patron ? » pour chacune — d'abord dans la bibliothèque
+// de patrons (métrage et aiguilles comparés dans l'application), puis des idées du modèle si besoin.
 
-import { ExternalLink, Loader2, Pencil, Play, Plus, Sparkles, Trash2, Wand2 } from 'lucide-react'
+import { ChevronRight, ExternalLink, Loader2, Pencil, Plus, Sparkles, Trash2, Wand2 } from 'lucide-react'
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { toast } from 'sonner'
 import { errorMessage } from '@/api'
 import { useApi } from '@/app/ApiContext'
 import { ConfirmDialog } from '@/components/ConfirmDialog'
-import { Button, buttonVariants } from '@/components/ui/button'
+import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Skeleton } from '@/components/ui/skeleton'
 import { LoadError } from '@/components/LoadError'
 import { useAsync } from '@/hooks/useAsync'
-import { cn } from '@/lib/utils'
-import { matchPatterns, patternSearchUrl, siteOf, yarnDetails, yarnMeters, yarnTitle, type QueuedPattern, type StashItem, type Yarn, type YarnIdea } from '../lib/yarn'
+import { patternSearchUrl, siteOf, yarnDetails, yarnMeters, yarnTitle, type StashItem, type Yarn, type YarnIdea } from '../lib/yarn'
+import { matchPatterns, type KnitPattern } from '../lib/library'
 import { Fold } from './Fold'
 import { YarnDialog } from './YarnPanel'
 
-function PatternLink({ item }: { item: QueuedPattern }) {
-  if (item.pdfPath) {
-    return (
-      <Link to={`/tricot/nouveau?patron=${item.id}`} className={cn(buttonVariants({ variant: 'outline' }), 'h-10')} aria-label={`Commencer ${item.title}`}>
-        <Play /> Commencer
-      </Link>
-    )
-  }
-  return item.url ? (
-    <a href={item.url} target="_blank" rel="noreferrer" className={cn(buttonVariants({ variant: 'outline' }), 'h-10')}>
-      <ExternalLink /> Lien
-    </a>
-  ) : null
-}
-
-/** « Quel patron pour cette laine ? » : patrons mis de côté qui conviennent, puis idées du modèle. */
-function MatchDialog({ item, queue, onOpenChange }: { item: StashItem | null; queue: QueuedPattern[]; onOpenChange: (open: boolean) => void }) {
+/** « Quel patron pour cette laine ? » : patrons de la bibliothèque qui conviennent, puis idées du modèle. */
+function MatchDialog({ item, patterns, onOpenChange }: { item: StashItem | null; patterns: KnitPattern[]; onOpenChange: (open: boolean) => void }) {
   const api = useApi()
   const [ideas, setIdeas] = useState<YarnIdea[] | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const yarn = item?.yarn
-  const { fits, unknown } = yarn ? matchPatterns(yarn, queue) : { fits: [], unknown: [] }
+  const { fits, unknown } = yarn ? matchPatterns(yarn, patterns) : { fits: [], unknown: [] }
   const meters = yarn ? yarnMeters(yarn) : null
 
   async function askIdeas(target: Yarn) {
@@ -75,21 +60,23 @@ function MatchDialog({ item, queue, onOpenChange }: { item: StashItem | null; qu
 
         <section aria-labelledby="match-mine" className="space-y-2">
           <h3 id="match-mine" className="text-sm font-medium">
-            Dans tes patrons à faire plus tard
+            Dans ta bibliothèque
           </h3>
           {fits.length === 0 ? (
             <p className="text-sm text-muted-foreground">
-              {queue.length === 0 ? 'Aucun patron mis de côté.' : 'Aucun ne convient d’après le métrage et les aiguilles.'}
+              {patterns.length === 0 ? 'Aucun patron dans ta bibliothèque.' : 'Aucun ne convient d’après le métrage et les aiguilles.'}
             </p>
           ) : (
             <ul aria-label="Patrons qui conviennent" className="space-y-2">
               {fits.map(({ item: pattern, reasons }) => (
-                <li key={pattern.id} className="flex items-center gap-3 rounded-xl border p-3">
-                  <p className="min-w-0 flex-1 text-sm">
-                    <span className="block font-medium">{pattern.title}</span>
-                    <span className="text-muted-foreground">{reasons.join(' · ')}</span>
-                  </p>
-                  <PatternLink item={pattern} />
+                <li key={pattern.id}>
+                  <Link to={`/tricot/patrons/${pattern.id}`} className="flex items-center gap-3 rounded-xl border p-3 hover:bg-muted/50 focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none">
+                    <span className="min-w-0 flex-1 text-sm">
+                      <span className="block font-medium">{pattern.title}</span>
+                      <span className="text-muted-foreground">{reasons.join(' · ')}</span>
+                    </span>
+                    <ChevronRight className="size-4 shrink-0 text-muted-foreground" aria-hidden />
+                  </Link>
                 </li>
               ))}
             </ul>
@@ -157,7 +144,7 @@ function MatchDialog({ item, queue, onOpenChange }: { item: StashItem | null; qu
   )
 }
 
-export function StashSection({ queue }: { queue: QueuedPattern[] }) {
+export function StashSection({ patterns }: { patterns: KnitPattern[] }) {
   const api = useApi()
   const stash = useAsync(() => api.knitting.listStash(), [api])
   const [editing, setEditing] = useState<StashItem | 'new' | null>(null)
@@ -244,7 +231,7 @@ export function StashSection({ queue }: { queue: QueuedPattern[] }) {
         onOpenChange={(open) => !open && setEditing(null)}
         onSave={save}
       />
-      <MatchDialog item={matching} queue={queue} onOpenChange={() => setMatching(null)} />
+      <MatchDialog item={matching} patterns={patterns} onOpenChange={() => setMatching(null)} />
       <ConfirmDialog
         open={removing !== null}
         onOpenChange={(open) => !open && setRemoving(null)}

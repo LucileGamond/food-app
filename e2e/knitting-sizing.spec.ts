@@ -35,7 +35,7 @@ test('choisit la taille d’un patron selon une fiche de mesures', async ({ page
   await expect(page.getByRole('list', { name: 'Fiches de mesures' })).toContainText('poitrine 92 cm')
 
   // Patron lu sans taille (la première), puis taille conseillée et relecture pour elle
-  await page.getByRole('link', { name: 'Nouveau patron' }).first().click()
+  await page.getByRole('link', { name: 'Nouveau projet' }).first().click()
   await page.getByLabel('Patron (PDF)').setInputFiles({ name: 'bergamote.pdf', mimeType: 'application/pdf', buffer: Buffer.from('%PDF-1.4\n%fin') })
   await page.getByRole('button', { name: 'Lire le patron' }).click()
   const card = page.getByRole('region', { name: 'Quelle taille pour qui ?' })

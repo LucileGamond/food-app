@@ -39,7 +39,7 @@ test('charge un patron PDF pour une taille, compte les rangs et retrouve son ava
   await openNavPage(page, 'Tricot')
   await expect(page.getByText('Aucun projet')).toBeVisible()
 
-  await page.getByRole('link', { name: 'Nouveau patron' }).first().click()
+  await page.getByRole('link', { name: 'Nouveau projet' }).first().click()
   await page.getByLabel('Patron (PDF)').setInputFiles({ name: 'bergamote.pdf', mimeType: 'application/pdf', buffer: Buffer.from('%PDF-1.4\n%fin') })
   await page.getByLabel('Taille', { exact: true }).fill('M')
   await page.getByRole('button', { name: 'Lire le patron' }).click()
@@ -124,7 +124,7 @@ test('charge un patron PDF pour une taille, compte les rangs et retrouve son ava
   await expect(page.getByText('Aucun projet')).toBeVisible()
 })
 
-test('met un patron de côté, le commence, puis note la laine (étiquette) et son échantillon', async ({ page }) => {
+test('ajoute un patron à la bibliothèque, le commence, puis note la laine (étiquette) et son échantillon', async ({ page }) => {
   // Lecture par le modèle simulée : patron (avec son échantillon) ou étiquette de laine.
   await page.route('**/functions/v1/knit-pattern', async (route) => {
     const body = route.request().postDataJSON()
@@ -139,22 +139,31 @@ test('met un patron de côté, le commence, puis note la laine (étiquette) et s
   await login(page)
   await openNavPage(page, 'Tricot')
 
-  // Patron mis de côté, depuis « Nouveau patron »
-  await page.getByRole('link', { name: 'Nouveau patron' }).first().click()
-  await page.getByRole('radio', { name: 'Mettre de côté' }).click()
-  await page.getByLabel('Patron (PDF)').setInputFiles({ name: 'Gilet Rosée.pdf', mimeType: 'application/pdf', buffer: Buffer.from('%PDF-1.4\n%gilet') })
-  await page.getByLabel('Taille', { exact: true }).fill('M')
-  await page.getByLabel('Quand').selectOption('Bientôt')
+  // Patron ajouté à la bibliothèque : PDF et photo d'une page, nom tiré du fichier
+  await page.getByRole('link', { name: /Bibliothèque de patrons/ }).click()
+  await expect(page.getByText('Aucun patron', { exact: true })).toBeVisible()
+  await page.getByRole('link', { name: 'Ajouter un patron' }).first().click()
+  await page.getByLabel('PDF', { exact: true }).setInputFiles({ name: 'Gilet Rosée.pdf', mimeType: 'application/pdf', buffer: Buffer.from('%PDF-1.4\n%gilet') })
+  await expect(page.getByLabel('Nom du patron')).toHaveValue('Gilet Rosée')
+  await page.getByLabel(/Choisir des photos/).setInputFiles({ name: 'page.png', mimeType: 'image/png', buffer: Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==', 'base64') })
+  await expect(page.getByRole('list', { name: 'Photos du patron' }).getByRole('listitem')).toHaveCount(1)
+  await page.getByLabel('Taille visée').fill('M')
+  await page.getByLabel('Envie').selectOption('Bientôt')
   await expectNoA11yViolations(page)
-  await page.getByRole('button', { name: 'Mettre de côté' }).click()
-  // Liste repliée : ouverte d'un toucher
-  await page.getByRole('button', { name: 'À faire plus tard' }).click()
-  const queue = page.getByRole('list', { name: 'Patrons à faire plus tard' })
-  await expect(queue).toContainText('Gilet Rosée')
-  await expect(queue).toContainText('Bientôt · taille M')
+  await page.getByRole('button', { name: 'Enregistrer' }).click()
+  // Fiche du patron
+  await expect(page.getByRole('heading', { level: 1, name: 'Gilet Rosée' })).toBeVisible()
+  await expect(page.getByText('Bientôt · taille M')).toBeVisible()
+  await expect(page.getByText('Pas encore tricoté.')).toBeVisible()
+  await expectNoA11yViolations(page)
+  // Dans la liste, avec ses formats
+  await page.getByRole('link', { name: 'Bibliothèque', exact: true }).click()
+  const library = page.getByRole('list', { name: 'Patrons' })
+  await expect(library).toContainText('PDF · 1 photo')
+  await library.getByRole('link', { name: /Gilet Rosée/ }).click()
 
-  // Commencé : PDF et taille repris, le patron quitte la liste
-  await queue.getByRole('link', { name: 'Commencer Gilet Rosée' }).click()
+  // Commencé : PDF et taille repris
+  await page.getByRole('link', { name: 'Commencer un projet' }).click()
   await expect(page.getByRole('heading', { name: 'Commencer « Gilet Rosée »' })).toBeVisible()
   await expect(page.getByLabel('Taille', { exact: true })).toHaveValue('M')
   // PDF repris : il n'est pas redemandé
@@ -217,16 +226,20 @@ test('met un patron de côté, le commence, puis note la laine (étiquette) et s
   await expect(page.getByRole('button', { name: 'Nombre de fois : 1re fois sur 2' })).toBeVisible()
   await expect(sections).toContainText('Vérifié pour ce projet.')
 
-  // La liste d'attente est vide
-  await page.getByRole('link', { name: 'Pull Bergamote' }).click()
+  // Le patron reste dans la bibliothèque, commencé : il n'est plus « à faire »
+  await page.getByRole('link', { name: 'Gilet Rosée' }).click()
   await page.getByRole('link', { name: 'Projets' }).click()
-  // Replié, le bloc dit déjà qu'il n'y a rien ; ouvert, il explique comment en mettre un de côté
-  await expect(page.getByRole('region', { name: 'À faire plus tard' })).toContainText('aucun')
-  await page.getByRole('button', { name: 'À faire plus tard' }).click()
-  await expect(page.getByText('Aucun patron en attente', { exact: false })).toBeVisible()
+  await expect(page.getByRole('link', { name: /Bibliothèque de patrons/ })).toContainText('1 patron')
+  await page.getByRole('link', { name: /Bibliothèque de patrons/ }).click()
+  await expect(page.getByRole('list', { name: 'Patrons' })).toContainText('1 projet')
+  await page.getByRole('radio', { name: 'À faire' }).click()
+  await expect(page.getByText('Aucun patron ne correspond.')).toBeVisible()
+  await page.getByRole('radio', { name: 'Commencés' }).click()
+  await page.getByRole('link', { name: /Gilet Rosée/ }).click()
+  await expect(page.getByRole('list', { name: 'Projets de ce patron' })).toContainText('Gilet Rosée')
 })
 
-test('stock de laine : quel patron pour ma laine (mes patrons d’abord, puis des idées)', async ({ page }) => {
+test('stock de laine : quel patron pour ma laine (la bibliothèque d’abord, puis des idées)', async ({ page }) => {
   await page.route('**/functions/v1/knit-pattern', async (route) => {
     const body = route.request().postDataJSON()
     expect(body.ideas).toMatchObject({ meters: 840, needle_mm: 4 })
@@ -248,8 +261,9 @@ test('stock de laine : quel patron pour ma laine (mes patrons d’abord, puis de
   })
   const { api } = await signedInApi()
   await api.settings.saveSettings({ ...DEFAULT_SETTINGS, disabledPages: [] })
-  await api.knitting.addToQueue({ title: 'Gilet Rosée', pdf: null, url: 'https://patrons.exemple/gilet', size: 'M', yarnIdea: '', notes: '', priority: 1, metersNeeded: 600, needleMm: 4 })
-  await api.knitting.addToQueue({ title: 'Pull Bergamote', pdf: null, url: 'https://patrons.exemple/pull', size: 'M', yarnIdea: '', notes: '', priority: 2, metersNeeded: 1200, needleMm: 4 })
+  const files = { pdfPath: null, newPdf: null, photos: [], newPhotos: [] }
+  await api.knitting.savePattern({ title: 'Gilet Rosée', url: 'https://patrons.exemple/gilet', size: 'M', yarnIdea: '', notes: '', metersNeeded: 600, needleMm: 4, wish: 1 }, files, null)
+  await api.knitting.savePattern({ title: 'Pull Bergamote', url: 'https://patrons.exemple/pull', size: 'M', yarnIdea: '', notes: '', metersNeeded: 1200, needleMm: 4, wish: 2 }, files, null)
   await login(page)
   await openNavPage(page, 'Tricot')
 
