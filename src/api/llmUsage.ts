@@ -39,10 +39,10 @@ export function createLlmUsageApi(db: AppSupabaseClient) {
     },
 
     async budgetStatus(): Promise<BudgetStatus> {
-      const { data, error } = await db.rpc('llm_budget_status')
+      // Une seule ligne, toujours : le budget (ou null) et la dépense du mois.
+      const { data, error } = await db.rpc('llm_budget_status').single()
       if (error) throw toAppError(error, 'Impossible de charger le budget IA.')
-      const row = data?.[0]
-      return { monthlyEur: row?.monthly_eur == null ? null : Number(row.monthly_eur), spentUsd: Number(row?.spent_usd ?? 0) }
+      return { monthlyEur: data.monthly_eur === null ? null : Number(data.monthly_eur), spentUsd: Number(data.spent_usd) }
     },
 
     async setBudget(monthlyEur: number | null): Promise<void> {
@@ -52,10 +52,10 @@ export function createLlmUsageApi(db: AppSupabaseClient) {
     },
 
     async creditStatus(): Promise<CreditStatus> {
-      const { data, error } = await db.rpc('llm_credit_status')
+      // Une seule ligne, toujours : total des recharges, date de la première (ou null), dépense depuis.
+      const { data, error } = await db.rpc('llm_credit_status').single()
       if (error) throw toAppError(error, 'Impossible de charger le crédit IA.')
-      const row = data?.[0]
-      return { creditsUsd: Number(row?.credits_usd ?? 0), since: row?.since ?? null, spentUsd: Number(row?.spent_usd ?? 0) }
+      return { creditsUsd: Number(data.credits_usd), since: data.since, spentUsd: Number(data.spent_usd) }
     },
 
     async listCredits(): Promise<LlmCredit[]> {
@@ -77,7 +77,7 @@ export function createLlmUsageApi(db: AppSupabaseClient) {
     async realCost(): Promise<RealCost> {
       const { data, error } = await db.functions.invoke<RealCost>('llm-cost', { body: {} })
       if (error) throw await functionError(error, 'Le coût réel est indisponible pour l’instant.', 'cost')
-      return data ?? { available: false }
+      return data as RealCost
     },
   }
 }

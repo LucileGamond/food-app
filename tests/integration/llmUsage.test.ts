@@ -59,7 +59,15 @@ describe('llm usage', () => {
 
     const anon = createAppClient(LOCAL_URL, (await import('./helpers')).LOCAL_ANON_KEY, { persistSession: false })
     const { createLlmUsageApi } = await import('@/api/llmUsage')
-    await expect(createLlmUsageApi(anon).summary(null, null)).rejects.toThrow()
+    const visitor = createLlmUsageApi(anon)
+    await expect(visitor.summary(null, null)).rejects.toThrow("Tu n'as pas accès")
+    await expect(visitor.budgetStatus()).rejects.toThrow("Tu n'as pas accès")
+    await expect(visitor.setBudget(5)).rejects.toThrow()
+    await expect(visitor.creditStatus()).rejects.toThrow("Tu n'as pas accès")
+    await expect(visitor.listCredits()).rejects.toThrow("Tu n'as pas accès")
+    await expect(visitor.addCredit({ addedOn: '2026-01-01', amountUsd: 5, note: null })).rejects.toThrow()
+    await expect(visitor.deleteCredit('00000000-0000-0000-0000-000000000000')).rejects.toThrow()
+    await expect(visitor.realCost()).rejects.toMatchObject({ code: 'cost-401' })
   })
 
   it('budget du mois : réglé et retiré par le foyer, dépense du mois comptée', async () => {
