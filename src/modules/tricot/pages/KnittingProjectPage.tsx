@@ -1,4 +1,4 @@
-import { Check, ChevronLeft, ChevronRight, FileText, ListTree, MoreHorizontal, Play, SearchX, Trash2, Undo2, Wand2 } from 'lucide-react'
+import { Check, ChevronLeft, ChevronRight, CircleAlert, FileText, ListChecks, ListTree, MoreHorizontal, Play, SearchX, Trash2, Undo2, Wand2 } from 'lucide-react'
 import { useState } from 'react'
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { toast } from 'sonner'
@@ -10,6 +10,7 @@ import { PageHeader } from '@/components/PageHeader'
 import { Button, buttonVariants } from '@/components/ui/button'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { Skeleton } from '@/components/ui/skeleton'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { LoadError } from '@/components/LoadError'
 import { cn } from '@/lib/utils'
 import { openInNewTab } from '@/lib/openInNewTab'
@@ -37,6 +38,9 @@ import { ProjectNeedles } from '../components/ProjectNeedles'
 import { withChecked, withGauges, type NeedleGauge } from '../lib/needleGauges'
 import { isReady, readyIssues } from '../lib/ready'
 import { describePass } from '../lib/passes'
+import { defaultTab, isProjectTab, startIssues, stepsToPrepare, type ProjectTab } from '../lib/phases'
+import { CurrentStepCard } from '../components/CurrentStepCard'
+import { OrganizeSteps } from '../components/OrganizeSteps'
 
 export function KnittingProjectPage() {
   const { id = '' } = useParams()
@@ -250,7 +254,7 @@ export function KnittingProjectPage() {
     )
     return (
       <>
-        <Link to={`/tricot/${project.id}`} className="mb-2 inline-flex max-w-full items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
+        <Link to={`/tricot/${project.id}?onglet=preparer`} className="mb-2 inline-flex max-w-full items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
           <ChevronLeft className="size-4 shrink-0" aria-hidden /> <span className="truncate">{project.title}</span>
         </Link>
         <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
@@ -347,24 +351,33 @@ export function KnittingProjectPage() {
     )
   }
 
+  // Le projet en trois onglets : Démarrer (matériel), Préparer (étapes), Tricoter (étape en cours et suivi)
+  const tabInput = { ...project, needles, needleGauges, steps }
+  const tabParam = params.get('onglet')
+  const tab: ProjectTab = isProjectTab(tabParam) ? tabParam : defaultTab(tabInput)
+  const toStart = startIssues(tabInput)
+  const toPrepare = stepsToPrepare(steps, needles, needleGauges)
+  const organizing = tab === 'preparer' && params.get('vue') === 'organiser'
+  const doneCount = steps.filter((s) => s.done).length
+  const finished = steps.length > 0 && doneCount === steps.length
+  const tabs: { value: ProjectTab; label: string; status: string; todo: boolean }[] = [
+    { value: 'demarrer', label: '1. Démarrer', status: toStart.length ? 'à compléter' : 'fait', todo: toStart.length > 0 },
+    { value: 'preparer', label: '2. Préparer', status: toPrepare ? `${toPrepare} à préparer` : 'prêtes', todo: toPrepare > 0 },
+    { value: 'tricoter', label: '3. Tricoter', status: finished ? 'terminé' : `${doneCount} / ${steps.length}`, todo: false },
+  ]
+
   return (
     <>
       {back}
       <PageHeader
         title={project.title}
-        // Plusieurs tailles : la taille suivie se lit (et se change) dans le choix juste dessous
-        description={[project.sizes.length < 2 && `Taille ${followedSize}`, `${steps.filter((s) => s.done).length} / ${steps.length} étapes`].filter(Boolean).join(' · ')}
+        description={`Taille ${followedSize} · ${doneCount} / ${steps.length} étapes`}
         actions={
           <>
             {project.pdfPath && (
               <Button variant="outline" className="h-10" onClick={() => void openPdf()}>
                 <FileText /> Voir le PDF
               </Button>
-            )}
-            {current && !current.done && (
-              <Link to={knitTo()} className={cn(buttonVariants(), 'h-10')}>
-                <Play /> Tricoter
-              </Link>
             )}
             <DropdownMenu>
               <DropdownMenuTrigger render={<Button variant="ghost" size="icon-lg" aria-label="Actions sur le projet" />}>
@@ -380,73 +393,116 @@ export function KnittingProjectPage() {
         }
       />
       {offlineNote}
-      <div className="mb-4 space-y-2">
-        <SizePicker id="knit-size-index" sizes={project.sizes} sizeIndex={project.sizeIndex} fallback={project.size} onChange={(i) => void changeSize(i)} />
-        <ProjectNeedles needles={needles} onSave={saveNeedles} />
-      </div>
 
-      <nav aria-labelledby="knit-steps">
-        <div className="mb-2 flex items-center justify-between gap-2">
-          <h2 id="knit-steps" className="text-lg font-semibold tracking-tight">
-            Étapes
-          </h2>
-          {steps.length > 1 && (
-            <Link to={`/tricot/${project.id}/organiser`} className={cn(buttonVariants({ variant: 'ghost' }), 'h-9')}>
-              <ListTree /> Organiser
-            </Link>
+      <Tabs value={tab} onValueChange={(value) => setParams({ onglet: value as ProjectTab }, { replace: true })} className="gap-4">
+        <TabsList aria-label="Temps du projet" className="h-auto w-full">
+          {tabs.map((t) => (
+            <TabsTrigger key={t.value} value={t.value} className="flex-col gap-0 py-1.5">
+              <span>{t.label}</span>
+              <span className={cn('text-xs font-normal', t.todo ? 'text-amber-700 dark:text-amber-400' : 'text-muted-foreground')}>{t.status}</span>
+            </TabsTrigger>
+          ))}
+        </TabsList>
+
+        <TabsContent value="demarrer" className="space-y-4">
+          {toStart.length > 0 && (
+            <div role="note" aria-labelledby="knit-start-title" className="space-y-1 rounded-xl border border-amber-500/40 bg-amber-500/10 p-3 text-sm">
+              <p id="knit-start-title" className="flex items-center gap-1.5 font-medium">
+                <CircleAlert className="size-4 shrink-0 text-amber-700 dark:text-amber-400" aria-hidden /> Avant de préparer les étapes
+              </p>
+              <ul className="list-inside list-disc">
+                {toStart.map((issue) => (
+                  <li key={issue}>{issue}</li>
+                ))}
+              </ul>
+            </div>
           )}
-        </div>
-        {steps.length === 0 ? (
-          <p className="text-sm text-muted-foreground">Aucune étape dans ce patron.</p>
-        ) : (
-          <ol className="flex flex-col gap-2">
-            {steps.map((s, i) => {
-              const isCurrent = s.id === current?.id && !s.done
-              return (
-                <li key={s.id}>
-                  <Link
-                    to={`?etape=${encodeURIComponent(s.id)}`}
-                    aria-current={isCurrent ? 'step' : undefined}
-                    className={cn(
-                      'flex min-h-12 w-full items-center gap-3 rounded-xl border px-3 py-2 text-left text-sm focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none',
-                      isCurrent ? 'border-brand bg-brand/5' : 'bg-background hover:bg-muted/50',
-                    )}
-                  >
-                    <span className={cn('flex size-6 shrink-0 items-center justify-center rounded-full text-xs', s.done ? 'bg-brand text-white' : 'bg-muted')} aria-hidden>
-                      {s.done ? <Check className="size-3.5" /> : i + 1}
-                    </span>
-                    <span className="min-w-0 flex-1">
-                      <span className={cn('block truncate', isCurrent && 'font-medium')}>{s.title}</span>
-                      {(s.rowCount > 0 || s.totalRows !== null || s.times > 1) && (
-                        <span className="block text-xs text-muted-foreground tabular-nums">
-                          {s.rowCount}
-                          {s.totalRows !== null && ` / ${s.totalRows}`} rangs
-                          {describePass(s) && ` · ${describePass(s)}`}
-                        </span>
-                      )}
-                    </span>
-                    {s.done && <span className="sr-only">(terminée)</span>}
-                    {!s.done && !isReady(s, needles, needleGauges) && <span className="shrink-0 rounded-full bg-amber-500/15 px-2 py-0.5 text-xs font-medium">À préparer</span>}
-                    {isCurrent && <span className="shrink-0 rounded-full bg-brand/15 px-2 py-0.5 text-xs font-medium">En cours</span>}
-                    <ChevronRight className="size-4 shrink-0 text-muted-foreground" aria-hidden />
-                  </Link>
-                </li>
-              )
-            })}
-          </ol>
-        )}
-      </nav>
+          <div className="space-y-2">
+            <SizePicker id="knit-size-index" sizes={project.sizes} sizeIndex={project.sizeIndex} fallback={project.size} onChange={(i) => void changeSize(i)} />
+            <ProjectNeedles needles={needles} onSave={saveNeedles} />
+          </div>
+          <YarnPanel
+            defaultOpen
+            info={{ yarns: project.yarns, patternGauge: project.patternGauge, myGauge: project.myGauge }}
+            onSave={saveInfo}
+            needleGauges={{ needles, gauges: needleGauges, onSave: saveNeedleGauges }}
+          />
+          <AdaptPanel project={project} size={followedSize} onSaved={reload} />
+        </TabsContent>
 
-      <div className="mt-6 space-y-4">
-        <YarnPanel
-          info={{ yarns: project.yarns, patternGauge: project.patternGauge, myGauge: project.myGauge }}
-          onSave={saveInfo}
-          needleGauges={{ needles, gauges: needleGauges, onSave: saveNeedleGauges }}
-        />
-        <AdaptPanel project={project} size={followedSize} onSaved={reload} />
-        <YarnCheckCard yarns={project.yarns} steps={steps} checks={project.yarnChecks ?? []} onSave={saveYarnCheck} />
-        <ProgressPanel projectId={project.id} currentStepId={current?.id ?? null} stepTitle={(id) => steps.find((s) => s.id === id)?.title} />
-      </div>
+        <TabsContent value="preparer" className="space-y-3">
+          {steps.length > 1 && (
+            <Tabs value={organizing ? 'organiser' : 'etapes'} onValueChange={(value) => setParams(value === 'organiser' ? { onglet: 'preparer', vue: 'organiser' } : { onglet: 'preparer' }, { replace: true })}>
+              <TabsList aria-label="Préparer" className="h-10">
+                <TabsTrigger value="etapes" className="px-3">
+                  <ListChecks /> Étapes
+                </TabsTrigger>
+                <TabsTrigger value="organiser" className="px-3">
+                  <ListTree /> Organiser
+                </TabsTrigger>
+              </TabsList>
+            </Tabs>
+          )}
+          {organizing ? (
+            <OrganizeSteps project={project} reload={reload} />
+          ) : (
+            <nav aria-label="Étapes">
+              {steps.length === 0 ? (
+                <p className="text-sm text-muted-foreground">Aucune étape dans ce patron.</p>
+              ) : (
+                <ol className="flex flex-col gap-2">
+                  {steps.map((s, i) => {
+                    const isCurrent = s.id === current?.id && !s.done
+                    return (
+                      <li key={s.id}>
+                        <Link
+                          to={`?etape=${encodeURIComponent(s.id)}`}
+                          aria-current={isCurrent ? 'step' : undefined}
+                          className={cn(
+                            'flex min-h-12 w-full items-center gap-3 rounded-xl border px-3 py-2 text-left text-sm focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none',
+                            isCurrent ? 'border-brand bg-brand/5' : 'bg-background hover:bg-muted/50',
+                          )}
+                        >
+                          <span className={cn('flex size-6 shrink-0 items-center justify-center rounded-full text-xs', s.done ? 'bg-brand text-white' : 'bg-muted')} aria-hidden>
+                            {s.done ? <Check className="size-3.5" /> : i + 1}
+                          </span>
+                          <span className="min-w-0 flex-1">
+                            <span className={cn('block truncate', isCurrent && 'font-medium')}>{s.title}</span>
+                            {(s.rowCount > 0 || s.totalRows !== null || s.times > 1) && (
+                              <span className="block text-xs text-muted-foreground tabular-nums">
+                                {s.rowCount}
+                                {s.totalRows !== null && ` / ${s.totalRows}`} rangs
+                                {describePass(s) && ` · ${describePass(s)}`}
+                              </span>
+                            )}
+                          </span>
+                          {s.done && <span className="sr-only">(terminée)</span>}
+                          {!s.done && !isReady(s, needles, needleGauges) && <span className="shrink-0 rounded-full bg-amber-500/15 px-2 py-0.5 text-xs font-medium">À préparer</span>}
+                          {isCurrent && <span className="shrink-0 rounded-full bg-brand/15 px-2 py-0.5 text-xs font-medium">En cours</span>}
+                          <ChevronRight className="size-4 shrink-0 text-muted-foreground" aria-hidden />
+                        </Link>
+                      </li>
+                    )
+                  })}
+                </ol>
+              )}
+            </nav>
+          )}
+        </TabsContent>
+
+        <TabsContent value="tricoter" className="space-y-4">
+          <CurrentStepCard
+            step={current && !current.done ? current : null}
+            number={current ? steps.indexOf(current) + 1 : 0}
+            total={steps.length}
+            issues={current && !current.done ? readyIssues(current, needles, needleGauges) : []}
+            knitTo={knitTo()}
+            setupTo={current ? `?etape=${encodeURIComponent(current.id)}` : ''}
+          />
+          <YarnCheckCard yarns={project.yarns} steps={steps} checks={project.yarnChecks ?? []} onSave={saveYarnCheck} />
+          <ProgressPanel projectId={project.id} currentStepId={current?.id ?? null} stepTitle={(id) => steps.find((s) => s.id === id)?.title} />
+        </TabsContent>
+      </Tabs>
 
       <ConfirmDialog
         open={confirmDelete}

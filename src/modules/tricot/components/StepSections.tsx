@@ -1,5 +1,6 @@
 import { ArrowDown, ArrowUp, Check, ListOrdered, MoreHorizontal, Pencil, Plus, Ruler, Trash2, X, Grid3x3 } from 'lucide-react'
 import { useId, useState, type FormEvent } from 'react'
+import { Link } from 'react-router-dom'
 import { ConfirmDialog } from '@/components/ConfirmDialog'
 import { Button } from '@/components/ui/button'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
@@ -369,11 +370,21 @@ export function StepSections({
                     {describeSection(section)}
                   </p>
                   <p className="text-xs text-muted-foreground">
-                    {toSet
-                      ? (parseMeasure(section.pattern) ?? parseMeasure(section.at?.pattern ?? null)) !== null
-                        ? 'Indique ton échantillon (ou celui du patron) dans « Laine et échantillon » pour convertir en rangs, ou modifie le nombre de rangs.'
-                        : 'Indique le nombre de rangs pour que la suite se calcule.'
-                      : [range, current.includes(index) && next !== null && `prochaine fois : rang ${next}`].filter(Boolean).join(' · ')}
+                    {toSet ? (
+                      (parseMeasure(section.pattern) ?? parseMeasure(section.at?.pattern ?? null)) !== null ? (
+                        <>
+                          Note ton échantillon (ou celui du patron) dans{' '}
+                          <Link to="?onglet=demarrer" className="font-medium text-foreground underline underline-offset-4">
+                            Démarrer
+                          </Link>{' '}
+                          pour convertir en rangs, ou modifie le nombre de rangs.
+                        </>
+                      ) : (
+                        'Indique le nombre de rangs pour que la suite se calcule.'
+                      )
+                    ) : (
+                      [range, current.includes(index) && next !== null && `prochaine fois : rang ${next}`].filter(Boolean).join(' · ')
+                    )}
                   </p>
                   {p.start !== null &&
                     charts

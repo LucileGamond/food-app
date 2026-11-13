@@ -27,7 +27,8 @@ test('patron adapté à moi : échantillon et retouches, avant / après, bascule
   await login(page)
   await page.goto(`/tricot/${id}`)
 
-  // Page du projet : la carte est repliée
+  // Onglet « Démarrer » du projet : la carte est repliée
+  await page.getByRole('tab', { name: /1. Démarrer/ }).click()
   await page.getByRole('button', { name: 'Patron adapté à moi' }).click()
   const panel = page.getByRole('region', { name: /Patron adapté à moi/ })
   await panel.getByLabel('Retouches (facultatif)').fill('5 cm de plus aux manches')
@@ -37,6 +38,7 @@ test('patron adapté à moi : échantillon et retouches, avant / après, bascule
   expect((await (await axeFor(page)).analyze()).violations).toEqual([])
   await dialog.getByRole('button', { name: 'Suivre ce patron adapté' }).click()
 
+  await page.getByRole('tab', { name: /2. Préparer/ }).click()
   await expect(page.getByRole('link', { name: /Manches/ })).toContainText('0 / 136 rangs')
   await page.getByRole('link', { name: /Manches/ }).click()
   const article = page.getByRole('article')
@@ -45,8 +47,10 @@ test('patron adapté à moi : échantillon et retouches, avant / après, bascule
 
   // Retour au patron d'origine
   await page.getByRole('link', { name: 'Pull Bergamote' }).click()
+  await page.getByRole('tab', { name: /1. Démarrer/ }).click()
   await page.getByRole('button', { name: 'Patron adapté à moi' }).click()
   await panel.getByRole('checkbox', { name: 'Suivre le patron adapté' }).click()
+  await page.getByRole('tab', { name: /2. Préparer/ }).click()
   await expect(page.getByRole('link', { name: /Manches/ })).toContainText('0 / 120 rangs')
   await page.getByRole('link', { name: /Manches/ }).click()
   await expect(article).toContainText('sur 120')

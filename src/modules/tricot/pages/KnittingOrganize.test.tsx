@@ -3,7 +3,7 @@ import { screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { fakeApi, renderWithApp } from '@/test/fakes'
 import type { KnitProject, KnitStep, StepSection } from '../lib/pattern'
-import { KnittingOrganizePage } from './KnittingOrganizePage'
+import { KnittingProjectPage } from './KnittingProjectPage'
 
 const rows = (n: number, text: string): StepSection => ({ kind: 'rows', rows: n, every: null, times: null, text, pattern: null })
 const step = (id: string, position: number, title: string, sections: StepSection[], patch: Partial<KnitStep> = {}): KnitStep => ({
@@ -48,7 +48,8 @@ const PROJECT: KnitProject = {
 function open(project: KnitProject = PROJECT) {
   const api = fakeApi()
   api.knitting.getProject.mockResolvedValue(structuredClone(project))
-  renderWithApp(<KnittingOrganizePage />, { api, route: '/tricot/p1/organiser', path: '/tricot/:id/organiser' })
+  // Organiser : une vue de l'onglet « Préparer » du projet
+  renderWithApp(<KnittingProjectPage />, { api, route: '/tricot/p1?onglet=preparer&vue=organiser', path: '/tricot/:id' })
   return api
 }
 

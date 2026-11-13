@@ -55,7 +55,7 @@ const ADAPTATION: Adaptation = {
 }
 
 /** Page du projet : liste des étapes et cartes repliées. */
-const OVERVIEW = '/tricot/p1'
+const OVERVIEW = '/tricot/p1?onglet=demarrer'
 
 /** Par défaut, l'étape en cours (?etape vide). */
 function renderProject(api = fakeApi(), value = project(), route = '/tricot/p1?etape') {
@@ -128,6 +128,7 @@ describe('patron adapté : écran', () => {
       expect(api.knitting.saveAdaptation).toHaveBeenCalledWith('p1', { request: '5 cm de plus aux manches', active: true, at: expect.any(String), size: 'M', steps: ADAPTATION.steps }),
     )
     // L'étape suit le patron adapté, l'origine reste visible
+    await user.click(await screen.findByRole('tab', { name: /2. Préparer/ }))
     await user.click(await screen.findByRole('link', { name: /Manches/ }))
     expect(await screen.findByText(/Patron adapté : 16 rangs de plus pour 5 cm\./)).toBeInTheDocument()
     expect(screen.getByText('Patron d’origine : 120 rangs, 60 mailles à la fin.')).toBeInTheDocument()
@@ -171,6 +172,8 @@ describe('patron adapté : écran', () => {
     expect(await screen.findByText(/rangs? faits? sur 120/)).toBeInTheDocument()
     expect(screen.queryByText(/Patron adapté :/)).not.toBeInTheDocument()
     await user.click(screen.getByRole('link', { name: /Pull Bergamote/ }))
+    // Le retour d'une étape ramène à « Préparer » ; le patron adapté est dans « Démarrer »
+    await user.click(await screen.findByRole('tab', { name: /1. Démarrer/ }))
     await openFold('Patron adapté à moi')
     const panel = await screen.findByRole('region', { name: /Patron adapté à moi/ })
     expect(within(panel).getByRole('status')).toHaveTextContent('Adaptation en pause : elle a été faite pour la taille M, tu suis maintenant la taille L. Refais l’adaptation pour la taille L.')

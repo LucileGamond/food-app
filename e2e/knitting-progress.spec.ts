@@ -20,7 +20,8 @@ test('notes et photos d’avancement d’un projet de tricot', async ({ page }) 
   await login(page)
   await page.goto(`/tricot/${id}`)
 
-  // Page du projet : la carte est repliée
+  // Onglet « Tricoter » du projet : la carte est repliée
+  await page.getByRole('tab', { name: /3. Tricoter/ }).click()
   const open = () => page.getByRole('button', { name: 'Notes et photos' }).click()
   await open()
   const panel = page.getByRole('region', { name: 'Notes et photos' })

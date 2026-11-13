@@ -278,11 +278,14 @@ export function YarnPanel({
   info,
   onSave,
   needleGauges,
+  defaultOpen = false,
 }: {
   info: ProjectInfo
   onSave: (info: ProjectInfo, removedYarn?: number) => Promise<boolean>
   /** Échantillon par aiguille (projet à plusieurs aiguilles). */
   needleGauges?: { needles: number[]; gauges: NeedleGauge[]; onSave: (gauges: NeedleGauge[]) => Promise<boolean> }
+  /** Ouverte d'office (onglet Démarrer). */
+  defaultOpen?: boolean
 }) {
   const api = useApi()
   const [editing, setEditing] = useState<number | 'new' | null>(null)
@@ -296,6 +299,7 @@ export function YarnPanel({
   return (
     <PanelFold
       id="knit-yarn"
+      defaultOpen={defaultOpen}
       title="Laine et échantillon"
       action={
         info.yarns.length < MAX_YARNS && (

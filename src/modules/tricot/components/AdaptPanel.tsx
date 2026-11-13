@@ -121,7 +121,7 @@ export function AdaptPanel({ project, size, onSaved }: Props) {
           <p className="text-sm">
             {myGauge && gaugeChanged
               ? `Ton échantillon : ${myGauge} (celui du patron : ${formatGauge(project.patternGauge) ?? 'non noté'}).`
-              : 'Échantillon identique ou non noté (dans « Laine et échantillon ») : seules tes retouches seront appliquées.'}
+              : 'Échantillon identique ou non noté (dans « Laine et échantillon » de Démarrer) : seules tes retouches seront appliquées.'}
           </p>
           <div className="grid gap-1.5">
             <Label htmlFor="knit-adapt-request">Retouches (facultatif)</Label>

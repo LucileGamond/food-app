@@ -49,8 +49,12 @@ test('charge un patron PDF pour une taille, compte les rangs et retrouve son ava
   await expectNoA11yViolations(page)
   await page.getByRole('button', { name: 'Enregistrer le projet' }).click()
 
-  // Projet : liste des étapes ; on tricote dans le mode tricoter, sur l'étape en cours
+  // Projet en trois onglets : il s'ouvre sur « Démarrer » (aiguilles et échantillon à noter)
+  await expect(page.getByRole('tab', { name: /1. Démarrer/ })).toHaveAttribute('aria-selected', 'true')
+  await page.getByRole('tab', { name: /2. Préparer/ }).click()
   await expect(page.getByRole('navigation', { name: 'Étapes' }).getByRole('list').getByRole('link')).toHaveCount(2)
+  // On tricote dans le mode tricoter, sur l'étape en cours
+  await page.getByRole('tab', { name: /3. Tricoter/ }).click()
   await expectNoA11yViolations(page)
   await page.getByRole('link', { name: 'Tricoter', exact: true }).click()
   await expect(page.getByRole('heading', { level: 1, name: 'Dos – côtes' })).toBeVisible()
@@ -107,8 +111,7 @@ test('charge un patron PDF pour une taille, compte les rangs et retrouve son ava
   await expect(page.getByLabel('Notes de l’étape', { exact: true })).toHaveValue('Aiguilles 4,5')
   await page.getByRole('link', { name: 'Quitter le mode tricoter' }).click()
   // Plusieurs tailles : la taille suivie se lit dans le choix, pas en double dans l'en-tête
-  await expect(page.getByText('1 / 2 étapes', { exact: true })).toBeVisible()
-  await expect(page.getByLabel('Taille', { exact: true }).locator('option:checked')).toHaveText('M')
+  await expect(page.getByText('Taille M · 1 / 2 étapes')).toBeVisible()
 
   // Liste des projets : l'étape en cours, et Tricoter d'un toucher ; puis suppression
   await page.getByRole('link', { name: 'Projets' }).click()
@@ -162,8 +165,7 @@ test('met un patron de côté, le commence, puis note la laine (étiquette) et s
   await expect(page.getByText(/échantillon 22 m\. × 30 rangs pour 10 cm/)).toBeVisible()
   await page.getByRole('button', { name: 'Enregistrer le projet' }).click()
 
-  // Laine lue sur l'étiquette (carte repliée sur la page du projet)
-  await page.getByRole('button', { name: 'Laine et échantillon' }).click()
+  // Laine lue sur l'étiquette (onglet « Démarrer », carte ouverte)
   const panel = page.getByRole('region', { name: 'Laine et échantillon' })
   await panel.getByRole('button', { name: 'Ajouter une laine' }).click()
   const dialog = page.getByRole('dialog', { name: 'Ajouter une laine' })
@@ -188,8 +190,8 @@ test('met un patron de côté, le commence, puis note la laine (étiquette) et s
 
   // Gardé au rechargement
   await page.reload()
-  await page.getByRole('button', { name: 'Laine et échantillon' }).click()
   await expect(panel).toContainText('Phildar Partner 3.5')
+  await page.getByRole('tab', { name: /2. Préparer/ }).click()
   await page.getByRole('link', { name: /Dos – côtes/ }).click()
   await expect(page.getByText(/64 mailles à la fin \(≈ 70 avec ton échantillon\)/)).toBeVisible()
 
@@ -284,6 +286,7 @@ test('suit un diagramme ajouté depuis une image, rang par rang', async ({ page 
   await page.getByRole('link', { name: /^Pull Torsadé/ }).click()
   // La carte de la liste nomme aussi l'étape en cours : on attend la page du projet
   await expect(page.getByRole('heading', { level: 1, name: 'Pull Torsadé' })).toBeVisible()
+  await page.getByRole('tab', { name: /2. Préparer/ }).click()
   await page.getByRole('link', { name: /Dos – côtes/ }).click()
   await expect(page.getByRole('heading', { name: 'Dos – côtes' })).toBeVisible()
 
@@ -322,6 +325,7 @@ test('suit un diagramme ajouté depuis une image, rang par rang', async ({ page 
 
   // Suppression du diagramme (préparation de l'étape)
   await page.getByRole('link', { name: 'Quitter le mode tricoter' }).click()
+  await page.getByRole('tab', { name: /2. Préparer/ }).click()
   await page.getByRole('link', { name: /Dos – côtes/ }).click()
   await expect(page.getByRole('region', { name: 'Torsade' }).getByRole('status')).toContainText('Rang 3 sur 6')
   await page.getByRole('button', { name: 'Supprimer Torsade' }).click()
@@ -347,6 +351,7 @@ test('aides pendant le tricot : abréviations, pesée de la laine et rangs compt
   await login(page)
   // L'étape en cours s'ouvre depuis la page du projet
   await page.goto(`/tricot/${id}`)
+  await page.getByRole('tab', { name: /2. Préparer/ }).click()
   await page.getByRole('link', { name: /Devant/ }).click()
   await expect(page.getByRole('heading', { name: 'Devant' })).toBeVisible()
 
@@ -360,7 +365,8 @@ test('aides pendant le tricot : abréviations, pesée de la laine et rangs compt
   await page.keyboard.press('Escape')
 
   // Pesée (page du projet) : 220 g restants pour la moitié du travail faite → il manque 2 pelotes
-  await page.getByRole('link', { name: 'Pull Aides' }).click()
+  await page.getByRole('link', { name: /^Pull Aides/ }).click()
+  await page.getByRole('tab', { name: /3. Tricoter/ }).click()
   await page.getByRole('button', { name: 'Assez de laine pour finir ?' }).click()
   const card = page.getByRole('region', { name: 'Assez de laine pour finir ?' })
   await card.getByLabel('Laine restante (g)').fill('220')
@@ -396,8 +402,10 @@ test('organise les étapes : regroupe, sépare et déplace une sous-étape, puis
   })
   await login(page)
   await page.goto(`/tricot/${id}`)
-  await page.getByRole('link', { name: 'Organiser' }).click()
-  await expect(page.getByRole('heading', { name: 'Organiser les étapes' })).toBeVisible()
+  // Organiser : une vue de l'onglet « Préparer »
+  await page.getByRole('tab', { name: /2. Préparer/ }).click()
+  await page.getByRole('tab', { name: 'Organiser' }).click()
+  await expect(page.getByRole('button', { name: /^Regrouper avec la suivante/ }).first()).toBeVisible()
   await expectNoA11yViolations(page)
 
   // Regrouper « Dos – côtes » et « Dos – jersey »
