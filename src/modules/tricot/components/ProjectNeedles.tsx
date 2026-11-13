@@ -55,7 +55,7 @@ export function ProjectNeedles({ needles, onSave }: Props) {
       <span className="text-muted-foreground">Aiguilles :</span>
       {needles.length ? <span>{needles.map(formatNeedle).join(' · ')}</span> : <span className="text-muted-foreground">pas encore indiquées (chaque sous-étape pourra choisir la sienne)</span>}
       <Button variant="ghost" className="h-8 px-2" onClick={edit}>
-        <Pencil /> {needles.length ? 'Modifier' : 'Indiquer'} <span className="sr-only">les aiguilles du patron</span>
+        <Pencil /> Modifier <span className="sr-only">les aiguilles du patron</span>
       </Button>
     </div>
   )

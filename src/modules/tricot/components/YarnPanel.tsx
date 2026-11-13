@@ -32,6 +32,7 @@ import {
   type YarnDraft,
 } from '../lib/yarn'
 import { PanelFold } from './PanelFold'
+import { HelpTip } from './HelpTip'
 
 export interface ProjectInfo {
   yarns: Yarn[]
@@ -255,16 +256,18 @@ function GaugeForm({ info, onSave }: { info: ProjectInfo; onSave: (patternGauge:
           {field('myRows', 'Tes rangs')}
         </div>
       </fieldset>
-      <p className="text-xs text-muted-foreground">Si les deux diffèrent, les mailles et les rangs des étapes sont recalculés pour ton échantillon.</p>
       {error && (
         <p role="alert" className="text-sm text-destructive">
           {error}
         </p>
       )}
-      <Button type="submit" variant="outline" className="h-10" disabled={saving || unchanged}>
-        {saving && <Loader2 className="animate-spin" aria-hidden />}
-        Enregistrer l’échantillon
-      </Button>
+      <div className="flex items-center gap-1">
+        <Button type="submit" variant="outline" className="h-10" disabled={saving || unchanged}>
+          {saving && <Loader2 className="animate-spin" aria-hidden />}
+          Enregistrer l’échantillon
+        </Button>
+        <HelpTip label="échantillon">Si les deux diffèrent, les mailles et les rangs des étapes sont recalculés pour ton échantillon.</HelpTip>
+      </div>
     </form>
   )
 }

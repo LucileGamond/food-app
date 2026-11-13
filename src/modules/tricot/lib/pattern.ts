@@ -114,10 +114,13 @@ export interface KnitStep {
 export interface KnitProjectSummary {
   id: string
   title: string
+  /** Taille suivie : celle choisie dans la liste du patron, sinon celle indiquée à l'import. */
   size: string
   updatedAt: string
   stepsDone: number
   stepsTotal: number
+  /** Étape en cours (null : projet terminé ou sans étape), avec ses rangs du patron adapté quand il est suivi. */
+  current: { number: number; title: string; rowCount: number; totalRows: number | null; times: number; pass: number } | null
 }
 
 export interface KnitProject {

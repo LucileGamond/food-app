@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { formatNeedle } from '../lib/needles'
+import { HelpTip } from './HelpTip'
 import { gaugeOf, type NeedleGauge } from '../lib/needleGauges'
 import { parseGauge } from '../lib/yarn'
 
@@ -62,16 +63,18 @@ export function NeedleGaugesForm({ needles, gauges, onSave }: Props) {
           </div>
         ))}
       </fieldset>
-      <p className="text-xs text-muted-foreground">Sans échantillon pour une aiguille, ses sous-étapes utilisent ton échantillon général (sinon celui du patron).</p>
       {error && (
         <p role="alert" className="text-sm text-destructive">
           {error}
         </p>
       )}
-      <Button type="submit" variant="outline" className="h-10" disabled={saving}>
-        {saving && <Loader2 className="animate-spin" aria-hidden />}
-        Enregistrer les échantillons par aiguille
-      </Button>
+      <div className="flex items-center gap-1">
+        <Button type="submit" variant="outline" className="h-10" disabled={saving}>
+          {saving && <Loader2 className="animate-spin" aria-hidden />}
+          Enregistrer les échantillons par aiguille
+        </Button>
+        <HelpTip label="échantillon par aiguille">Sans échantillon pour une aiguille, ses sous-étapes utilisent ton échantillon général (sinon celui du patron).</HelpTip>
+      </div>
     </form>
   )
 }

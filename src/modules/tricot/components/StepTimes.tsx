@@ -4,6 +4,7 @@ import { Label } from '@/components/ui/label'
 import { NativeSelect } from '@/components/ui/native-select'
 import type { StepProgress } from '../api'
 import type { KnitStep } from '../lib/pattern'
+import { HelpTip } from './HelpTip'
 import { MAX_STEP_TIMES, ordinal, withTimes } from '../lib/passes'
 
 const range = (n: number) => Array.from({ length: n }, (_, i) => i + 1)
@@ -38,12 +39,12 @@ export function StepTimes({ step, onChange }: { step: Pick<KnitStep, 'times' | '
             </NativeSelect>
           </div>
         )}
+        <HelpTip label="nombre de fois" className="mb-1.5">
+          {step.times > 1
+            ? `Le compteur est celui de la ${ordinal(step.pass)} fois ; il repart au rang 1 pour la suivante.`
+            : 'Ex. 2 pour les deux manches : le mode tricoter enchaîne la 2e fois, compteur à 0.'}
+        </HelpTip>
       </div>
-      <p className="text-xs text-muted-foreground">
-        {step.times > 1
-          ? `Le compteur est celui de la ${ordinal(step.pass)} fois ; il repart au rang 1 pour la suivante.`
-          : 'Ex. 2 pour les deux manches : le mode tricoter enchaîne la 2e fois, compteur à 0.'}
-      </p>
     </section>
   )
 }

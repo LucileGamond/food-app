@@ -59,8 +59,8 @@ test('charge un patron PDF pour une taille, compte les rangs et retrouve son ava
   await expect(page.getByText(/^Prochain :/)).toContainText('Dernier rang de l’étape, ensuite : Emmanchures')
   await expectNoA11yViolations(page)
   // Fin d'étape anticipée, confirmée : l'étape suivante s'ouvre
-  await page.getByRole('button', { name: 'Terminer l’étape maintenant' }).click()
-  await page.getByRole('alertdialog').getByRole('button', { name: 'Étape terminée' }).click()
+  await page.getByRole('button', { name: 'Terminer l’étape' }).click()
+  await page.getByRole('alertdialog').getByRole('button', { name: 'Terminer l’étape' }).click()
   await expect(page.getByRole('heading', { level: 1, name: 'Emmanchures' })).toBeVisible()
   // « tous les 5 cm » à régler : l'étape n'est pas prête, rien ne se compte ; la liste renvoie vers la préparation
   const notReady = page.getByRole('alert')
@@ -73,7 +73,7 @@ test('charge un patron PDF pour une taille, compte les rangs et retrouve son ava
   // Préparation : « tous les 5 cm » réglé à 6 rangs
   await expect(page.getByRole('region', { name: 'Sous-étapes' }).getByText('1 diminution de chaque côté — tous les 5 cm (rangs à régler)')).toBeVisible()
   await page.getByRole('button', { name: /^Actions pour « 1 diminution/ }).click()
-  await page.getByRole('menuitem', { name: 'Régler' }).click()
+  await page.getByRole('menuitem', { name: 'Modifier' }).click()
   await page.getByLabel('Tous les … rangs').fill('6')
   await page.getByRole('button', { name: 'Enregistrer', exact: true }).click()
   await expect(page.getByText('Rangs 1 à 24 · prochaine fois : rang 6')).toBeVisible()
@@ -91,12 +91,12 @@ test('charge un patron PDF pour une taille, compte les rangs et retrouve son ava
   // 56 mailles à la fin, 4 diminutions de chaque côté devinées d'après le texte : 64 au départ, 62 après ce rang (estimé)
   await expect(row).toContainText('En fin de rang : 62 (?) mailles')
   await page.getByText('texte de l’étape, question, notes').click()
-  await page.getByLabel('Notes', { exact: true }).fill('Aiguilles 4,5')
+  await page.getByLabel('Notes de l’étape', { exact: true }).fill('Aiguilles 4,5')
   // Recharger avant la fin de l'enregistrement des notes (parti au blur) l'annulerait : on attend la réponse.
   const notesSaved = page.waitForResponse(
     (r) => r.request().method() === 'PATCH' && r.url().includes('/rest/v1/knit_steps') && (r.request().postData() ?? '').includes('Aiguilles 4,5'),
   )
-  await page.getByLabel('Notes', { exact: true }).blur()
+  await page.getByLabel('Notes de l’étape', { exact: true }).blur()
   expect((await notesSaved).ok()).toBe(true)
   await expectNoA11yViolations(page)
 
@@ -104,14 +104,18 @@ test('charge un patron PDF pour une taille, compte les rangs et retrouve son ava
   await page.reload()
   await expect(row).toContainText('Rang 6 à tricoter')
   await page.getByText('texte de l’étape, question, notes').click()
-  await expect(page.getByLabel('Notes', { exact: true })).toHaveValue('Aiguilles 4,5')
+  await expect(page.getByLabel('Notes de l’étape', { exact: true })).toHaveValue('Aiguilles 4,5')
   await page.getByRole('link', { name: 'Quitter le mode tricoter' }).click()
-  await expect(page.getByText('Taille M · 1 / 2 étapes')).toBeVisible()
+  // Plusieurs tailles : la taille suivie se lit dans le choix, pas en double dans l'en-tête
+  await expect(page.getByText('1 / 2 étapes', { exact: true })).toBeVisible()
+  await expect(page.getByLabel('Taille', { exact: true }).locator('option:checked')).toHaveText('M')
 
-  // Liste des projets, puis suppression
+  // Liste des projets : l'étape en cours, et Tricoter d'un toucher ; puis suppression
   await page.getByRole('link', { name: 'Projets' }).click()
-  await expect(page.getByRole('link', { name: /Pull Bergamote/ })).toContainText('Taille M · 1 / 2 étapes')
-  await page.getByRole('link', { name: /Pull Bergamote/ }).click()
+  await expect(page.getByRole('link', { name: /^Pull Bergamote/ })).toContainText('Taille M · étape 2 sur 2 : Emmanchures')
+  await expect(page.getByRole('link', { name: /^Pull Bergamote/ })).toContainText(/5 \/ \d+ rangs/)
+  await expect(page.getByRole('link', { name: 'Tricoter « Pull Bergamote »' })).toHaveAttribute('href', /\/tricoter$/)
+  await page.getByRole('link', { name: /^Pull Bergamote/ }).click()
   await page.getByRole('button', { name: 'Actions sur le projet' }).click()
   await page.getByRole('menuitem', { name: 'Supprimer le projet' }).click()
   await page.getByRole('button', { name: 'Supprimer', exact: true }).click()
@@ -200,12 +204,11 @@ test('met un patron de côté, le commence, puis note la laine (étiquette) et s
   // Vérifié pour le projet : la conversion suit toujours l'échantillon, sans rien redemander ; l'étape est prête
   await expect(sections).toContainText('Vérifié pour ce projet.')
   await expect(check).toHaveCount(0)
-  await expect(page.getByText('Prête à tricoter')).toBeVisible()
-  // Étape tricotée 2 fois, et toute l'étape rang par rang
+  await expect(page.getByRole('link', { name: 'Tricoter cette étape' })).toBeVisible()
+  await expect(page.getByText('À préparer avant de tricoter')).toHaveCount(0)
+  // Étape tricotée 2 fois
   await page.getByLabel('À tricoter').selectOption('2 fois')
   await expect(page.getByText('0 rang fait sur 30 · 1re fois sur 2')).toBeVisible()
-  await page.getByText('Toute l’étape').click()
-  await expect(page.getByRole('list', { name: 'Toute l’étape' })).toContainText('Rang 151 diminution de chaque côté (1/4)')
   await expectNoA11yViolations(page)
   await page.reload()
   await expect(page.getByText('0 rang fait sur 30 · 1re fois sur 2')).toBeVisible()
@@ -278,7 +281,9 @@ test('suit un diagramme ajouté depuis une image, rang par rang', async ({ page 
   await api.knitting.createProject({ title: 'Pull Torsadé', size: 'M', pdf: null, steps: PATTERN.steps as never })
   await login(page)
   await openNavPage(page, 'Tricot')
-  await page.getByRole('link', { name: /Pull Torsadé/ }).click()
+  await page.getByRole('link', { name: /^Pull Torsadé/ }).click()
+  // La carte de la liste nomme aussi l'étape en cours : on attend la page du projet
+  await expect(page.getByRole('heading', { level: 1, name: 'Pull Torsadé' })).toBeVisible()
   await page.getByRole('link', { name: /Dos – côtes/ }).click()
   await expect(page.getByRole('heading', { name: 'Dos – côtes' })).toBeVisible()
 

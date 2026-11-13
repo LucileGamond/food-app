@@ -58,7 +58,7 @@ export function ModeCounter({ rowCount, totalRows, onCount, substeps = [], onFin
           ))}
           {canFinish && (
             <Button variant="ghost" className="h-7 px-2 text-xs" onClick={() => onFinishSubstep(main)}>
-              <Check /> Sous-étape finie ({knitted} rang{knitted > 1 ? 's' : ''})
+              <Check /> Terminer la sous-étape ({knitted} rang{knitted > 1 ? 's' : ''})
             </Button>
           )}
         </div>

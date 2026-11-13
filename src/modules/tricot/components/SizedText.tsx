@@ -165,18 +165,20 @@ interface PickerProps {
   sizeIndex: number | null
   onChange: (sizeIndex: number | null) => void
   disabled?: boolean
+  /** Taille indiquée hors de la liste du patron (suivie quand aucune n'est choisie). */
+  fallback?: string
 }
 
-/** Choix de la taille dont les nombres sont mis en valeur (ou aucune). */
-export function SizePicker({ id, sizes, sizeIndex, onChange, disabled }: PickerProps) {
+/** La taille suivie : ses nombres sont mis en valeur dans le texte (ou aucune de la liste). */
+export function SizePicker({ id, sizes, sizeIndex, onChange, disabled, fallback }: PickerProps) {
   if (sizes.length < 2) return null
   return (
     <div className="flex items-center gap-2 text-sm">
       <label htmlFor={id} className="text-muted-foreground">
-        Nombres de la taille
+        Taille
       </label>
       <NativeSelect id={id} className="w-auto" value={sizeIndex ?? ''} disabled={disabled} onChange={(e) => onChange(e.target.value === '' ? null : Number(e.target.value))}>
-        <option value="">Aucune</option>
+        <option value="">{fallback && !sizes.includes(fallback) ? fallback : 'Aucune'}</option>
         {sizes.map((s, i) => (
           <option key={i} value={i}>
             {s}

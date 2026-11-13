@@ -117,7 +117,7 @@ describe('taille selon les mesures, après la lecture', () => {
     expect(api.knitting.readPattern).toHaveBeenLastCalledWith(pdf, 'L')
     await waitFor(() => expect(screen.queryByRole('button', { name: /Relire/ })).not.toBeInTheDocument())
     expect(screen.getByLabelText('Nom du projet')).toHaveValue('Pull de Noël')
-    expect(screen.getByText(/^Taille L ·/)).toBeInTheDocument()
+    expect(screen.getByLabelText('Taille')).toHaveDisplayValue('L')
   })
 
   it('tableau des mesures du corps : pas d’aisance à régler ; erreur de relecture lisible', async () => {

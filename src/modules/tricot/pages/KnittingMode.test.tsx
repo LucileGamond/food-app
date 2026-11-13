@@ -203,15 +203,15 @@ describe('mode tricoter', () => {
     const { api } = renderMode(project)
     await user.click(await screen.findByRole('button', { name: 'Ajouter 1 rang' }))
     expect(await screen.findByText('Tous les rangs de l’étape sont faits')).toBeInTheDocument()
-    await user.click(screen.getByRole('button', { name: 'Étape terminée' }))
+    await user.click(screen.getByRole('button', { name: 'Terminer l’étape' }))
     const confirm = await screen.findByRole('alertdialog', { name: 'Passer à l’étape suivante ?' })
     expect(confirm).toHaveTextContent('« Emmanchures » sera marquée terminée, et « Encolure » s’ouvrira au rang 1.')
     // Annuler : rien ne change
     await user.click(within(confirm).getByRole('button', { name: 'Annuler' }))
     expect(api.knitting.saveProgress).not.toHaveBeenCalledWith('s2', { done: true })
 
-    await user.click(screen.getByRole('button', { name: 'Étape terminée' }))
-    await user.click(within(await screen.findByRole('alertdialog')).getByRole('button', { name: 'Étape terminée' }))
+    await user.click(screen.getByRole('button', { name: 'Terminer l’étape' }))
+    await user.click(within(await screen.findByRole('alertdialog')).getByRole('button', { name: 'Terminer l’étape' }))
     expect(api.knitting.saveProgress).toHaveBeenCalledWith('s2', { done: true })
     expect(await screen.findByRole('heading', { level: 1, name: 'Encolure' })).toBeInTheDocument()
     expect(await screen.findByText('Rang 1 à tricoter')).toBeInTheDocument()
@@ -238,8 +238,8 @@ describe('mode tricoter', () => {
 
     // 2e fois finie : l'étape se termine comme une autre.
     // Le bouton est hors du volet « Patron », visible sans l'ouvrir
-    await user.click(screen.getByRole('button', { name: 'Terminer l’étape maintenant' }))
-    await user.click(within(await screen.findByRole('alertdialog', { name: 'Passer à l’étape suivante ?' })).getByRole('button', { name: 'Étape terminée' }))
+    await user.click(screen.getByRole('button', { name: 'Terminer l’étape' }))
+    await user.click(within(await screen.findByRole('alertdialog', { name: 'Passer à l’étape suivante ?' })).getByRole('button', { name: 'Terminer l’étape' }))
     expect(api.knitting.saveProgress).toHaveBeenLastCalledWith('s2', { done: true })
     expect(await screen.findByRole('heading', { level: 1, name: 'Encolure' })).toBeInTheDocument()
   })
@@ -251,8 +251,8 @@ describe('mode tricoter', () => {
     project.steps[1]!.done = true
     const { api } = renderMode(project)
     await user.click(await screen.findByText('texte de l’étape, question, notes'))
-    expect(screen.queryByRole('button', { name: 'Terminer l’étape maintenant' })).not.toBeInTheDocument()
-    await user.click(screen.getByRole('button', { name: 'Terminer la 1re fois maintenant' }))
+    expect(screen.queryByRole('button', { name: 'Terminer l’étape' })).not.toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'Terminer la 1re fois' }))
     await user.click(within(await screen.findByRole('alertdialog', { name: 'Commencer la 2e fois ?' })).getByRole('button', { name: 'Commencer la 2e fois' }))
     expect(api.knitting.saveProgress).toHaveBeenLastCalledWith('s3', { pass: 2, rowCount: 0 })
     expect(await screen.findByText('Rang 1 à tricoter')).toBeInTheDocument()
@@ -263,9 +263,9 @@ describe('mode tricoter', () => {
     const project = structuredClone(PROJECT)
     project.steps = [step({ id: 's1', title: 'Col', totalRows: 2, rowCount: 2 })]
     const { api } = renderMode(project)
-    await user.click(await screen.findByRole('button', { name: 'Étape terminée' }))
+    await user.click(await screen.findByRole('button', { name: 'Terminer l’étape' }))
     const confirm = await screen.findByRole('alertdialog', { name: 'Terminer le projet ?' })
-    await user.click(within(confirm).getByRole('button', { name: 'Projet terminé' }))
+    await user.click(within(confirm).getByRole('button', { name: 'Terminer le projet' }))
     expect(api.knitting.saveProgress).toHaveBeenCalledWith('s1', { done: true })
     expect(await screen.findByText('Projet terminé')).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Ajouter 1 rang' })).not.toBeInTheDocument()
@@ -281,10 +281,10 @@ describe('mode tricoter', () => {
     expect(next()).not.toBeInTheDocument()
     await user.click(screen.getByText('Patron', { selector: 'summary' }))
     expect(screen.getByText('Pas de texte pour cette étape.')).toBeInTheDocument()
-    await user.type(screen.getByLabelText('Notes'), 'Aiguilles 4,5')
+    await user.type(screen.getByLabelText('Notes de l’étape'), 'Aiguilles 4,5')
     await user.tab()
     expect(api.knitting.saveProgress).toHaveBeenCalledWith('s3', { notes: 'Aiguilles 4,5' })
-    await user.click(screen.getByRole('button', { name: 'Terminer l’étape maintenant' }))
+    await user.click(screen.getByRole('button', { name: 'Terminer l’étape' }))
     expect(await screen.findByRole('alertdialog', { name: 'Terminer le projet ?' })).toBeInTheDocument()
   })
 
@@ -293,8 +293,8 @@ describe('mode tricoter', () => {
     expect(await screen.findByText('Étape terminée')).toBeInTheDocument()
     expect(screen.getByText('Étape suivante : Emmanchures')).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Ajouter 1 rang' })).not.toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: 'Étape terminée' })).not.toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: 'Terminer l’étape maintenant' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Terminer l’étape' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Terminer l’étape' })).not.toBeInTheDocument()
   })
 
   it('volet « Patron » : traduction et correction du surlignage enregistrées avec l’étape', async () => {

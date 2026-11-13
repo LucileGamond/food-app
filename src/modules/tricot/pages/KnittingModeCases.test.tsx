@@ -291,7 +291,7 @@ describe('mode tricoter : un seul compteur, celui de la sous-étape', () => {
     const { api } = await open(project(step))
     expect(counter()).toHaveTextContent('2 / 10rangs faits · 10 rangs : jersey')
     expect(counter()).toHaveTextContent('Étape : 14 rangs')
-    await userEvent.setup().click(within(counter()).getByRole('button', { name: 'Sous-étape finie (2 rangs)' }))
+    await userEvent.setup().click(within(counter()).getByRole('button', { name: 'Terminer la sous-étape (2 rangs)' }))
     expect(api.knitting.saveProgress).toHaveBeenCalledWith('s1', { sections: [rows(12, 'côtes'), rows(2, 'jersey'), rows(4, 'côtes')] })
   })
 
@@ -299,7 +299,7 @@ describe('mode tricoter : un seul compteur, celui de la sous-étape', () => {
     await open(project({ rowCount: 11, sections: [rows(12, 'côtes'), rows(8, 'jersey')] }))
     expect(counter()).toHaveTextContent('11 / 12rangs faits · 12 rangs : côtes')
     expect(counter()).toHaveTextContent('Étape : 11 / 20 rangs')
-    expect(within(counter()).getByRole('button', { name: 'Sous-étape finie (11 rangs)' })).toBeInTheDocument()
+    expect(within(counter()).getByRole('button', { name: 'Terminer la sous-étape (11 rangs)' })).toBeInTheDocument()
   })
 
   it('« en même temps » : les autres sous-étapes en cours rappelées sous le compteur', async () => {

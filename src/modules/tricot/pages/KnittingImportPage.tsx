@@ -93,9 +93,9 @@ export function KnittingImportPage() {
     }
   }
 
-  /** Taille du projet : celle indiquée, sinon celle prise par la lecture (la première du patron). */
+  /** Taille du projet : celle choisie dans la liste du patron, sinon celle indiquée, sinon celle prise par la lecture. */
   function readSize(read: ReadPattern): string {
-    return size.trim() || (read.sizeIndex !== null && read.sizeIndex !== undefined ? read.sizes[read.sizeIndex] : undefined) || 'Unique'
+    return (sizeIndex !== null ? read.sizes[sizeIndex] : undefined) || size.trim() || (read.sizeIndex !== null && read.sizeIndex !== undefined ? read.sizes[read.sizeIndex] : undefined) || 'Unique'
   }
 
   async function save() {
@@ -117,7 +117,7 @@ export function KnittingImportPage() {
       <>
         <PageHeader
           title="Vérifier les étapes"
-          description={[`Taille ${readSize(pattern)}`, `${pattern.steps.length} étapes`, pattern.gauge && formatGauge(pattern.gauge) && `échantillon ${formatGauge(pattern.gauge)}`].filter(Boolean).join(' · ')}
+          description={[pattern.sizes.length < 2 && `Taille ${readSize(pattern)}`, `${pattern.steps.length} étapes`, pattern.gauge && formatGauge(pattern.gauge) && `échantillon ${formatGauge(pattern.gauge)}`].filter(Boolean).join(' · ')}
         />
         <div className="space-y-4">
           <div className="grid gap-1.5">
@@ -139,7 +139,7 @@ export function KnittingImportPage() {
           {pattern.sizeChart && pdf && (
             <SizeAdvice chart={pattern.sizeChart} sizes={pattern.sizes} readIndex={pattern.sizeIndex ?? null} rereading={reading} onReread={(s) => void readFor(pdf, s)} />
           )}
-          <SizePicker id="knit-size-index" sizes={pattern.sizes} sizeIndex={sizeIndex} onChange={setSizeIndex} />
+          <SizePicker id="knit-size-index" sizes={pattern.sizes} sizeIndex={sizeIndex} fallback={size.trim() || undefined} onChange={setSizeIndex} />
           <ol aria-label="Étapes lues" className="space-y-2">
             {pattern.steps.map((step, index) => (
               <li key={index} className="rounded-2xl border bg-background p-4 shadow-xs">

@@ -9,7 +9,7 @@ export function StepNotes({ step, onSave }: { step: Pick<KnitStep, 'id' | 'notes
   const id = `notes-${step.id}`
   return (
     <div className="grid gap-1.5">
-      <Label htmlFor={id}>Notes</Label>
+      <Label htmlFor={id}>Notes de l’étape</Label>
       <Textarea
         id={id}
         value={value}

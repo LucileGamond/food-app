@@ -1,4 +1,4 @@
-import { CircleAlert, CircleCheck } from 'lucide-react'
+import { CircleAlert } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import type { ReadyIssue } from '../lib/ready'
 
@@ -8,15 +8,10 @@ interface Props {
   setupTo?: string
 }
 
-/** Prête à tricoter, ou ce qu'il reste à préparer, sous-étape par sous-étape. */
+/** Ce qu'il reste à préparer avant de tricoter, sous-étape par sous-étape (rien quand l'étape est prête). */
 export function StepReady({ issues, setupTo }: Props) {
-  if (issues.length === 0) {
-    return (
-      <p role="status" className="flex items-center gap-1.5 text-sm font-medium text-emerald-700 dark:text-emerald-400">
-        <CircleCheck className="size-4" aria-hidden /> Prête à tricoter
-      </p>
-    )
-  }
+  // Prête : le bouton « Tricoter » actif le dit déjà
+  if (issues.length === 0) return null
   return (
     <div role="alert" aria-labelledby="step-ready-title" className="space-y-1.5 rounded-xl border border-amber-500/40 bg-amber-500/10 p-3 text-sm">
       <p id="step-ready-title" className="flex items-center gap-1.5 font-medium">
@@ -32,7 +27,7 @@ export function StepReady({ issues, setupTo }: Props) {
           Préparer l’étape
         </Link>
       ) : (
-        <p className="text-xs text-muted-foreground">Règle ces sous-étapes plus bas (Valider ou Régler) : le mode tricoter suivra ensuite rang par rang.</p>
+        <p className="text-xs text-muted-foreground">Corrige-les plus bas : Valider ou Modifier.</p>
       )}
     </div>
   )

@@ -44,7 +44,7 @@ export function StepDone({ done, next, passDone, projectTo, onFinish }: Props) {
       <p className="text-xl font-semibold">{done ? 'Étape terminée' : 'Tous les rangs de l’étape sont faits'}</p>
       {!done && (
         <Button className="h-12 px-5" onClick={onFinish}>
-          <Check /> Étape terminée
+          <Check /> Terminer l’étape
         </Button>
       )}
       {done && next && <p className="text-sm text-muted-foreground">Étape suivante : {next}</p>}

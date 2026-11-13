@@ -8,7 +8,7 @@ import type { ProgressPhoto, ProjectProgress } from './lib/progress'
 import { describeYarn, yarnFromJson, yarnMeters, yarnsFromJson, type Gauge, type QueueInput, type QueuedPattern, type QueuePriority, type StashItem, type Yarn, type YarnIdea } from './lib/yarn'
 import { sanitizeHighlights } from './lib/sizes'
 import { readTimes } from './lib/passes'
-import { adaptationToJson, sanitizeAdaptation, type Adaptation, type AdaptedStep } from './lib/adapt'
+import { adaptationPaused, adaptationToJson, sanitizeAdaptation, type Adaptation, type AdaptedStep } from './lib/adapt'
 import { sanitizeAbbreviations, type Abbreviation, type BaseGlossary } from './lib/glossary'
 import { sanitizeYarnChecks, type YarnCheck } from './lib/yarnLeft'
 import { sanitizeSizeChart, type MeasureProfile } from './lib/sizing'
@@ -190,16 +190,29 @@ export function createKnittingApi(db: AppSupabaseClient) {
 
   return {
     async listProjects(): Promise<KnitProjectSummary[]> {
-      const { data, error } = await db.from('knit_projects').select('id, title, size, updated_at, knit_steps(done)').order('updated_at', { ascending: false })
+      const { data, error } = await db
+        .from('knit_projects')
+        .select('id, title, size, sizes, size_index, adaptation, updated_at, knit_steps(id, position, title, total_rows, row_count, times, pass, done)')
+        .order('updated_at', { ascending: false })
+        .order('position', { referencedTable: 'knit_steps' })
       if (error) throw toAppError(error, 'Impossible de charger les projets.')
-      return data.map((p) => ({
-        id: p.id,
-        title: p.title,
-        size: p.size,
-        updatedAt: p.updated_at,
-        stepsDone: p.knit_steps.filter((s) => s.done).length,
-        stepsTotal: p.knit_steps.length,
-      }))
+      return data.map((p) => {
+        const index = p.knit_steps.findIndex((s) => !s.done)
+        const step = index === -1 ? null : p.knit_steps[index]!
+        const size = (p.size_index !== null ? p.sizes[p.size_index] : undefined) ?? p.size
+        // Patron adapté suivi : les rangs de l'étape sont ceux de l'adaptation
+        const adaptation = sanitizeAdaptation(p.adaptation)
+        const adapted = adaptation?.active && !adaptationPaused(adaptation, size) && step ? adaptation.steps.find((a) => a.stepId === step.id) : undefined
+        return {
+          id: p.id,
+          title: p.title,
+          size,
+          updatedAt: p.updated_at,
+          stepsDone: p.knit_steps.filter((s) => s.done).length,
+          stepsTotal: p.knit_steps.length,
+          current: step && { number: index + 1, title: step.title, rowCount: step.row_count, totalRows: adapted ? adapted.totalRows : step.total_rows, times: step.times, pass: step.pass },
+        }
+      })
     },
 
     /** Glossaire des abréviations classiques, par langue des patrons. */

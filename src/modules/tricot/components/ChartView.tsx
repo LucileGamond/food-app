@@ -32,7 +32,7 @@ export function ChartView({ chart, rowCount, onEdit, onDelete }: Props) {
         <Button variant="ghost" size="icon-lg" aria-label={`Plein écran : ${name}`} onClick={() => setFull(true)} disabled={!chart.imageUrl}>
           <Maximize2 />
         </Button>
-        <Button variant="ghost" size="icon-lg" aria-label={`Régler ${name}`} onClick={onEdit}>
+        <Button variant="ghost" size="icon-lg" aria-label={`Modifier ${name}`} onClick={onEdit}>
           <Settings2 />
         </Button>
         <Button variant="ghost" size="icon-lg" aria-label={`Supprimer ${name}`} onClick={onDelete}>

@@ -199,7 +199,7 @@ function Knitting({ project, knit, projectTo }: KnittingProps) {
         />
         {!finished && ready && (
           <Button variant="outline" className="h-10" onClick={() => setFinishing(true)}>
-            <Check /> {anotherPass ? `Terminer la ${ordinal(step.pass)} fois maintenant` : 'Terminer l’étape maintenant'}
+            <Check /> {anotherPass ? `Terminer la ${ordinal(step.pass)} fois` : 'Terminer l’étape'}
           </Button>
         )}
       </main>
@@ -234,7 +234,7 @@ function Knitting({ project, knit, projectTo }: KnittingProps) {
           onOpenChange={setFinishing}
           title={next ? 'Passer à l’étape suivante ?' : 'Terminer le projet ?'}
           description={next ? `« ${step.title} » sera marquée terminée, et « ${next.title} » s’ouvrira au rang ${next.rowCount + 1}.` : `« ${step.title} » est la dernière étape.`}
-          confirmLabel={next ? 'Étape terminée' : 'Projet terminé'}
+          confirmLabel={next ? 'Terminer l’étape' : 'Terminer le projet'}
           onConfirm={finish}
         />
       )}

@@ -81,9 +81,13 @@ describe('patron adapté', () => {
     expect(read!.adaptation).toEqual(adaptation)
     // Le patron d'origine n'est pas touché
     expect(read!.steps[0]).toMatchObject({ totalRows: 18, stitches: 64 })
+    // La liste des projets montre les rangs adaptés de l'étape en cours, et ceux d'origine une fois l'adaptation arrêtée
+    const listed = async () => (await api.knitting.listProjects()).find((p) => p.id === id)!.current!.totalRows
+    expect(await listed()).toBe(34)
 
     await api.knitting.saveAdaptation(id, { ...adaptation, active: false })
     expect((await api.knitting.getProject(id))!.adaptation!.active).toBe(false)
+    expect(await listed()).toBe(18)
 
     // Eric ne voit pas le projet : sa mise à jour ne touche rien
     await eric.api.knitting.saveAdaptation(id, null)

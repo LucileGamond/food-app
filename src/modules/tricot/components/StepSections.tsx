@@ -14,6 +14,7 @@ import { effectiveNeedles, formatNeedle } from '../lib/needles'
 import { looksEnglish, mergeGlossary, type Abbreviation } from '../lib/glossary'
 import { useBaseGlossary } from '../hooks/useBaseGlossary'
 import { SizedText } from './SizedText'
+import { HelpTip } from './HelpTip'
 import type { KnitChart } from '../lib/chart'
 import { isChecked, type NeedleGauge } from '../lib/needleGauges'
 import {
@@ -81,7 +82,7 @@ function ConversionCheck({ section, onValidate, onEdit, check }: { section: Step
           <Check /> {check?.needle != null ? `Valider pour l’aiguille ${formatNeedle(check.needle)}` : 'Valider'}
         </Button>
         <Button type="button" variant="outline" className="h-9" onClick={onEdit}>
-          <Pencil /> Régler
+          <Pencil /> Modifier
         </Button>
       </div>
     </div>
@@ -335,10 +336,12 @@ export function StepSections({
 
   return (
     <section aria-labelledby={`sections-${step.id}`} className="space-y-2">
-      <h3 id={`sections-${step.id}`} className="flex items-center gap-1.5 text-sm font-medium">
-        <ListOrdered className="size-4" aria-hidden /> Sous-étapes
-      </h3>
-      <p className="text-xs text-muted-foreground">Vérifie et corrige ce que la lecture a compris : le mode tricoter suit ces sous-étapes rang par rang.</p>
+      <div className="flex items-center gap-1">
+        <h3 id={`sections-${step.id}`} className="flex items-center gap-1.5 text-sm font-medium">
+          <ListOrdered className="size-4" aria-hidden /> Sous-étapes
+        </h3>
+        <HelpTip label="sous-étapes">Vérifie et corrige ce que la lecture a compris : le mode tricoter suit ces sous-étapes rang par rang.</HelpTip>
+      </div>
       <ol className="space-y-2 text-sm">
         {plan.map((p) => {
           const { section, index } = p
@@ -368,7 +371,7 @@ export function StepSections({
                   <p className="text-xs text-muted-foreground">
                     {toSet
                       ? (parseMeasure(section.pattern) ?? parseMeasure(section.at?.pattern ?? null)) !== null
-                        ? 'Indique ton échantillon (ou celui du patron) dans « Laine et échantillon » pour convertir en rangs, ou règle le nombre de rangs.'
+                        ? 'Indique ton échantillon (ou celui du patron) dans « Laine et échantillon » pour convertir en rangs, ou modifie le nombre de rangs.'
                         : 'Indique le nombre de rangs pour que la suite se calcule.'
                       : [range, current.includes(index) && next !== null && `prochaine fois : rang ${next}`].filter(Boolean).join(' · ')}
                   </p>
@@ -397,7 +400,7 @@ export function StepSections({
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end" className="w-44">
                     <DropdownMenuItem onClick={() => setEditing(index)}>
-                      <Pencil /> Régler
+                      <Pencil /> Modifier
                     </DropdownMenuItem>
                     {index > 0 && (
                       <DropdownMenuItem onClick={() => move(index, -1)}>

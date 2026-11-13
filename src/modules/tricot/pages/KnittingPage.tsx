@@ -1,4 +1,4 @@
-import { ChevronRight, FilePlus2, Spool } from 'lucide-react'
+import { ChevronRight, FilePlus2, Play, Spool } from 'lucide-react'
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useApi } from '@/app/ApiContext'
@@ -13,6 +13,19 @@ import { FoldHeader } from '../components/FoldHeader'
 import { QueueList } from '../components/QueueList'
 import { StashSection } from '../components/StashSection'
 import { MeasuresSection } from '../components/MeasuresSection'
+import type { KnitProjectSummary } from '../lib/pattern'
+import { describePass } from '../lib/passes'
+
+/** « Taille M · étape 3 sur 8 : Manches », « Taille M · terminé ». */
+function projectLine(p: KnitProjectSummary): string {
+  if (!p.current) return `Taille ${p.size} · ${p.stepsTotal ? 'terminé' : 'aucune étape'}`
+  return `Taille ${p.size} · étape ${p.current.number} sur ${p.stepsTotal} : ${p.current.title}`
+}
+
+/** « 12 / 40 rangs · 1re fois sur 2 ». */
+function currentLine(c: NonNullable<KnitProjectSummary['current']>): string {
+  return [`${c.rowCount}${c.totalRows !== null ? ` / ${c.totalRows}` : ''} rang${(c.totalRows ?? c.rowCount) > 1 ? 's' : ''}`, describePass(c)].filter(Boolean).join(' · ')
+}
 
 /** Module Tricot : projets en cours (un patron suivi pour une taille), stock de laine et patrons à faire plus tard. */
 export function KnittingPage() {
@@ -45,23 +58,24 @@ export function KnittingPage() {
       ) : (
         <ul aria-label="Projets de tricot" className="space-y-2">
           {projects.map((p) => (
-            <li key={p.id}>
-              <Link to={`/tricot/${p.id}`} className="flex items-center gap-3 rounded-2xl border bg-background p-4 shadow-xs transition-colors hover:bg-muted/50">
+            <li key={p.id} className="flex items-center gap-2 rounded-2xl border bg-background shadow-xs transition-colors hover:bg-muted/50">
+              <Link to={`/tricot/${p.id}`} className="flex min-w-0 flex-1 items-center gap-3 rounded-2xl p-4 focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none">
                 <span className="min-w-0 flex-1">
                   <span className="block truncate font-medium">{p.title}</span>
-                  <span className="text-sm text-muted-foreground">
-                    Taille {p.size} · {p.stepsDone === p.stepsTotal ? 'terminé' : `${p.stepsDone} / ${p.stepsTotal} étapes`}
-                  </span>
+                  <span className="block truncate text-sm text-muted-foreground">{projectLine(p)}</span>
+                  {p.current && <span className="block truncate text-xs text-muted-foreground tabular-nums">{currentLine(p.current)}</span>}
                 </span>
-                <ChevronRight className="size-4 shrink-0 text-muted-foreground" aria-hidden />
+                {!p.current && <ChevronRight className="size-4 shrink-0 text-muted-foreground" aria-hidden />}
               </Link>
+              {p.current && (
+                <Link to={`/tricot/${p.id}/tricoter`} aria-label={`Tricoter « ${p.title} »`} className={cn(buttonVariants({ size: 'icon-lg' }), 'mr-3 shrink-0')}>
+                  <Play />
+                </Link>
+              )}
             </li>
           ))}
         </ul>
       )}
-
-      <StashSection queue={queue.data ?? []} />
-      <MeasuresSection />
 
       <section aria-labelledby="knit-queue" className="mt-8 space-y-3">
         <FoldHeader
@@ -83,6 +97,9 @@ export function KnittingPage() {
           )}
         </div>
       </section>
+
+      <StashSection queue={queue.data ?? []} />
+      <MeasuresSection />
     </>
   )
 }

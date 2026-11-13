@@ -30,7 +30,6 @@ import { placeCharts } from '../lib/chartPlace'
 import { OfflineNote } from '../components/OfflineNote'
 import { StepNotes } from '../components/StepNotes'
 import { StepTimes } from '../components/StepTimes'
-import { StepOutline } from '../components/StepOutline'
 import { StepReady } from '../components/StepReady'
 import { StepStartStitches } from '../components/StepStartStitches'
 import { endStitches, startStitchesOf } from '../lib/stitches'
@@ -313,7 +312,7 @@ export function KnittingProjectPage() {
             (step.sections.some((x) => x.source) ? (
               // Chaque sous-étape montre son paragraphe : le texte complet (corrections, traduction) reste à portée
               <details className="rounded-xl border px-3 py-2">
-                <summary className="cursor-pointer text-sm font-medium">Texte complet du patron</summary>
+                <summary className="cursor-pointer text-sm font-medium">Texte complet de l’étape</summary>
                 <div className="mt-2">{stepText}</div>
               </details>
             ) : (
@@ -327,7 +326,6 @@ export function KnittingProjectPage() {
           </p>
           <StepTimes step={step} onChange={(progress) => void saveStep(step.id, progress)} />
           <StepSections step={step} needles={needles} text={{ sizes: project.sizes, sizeIndex: project.sizeIndex, abbreviations: project.abbreviations ?? [] }} charts={charts.filter((c) => c.stepId === step.id)} needleGauges={needleGauges} onCheckNeedle={checkNeedle} onChange={(sections) => saveSections(step, sections)} />
-          <StepOutline step={step} nextTitle={steps[index + 1]?.title ?? null} showCurrent={!step.done && step.rowCount > 0} />
           <StepCharts
             projectId={project.id}
             pdfPath={project.pdfPath}
@@ -354,7 +352,8 @@ export function KnittingProjectPage() {
       {back}
       <PageHeader
         title={project.title}
-        description={`Taille ${project.size} · ${steps.filter((s) => s.done).length} / ${steps.length} étapes`}
+        // Plusieurs tailles : la taille suivie se lit (et se change) dans le choix juste dessous
+        description={[project.sizes.length < 2 && `Taille ${followedSize}`, `${steps.filter((s) => s.done).length} / ${steps.length} étapes`].filter(Boolean).join(' · ')}
         actions={
           <>
             {project.pdfPath && (
@@ -382,7 +381,7 @@ export function KnittingProjectPage() {
       />
       {offlineNote}
       <div className="mb-4 space-y-2">
-        <SizePicker id="knit-size-index" sizes={project.sizes} sizeIndex={project.sizeIndex} onChange={(i) => void changeSize(i)} />
+        <SizePicker id="knit-size-index" sizes={project.sizes} sizeIndex={project.sizeIndex} fallback={project.size} onChange={(i) => void changeSize(i)} />
         <ProjectNeedles needles={needles} onSave={saveNeedles} />
       </div>
 

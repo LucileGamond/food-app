@@ -52,8 +52,8 @@ function setup(disabledPages: string[] = []) {
   // Arrosée tous les jours depuis janvier : toujours à arroser aujourd'hui.
   api.plants.listPlants.mockResolvedValue([plantFixture({ id: 'basilic', name: 'Basilic', rules: [ruleFixture({ first_watering_on: '2026-01-01', interval_unit: 'day', amount_ml: 100 })] })])
   api.knitting.listProjects.mockResolvedValue([
-    { id: 'old', title: 'Bonnet', size: '4 ans', updatedAt: '2026-10-01T10:00:00Z', stepsDone: 2, stepsTotal: 2 },
-    { id: 'p1', title: 'Pull Bergamote', size: 'M', updatedAt: '2026-11-08T10:00:00Z', stepsDone: 1, stepsTotal: 2 },
+    { id: 'old', title: 'Bonnet', size: '4 ans', updatedAt: '2026-10-01T10:00:00Z', stepsDone: 2, stepsTotal: 2, current: null },
+    { id: 'p1', title: 'Pull Bergamote', size: 'M', updatedAt: '2026-11-08T10:00:00Z', stepsDone: 1, stepsTotal: 2, current: { number: 2, title: 'Emmanchures', rowCount: 0, totalRows: 30, times: 1, pass: 1 } },
   ])
   api.knitting.getProject.mockResolvedValue(PROJECT)
   return { ...renderWithApp(<HomePage today={TODAY} />, { api }), user: userEvent.setup() }

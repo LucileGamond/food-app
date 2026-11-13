@@ -175,7 +175,7 @@ describe('diagrammes d’une étape', () => {
       { kind: 'rows', rows: 30, every: null, times: null, text: 'torsades', pattern: null },
     ]
     renderProject({ ...PROJECT, steps: [PROJECT.steps[0]!, { ...PROJECT.steps[1]!, sections }] }, api)
-    await user.click(await screen.findByRole('button', { name: 'Régler Torsade' }))
+    await user.click(await screen.findByRole('button', { name: 'Modifier Torsade' }))
     const dialog = await screen.findByRole('dialog', { name: 'Caler le diagramme' })
     await user.selectOptions(within(dialog).getByLabelText('Sous-étape'), '2. 30 rangs : torsades (rangs 5 à 34)')
     await user.click(within(dialog).getByRole('button', { name: 'Enregistrer' }))
@@ -201,7 +201,7 @@ describe('diagrammes d’une étape', () => {
     const user = userEvent.setup()
     const api = fakeApi()
     renderProject(PROJECT, api)
-    await user.click(await screen.findByRole('button', { name: 'Régler Torsade' }))
+    await user.click(await screen.findByRole('button', { name: 'Modifier Torsade' }))
     const dialog = await screen.findByRole('dialog', { name: 'Caler le diagramme' })
     expect(within(dialog).queryByRole('button', { name: 'Recadrer l’image' })).not.toBeInTheDocument()
     await user.clear(within(dialog).getByLabelText('Rang 1 du diagramme au rang de l’étape'))
@@ -298,7 +298,7 @@ describe('diagrammes d’une étape', () => {
     const user = userEvent.setup()
     const api = fakeApi()
     renderProject(PROJECT, api)
-    await user.click(await screen.findByRole('button', { name: 'Régler Torsade' }))
+    await user.click(await screen.findByRole('button', { name: 'Modifier Torsade' }))
     const dialog = await screen.findByRole('dialog', { name: 'Caler le diagramme' })
     const oddOnly = within(dialog).getByLabelText(/Seuls les rangs endroit/)
     expect(oddOnly).toBeDisabled()

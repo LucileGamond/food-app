@@ -17,7 +17,9 @@ describe('knitting api', () => {
     const { api } = await signedInApi()
     const id = await api.knitting.createProject({ title: 'Pull Bergamote', size: 'M', pdf: pdf(), steps: STEPS })
 
-    expect(await api.knitting.listProjects()).toEqual([expect.objectContaining({ id, title: 'Pull Bergamote', size: 'M', stepsDone: 0, stepsTotal: 2 })])
+    expect(await api.knitting.listProjects()).toEqual([
+      expect.objectContaining({ id, title: 'Pull Bergamote', size: 'M', stepsDone: 0, stepsTotal: 2, current: { number: 1, title: 'Dos – côtes', rowCount: 0, totalRows: 18, times: 1, pass: 1 } }),
+    ])
     let project = (await api.knitting.getProject(id))!
     expect(project.steps.map((s) => [s.position, s.title, s.totalRows, s.sections.length, s.rowCount])).toEqual([
       [0, 'Dos – côtes', 18, 0, 0],
@@ -33,7 +35,7 @@ describe('knitting api', () => {
       [6, false, 'Aiguilles 4'],
     ])
     expect(project.steps[1]!.sections).toEqual([{ kind: 'repeat', rows: null, every: 8, times: 3, text: '1 augmentation', pattern: 'tous les 5 cm' }])
-    expect((await api.knitting.listProjects())[0]!.stepsDone).toBe(1)
+    expect((await api.knitting.listProjects())[0]).toMatchObject({ stepsDone: 1, current: { number: 2, title: 'Emmanchures', rowCount: 6, totalRows: 30 } })
 
     // Étape tricotée 2 fois (les deux manches) : la 2e fois repart à 0
     expect(project.steps.map((s) => [s.times, s.pass])).toEqual([
@@ -434,8 +436,11 @@ describe('taille mise en valeur', () => {
 
     await api.knitting.setSizeIndex(id, 2)
     expect((await api.knitting.getProject(id))!.sizeIndex).toBe(2)
+    // La liste montre la taille suivie (celle choisie), pas celle de l'import
+    expect((await api.knitting.listProjects()).find((p) => p.id === id)!.size).toBe('L')
     await api.knitting.setSizeIndex(id, null)
     expect((await api.knitting.getProject(id))!.sizeIndex).toBeNull()
+    expect((await api.knitting.listProjects()).find((p) => p.id === id)!.size).toBe('M')
     await expect(api.knitting.setSizeIndex(id, 3)).rejects.toThrow('Certaines valeurs sont invalides.')
 
     // Surlignage corrigé à la main, par taille
