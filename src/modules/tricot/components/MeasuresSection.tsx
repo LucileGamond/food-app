@@ -14,7 +14,7 @@ import { Label } from '@/components/ui/label'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useAsync } from '@/hooks/useAsync'
 import { describeProfile, MEASURE_KEYS, MEASURE_LABELS, parseMeasure, type MeasureKey, type MeasureProfile } from '../lib/sizing'
-import { FoldHeader } from './FoldHeader'
+import { Fold } from './Fold'
 
 type Fields = Record<MeasureKey, string>
 
@@ -121,20 +121,21 @@ export function MeasuresSection() {
   }
 
   return (
-    <section aria-labelledby="knit-measures" className="mt-8 space-y-3">
-      <FoldHeader
-        id="knit-measures"
-        title="Fiches de mesures"
-        open={open}
-        onToggle={() => setOpen((o) => !o)}
-        count={count > 0 ? `${count} fiche${count > 1 ? 's' : ''}` : null}
-        action={
-          <Button variant="outline" className="h-10" onClick={() => setEditing('new')}>
-            <Plus /> Nouvelle fiche
-          </Button>
-        }
-      />
-      <div id="knit-measures-content" hidden={!open && count > 0}>
+    <Fold
+      id="knit-measures"
+      variant="section"
+      className="mt-8"
+      title="Fiches de mesures"
+      open={open}
+      onToggle={() => setOpen((o) => !o)}
+      summary={count > 0 ? `${count} fiche${count > 1 ? 's' : ''}` : 'aucune'}
+      action={
+        <Button variant="outline" className="h-10" onClick={() => setEditing('new')}>
+          <Plus /> Nouvelle fiche
+        </Button>
+      }
+    >
+      <div>
         {list.error ? (
           <LoadError message={list.error} onRetry={list.reload} />
         ) : !list.data ? (
@@ -170,6 +171,6 @@ export function MeasuresSection() {
         confirmLabel="Supprimer"
         onConfirm={remove}
       />
-    </section>
+    </Fold>
   )
 }

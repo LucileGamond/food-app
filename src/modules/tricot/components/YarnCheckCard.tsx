@@ -6,7 +6,7 @@ import { cn } from '@/lib/utils'
 import type { KnitStep } from '../lib/pattern'
 import { parseDecimal, yarnTitle, type Yarn } from '../lib/yarn'
 import { projectRowsDone, yarnVerdict, type YarnCheck } from '../lib/yarnLeft'
-import { PanelFold } from './PanelFold'
+import { Fold } from './Fold'
 
 interface Props {
   /** Laines du projet : chaque coloris est une laine, pesée à part. */
@@ -19,6 +19,12 @@ interface Props {
 
 const plural = (n: number, word: string) => `${n} ${word}${n > 1 ? 's' : ''}`
 
+/** Jour de la dernière pesée (« 13/11 »). */
+function formatDay(checks: YarnCheck[]): string {
+  const last = checks.map((c) => c.at).sort().at(-1)!
+  return new Date(last).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' })
+}
+
 /** Nom d'une laine dans la liste : marque, nom et coloris (« DROPS Merino · Ciel »). */
 const yarnLabel = (yarn: Yarn) => [yarnTitle(yarn), yarn.color].filter(Boolean).join(' · ')
 
@@ -26,8 +32,9 @@ const yarnLabel = (yarn: Yarn) => [yarnTitle(yarn), yarn.color].filter(Boolean).
 export function YarnCheckCard({ yarns, steps, checks, onSave }: Props) {
   const id = useId()
   return (
-    <PanelFold
+    <Fold
       id={`${id}-title`}
+      summary={checks.length ? `pesée le ${formatDay(checks)}` : yarns.length ? 'pas encore pesé' : 'laine du projet à noter'}
       title={
         <>
           <Scale className="size-4 text-muted-foreground" aria-hidden /> Assez de laine pour finir ?
@@ -53,7 +60,7 @@ export function YarnCheckCard({ yarns, steps, checks, onSave }: Props) {
           ))}
         </ul>
       )}
-    </PanelFold>
+    </Fold>
   )
 }
 

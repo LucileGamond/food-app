@@ -29,6 +29,7 @@ import { forgetProject } from '../lib/offline'
 import { currentStepIndex, newSectionId, stepFacts, type StepSection } from '../lib/pattern'
 import { placeCharts } from '../lib/chartPlace'
 import { OfflineNote } from '../components/OfflineNote'
+import { Fold } from '../components/Fold'
 import { StepNotes } from '../components/StepNotes'
 import { StepTimes } from '../components/StepTimes'
 import { StepReady } from '../components/StepReady'
@@ -327,10 +328,9 @@ export function KnittingProjectPage() {
           {step.instructions &&
             (step.sections.some((x) => x.source) ? (
               // Chaque sous-étape montre son paragraphe : le texte complet (corrections, traduction) reste à portée
-              <details className="rounded-xl border px-3 py-2">
-                <summary className="cursor-pointer text-sm font-medium">Texte complet de l’étape</summary>
-                <div className="mt-2">{stepText}</div>
-              </details>
+              <Fold id="step-text" title="Texte complet de l’étape" className="p-3 shadow-none sm:p-3">
+                {stepText}
+              </Fold>
             ) : (
               stepText
             ))}

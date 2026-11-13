@@ -6,6 +6,7 @@ import { SizedText, StepText } from '../SizedText'
 import { useBaseGlossary } from '../../hooks/useBaseGlossary'
 import { looksEnglish, mergeGlossary } from '../../lib/glossary'
 import { planSections, sectionIndicesAt } from '../../lib/pattern'
+import { Fold } from '../Fold'
 import { StepNotes } from '../StepNotes'
 import { StepQuestion } from '../StepQuestion'
 
@@ -29,12 +30,16 @@ export function PatternDrawer({ step, row, size, sizes, sizeIndex, abbreviations
   const current = row === null ? [] : sectionIndicesAt(planSections(step.sections, step.totalRows), row).flatMap((i) => (step.sections[i]?.source ? [step.sections[i]!.source!] : []))
   const glossary = mergeGlossary(abbreviations, base, looksEnglish(step.instructions))
   return (
-    <details className="group rounded-2xl border bg-background">
-      <summary className="flex min-h-12 cursor-pointer items-center gap-2 px-4 font-medium">
-        <BookOpen className="size-4 text-muted-foreground" aria-hidden /> Patron
-        <span className="text-sm font-normal text-muted-foreground">texte de l’étape, question, notes</span>
-      </summary>
-      <div className="space-y-4 border-t p-4">
+    <Fold
+      id="pattern-drawer"
+      title={
+        <>
+          <BookOpen className="size-4 shrink-0 text-muted-foreground" aria-hidden /> Patron
+        </>
+      }
+      summary="texte de l’étape, question, notes"
+    >
+      <div className="space-y-4">
         {current.length > 0 && (
           <section aria-label="Sous-étape en cours" className="space-y-2">
             {current.map((source, i) => (
@@ -62,6 +67,6 @@ export function PatternDrawer({ step, row, size, sizes, sizeIndex, abbreviations
         )}
         <StepNotes key={step.id} step={step} onSave={onNotes} />
       </div>
-    </details>
+    </Fold>
   )
 }

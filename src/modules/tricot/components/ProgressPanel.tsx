@@ -18,7 +18,7 @@ import { useAsync } from '@/hooks/useAsync'
 import { useSignedUrls } from '@/hooks/useSignedUrls'
 import { ACCEPTED_IMAGE_TYPES, compressImage } from '@/lib/image'
 import { CAPTION_MAX, describePhoto, PROJECT_NOTES_MAX, type ProgressPhoto } from '../lib/progress'
-import { PanelFold } from './PanelFold'
+import { Fold } from './Fold'
 
 interface Props {
   projectId: string
@@ -26,6 +26,8 @@ interface Props {
   currentStepId: string | null
   stepTitle: (stepId: string) => string | undefined
 }
+
+const plural = (n: number, word: string) => `${n} ${word}${n > 1 ? 's' : ''}`
 
 export function ProgressPanel({ projectId, currentStepId, stepTitle }: Props) {
   const api = useApi()
@@ -90,9 +92,10 @@ export function ProgressPanel({ projectId, currentStepId, stepTitle }: Props) {
   }
 
   return (
-    <PanelFold
+    <Fold
       id="knit-progress"
       title="Notes et photos"
+      summary={[photos.length ? plural(photos.length, 'photo') : null, shownNotes.trim() ? 'notes' : null].filter(Boolean).join(' · ') || 'rien de noté'}
       action={
         <div>
           <Label htmlFor="knit-progress-photo" className="sr-only">
@@ -194,6 +197,6 @@ export function ProgressPanel({ projectId, currentStepId, stepTitle }: Props) {
         confirmLabel="Supprimer"
         onConfirm={remove}
       />
-    </PanelFold>
+    </Fold>
   )
 }

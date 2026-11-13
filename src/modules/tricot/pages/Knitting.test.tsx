@@ -423,7 +423,7 @@ describe('KnittingProjectPage', () => {
     expect(items[1]).toHaveTextContent('Diminuer 1 m. de chaque côté tous les 6 rangs 4 (4-5) fois.')
     // Nombres de la taille M surlignés dans le paragraphe
     expect(within(items[1]!).getAllByText((_, el) => el?.tagName === 'MARK').map((m) => m.textContent)).toEqual(['4'])
-    expect(screen.getByText('Texte complet de l’étape', { selector: 'summary' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Texte complet de l’étape' })).toBeInTheDocument()
   })
 
   it('diagramme montré dans la sous-étape où il commence', async () => {
@@ -820,6 +820,30 @@ describe('KnittingProjectPage', () => {
     // Le nombre de fois explique dans sa propre bulle
     await user.click(screen.getByRole('button', { name: 'Nombre de fois : à tricoter 1 fois' }))
     expect(await screen.findByText(/Ex. 2 pour les deux manches/)).toBeInTheDocument()
+  })
+
+  it('blocs repliés : même geste partout, et un résumé de ce qu’ils contiennent', async () => {
+    const user = userEvent.setup()
+    const project = {
+      ...structuredClone(PROJECT),
+      yarns: [{ ...EMPTY_YARN, brand: 'Phildar', name: 'Partner 3.5' }],
+      myGauge: { stitches: 22, rows: 30 },
+      yarnChecks: [{ yarn: 0, grams: 220, rowsDone: 10, at: '2026-11-10T09:00:00.000Z' }],
+    }
+    renderProject(fakeApi(), project, START)
+    // Démarrer : la laine est ouverte, le patron adapté replié avec son résumé
+    const adapt = await screen.findByRole('button', { name: 'Patron adapté à moi' })
+    expect(adapt).toHaveAttribute('aria-expanded', 'false')
+    expect(screen.getByRole('region', { name: 'Patron adapté à moi' })).toHaveTextContent('pas encore adapté')
+    await user.click(adapt)
+    expect(adapt).toHaveAttribute('aria-expanded', 'true')
+    expect(screen.getByRole('region', { name: 'Patron adapté à moi' })).not.toHaveTextContent('pas encore adapté')
+    // Replié, chaque bloc dit ce qu'il contient
+    await user.click(screen.getByRole('button', { name: 'Laine et échantillon' }))
+    expect(screen.getByRole('region', { name: 'Laine et échantillon' })).toHaveTextContent('1 laine · 22 m. × 30 rangs pour 10 cm')
+    await user.click(screen.getByRole('tab', { name: /3. Tricoter/ }))
+    expect(await screen.findByRole('region', { name: 'Assez de laine pour finir ?' })).toHaveTextContent('pesée le 10/11')
+    expect(screen.getByRole('region', { name: 'Notes et photos' })).toHaveTextContent('rien de noté')
   })
 
   it('en-tête du projet : une seule taille affichée, celle suivie ; le choix est dans « Démarrer »', async () => {

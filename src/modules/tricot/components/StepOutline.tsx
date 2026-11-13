@@ -1,6 +1,7 @@
 import { Check, ListTree } from 'lucide-react'
-import { useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { cn } from '@/lib/utils'
+import { Fold } from './Fold'
 import { describeEvent, type Upcoming } from '../lib/guide'
 import { outlineIndicesAt, stepOutline, type OutlineRow, type OutlineSection } from '../lib/outline'
 import type { StepSection } from '../lib/pattern'
@@ -70,30 +71,35 @@ function Section({ section, current, isCurrent }: { section: OutlineSection; cur
 
 /** L'étape entière, section par section, avec les rangs où il y a quelque chose à faire ; repliée. */
 export function StepOutline({ step, nextTitle, showCurrent = true, upcoming }: Props) {
-  const ref = useRef<HTMLDetailsElement>(null)
+  const ref = useRef<HTMLDivElement>(null)
+  const [open, setOpen] = useState(false)
   const outline = stepOutline(step, nextTitle)
   const current = showCurrent ? step.rowCount + 1 : null
   const currentIndices = current === null ? [] : outlineIndicesAt(outline, current)
 
   // À l'ouverture : le rang en cours (ou sa section) en vue.
-  function onToggle() {
-    if (!ref.current?.open) return
-    ref.current.querySelector('li li[aria-current], li[aria-current]')?.scrollIntoView?.({ block: 'center' })
-  }
+  useEffect(() => {
+    if (!open) return
+    ref.current?.querySelector('li li[aria-current], li[aria-current]')?.scrollIntoView?.({ block: 'center' })
+  }, [open])
 
   return (
-    <details ref={ref} onToggle={onToggle} className="group rounded-2xl border bg-background">
-      <summary className="flex min-h-12 cursor-pointer items-center gap-2 px-4 font-medium">
-        <ListTree className="size-4 shrink-0 text-muted-foreground" aria-hidden /> <span className="shrink-0">Toute l’étape</span>
-        {upcoming ? (
-          <span className="min-w-0 truncate text-sm font-normal text-muted-foreground">
-            Prochain : rang {upcoming.row}, dans {upcoming.inRows} — {upcoming.events.map(describeEvent).join(' · ')}
-          </span>
-        ) : (
-          <span className="text-sm font-normal text-muted-foreground">sous-étapes et rangs</span>
-        )}
-      </summary>
-      <div className="border-t p-3">
+    <div ref={ref}>
+      <Fold
+        id="step-outline"
+        title={
+          <>
+            <ListTree className="size-4 shrink-0 text-muted-foreground" aria-hidden /> Toute l’étape
+          </>
+        }
+        summary={
+          upcoming
+            ? `Prochain : rang ${upcoming.row}, dans ${upcoming.inRows} — ${upcoming.events.map(describeEvent).join(' · ')}`
+            : 'sous-étapes et rangs'
+        }
+        open={open}
+        onToggle={() => setOpen((o) => !o)}
+      >
         {outline.length === 0 ? (
           <p className="text-sm text-muted-foreground">Rien de prévu : ajoute des sous-étapes ou le nombre de rangs de l’étape dans la préparation.</p>
         ) : (
@@ -103,7 +109,7 @@ export function StepOutline({ step, nextTitle, showCurrent = true, upcoming }: P
             ))}
           </ol>
         )}
-      </div>
-    </details>
+      </Fold>
+    </div>
   )
 }

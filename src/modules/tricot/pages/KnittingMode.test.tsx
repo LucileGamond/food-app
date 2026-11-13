@@ -80,6 +80,7 @@ describe('mode tricoter', () => {
     expect(row).toHaveTextContent('1 dim. de chaque côté — tous les 6 rangs (4 fois)')
     expect(next()).toHaveTextContent('Prochain : rang 10, dans 1 — 1 dim. de chaque côté (1/4)')
     // Toute l'étape : chaque rang à venir, avec dans combien de rangs
+    await user.click(screen.getByRole('button', { name: 'Toute l’étape' }))
     const outline = screen.getByRole('list', { name: 'Toute l’étape' })
     expect(within(outline).getAllByRole('listitem', { current: false }).map((li) => li.textContent).filter((t) => t?.startsWith('Rang'))).toEqual([
       'Rang 101 dim. de chaque côté (1/4)dans 1',
@@ -88,6 +89,8 @@ describe('mode tricoter', () => {
       'Rang 281 dim. de chaque côté (4/4, dernière fois)dans 19',
       'Rang 30Dernier rang de l’étape, ensuite : Encoluredans 21',
     ])
+    // Replié, le prochain rang qui demande quelque chose est rappelé en tête
+    await user.click(screen.getByRole('button', { name: 'Toute l’étape' }))
 
     await user.click(screen.getByRole('button', { name: 'Ajouter 1 rang' }))
     expect(api.knitting.saveProgress).toHaveBeenCalledWith('s2', { rowCount: 9 })
@@ -279,7 +282,7 @@ describe('mode tricoter', () => {
     expect(await screen.findByRole('heading', { level: 1, name: 'Encolure' })).toBeInTheDocument()
     // Étape sans nombre de rangs : pas de fin annoncée
     expect(next()).not.toBeInTheDocument()
-    await user.click(screen.getByText('Patron', { selector: 'summary' }))
+    await user.click(screen.getByRole('button', { name: 'Patron' }))
     expect(screen.getByText('Pas de texte pour cette étape.')).toBeInTheDocument()
     await user.type(screen.getByLabelText('Notes de l’étape'), 'Aiguilles 4,5')
     await user.tab()
@@ -304,7 +307,7 @@ describe('mode tricoter', () => {
     project.sizeIndex = 1
     project.steps[1]!.instructions = 'Knit 60 (64) sts in stockinette stitch.'
     const { api } = renderMode(project)
-    await user.click(await screen.findByText('Patron', { selector: 'summary' }))
+    await user.click(await screen.findByRole('button', { name: 'Patron' }))
     await user.click(screen.getByRole('button', { name: 'Traduire en français' }))
     expect(api.knitting.translateText).toHaveBeenCalledWith('Knit 60 (64) sts in stockinette stitch.')
     await waitFor(() => expect(api.knitting.saveProgress).toHaveBeenCalledWith('s2', { translation: 'Traduit : Knit 60 (64) sts in stockinette stitch.' }))

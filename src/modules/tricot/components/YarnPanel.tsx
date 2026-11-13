@@ -18,6 +18,7 @@ import { useOnOpen } from '@/hooks/useOnOpen'
 import { ACCEPTED_IMAGE_TYPES } from '@/lib/image'
 import {
   EMPTY_YARN,
+  formatGauge,
   MAX_YARNS,
   parseGauge,
   parseYarn,
@@ -31,7 +32,7 @@ import {
   type Yarn,
   type YarnDraft,
 } from '../lib/yarn'
-import { PanelFold } from './PanelFold'
+import { Fold } from './Fold'
 import { HelpTip } from './HelpTip'
 
 export interface ProjectInfo {
@@ -297,10 +298,13 @@ export function YarnPanel({
     onSave({ ...info, yarns: editing === 'new' || editing === null ? [...info.yarns, yarn] : info.yarns.map((y, i) => (i === editing ? yarn : y)) })
 
   return (
-    <PanelFold
+    <Fold
       id="knit-yarn"
       defaultOpen={defaultOpen}
       title="Laine et échantillon"
+      summary={[info.yarns.length ? `${info.yarns.length} laine${info.yarns.length > 1 ? 's' : ''}` : 'aucune laine notée', formatGauge(info.myGauge) ?? 'échantillon pas noté']
+        .filter(Boolean)
+        .join(' · ')}
       action={
         info.yarns.length < MAX_YARNS && (
           <Button variant="outline" className="h-10" onClick={() => setEditing('new')}>
@@ -347,6 +351,6 @@ export function YarnPanel({
         onSave={saveYarn}
         stash={stash.data ?? []}
       />
-    </PanelFold>
+    </Fold>
   )
 }

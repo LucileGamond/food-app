@@ -167,7 +167,7 @@ describe('mode tricoter : toute l’étape', () => {
     const user = userEvent.setup()
     // 4 rangs de côtes, puis 1 dim. de chaque côté tous les 6 rangs (4 fois) : rangs 10, 16, 22, 28 ; 30 rangs, 52 mailles à la fin
     await open(project({ rowCount: 15, totalRows: 30, stitches: 52, sections: [rows(4, 'côtes'), repeat(6, 4, [{ text: '1 dim. de chaque côté', rank: null, stitches: -2 }])] }))
-    await user.click(screen.getByText('Toute l’étape'))
+    await user.click(screen.getByRole('button', { name: 'Toute l’étape' }))
     const outline = screen.getByRole('list', { name: 'Toute l’étape' })
     const sections = within(outline).getAllByRole('listitem').filter((li) => li.parentElement === outline)
     expect(sections.map((li) => li.firstChild?.textContent)).toEqual(['4 rangs : côtes', '1 dim. de chaque côté — tous les 6 rangs (4 fois)', 'Fin de l’étape'])
@@ -188,7 +188,7 @@ describe('mode tricoter : toute l’étape', () => {
   it('section à régler : signalée, la suite sans rangs', async () => {
     const user = userEvent.setup()
     await open(project({ rowCount: 1, sections: [rows(4, 'côtes'), rows(null, 'jersey'), rows(6, 'côtes')] }))
-    await user.click(screen.getByText('Toute l’étape'))
+    await user.click(screen.getByRole('button', { name: 'Toute l’étape' }))
     const outline = screen.getByRole('list', { name: 'Toute l’étape' })
     expect(outline).toHaveTextContent('5 cm (à régler) : jerseyÀ régler en rangs dans la préparation : la suite se calculera.')
     expect(outline).toHaveTextContent('6 rangs : côtesRangs pas encore connus (une sous-étape avant est à régler).')
@@ -331,7 +331,7 @@ describe('mode tricoter : texte de la sous-étape en cours', () => {
     const user = userEvent.setup()
     const sections = [{ ...rows(4, 'côtes'), source: 'Tricoter 4 rangs de côtes.' }, { ...rows(16, 'jersey'), source: 'Continuer en jersey.' }]
     await open(project({ rowCount: 5, instructions: 'Tricoter 4 rangs de côtes.\n\nContinuer en jersey.', sections }))
-    await user.click(screen.getByText('Patron', { selector: 'summary' }))
+    await user.click(screen.getByRole('button', { name: 'Patron' }))
     expect(screen.getByRole('region', { name: 'Sous-étape en cours' })).toHaveTextContent('Continuer en jersey.')
     expect(screen.getByRole('region', { name: 'Sous-étape en cours' })).not.toHaveTextContent('côtes')
     expect(screen.getByText('Texte complet de l’étape')).toBeInTheDocument()

@@ -58,7 +58,7 @@ function renderMode(project: KnitProject = PROJECT, api = fakeApi()) {
 
 /** Ouvre le volet « Patron » du mode tricoter. */
 async function openPattern(user: ReturnType<typeof userEvent.setup>) {
-  await user.click(await screen.findByText('Patron', { selector: 'summary *, summary' }))
+  await user.click(await screen.findByRole('button', { name: 'Patron' }))
 }
 
 beforeEach(() => localStorage.clear())

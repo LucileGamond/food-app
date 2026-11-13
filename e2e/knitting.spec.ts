@@ -94,7 +94,7 @@ test('charge un patron PDF pour une taille, compte les rangs et retrouve son ava
   await expect(page.getByText(/^Prochain :/)).toHaveText('Prochain : rang 12, dans 6 — 1 diminution de chaque côté (2/4)')
   // 56 mailles à la fin, 4 diminutions de chaque côté devinées d'après le texte : 64 au départ, 62 après ce rang (estimé)
   await expect(row).toContainText('En fin de rang : 62 (?) mailles')
-  await page.getByText('texte de l’étape, question, notes').click()
+  await page.getByRole('button', { name: 'Patron' }).click()
   await page.getByLabel('Notes de l’étape', { exact: true }).fill('Aiguilles 4,5')
   // Recharger avant la fin de l'enregistrement des notes (parti au blur) l'annulerait : on attend la réponse.
   const notesSaved = page.waitForResponse(
@@ -107,7 +107,7 @@ test('charge un patron PDF pour une taille, compte les rangs et retrouve son ava
   // Avancée enregistrée
   await page.reload()
   await expect(row).toContainText('Rang 6 à tricoter')
-  await page.getByText('texte de l’étape, question, notes').click()
+  await page.getByRole('button', { name: 'Patron' }).click()
   await expect(page.getByLabel('Notes de l’étape', { exact: true })).toHaveValue('Aiguilles 4,5')
   await page.getByRole('link', { name: 'Quitter le mode tricoter' }).click()
   // Plusieurs tailles : la taille suivie se lit dans le choix, pas en double dans l'en-tête
@@ -221,6 +221,9 @@ test('met un patron de côté, le commence, puis note la laine (étiquette) et s
   // La liste d'attente est vide
   await page.getByRole('link', { name: 'Pull Bergamote' }).click()
   await page.getByRole('link', { name: 'Projets' }).click()
+  // Replié, le bloc dit déjà qu'il n'y a rien ; ouvert, il explique comment en mettre un de côté
+  await expect(page.getByRole('region', { name: 'À faire plus tard' })).toContainText('aucun')
+  await page.getByRole('button', { name: 'À faire plus tard' }).click()
   await expect(page.getByText('Aucun patron en attente', { exact: false })).toBeVisible()
 })
 

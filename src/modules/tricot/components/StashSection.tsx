@@ -15,7 +15,7 @@ import { LoadError } from '@/components/LoadError'
 import { useAsync } from '@/hooks/useAsync'
 import { cn } from '@/lib/utils'
 import { matchPatterns, patternSearchUrl, siteOf, yarnDetails, yarnMeters, yarnTitle, type QueuedPattern, type StashItem, type Yarn, type YarnIdea } from '../lib/yarn'
-import { FoldHeader } from './FoldHeader'
+import { Fold } from './Fold'
 import { YarnDialog } from './YarnPanel'
 
 function PatternLink({ item }: { item: QueuedPattern }) {
@@ -191,20 +191,21 @@ export function StashSection({ queue }: { queue: QueuedPattern[] }) {
   }
 
   return (
-    <section aria-labelledby="knit-stash" className="mt-8 space-y-3">
-      <FoldHeader
-        id="knit-stash"
-        title="Stock de laine"
-        open={open}
-        onToggle={() => setOpen((o) => !o)}
-        count={count > 0 ? `${count} laine${count > 1 ? 's' : ''}` : null}
-        action={
-          <Button variant="outline" className="h-10" onClick={() => setEditing('new')}>
-            <Plus /> Ajouter au stock
-          </Button>
-        }
-      />
-      <div id="knit-stash-content" hidden={!open && count > 0}>
+    <Fold
+      id="knit-stash"
+      variant="section"
+      className="mt-8"
+      title="Stock de laine"
+      open={open}
+      onToggle={() => setOpen((o) => !o)}
+      summary={count > 0 ? `${count} laine${count > 1 ? 's' : ''}` : 'vide'}
+      action={
+        <Button variant="outline" className="h-10" onClick={() => setEditing('new')}>
+          <Plus /> Ajouter au stock
+        </Button>
+      }
+    >
+      <div>
         {stash.error ? (
           <LoadError message={stash.error} onRetry={stash.reload} />
         ) : !stash.data ? (
@@ -252,6 +253,6 @@ export function StashSection({ queue }: { queue: QueuedPattern[] }) {
         confirmLabel="Retirer"
         onConfirm={remove}
       />
-    </section>
+    </Fold>
   )
 }

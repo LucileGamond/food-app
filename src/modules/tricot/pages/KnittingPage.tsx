@@ -9,7 +9,7 @@ import { PageHeader } from '@/components/PageHeader'
 import { LoadError } from '@/components/LoadError'
 import { useAsync } from '@/hooks/useAsync'
 import { cn } from '@/lib/utils'
-import { FoldHeader } from '../components/FoldHeader'
+import { Fold } from '../components/Fold'
 import { QueueList } from '../components/QueueList'
 import { StashSection } from '../components/StashSection'
 import { MeasuresSection } from '../components/MeasuresSection'
@@ -77,15 +77,16 @@ export function KnittingPage() {
         </ul>
       )}
 
-      <section aria-labelledby="knit-queue" className="mt-8 space-y-3">
-        <FoldHeader
-          id="knit-queue"
-          title="À faire plus tard"
-          open={queueOpen}
-          onToggle={() => setQueueOpen((o) => !o)}
-          count={queueCount > 0 ? `${queueCount} patron${queueCount > 1 ? 's' : ''}` : null}
-        />
-        <div id="knit-queue-content" hidden={!queueOpen && queueCount > 0}>
+      <Fold
+        id="knit-queue"
+        variant="section"
+        className="mt-8"
+        title="À faire plus tard"
+        open={queueOpen}
+        onToggle={() => setQueueOpen((o) => !o)}
+        summary={queueCount > 0 ? `${queueCount} patron${queueCount > 1 ? 's' : ''}` : 'aucun'}
+      >
+        <div>
           {queue.error ? (
             <LoadError message={queue.error} onRetry={queue.reload} />
           ) : !queue.data ? (
@@ -96,7 +97,7 @@ export function KnittingPage() {
             <QueueList items={queue.data} onChange={queue.reload} />
           )}
         </div>
-      </section>
+      </Fold>
 
       <StashSection queue={queue.data ?? []} />
       <MeasuresSection />

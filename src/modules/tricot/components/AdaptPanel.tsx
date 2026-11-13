@@ -16,7 +16,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { ADAPT_REQUEST_MAX, adaptationPaused, describeChange, type Adaptation, type AdaptedStep } from '../lib/adapt'
 import type { KnitProject } from '../lib/pattern'
 import { formatGauge, gaugeDiffers } from '../lib/yarn'
-import { PanelFold } from './PanelFold'
+import { Fold } from './Fold'
 
 interface Props {
   project: KnitProject
@@ -79,7 +79,11 @@ export function AdaptPanel({ project, size, onSaved }: Props) {
   const originalOf = (stepId: string) => project.steps.find((s) => s.id === stepId) ?? { totalRows: null, stitches: null }
 
   return (
-    <PanelFold id="knit-adapt" title="Patron adapté à moi">
+    <Fold
+      id="knit-adapt"
+      title="Patron adapté à moi"
+      summary={!adaptation ? 'pas encore adapté' : paused ? 'en pause (autre taille)' : adaptation.active ? 'suivi' : 'pas suivi'}
+    >
       <div>
         <p className="text-sm text-muted-foreground">Facultatif : mailles, rangs et sous-étapes recalculés pour ton échantillon et tes retouches. Le patron d’origine reste disponible.</p>
       </div>
@@ -181,6 +185,6 @@ export function AdaptPanel({ project, size, onSaved }: Props) {
           if (await save(null, 'Adaptation supprimée')) setRequest('')
         }}
       />
-    </PanelFold>
+    </Fold>
   )
 }
