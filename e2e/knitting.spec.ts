@@ -115,8 +115,7 @@ test('charge un patron PDF pour une taille, compte les rangs et retrouve son ava
 
   // Liste des projets : l'étape en cours, et Tricoter d'un toucher ; puis suppression
   await page.getByRole('main').getByRole('link', { name: 'Tricot', exact: true }).click()
-  await expect(page.getByRole('link', { name: /^Pull Bergamote/ })).toContainText('Taille M · étape 2 sur 2 : Emmanchures')
-  await expect(page.getByRole('link', { name: /^Pull Bergamote/ })).toContainText(/5 \/ \d+ rangs/)
+  await expect(page.getByRole('list', { name: 'Projets en cours' }).getByRole('link', { name: /^Pull Bergamote/ })).toContainText(/Étape 2 sur 2 · 5 \/ \d+ rangs/)
   await expect(page.getByRole('link', { name: 'Tricoter « Pull Bergamote »' })).toHaveAttribute('href', /\/tricoter$/)
   await page.getByRole('link', { name: /^Pull Bergamote/ }).click()
   await page.getByRole('button', { name: 'Supprimer le projet' }).click()
@@ -378,7 +377,7 @@ test('suit un diagramme ajouté depuis une image, rang par rang', async ({ page 
   await page.getByRole('link', { name: /Dos – côtes/ }).click()
   await expect(page.getByRole('heading', { name: 'Dos – côtes' })).toBeVisible()
   // Les diagrammes sont dans leur bloc, replié par défaut
-  await page.getByRole('button', { name: 'Diagrammes' }).click()
+  await page.getByRole('button', { name: 'Diagrammes', exact: true }).click()
 
   // Image du diagramme (PNG d'un pixel), calée sur 6 lignes
   const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==', 'base64')
@@ -418,6 +417,9 @@ test('suit un diagramme ajouté depuis une image, rang par rang', async ({ page 
   await page.getByRole('link', { name: 'Quitter le mode tricoter' }).click()
   await page.getByRole('tab', { name: /2. Préparer/ }).click()
   await page.getByRole('link', { name: /Dos – côtes/ }).click()
+  // Replié par défaut, il dit combien de diagrammes il garde
+  await expect(page.getByRole('region', { name: 'Diagrammes' })).toContainText('1 diagramme')
+  await page.getByRole('button', { name: 'Diagrammes', exact: true }).click()
   await expect(page.getByRole('region', { name: 'Torsade' }).getByRole('status')).toContainText('Rang 3 sur 6')
   await page.getByRole('button', { name: 'Supprimer Torsade' }).click()
   await page.getByRole('button', { name: 'Supprimer', exact: true }).click()
