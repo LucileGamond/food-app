@@ -112,7 +112,7 @@ describe('KnittingPage', () => {
 
   it('« + » pour un nouveau projet, sans explication ici ; puis bibliothèque, stock et mesures, chacun sur sa page', async () => {
     const api = fakeApi()
-    api.knitting.listStash.mockResolvedValue([{ id: 'y1', yarn: { brand: 'DROPS', name: 'Merino', color: null, dye_lot: null, composition: null, weight_g: null, length_m: null, skeins: null, needle_mm: null }, notes: '', createdAt: '2026-11-01' }])
+    api.knitting.listStash.mockResolvedValue([{ id: 'y1', yarn: { brand: 'DROPS', name: 'Merino', color: null, dye_lot: null, composition: null, weight_g: null, length_m: null, skeins: null, needle_mm: null, hues: [] }, notes: '', createdAt: '2026-11-01' }])
     renderWithApp(<KnittingPage />, { api })
     expect(await screen.findByRole('link', { name: 'Nouveau projet' })).toHaveAttribute('href', '/tricot/nouveau')
     expect(screen.queryByText(/découpé en étapes/)).not.toBeInTheDocument()
