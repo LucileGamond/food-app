@@ -1,6 +1,7 @@
 // Laine et échantillon d'un projet : laines utilisées (saisies ou lues sur la photo de l'étiquette) et échantillons
 // du patron et de la tricoteuse, qui recalculent les mailles et les rangs affichés dans les étapes.
 
+import { AiIcon } from '@/components/AiIcon'
 import { GaugesList } from './GaugesList'
 import type { ProjectGauge } from '../lib/gauges'
 import { CircleAlert, Loader2 } from 'lucide-react'
@@ -166,6 +167,7 @@ export function YarnDialog({
             <Button type="button" variant="outline" className="h-10 w-full" disabled={reading} onClick={() => document.getElementById('yarn-label-photo')?.click()}>
               {reading ? <Loader2 className="animate-spin" aria-hidden /> : <PhotoIcon />}
               {reading ? 'Lecture de l’étiquette…' : 'Photo de l’étiquette'}
+              {!reading && <AiIcon className="opacity-70" />}
             </Button>
           </div>
 

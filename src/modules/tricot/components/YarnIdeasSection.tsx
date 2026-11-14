@@ -3,7 +3,8 @@
 // patron Ravelry peut en chercher sur internet avec le modèle. Les idées sont gardées pour être revues sans repayer,
 // et un patron trouvé peut être gardé dans la bibliothèque (ajout par lien, sans l'IA).
 
-import { BookmarkPlus, Loader2, Sparkles } from 'lucide-react'
+import { BookmarkPlus, Loader2 } from 'lucide-react'
+import { AiIcon } from '@/components/AiIcon'
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { toast } from 'sonner'
@@ -17,7 +18,7 @@ import { Label } from '@/components/ui/label'
 import { useAsync } from '@/hooks/useAsync'
 import { formatShortDate } from '@/lib/dates'
 import type { NavState } from '@/lib/navState'
-import { LinkIcon, RestartIcon, SearchIcon } from './KnitIcons'
+import { LinkIcon, SearchIcon } from './KnitIcons'
 import {
   decimal,
   ideaFit,
@@ -158,7 +159,7 @@ export function YarnIdeasSection({ item, stash, emphasize }: Props) {
 
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
         <Button variant={emphasize && !current ? 'default' : 'outline'} className="h-10" disabled={loading} onClick={() => void ask()}>
-          {loading ? <Loader2 className="animate-spin" aria-hidden /> : current ? <RestartIcon /> : <Sparkles />}
+          {loading ? <Loader2 className="animate-spin" aria-hidden /> : <AiIcon />}
           {loading ? 'Recherche d’idées…' : current ? 'Relancer' : 'Des idées avec l’IA'}
         </Button>
         <span className="text-xs text-muted-foreground">{IDEAS_COST}{ravelryMissing ? '' : ' · patrons de Ravelry gratuits'}</span>

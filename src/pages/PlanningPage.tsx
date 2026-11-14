@@ -9,7 +9,8 @@ import {
   type DragEndEvent,
   type DragStartEvent,
 } from '@dnd-kit/core'
-import { CalendarCheck, CalendarPlus, ChevronLeft, ChevronRight, Copy, MoveRight, ShoppingCart, Sparkles } from 'lucide-react'
+import { AiIcon } from '@/components/AiIcon'
+import { CalendarCheck, CalendarPlus, ChevronLeft, ChevronRight, Copy, MoveRight, ShoppingCart } from 'lucide-react'
 import { toast } from 'sonner'
 import { errorMessage } from '@/api'
 import { useCallback, useMemo, useState } from 'react'
@@ -174,7 +175,7 @@ export function PlanningPage({ today: fixedToday }: { today?: IsoDate }) {
               <span className="max-sm:hidden">Semaine</span>
             </Button>
             <Button variant="outline" className="h-11 px-2.5 shadow-xs sm:px-3" aria-label="Idées de repas" onClick={() => setDialog({ kind: 'ideas' })}>
-              <Sparkles />
+              <AiIcon />
               <span className="max-sm:hidden">Idées</span>
             </Button>
             {isEnabled('courses') && (

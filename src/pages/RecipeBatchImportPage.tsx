@@ -1,4 +1,5 @@
-import { ArrowLeft, Camera, FolderOpen, Images, Pause, Play, RotateCcw } from 'lucide-react'
+import { ArrowLeft, Camera, FolderOpen, Images, Pause } from 'lucide-react'
+import { AiIcon } from '@/components/AiIcon'
 import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { BatchResults } from '@/components/recipes/BatchResults'
@@ -199,7 +200,7 @@ export function RecipeBatchImportPage() {
           </div>
 
           <Button className="h-10 px-4" onClick={() => void start()}>
-            <Play /> Lancer l’import{items.length > 0 && ` (${items.length})`}
+            <AiIcon /> Lancer l’import{items.length > 0 && ` (${items.length})`}
           </Button>
         </section>
       ) : null}
@@ -219,7 +220,7 @@ export function RecipeBatchImportPage() {
               )}
               {phase === 'paused' && (
                 <Button className="h-10 px-3" onClick={() => void run(pendingItems())}>
-                  <Play /> Reprendre
+                  <AiIcon /> Reprendre
                 </Button>
               )}
             </div>
@@ -248,7 +249,7 @@ export function RecipeBatchImportPage() {
               <div className="flex flex-wrap gap-2">
                 {toRetry > 0 && (
                   <Button variant="outline" className="h-10 px-3" onClick={retryErrors}>
-                    <RotateCcw /> Réessayer les erreurs ({toRetry})
+                    <AiIcon /> Réessayer les erreurs ({toRetry})
                   </Button>
                 )}
                 <Link to="/recettes" className={cn(buttonVariants(), 'h-10 px-4')}>

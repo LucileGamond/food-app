@@ -1,4 +1,5 @@
-import { BookOpen, ExternalLink, Loader2, RefreshCw, Sparkles, Sprout } from 'lucide-react'
+import { BookOpen, ExternalLink, Loader2, Sprout } from 'lucide-react'
+import { AiIcon } from '@/components/AiIcon'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { toast } from 'sonner'
 import { Badge } from '@/components/ui/badge'
@@ -107,7 +108,7 @@ export function MealIdeasDialog({ open, onOpenChange, today, onAdded }: Props) {
       <DialogContent className="grid max-h-[calc(100dvh-2rem)] grid-cols-[minmax(0,1fr)] grid-rows-[auto_minmax(0,1fr)_auto] sm:max-w-xl">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <Sparkles className="size-4 text-brand" aria-hidden /> Idées de repas
+            <AiIcon className="size-4 text-brand" /> Idées de repas
           </DialogTitle>
           <DialogDescription>Coche celles qui te plaisent : elles iront dans « À planifier ».</DialogDescription>
         </DialogHeader>
@@ -175,7 +176,7 @@ export function MealIdeasDialog({ open, onOpenChange, today, onAdded }: Props) {
 
         <DialogFooter className="gap-2">
           <Button variant="outline" className="h-10" disabled={state.kind === 'loading' || adding} onClick={() => void search()}>
-            <RefreshCw /> Autres idées
+            <AiIcon /> Autres idées
           </Button>
           <Button className="h-10" disabled={state.kind !== 'ready' || count === 0 || adding} onClick={() => void add()}>
             {adding && <Loader2 className="animate-spin" aria-hidden />}

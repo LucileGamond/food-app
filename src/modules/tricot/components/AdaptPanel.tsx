@@ -2,8 +2,9 @@
 // « Laine et échantillon » et pour des retouches en texte libre. Avant / après à valider ; ensuite, on bascule
 // entre le patron adapté et celui d'origine, qui n'est jamais modifié.
 
-import { Loader2, Sparkles, Wand2 } from 'lucide-react'
-import { CloseIcon, DeleteIcon, RestartIcon } from './KnitIcons'
+import { Loader2 } from 'lucide-react'
+import { CloseIcon, DeleteIcon, DoneIcon, RestartIcon } from './KnitIcons'
+import { AiIcon } from '@/components/AiIcon'
 import { useState } from 'react'
 import { toast } from 'sonner'
 import { errorMessage } from '@/api'
@@ -149,7 +150,7 @@ export function AdaptPanel({ project, size, onSaved }: Props) {
           </div>
           <div className="flex flex-wrap gap-2">
             <Button className="h-10" disabled={!canAdapt || working} onClick={() => void adapt()}>
-              {working ? <Loader2 className="animate-spin" aria-hidden /> : <Wand2 />}
+              {working ? <Loader2 className="animate-spin" aria-hidden /> : <AiIcon />}
               {working ? 'Adaptation…' : 'Adapter avec l’IA'}
             </Button>
             {editing && (
@@ -180,7 +181,7 @@ export function AdaptPanel({ project, size, onSaved }: Props) {
               <CloseIcon /> Annuler
             </Button>
             <Button className="h-10" onClick={() => void accept()}>
-              <Sparkles /> Suivre ce patron adapté
+              <DoneIcon /> Suivre ce patron adapté
             </Button>
           </DialogFooter>
         </DialogContent>

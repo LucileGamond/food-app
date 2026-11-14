@@ -1,4 +1,5 @@
-import { BookOpen, Link2, ScanText } from 'lucide-react'
+import { BookOpen, Link2 } from 'lucide-react'
+import { AiIcon } from '@/components/AiIcon'
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { toast } from 'sonner'
@@ -135,7 +136,7 @@ export function SharePage() {
         {isEnabled('recettes') ? (
           <div className="space-y-1 border-t pt-4">
             <Button type="button" variant="outline" className="h-10 px-3" onClick={prefill}>
-              <ScanText aria-hidden /> Préremplir le formulaire
+              <AiIcon /> Préremplir le formulaire
             </Button>
             <p className="text-xs text-muted-foreground">Pour vérifier la recette avant de l’enregistrer.</p>
           </div>

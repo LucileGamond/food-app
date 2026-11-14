@@ -1,4 +1,5 @@
 import { ArrowLeft, BookOpen, ChefHat, Clock, ExternalLink, Flame, History, Inbox, Pencil, Printer, ShoppingCart, Sprout, Trash2, Users } from 'lucide-react'
+import { AiIcon } from '@/components/AiIcon'
 import { useMemo, useState } from 'react'
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom'
 import { toast } from 'sonner'
@@ -192,7 +193,7 @@ function RecipeDetail({ id }: { id: string }) {
               className="mt-2 flex items-center gap-1 text-sm font-medium text-brand underline-offset-4 hover:underline"
               onClick={() => setEstimating(true)}
             >
-              <Flame className="size-4" aria-hidden /> Calculer les calories
+              <AiIcon className="size-4" /> Calculer les calories
             </button>
           )}
           {formatSource(recipe.source, recipe.source_page) && (
@@ -223,7 +224,7 @@ function RecipeDetail({ id }: { id: string }) {
           </Link>
           {isEnabled('courses') && (
             <Button variant="outline" className="h-10 px-3" onClick={() => setShopping(true)} disabled={recipe.ingredients.length === 0}>
-              <ShoppingCart /> Courses
+              <ShoppingCart /> Courses <AiIcon className="opacity-70" />
             </Button>
           )}
           {isEnabled('planning') && (

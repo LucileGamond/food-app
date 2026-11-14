@@ -1,4 +1,5 @@
-import { Camera, CheckCircle2, ClipboardPaste, Link2, Loader2, Plus, ScanText, Sparkles, X } from 'lucide-react'
+import { Camera, CheckCircle2, Link2, Loader2, Plus, X } from 'lucide-react'
+import { AiIcon } from '@/components/AiIcon'
 import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -180,7 +181,7 @@ export function RecipeImportCard({ initialUrl, initialPhotos, hasContent, onImpo
   return (
     <section aria-labelledby="import-heading" className="rounded-2xl border border-brand/25 bg-brand/5 p-5">
       <h2 id="import-heading" className="flex items-center gap-2 font-semibold tracking-tight">
-        <Sparkles className="size-4 text-brand" aria-hidden />
+        <AiIcon className="size-4 text-brand" />
         Préremplir la recette
       </h2>
       <p className="mt-1 text-sm text-muted-foreground">
@@ -206,7 +207,7 @@ export function RecipeImportCard({ initialUrl, initialPhotos, hasContent, onImpo
           />
         </div>
         <Button type="button" className="h-10 px-4" disabled={loading || url.trim() === ''} onClick={handleSubmit}>
-          {state.kind === 'loading' && state.source === 'link' ? <Loader2 className="animate-spin" aria-hidden /> : <Sparkles aria-hidden />}
+          {state.kind === 'loading' && state.source === 'link' ? <Loader2 className="animate-spin" aria-hidden /> : <AiIcon />}
           {state.kind === 'loading' && state.source === 'link' ? 'Analyse…' : 'Préremplir'}
         </Button>
       </div>
@@ -230,7 +231,7 @@ export function RecipeImportCard({ initialUrl, initialPhotos, hasContent, onImpo
             placeholder="Ingrédients : 200 g de…"
           />
           <Button type="button" className="h-10 px-4" disabled={loading || caption.trim() === ''} onClick={submitCaption}>
-            {state.kind === 'loading' && state.source === 'caption' ? <Loader2 className="animate-spin" aria-hidden /> : <ClipboardPaste aria-hidden />}
+            {state.kind === 'loading' && state.source === 'caption' ? <Loader2 className="animate-spin" aria-hidden /> : <AiIcon />}
             {state.kind === 'loading' && state.source === 'caption' ? 'Analyse…' : 'Préremplir avec la légende'}
           </Button>
         </div>
@@ -294,7 +295,7 @@ export function RecipeImportCard({ initialUrl, initialPhotos, hasContent, onImpo
               )}
             </ul>
             <Button type="button" className="h-10 px-4" disabled={loading} onClick={readPhotos}>
-              {state.kind === 'loading' && state.source === 'photos' ? <Loader2 className="animate-spin" aria-hidden /> : <ScanText aria-hidden />}
+              {state.kind === 'loading' && state.source === 'photos' ? <Loader2 className="animate-spin" aria-hidden /> : <AiIcon />}
               {state.kind === 'loading' && state.source === 'photos' ? 'Lecture…' : 'Lire la recette'}
             </Button>
           </>

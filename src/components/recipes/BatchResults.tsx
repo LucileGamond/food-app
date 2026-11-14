@@ -1,4 +1,5 @@
 import { CheckCircle2, CircleAlert, CircleDashed, CopyCheck, Loader2, MinusCircle, RotateCcw, TriangleAlert } from 'lucide-react'
+import { AiIcon } from '@/components/AiIcon'
 import { Link } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 import type { BatchItem, BatchStatus, RecipeOutcome } from '@/lib/batchImport'
@@ -42,7 +43,7 @@ function StatusLine({ style, message, error, children }: { style: StatusStyle; m
 export type BatchResultItem = Pick<BatchItem, 'key' | 'status' | 'message' | 'recipes'> & {
   label: string
   /** Action proposée sous la ligne (ex. « C'est une recette » pour une page ignorée). */
-  action?: { label: string; onClick: () => void }
+  action?: { label: string; onClick: () => void; /** L'action relance l'IA (étoiles sur le bouton). */ ai?: boolean }
   /** Miniature de la photo (adresse d'objet), pour juger d'un coup d'œil. */
   thumbnail?: string
 }
@@ -80,7 +81,7 @@ export function BatchResults({ items, label }: { items: BatchResultItem[]; label
             )}
             {item.action && (
               <Button variant="outline" size="sm" className="h-9" onClick={item.action.onClick}>
-                <RotateCcw /> {item.action.label}
+                {item.action.ai ? <AiIcon /> : <RotateCcw />} {item.action.label}
               </Button>
             )}
           </div>

@@ -1,4 +1,5 @@
-import { Archive, CalendarPlus, Loader2, Save } from 'lucide-react'
+import { Archive, CalendarPlus, Loader2, type Save } from 'lucide-react'
+import { AiIcon } from '@/components/AiIcon'
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { toast } from 'sonner'
@@ -63,7 +64,7 @@ export function ImportChoices({ source, onIncomplete, className }: Props) {
   }
 
   const busy = running !== null
-  const icon = (action: Action, Icon: typeof Save) => (running === action ? <Loader2 className="animate-spin" aria-hidden /> : <Icon aria-hidden />)
+  const icon = (action: Action, Icon: typeof Save | typeof AiIcon) => (running === action ? <Loader2 className="animate-spin" aria-hidden /> : <Icon aria-hidden />)
 
   return (
     <div className={cn('space-y-2', className)}>
@@ -72,7 +73,7 @@ export function ImportChoices({ source, onIncomplete, className }: Props) {
         {isEnabled('recettes') && (
           <>
             <Button type="button" className="h-10 px-3" disabled={!source || busy} onClick={() => void run('save')}>
-              {icon('save', Save)} Enregistrer directement
+              {icon('save', AiIcon)} Enregistrer directement
             </Button>
             <Button type="button" variant="outline" className="h-10 bg-background px-3" disabled={!source || busy} onClick={() => void run('aside')}>
               {icon('aside', Archive)} Mettre de côté

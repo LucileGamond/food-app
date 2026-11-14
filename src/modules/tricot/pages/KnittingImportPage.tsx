@@ -1,5 +1,6 @@
-import { Loader2, Sparkles } from 'lucide-react'
+import { Loader2 } from 'lucide-react'
 import { ChartIcon, DoneIcon, PdfIcon, RestartIcon } from '../components/KnitIcons'
+import { AiIcon } from '@/components/AiIcon'
 import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { Navigate, useNavigate, useSearchParams } from 'react-router-dom'
 import { toast } from 'sonner'
@@ -170,7 +171,7 @@ export function KnittingImportPage() {
               <p>Lecture du {formatShortDate(toIsoDate(new Date(reusedAt)))} reprise : rien n’a été relu par l’IA.</p>
               {pdf && (
                 <Button variant="outline" className="h-10" disabled={reading} onClick={() => void readFor(pdf, size.trim(), true)}>
-                  {reading ? <Loader2 className="animate-spin" aria-hidden /> : <Sparkles />} Relire avec l’IA
+                  {reading ? <Loader2 className="animate-spin" aria-hidden /> : <AiIcon />} Relire avec l’IA
                 </Button>
               )}
             </Note>
@@ -182,7 +183,7 @@ export function KnittingImportPage() {
               </p>
               {pdf && (
                 <Button variant="outline" className="h-10" disabled={reading} onClick={() => void readFor(pdf, size.trim())}>
-                  <RestartIcon /> {reading ? 'Lecture…' : 'Relire le patron'}
+                  {reading ? <Loader2 className="animate-spin" aria-hidden /> : <AiIcon />} {reading ? 'Lecture…' : 'Relire le patron'}
                 </Button>
               )}
             </Note>
@@ -329,7 +330,8 @@ export function KnittingImportPage() {
           </p>
         )}
         <Button type="submit" className="h-10" disabled={reading || (fromLibrary && !pdf && !stored)}>
-          {reading && <Loader2 className="animate-spin" aria-hidden />}
+          {/* Lecture déjà gardée : reprise sans l'IA ; sinon, l'IA lit le patron */}
+          {reading ? <Loader2 className="animate-spin" aria-hidden /> : !stored && <AiIcon />}
           {reading ? 'Lecture du patron…' : stored ? `Reprendre la lecture (taille ${stored.sizeLabel})` : 'Lire le patron'}
         </Button>
         {reading && (

@@ -1,4 +1,5 @@
 import { ArrowLeft, Info, Loader2, ShoppingCart } from 'lucide-react'
+import { AiIcon } from '@/components/AiIcon'
 import { useMemo, useState } from 'react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -131,7 +132,7 @@ export function ShoppingFromPlanDialog({ open, onOpenChange, meals, today }: Pro
                   Annuler
                 </Button>
                 <Button className="h-10" disabled={chosen.length === 0} onClick={() => void flow.prepare(chosen)}>
-                  <ShoppingCart /> Préparer la liste ({chosen.length} repas)
+                  <ShoppingCart /> Préparer la liste ({chosen.length} repas) <AiIcon className="opacity-70" />
                 </Button>
               </DialogFooter>
             </>

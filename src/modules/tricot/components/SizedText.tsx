@@ -1,5 +1,6 @@
 import { Loader2 } from 'lucide-react'
-import { DoneIcon, HighlightIcon, TranslateIcon, UndoIcon } from './KnitIcons'
+import { DoneIcon, HighlightIcon, UndoIcon } from './KnitIcons'
+import { AiIcon } from '@/components/AiIcon'
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { NativeSelect } from '@/components/ui/native-select'
@@ -137,7 +138,7 @@ export function StepText({ text, sizes, sizeIndex, highlights, onChange, abbrevi
       <div className="flex flex-wrap gap-2">
         {english && !translation && onTranslate && !editing && (
           <Button type="button" variant="outline" className="h-10" disabled={translating} onClick={() => void translate()}>
-            {translating ? <Loader2 className="animate-spin" aria-hidden /> : <TranslateIcon />}
+            {translating ? <Loader2 className="animate-spin" aria-hidden /> : <AiIcon />}
             {translating ? 'Traduction…' : 'Traduire en français'}
           </Button>
         )}

@@ -1,7 +1,8 @@
 // Planifier la semaine en deux temps : qui mange à la maison (prérempli d'après l'agenda et les règles de chacun,
 // modifiable), puis les plats « À planifier » placés par l'IA (ou à la main), modifiables avant de créer les repas.
 
-import { AlertTriangle, ArrowLeft, CalendarCheck, ChefHat, Loader2, Sparkles } from 'lucide-react'
+import { AiIcon } from '@/components/AiIcon'
+import { AlertTriangle, ArrowLeft, CalendarCheck, ChefHat, Loader2 } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { toast } from 'sonner'
@@ -271,7 +272,7 @@ export function WeekPlanPage({ today: fixedToday, now = Date.now }: { today?: Is
               Placer moi-même
             </Button>
             <Button className="h-11" onClick={() => void propose()} disabled={busy !== null || dishes.length === 0 || open.length === 0}>
-              {busy === 'propose' ? <Loader2 className="animate-spin" aria-hidden /> : <Sparkles />}
+              {busy === 'propose' ? <Loader2 className="animate-spin" aria-hidden /> : <AiIcon />}
               Proposer avec l’IA
             </Button>
           </>

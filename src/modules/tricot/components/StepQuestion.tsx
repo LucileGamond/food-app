@@ -1,4 +1,5 @@
 import { Loader2 } from 'lucide-react'
+import { AiIcon } from '@/components/AiIcon'
 import { useId, useState, type FormEvent } from 'react'
 import { errorMessage } from '@/api'
 import { useApi } from '@/app/ApiContext'
@@ -69,7 +70,7 @@ export function StepQuestion({ stepTitle, text, row, size, abbreviations }: Prop
         )}
         <div className="flex flex-wrap gap-2">
           <Button type="submit" className="h-10" disabled={asking}>
-            {asking ? <Loader2 className="animate-spin" aria-hidden /> : <QuestionIcon />}
+            {asking ? <Loader2 className="animate-spin" aria-hidden /> : <AiIcon />}
             {asking ? 'Réflexion…' : 'Demander'}
           </Button>
           <Button type="button" variant="ghost" className="h-10" onClick={() => setOpen(false)}>

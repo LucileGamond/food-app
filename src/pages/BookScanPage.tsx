@@ -1,4 +1,5 @@
 import { ArrowLeft, Camera, Flashlight, Pause, Play, Plus, RotateCcw, Square, Undo2, X } from 'lucide-react'
+import { AiIcon } from '@/components/AiIcon'
 import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { toast } from 'sonner'
@@ -70,7 +71,7 @@ interface GroupActions {
 
 /** Action proposée sur une page sans recette : la relire en insistant, puis, toujours rien, la reprendre en photo. */
 function groupAction(group: ScanGroup, multi: boolean, actions: GroupActions): BatchResultItem['action'] {
-  if (canInsist(group)) return { label: 'C’est une recette : relire', onClick: () => actions.onInsist(group.id) }
+  if (canInsist(group)) return { label: 'C’est une recette : relire', ai: true, onClick: () => actions.onInsist(group.id) }
   if (canRetake(group, multi)) return { label: 'Reprendre la photo', onClick: () => actions.onRetake(group.id) }
   return undefined
 }
@@ -268,7 +269,7 @@ function ScanCamera({ multi, full, retaking, onCancelRetake, feedback, onCapture
         </Button>
       ) : !launched ? (
         <Button className="h-14 w-full text-base" onClick={launch} disabled={!ready || full}>
-          <Play /> Lancer le scan
+          <AiIcon /> Lancer le scan
         </Button>
       ) : (
         multi && (
@@ -284,7 +285,7 @@ function ScanCamera({ multi, full, retaking, onCancelRetake, feedback, onCapture
               {paused ? <Play /> : <Pause />} {paused ? 'Reprendre' : 'Pause'}
             </Button>
             <Button variant="outline" className="h-10 px-3" onClick={() => void shoot(true)} disabled={!ready || full}>
-              <Camera /> Prendre la photo
+              <Camera /> Prendre la photo <AiIcon className="opacity-70" />
             </Button>
             <Button variant="outline" className="h-10 px-3" onClick={() => void undo()}>
               <Undo2 /> Annuler la dernière
