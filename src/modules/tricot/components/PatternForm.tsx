@@ -1,8 +1,9 @@
 // Formulaire d'un patron de la bibliothèque (ajout et modification) : ses formats (PDF, photos, lien), puis ce qui
 // aide à le retrouver (étiquettes, taille, besoins, laine envisagée, notes), à remplir à la main ou avec l'IA.
 
-import { Loader2, Sparkles } from 'lucide-react'
+import { Loader2 } from 'lucide-react'
 import { CloseIcon, PdfIcon, PhotoIcon } from './KnitIcons'
+import { AiIcon } from '@/components/AiIcon'
 import { Link } from 'react-router-dom'
 import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { errorMessage } from '@/api'
@@ -241,7 +242,7 @@ export function PatternForm({ existing, initialLink = null, onSaved, library = [
 
       <div className="space-y-1.5">
         <Button type="button" variant="outline" className="h-10" disabled={readingInfo || (!count.pdf && count.photos === 0)} onClick={() => void readInfo()}>
-          {readingInfo ? <Loader2 className="animate-spin" aria-hidden /> : <Sparkles />} Remplir avec l’IA
+          {readingInfo ? <Loader2 className="animate-spin" aria-hidden /> : <AiIcon />} Remplir avec l’IA
         </Button>
         <p aria-live="polite" className={infoMessage?.error ? 'text-xs text-destructive' : 'text-xs text-muted-foreground'}>
           {readingInfo

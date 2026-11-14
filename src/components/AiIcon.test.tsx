@@ -22,7 +22,7 @@ const AI_SCREENS = [
   'modules/repas/pages/WeekPlanPage.tsx',
 ]
 
-const AI_KNITTING = ['AdaptPanel.tsx', 'YarnIdeasSection.tsx', 'StepQuestion.tsx', 'YarnPanel.tsx', 'SizedText.tsx', 'KnittingImportPage.tsx']
+const AI_KNITTING = ['AdaptPanel.tsx', 'PatternForm.tsx', 'YarnIdeasSection.tsx', 'StepQuestion.tsx', 'YarnPanel.tsx', 'SizedText.tsx', 'KnittingImportPage.tsx']
 
 describe('AiIcon', () => {
   it('rend les petites étoiles, cachées des lecteurs d’écran et repérables', () => {
