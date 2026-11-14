@@ -11,6 +11,7 @@ import { LoadError } from '@/components/LoadError'
 import { LlmUsageSettings } from '@/components/LlmUsageSettings'
 import { useSettings } from '@/app/SettingsContext'
 import { MealRulesSettings } from '@/modules/repas/components/MealRulesSettings'
+import { RavelrySettings } from '@/modules/tricot/components/RavelrySettings'
 import { CONTAINER_NAME_MAX, MAX_CONTAINERS, parseContainers, toContainerDraft, type ContainerDraft, type WaterContainer } from '@/lib/hydration'
 import { isPageEnabled, NOTIFICATION_TOPICS, PAGES, parseGoalLiters, toggleNotification, togglePage, MAX_GOAL_ML, MIN_GOAL_ML } from '@/lib/settings'
 
@@ -256,6 +257,8 @@ export function SettingsPage() {
         </Section>
 
         {isPageEnabled(settings, 'planning') && <MealRulesSettings />}
+
+        {isPageEnabled(settings, 'tricot') && <RavelrySettings />}
 
         {isPageEnabled(settings, 'hydratation') && (
           <Section title="Eau" description="Objectif du jour, et contenants proposés sur la page Eau et dans le rappel (les deux premiers).">

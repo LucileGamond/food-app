@@ -361,6 +361,26 @@ isOneToOne: false
       referencedColumns: ["id"]
     }
                   ]
+                },"ravelry_accounts": {
+                  Row: {
+                    "created_at": string,"profile_id": string,"updated_at": string,"username": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "created_at"?: string,"profile_id": string,"updated_at"?: string,"username": string
+                  }
+                  Update: {
+                    "created_at"?: string,"profile_id"?: string,"updated_at"?: string,"username"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "ravelry_accounts_profile_id_fkey"
+      columns: ["profile_id"]
+isOneToOne: true
+      referencedRelation: "profiles"
+      referencedColumns: ["id"]
+    }
+                  ]
                 },"knit_stash_ideas": {
                   Row: {
                     "created_at": string,"id": string,"ideas": NonNullable<Json>,"profile_id": string,"stash_ids": string[],"updated_at": string,"weight": string | null,"wish": string

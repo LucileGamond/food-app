@@ -720,6 +720,34 @@ export function createKnittingApi(db: AppSupabaseClient) {
       return ideasFromJson([{ title: idea.title, patterns }])[0]!.patterns
     },
 
+    /** Compte Ravelry relié (nom), ou null : sans lui, les idées n'ont pas de patrons Ravelry. */
+    async getRavelryAccount(): Promise<{ username: string } | null> {
+      const { data, error } = await db.from('ravelry_accounts').select('username').maybeSingle()
+      if (error) throw toAppError(error, 'Impossible de savoir si Ravelry est relié.')
+      return data ? { username: data.username } : null
+    },
+
+    /** Début de la connexion à Ravelry : adresse d'autorisation où aller, retour sur `redirectUri`. */
+    async startRavelryConnect(redirectUri: string): Promise<string> {
+      const { url } = await invokeKnit<{ url: string }>({ ravelry_start: { redirect_uri: redirectUri } }, 'Impossible de se connecter à Ravelry.', (d) => typeof d.url === 'string')
+      return url
+    },
+
+    /** Retour de Ravelry : relie le compte ; renvoie son nom. */
+    async finishRavelryConnect(code: string, state: string): Promise<string> {
+      const { username } = await invokeKnit<{ username: string }>({ ravelry_finish: { code, state } }, 'Impossible de relier le compte Ravelry.', (d) => typeof d.username === 'string')
+      return username
+    },
+
+    /** Délie le compte Ravelry (ses jetons sont supprimés avec lui). */
+    async disconnectRavelry(): Promise<void> {
+      const { data: session } = await db.auth.getSession()
+      const userId = session.session?.user.id
+      if (!userId) throw toAppError({ code: '42501' })
+      const { error } = await db.from('ravelry_accounts').delete().eq('profile_id', userId)
+      if (error) throw toAppError(error, 'Impossible de délier le compte Ravelry.')
+    },
+
     /** Idées gardées pour cet ensemble de laines du stock, s'il y en a. */
     async getStashIdeas(stashIds: string[]): Promise<StashIdeas | null> {
       const key = ideasKey(stashIds)

@@ -463,6 +463,18 @@ describe('stock de laine', () => {
   })
 })
 
+describe('compte Ravelry', () => {
+  it('non relié par défaut ; délier sans compte ne casse rien ; jetons jamais lisibles', async () => {
+    const { api, db } = await signedInApi()
+    expect(await api.knitting.getRavelryAccount()).toBeNull()
+    await api.knitting.disconnectRavelry()
+    expect(await api.knitting.getRavelryAccount()).toBeNull()
+    const tokens = await db.from('ravelry_tokens' as never).select('*')
+    expect(tokens.error).not.toBeNull()
+    await expect(createKnittingApi(anonClient()).getRavelryAccount()).rejects.toThrow()
+  })
+})
+
 describe('fiches de mesures', () => {
   it('ajoute, modifie et supprime des fiches, chacun les siennes', async () => {
     const { api } = await signedInApi()

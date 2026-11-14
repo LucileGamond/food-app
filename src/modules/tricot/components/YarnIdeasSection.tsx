@@ -69,6 +69,9 @@ export function YarnIdeasSection({ item, stash, emphasize }: Props) {
   const combinable = stash.filter((s) => s.id !== item.id)
   /** Laines de l'idée, notées sur le patron gardé. */
   const ideaYarnText = yarns.map(yarnTitle).join(' + ')
+  /** Sans compte Ravelry relié, les idées n'ont pas de patrons : on le rappelle (erreur de lecture : rien). */
+  const ravelry = useAsync(() => api.knitting.getRavelryAccount(), [api])
+  const ravelryMissing = ravelry.data === null
 
   async function keep(value: StashIdeas) {
     setFresh(value)
@@ -158,8 +161,18 @@ export function YarnIdeasSection({ item, stash, emphasize }: Props) {
           {loading ? <Loader2 className="animate-spin" aria-hidden /> : current ? <RestartIcon /> : <Sparkles />}
           {loading ? 'Recherche d’idées…' : current ? 'Relancer' : 'Des idées avec l’IA'}
         </Button>
-        <span className="text-xs text-muted-foreground">{IDEAS_COST} · patrons de Ravelry gratuits</span>
+        <span className="text-xs text-muted-foreground">{IDEAS_COST}{ravelryMissing ? '' : ' · patrons de Ravelry gratuits'}</span>
       </div>
+
+      {ravelryMissing && (
+        <p className="text-xs text-muted-foreground">
+          Pour de vrais patrons à chaque idée (gratuit),{' '}
+          <Link to="/reglages" className="font-medium text-brand underline-offset-4 hover:underline">
+            relie ton compte Ravelry dans les Réglages
+          </Link>
+          .
+        </p>
+      )}
 
       {error && (
         <p role="alert" className="text-sm text-destructive">
@@ -220,7 +233,7 @@ export function YarnIdeasSection({ item, stash, emphasize }: Props) {
                     <p className="mt-2 text-muted-foreground">Aucun patron trouvé sur internet.</p>
                   ) : (
                     <div className="mt-2 flex flex-wrap items-center gap-x-2">
-                      <span className="text-muted-foreground">Rien sur Ravelry.</span>
+                      <span className="text-muted-foreground">{ravelryMissing ? 'Pas de patron.' : 'Rien sur Ravelry.'}</span>
                       <Button variant="outline" size="sm" disabled={busy} onClick={() => void findPatterns(current, idea)} aria-label={`Chercher des patrons sur internet : ${idea.title}`}>
                         {busy ? <Loader2 className="animate-spin" aria-hidden /> : <SearchIcon />}
                         {busy ? 'Recherche…' : 'Chercher sur internet'}

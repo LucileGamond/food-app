@@ -24,6 +24,8 @@ function NewPatternPage() {
 
 function setup(options: { stash?: StashItem[]; current?: StashItem; emphasize?: boolean; configure?: (api: ReturnType<typeof fakeApi>) => void } = {}) {
   const api = fakeApi()
+  // Compte Ravelry relié par défaut
+  api.knitting.getRavelryAccount.mockResolvedValue({ username: 'lucile' })
   options.configure?.(api)
   const user = userEvent.setup()
   const stash = options.stash ?? STASH
@@ -197,6 +199,26 @@ describe('Des idées pour ma laine', () => {
     await user.click(within(ideas).getByRole('button', { name: 'Chercher des patrons sur internet : Bonnet' }))
     expect(within(ideas).getByRole('button', { name: 'Chercher des patrons sur internet : Bonnet' })).toBeDisabled()
     expect(ideas).toHaveTextContent('Recherche…')
+  })
+
+  it('compte Ravelry non relié : rappel avec un lien vers les Réglages', async () => {
+    const { api } = setup({
+      configure: (api) => {
+        api.knitting.getRavelryAccount.mockResolvedValue(null)
+        api.knitting.getStashIdeas.mockResolvedValue(SAVED)
+      },
+    })
+    const ideas = await ideasList()
+    expect(await screen.findByRole('link', { name: 'relie ton compte Ravelry dans les Réglages' })).toHaveAttribute('href', '/reglages')
+    expect(screen.getByText('≈ 0,1 ct')).toBeInTheDocument()
+    expect(within(ideas).getByText('Pas de patron.')).toBeInTheDocument()
+    expect(api.knitting.getRavelryAccount).toHaveBeenCalled()
+  })
+
+  it('compte Ravelry illisible : pas de rappel', async () => {
+    setup({ configure: (api) => api.knitting.getRavelryAccount.mockRejectedValue(new AppError('Hors ligne.')) })
+    await waitFor(() => expect(screen.getByText('≈ 0,1 ct · patrons de Ravelry gratuits')).toBeInTheDocument())
+    expect(screen.queryByRole('link', { name: /Ravelry dans les Réglages/ })).not.toBeInTheDocument()
   })
 
   it('« Garder » ouvre l’ajout à la bibliothèque avec le lien du patron', async () => {

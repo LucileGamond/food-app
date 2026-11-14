@@ -39,6 +39,7 @@ const KnittingLibraryPage = lazy(() => import('@/modules/tricot/pages/KnittingLi
 const KnittingPatternPage = lazy(() => import('@/modules/tricot/pages/KnittingPatternPage').then((m) => ({ default: m.KnittingPatternPage })))
 const KnittingPatternEditPage = lazy(() => import('@/modules/tricot/pages/KnittingPatternEditPage').then((m) => ({ default: m.KnittingPatternEditPage })))
 const KnittingStashPage = lazy(() => import('@/modules/tricot/pages/KnittingStashPage').then((m) => ({ default: m.KnittingStashPage })))
+const RavelryCallbackPage = lazy(() => import('@/modules/tricot/pages/RavelryCallbackPage').then((m) => ({ default: m.RavelryCallbackPage })))
 const KnittingMeasuresPage = lazy(() => import('@/modules/tricot/pages/KnittingMeasuresPage').then((m) => ({ default: m.KnittingMeasuresPage })))
 // Module Plantes (indépendant de la cuisine, partagé par le foyer).
 const PlantsPage = lazy(() => import('@/modules/plantes/pages/PlantsPage').then((m) => ({ default: m.PlantsPage })))
@@ -107,6 +108,7 @@ export function App({ api, auth }: { api: Api; auth: AuthClient }) {
                 <Route path="/courses/:id" element={<ShoppingListPage />} />
                 <Route path="/hydratation" element={<HydrationPage />} />
                 <Route path="/reglages" element={<SettingsPage />} />
+                <Route path="/reglages/ravelry" element={<RavelryCallbackPage />} />
                 {/* Module Tricot : son identité visuelle (TricotTheme) le temps de ses pages. */}
                 <Route element={<TricotTheme />}>
                   <Route path="/tricot" element={<KnittingPage />} />
