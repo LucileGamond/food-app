@@ -26,6 +26,12 @@ describe('jauge pelote et fil', () => {
     expect([a(), a(), a()]).toEqual([b(), b(), b()])
     expect(ballWraps(7, 30, [], 34)).toEqual(ballWraps(7, 30, [], 34))
     expect(ballWraps(7, 30, [], 34)).not.toEqual(ballWraps(8, 30, [], 34))
+    // Centrée ailleurs : même enroulement, décalé.
+    const [w1] = ballWraps(7, 30, [], 1)
+    const [w2] = ballWraps(7, 30, [], 1, 50, 40)
+    const start = (d: string) => d.slice(1).split('A')[0]!.split(' ').map(Number)
+    expect(start(w2!.d)[0]).toBeCloseTo(start(w1!.d)[0]! + 50, 1)
+    expect(start(w2!.d)[1]).toBeCloseTo(start(w1!.d)[1]! + 40, 1)
   })
 
   it('enroule la pelote irrégulièrement, dans les couleurs de la laine', () => {
@@ -36,7 +42,10 @@ describe('jauge pelote et fil', () => {
     const hues = new Set(wraps.map((w) => Number(/^hsl\((\d+)/.exec(w.color)![1])))
     expect([...hues].some((h) => h < 20) && [...hues].some((h) => h > 25 && h < 50) && [...hues].some((h) => h > 270)).toBe(true)
     for (const w of wraps) {
-      expect(w.d).toMatch(/^M-[\d.]+ -?[\d.]+A[\d.]+ [\d.]+ 0 0 [01] [\d.]+ -?[\d.]+$/)
+      expect(w.d).toMatch(/^M-?[\d.]+ -?[\d.]+A[\d.]+ [\d.]+ [\d.]+ 0 [01] -?[\d.]+ -?[\d.]+$/)
+      // Rotation dans le tracé : les extrémités du tour restent sur le bord de la pelote.
+      const [x, y] = w.d.slice(1).split('A')[0]!.split(' ').map(Number)
+      expect(Math.hypot(x!, y!)).toBeLessThanOrEqual(30 * 1.05)
       expect(w.width).toBeGreaterThan(0)
     }
   })

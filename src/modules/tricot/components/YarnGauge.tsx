@@ -100,7 +100,7 @@ export function YarnGauge({
           <g clipPath={`url(#${id}-c)`}>
             <circle r={cfg.r} fill={shade(colors[0]!, -30)} />
             {wraps.map((w, i) => (
-              <g key={i} transform={`rotate(${w.rotate})`}>
+              <g key={i}>
                 <path d={w.d} fill="none" stroke={w.edge} strokeWidth={w.width + 1.2} strokeLinecap="round" />
                 <path d={w.d} fill="none" stroke={w.color} strokeWidth={w.width} strokeLinecap="round" />
               </g>

@@ -16,4 +16,12 @@ describe('BasketIcon', () => {
     rerender(<BasketIcon className="size-5" aria-hidden />)
     expect(svg.innerHTML.replace(/_r_\w+_/g, '')).toBe(html.replace(/_r_\w+_/g, ''))
   })
+  it('ne dessine rien hors de son cadre (0 à 100)', () => {
+    const { container } = render(<BasketIcon />)
+    for (const rect of container.querySelectorAll('rect')) {
+      const x = Number(rect.getAttribute('x'))
+      expect(x).toBeGreaterThanOrEqual(0)
+      expect(x + Number(rect.getAttribute('width'))).toBeLessThanOrEqual(100)
+    }
+  })
 })

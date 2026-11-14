@@ -9,7 +9,7 @@ const BALLS: { cx: number; cy: number; r: number; hues: string[]; seed: number }
 ]
 
 // Calculés une fois : l'icône est la même partout.
-const WRAPS: Wrap[][] = BALLS.map((b) => ballWraps(b.seed, b.r, b.hues, 24))
+const WRAPS: Wrap[][] = BALLS.map((b) => ballWraps(b.seed, b.r, b.hues, 24, b.cx, b.cy))
 const RIM = { x0: 8, x1: 92, y: 68, amp: 0, waves: 1, width: 5 }
 const RIM_PLIES = plySegments(RIM, 3, 0.5)
 const OSIER = ['#ecd6b0', '#e6cda3', '#f0dcba']
@@ -45,7 +45,7 @@ export function BasketIcon(props: SVGProps<SVGSVGElement>) {
           <g clipPath={`url(#${id}-b${i})`}>
             <circle cx={b.cx} cy={b.cy} r={b.r} fill={shade(b.hues[0]!, -30)} />
             {WRAPS[i]!.map((w, j) => (
-              <g key={j} transform={`translate(${b.cx} ${b.cy}) rotate(${w.rotate})`}>
+              <g key={j}>
                 <path d={w.d} stroke={w.edge} strokeWidth={w.width + 0.9} strokeLinecap="round" />
                 <path d={w.d} stroke={w.color} strokeWidth={w.width} strokeLinecap="round" />
               </g>
@@ -58,8 +58,11 @@ export function BasketIcon(props: SVGProps<SVGSVGElement>) {
       <g clipPath={`url(#${id}-k)`}>
         {[0, 1, 2].map((row) =>
           Array.from({ length: 8 }, (_, k) => {
-            const x = -16 + (row % 2) * 8 + k * 16
-            return <rect key={`${row}-${k}`} x={x + 0.8} y={69.5 + row * 7.4} width={14.4} height={6.4} rx={3.2} fill={OSIER[(row + k) % 3]} stroke="#c9a77a" strokeWidth={0.6} />
+            // Brins d'osier bornés au panier (la découpe arrondit les côtés) : rien ne dépasse de l'icône.
+            const x = Math.max(-16 + (row % 2) * 8 + k * 16 + 0.8, 10)
+            const end = Math.min(-16 + (row % 2) * 8 + k * 16 + 15.2, 90)
+            if (end - x < 2) return null
+            return <rect key={`${row}-${k}`} x={x} y={69.5 + row * 7.4} width={end - x} height={6.4} rx={3.2} fill={OSIER[(row + k) % 3]} stroke="#c9a77a" strokeWidth={0.6} />
           }),
         )}
       </g>

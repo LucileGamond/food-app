@@ -50,7 +50,7 @@ export function random(seed: number): () => number {
   }
 }
 
-/** Un tour de fil sur la pelote : demi-ellipse (face visible) tournée, en coordonnées centrées sur la pelote. */
+/** Un tour de fil sur la pelote : demi-ellipse (face visible) tournée de `rotate` degrés autour du centre de la pelote. */
 export interface Wrap {
   d: string
   rotate: number
@@ -59,8 +59,11 @@ export interface Wrap {
   edge: string
 }
 
-/** Enroulement irrégulier de la pelote : tours d'angle, de courbure, d'épaisseur et de nuance variés. */
-export function ballWraps(seed: number, r: number, hues: string[], count: number): Wrap[] {
+/**
+ * Enroulement irrégulier de la pelote : tours d'angle, de courbure, d'épaisseur et de nuance variés. La rotation est
+ * dans le tracé (pas de transform) : la boîte de chaque tour reste dans la pelote, centrée en (cx, cy).
+ */
+export function ballWraps(seed: number, r: number, hues: string[], count: number, cx = 0, cy = 0): Wrap[] {
   const rand = random(seed)
   const colors = gaugeHues(hues)
   const base = r / 7.5
@@ -74,7 +77,9 @@ export function ballWraps(seed: number, r: number, hues: string[], count: number
     const hue = colors[Math.floor(rand() * colors.length)]!
     const color = shade(hue, (rand() - 0.5) * 22)
     const f = (n: number) => n.toFixed(2)
-    return { d: `M${f(-rr)} ${f(dy)}A${f(rr)} ${f(ry)} 0 0 ${side} ${f(rr)} ${f(dy)}`, rotate, width: Number(width.toFixed(2)), color, edge: shade(hue, -34) }
+    const t = (rotate * Math.PI) / 180
+    const at = (x: number, y: number) => `${f(cx + x * Math.cos(t) - y * Math.sin(t))} ${f(cy + x * Math.sin(t) + y * Math.cos(t))}`
+    return { d: `M${at(-rr, dy)}A${f(rr)} ${f(ry)} ${rotate} 0 ${side} ${at(rr, dy)}`, rotate, width: Number(width.toFixed(2)), color, edge: shade(hue, -34) }
   })
 }
 
