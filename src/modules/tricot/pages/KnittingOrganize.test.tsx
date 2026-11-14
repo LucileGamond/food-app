@@ -55,6 +55,26 @@ function open(project: KnitProject = PROJECT) {
 
 const actions = (label: string) => screen.findByRole('button', { name: `Actions pour « ${label} »` })
 
+/** Une seule barre d'onglets : « Organiser » est un bouton au-dessus de la liste (V6). */
+describe('organiser : une action sur la liste', () => {
+  it('s’ouvre et se referme avec le bouton, sans deuxième barre d’onglets', async () => {
+    const user = userEvent.setup()
+    const api = fakeApi()
+    api.knitting.getProject.mockResolvedValue(structuredClone(PROJECT))
+    renderWithApp(<KnittingProjectPage />, { api, route: '/tricot/p1?onglet=preparer', path: '/tricot/:id' })
+    expect(await screen.findByRole('heading', { name: '3 étapes' })).toBeInTheDocument()
+    expect(screen.queryByRole('tab', { name: 'Organiser' })).not.toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: 'Organiser' }))
+    expect(await screen.findByRole('heading', { name: 'Organiser les étapes' })).toBeInTheDocument()
+    expect((await screen.findAllByRole('button', { name: /^Regrouper avec/ })).length).toBeGreaterThan(0)
+
+    await user.click(screen.getByRole('button', { name: 'Terminer' }))
+    expect(await screen.findByRole('heading', { name: '3 étapes' })).toBeInTheDocument()
+    expect(screen.queryAllByRole('button', { name: /^Regrouper avec/ })).toHaveLength(0)
+  })
+})
+
 describe('organiser les étapes', () => {
   it('regroupe une étape avec la suivante', async () => {
     const user = userEvent.setup()

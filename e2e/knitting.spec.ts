@@ -487,9 +487,9 @@ test('organise les étapes : regroupe, sépare et déplace une sous-étape, puis
   })
   await login(page)
   await page.goto(`/tricot/${id}`)
-  // Organiser : une vue de l'onglet « Préparer »
+  // Organiser : une action sur la liste de l'onglet « Préparer », pas un onglet
   await page.getByRole('tab', { name: /2. Préparer/ }).click()
-  await page.getByRole('tab', { name: 'Organiser' }).click()
+  await page.getByRole('button', { name: 'Organiser' }).click()
   await expect(page.getByRole('button', { name: /^Regrouper avec/ }).first()).toBeVisible()
   await expectNoA11yViolations(page)
 

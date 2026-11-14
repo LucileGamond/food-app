@@ -1,4 +1,4 @@
-import { Check, ChevronLeft, ChevronRight, FileText, ListChecks, ListTree, Play, SearchX, Trash2, Undo2, Wand2 } from 'lucide-react'
+import { Check, ChevronLeft, ChevronRight, FileText, ListTree, Play, SearchX, Trash2, Undo2, Wand2 } from 'lucide-react'
 import { useState } from 'react'
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { toast } from 'sonner'
@@ -448,17 +448,21 @@ export function KnittingProjectPage() {
         </TabsContent>
 
         <TabsContent value="preparer" className="space-y-3">
+          {/* Une seule barre d'onglets : organiser est une action sur la liste, pas un autre temps du projet. */}
           {steps.length > 1 && (
-            <Tabs value={organizing ? 'organiser' : 'etapes'} onValueChange={(value) => setParams(value === 'organiser' ? { onglet: 'preparer', vue: 'organiser' } : { onglet: 'preparer' }, { replace: true })}>
-              <TabsList aria-label="Préparer" className="h-10">
-                <TabsTrigger value="etapes" className="px-3">
-                  <ListChecks /> Étapes
-                </TabsTrigger>
-                <TabsTrigger value="organiser" className="px-3">
-                  <ListTree /> Organiser
-                </TabsTrigger>
-              </TabsList>
-            </Tabs>
+            <div className="flex items-center justify-between gap-2">
+              <h2 className="text-sm font-medium">
+                {organizing ? 'Organiser les étapes' : `${steps.length} étapes`}
+              </h2>
+              <Button
+                variant={organizing ? 'default' : 'outline'}
+                className="h-10"
+                onClick={() => setParams(organizing ? { onglet: 'preparer' } : { onglet: 'preparer', vue: 'organiser' }, { replace: true })}
+              >
+                {organizing ? <Check /> : <ListTree />}
+                {organizing ? 'Terminer' : 'Organiser'}
+              </Button>
+            </div>
           )}
           {organizing ? (
             <OrganizeSteps project={project} reload={reload} />
