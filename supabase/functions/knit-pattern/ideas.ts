@@ -34,6 +34,9 @@ export interface FoundPattern {
   free: boolean | null
   /** Langue du patron (« fr », « en »), si connue. */
   language: string | null
+  /** Métrage demandé (plus petite taille), et jusqu'à combien (plus grande taille) : connus pour Ravelry. */
+  meters: number | null
+  metersMax: number | null
 }
 
 export interface YarnIdea {
@@ -249,6 +252,8 @@ function keepFound(list: unknown, found: Map<string, { url: string; title: strin
           url: result.url,
           free: typeof pattern.free === 'boolean' ? pattern.free : null,
           language: language(pattern.language),
+          meters: null,
+          metersMax: null,
         },
       ]
     })

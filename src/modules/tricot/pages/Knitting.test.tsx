@@ -1640,7 +1640,7 @@ describe('stock de laine', () => {
           meters: 300,
           needleMm: 4.5,
           search: 'cabled cowl',
-          patterns: [{ title: 'Cabled Cowl par Jane', url: 'https://www.ravelry.com/patterns/library/cabled-cowl', free: true, language: 'en' }],
+          patterns: [{ title: 'Cabled Cowl par Jane', url: 'https://www.ravelry.com/patterns/library/cabled-cowl', free: true, language: 'en', meters: 300, metersMax: null }],
         },
       ],
       weight: 'worsted',
@@ -1656,13 +1656,13 @@ describe('stock de laine', () => {
     expect(dialog).toHaveTextContent('À vérifier (métrage ou aiguilles non notés) : Bonnet.')
 
     await user.click(within(dialog).getByRole('button', { name: 'Des idées avec l’IA' }))
-    expect(api.knitting.yarnIdeas).toHaveBeenCalledWith([MERINO], { wish: '', search: false })
+    expect(api.knitting.yarnIdeas).toHaveBeenCalledWith([MERINO], { wish: '' })
     const ideas = await within(dialog).findByRole('list', { name: 'Idées de modèles' })
     expect(ideas).toHaveTextContent('Snood torsadé · adulte')
     expect(ideas).toHaveTextContent('Mérinos doux. · ≈ 300 m · aiguilles 4,5 mm')
     expect(ideas).toHaveTextContent('Assez de laine (reste ≈ 540 m)')
     // Vrai patron trouvé sur internet, puis recherche Ravelry filtrée (tricot, grosseur, métrage en yards, aiguilles à 0,5 mm près)
-    expect(within(ideas).getByRole('link', { name: 'Cabled Cowl par Jane · ravelry.com · Gratuit · EN' })).toHaveAttribute('href', 'https://www.ravelry.com/patterns/library/cabled-cowl')
+    expect(within(ideas).getByRole('link', { name: 'Cabled Cowl par Jane · ravelry.com · Gratuit · EN · 300 m' })).toHaveAttribute('href', 'https://www.ravelry.com/patterns/library/cabled-cowl')
     expect(within(ideas).getByRole('link', { name: 'Plus de patrons sur Ravelry' })).toHaveAttribute(
       'href',
       'https://www.ravelry.com/patterns/search#craft=knitting&weight=worsted&yardage=0%7C918&needles=3.5mm%7C3.75mm%7C4.0mm%7C4.5mm&query=cabled%20cowl',

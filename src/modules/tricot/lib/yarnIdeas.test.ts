@@ -33,23 +33,27 @@ describe('idées pour ma laine', () => {
   })
 
   it('gratuit, payant et langue d’un patron', () => {
-    expect(patternNote({ free: true, language: 'fr' })).toBe('Gratuit · FR')
-    expect(patternNote({ free: false, language: null })).toBe('Payant')
-    expect(patternNote({ free: null, language: 'en' })).toBe('EN')
-    expect(patternNote({ free: null, language: null })).toBe('')
+    const none = { free: null, language: null, meters: null, metersMax: null }
+    expect(patternNote({ ...none, free: true, language: 'fr' })).toBe('Gratuit · FR')
+    expect(patternNote({ ...none, free: false })).toBe('Payant')
+    expect(patternNote({ ...none, language: 'en', meters: 300 })).toBe('EN · 300 m')
+    expect(patternNote({ ...none, meters: 300, metersMax: 600 })).toBe('300 à 600 m')
+    // Maximum sans minimum : ignoré
+    expect(patternNote({ ...none, metersMax: 600 })).toBe('')
+    expect(patternNote(none)).toBe('')
   })
 
   it('idées lues en base : champs manquants complétés, entrées invalides ignorées', () => {
     expect(ideasFromJson(null)).toEqual([])
     expect(
       ideasFromJson([
-        { title: 'Bonnet', meters: 150, patterns: [{ url: 'https://p.exemple/b', free: true, language: 'fr' }, { title: 'sans adresse' }, null] },
+        { title: 'Bonnet', meters: 150, patterns: [{ url: 'https://p.exemple/b', free: true, language: 'fr', meters: 300, metersMax: 'x' }, { title: 'sans adresse' }, null] },
         { title: 'Snood', why: 'Doux.', size: 'adulte', needleMm: 4, search: 'cowl', meters: 'beaucoup', patterns: 'x' },
         { why: 'sans titre' },
         'texte',
       ]),
     ).toEqual([
-      { title: 'Bonnet', why: '', size: '', meters: 150, needleMm: null, search: '', patterns: [{ title: 'https://p.exemple/b', url: 'https://p.exemple/b', free: true, language: 'fr' }] },
+      { title: 'Bonnet', why: '', size: '', meters: 150, needleMm: null, search: '', patterns: [{ title: 'https://p.exemple/b', url: 'https://p.exemple/b', free: true, language: 'fr', meters: 300, metersMax: null }] },
       { title: 'Snood', why: 'Doux.', size: 'adulte', meters: null, needleMm: 4, search: 'cowl', patterns: [] },
     ])
   })

@@ -1,7 +1,7 @@
 // « Des idées pour ma laine » (stock de laine) : idées du modèle pour une laine, ou plusieurs laines associées, selon
-// une envie. Sans recherche web par défaut (quelques dixièmes de centime) ; les vrais patrons d'une idée sont cherchés
-// à la demande. Les idées sont gardées pour être revues sans repayer, et un patron trouvé peut être gardé dans la
-// bibliothèque (ajout par lien, sans l'IA).
+// une envie (quelques dixièmes de centime), avec de vrais patrons de Ravelry pour chacune (gratuit). Une idée sans
+// patron Ravelry peut en chercher sur internet avec le modèle. Les idées sont gardées pour être revues sans repayer,
+// et un patron trouvé peut être gardé dans la bibliothèque (ajout par lien, sans l'IA).
 
 import { BookmarkPlus, ExternalLink, Loader2, Sparkles } from 'lucide-react'
 import { useState } from 'react'
@@ -34,9 +34,8 @@ import {
   type YarnIdea,
 } from '../lib/yarn'
 
-/** Coûts estimés (Haiku, recherche web à 1 ct), affichés avant de lancer. */
+/** Coûts estimés (Haiku, recherche web à 1 ct), affichés avant de lancer. Ravelry est gratuit. */
 export const IDEAS_COST = '≈ 0,1 ct'
-export const IDEAS_SEARCH_COST = '≈ 4 ct, jusqu’à 2 min'
 export const PATTERNS_COST = '≈ 2 ct'
 
 const now = () => new Date().toISOString()
@@ -53,7 +52,6 @@ export function YarnIdeasSection({ item, stash, emphasize }: Props) {
   const api = useApi()
   const [others, setOthers] = useState<string[]>([])
   const [wish, setWish] = useState('')
-  const [search, setSearch] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   /** Idées obtenues ou modifiées ici (plus récentes que celles gardées). */
@@ -86,7 +84,7 @@ export function YarnIdeasSection({ item, stash, emphasize }: Props) {
     setError(null)
     setNoneFound([])
     try {
-      const { ideas, weight } = await api.knitting.yarnIdeas(yarns, { wish, search })
+      const { ideas, weight } = await api.knitting.yarnIdeas(yarns, { wish })
       await keep({ stashIds: ideasKey(chosen.map((s) => s.id)), wish: wish.trim(), ideas, weight, updatedAt: now() })
     } catch (e) {
       setError(errorMessage(e))
@@ -155,19 +153,12 @@ export function YarnIdeasSection({ item, stash, emphasize }: Props) {
         />
       </div>
 
-      <span className="flex items-center gap-2">
-        <Checkbox id="ideas-search" checked={search} disabled={loading} onCheckedChange={(value) => setSearch(value === true)} />
-        <Label htmlFor="ideas-search" className="font-normal">
-          Chercher aussi des patrons sur internet
-        </Label>
-      </span>
-
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
         <Button variant={emphasize && !current ? 'default' : 'outline'} className="h-10" disabled={loading} onClick={() => void ask()}>
           {loading ? <Loader2 className="animate-spin" aria-hidden /> : current ? <RestartIcon /> : <Sparkles />}
           {loading ? 'Recherche d’idées…' : current ? 'Relancer' : 'Des idées avec l’IA'}
         </Button>
-        <span className="text-xs text-muted-foreground">{search ? IDEAS_SEARCH_COST : IDEAS_COST}</span>
+        <span className="text-xs text-muted-foreground">{IDEAS_COST} · patrons de Ravelry gratuits</span>
       </div>
 
       {error && (
@@ -229,9 +220,10 @@ export function YarnIdeasSection({ item, stash, emphasize }: Props) {
                     <p className="mt-2 text-muted-foreground">Aucun patron trouvé sur internet.</p>
                   ) : (
                     <div className="mt-2 flex flex-wrap items-center gap-x-2">
-                      <Button variant="outline" size="sm" disabled={busy} onClick={() => void findPatterns(current, idea)} aria-label={`Trouver des patrons : ${idea.title}`}>
+                      <span className="text-muted-foreground">Rien sur Ravelry.</span>
+                      <Button variant="outline" size="sm" disabled={busy} onClick={() => void findPatterns(current, idea)} aria-label={`Chercher des patrons sur internet : ${idea.title}`}>
                         {busy ? <Loader2 className="animate-spin" aria-hidden /> : <SearchIcon />}
-                        {busy ? 'Recherche…' : 'Trouver des patrons'}
+                        {busy ? 'Recherche…' : 'Chercher sur internet'}
                       </Button>
                       <span className="text-xs text-muted-foreground">{PATTERNS_COST}</span>
                     </div>

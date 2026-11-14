@@ -370,7 +370,7 @@ test('stock de laine : quel patron pour ma laine (la bibliothèque d’abord, pu
   expect(requests[0]).toMatchObject({ ideas: { yarns: [{ meters: 840, needle_mm: 4 }], wish: 'un snood', search: false } })
 
   // Patrons d'une idée, à la demande
-  await ideas.getByRole('button', { name: 'Trouver des patrons : Snood torsadé' }).click()
+  await ideas.getByRole('button', { name: 'Chercher des patrons sur internet : Snood torsadé' }).click()
   await expect(match.getByRole('link', { name: 'Cabled Cowl · ravelry.com · Gratuit · EN' })).toHaveAttribute('href', 'https://www.ravelry.com/patterns/library/cabled-cowl')
   await expect(match.getByRole('link', { name: 'Plus de patrons sur Ravelry' }).first()).toHaveAttribute('href', 'https://www.ravelry.com/patterns/search#craft=knitting&weight=worsted&yardage=0%7C918&needles=3.5mm%7C3.75mm%7C4.0mm%7C4.5mm&query=cabled%20cowl')
   await expectNoA11yViolations(page)

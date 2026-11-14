@@ -299,6 +299,9 @@ export interface FoundPattern {
   free: boolean | null
   /** Langue (« fr », « en »), si connue. */
   language: string | null
+  /** Métrage demandé (plus petite taille) et jusqu'à combien (plus grande), connus pour les patrons de Ravelry. */
+  meters: number | null
+  metersMax: number | null
 }
 
 /** Idée de modèle proposée par le modèle pour une ou plusieurs laines. */
@@ -368,9 +371,10 @@ export function ideaFit(ideaMeters: number | null, yarns: readonly Yarn[]): { en
   return { enough: false, label: `Il manque ≈ ${missing} m${skeins ? ` (${skeins} pelote${skeins > 1 ? 's' : ''})` : ''}` }
 }
 
-/** « Gratuit · FR », « Payant · EN », ou ''. */
-export function patternNote(pattern: Pick<FoundPattern, 'free' | 'language'>): string {
-  return [pattern.free === true && 'Gratuit', pattern.free === false && 'Payant', pattern.language?.toUpperCase()].filter(Boolean).join(' · ')
+/** « Gratuit · FR · 300 à 600 m », « Payant · EN », ou ''. */
+export function patternNote(pattern: Pick<FoundPattern, 'free' | 'language' | 'meters' | 'metersMax'>): string {
+  const meters = pattern.meters === null ? null : pattern.metersMax !== null ? `${pattern.meters} à ${pattern.metersMax} m` : `${pattern.meters} m`
+  return [pattern.free === true && 'Gratuit', pattern.free === false && 'Payant', pattern.language?.toUpperCase(), meters].filter(Boolean).join(' · ')
 }
 
 /** Idées lues en base (ou renvoyées par le modèle) : champs manquants complétés. */
@@ -389,7 +393,14 @@ export function ideasFromJson(raw: unknown): YarnIdea[] {
       search: str(i.search),
       patterns: (Array.isArray(i.patterns) ? i.patterns : [])
         .filter((p): p is Record<string, unknown> => typeof p === 'object' && p !== null && typeof (p as Record<string, unknown>).url === 'string')
-        .map((p) => ({ title: str(p.title) || str(p.url), url: str(p.url), free: typeof p.free === 'boolean' ? p.free : null, language: str(p.language) || null })),
+        .map((p) => ({
+          title: str(p.title) || str(p.url),
+          url: str(p.url),
+          free: typeof p.free === 'boolean' ? p.free : null,
+          language: str(p.language) || null,
+          meters: num(p.meters),
+          metersMax: num(p.metersMax),
+        })),
     }))
 }
 

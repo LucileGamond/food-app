@@ -129,12 +129,12 @@ describe('idées pour une laine', () => {
           needleMm: 4,
           search: 'ribbed beanie',
           patterns: [
-            { title: 'Ribbed Beanie', url: BEANIE, free: true, language: 'en' },
+            { title: 'Ribbed Beanie', url: BEANIE, free: true, language: 'en', meters: null, metersMax: null },
             // Gratuit et langue illisibles : inconnus
-            { title: 'DROPS Bonnet', url: 'https://www.garnstudio.com/pattern.php?id=456', free: null, language: null },
+            { title: 'DROPS Bonnet', url: 'https://www.garnstudio.com/pattern.php?id=456', free: null, language: null, meters: null, metersMax: null },
           ],
         },
-        { title: 'Snood', why: 'Doux en mérinos.', size: '', meters: null, needleMm: null, search: 'cowl', patterns: [{ title: 'DROPS Snood', url: COWL, free: false, language: 'fr' }] },
+        { title: 'Snood', why: 'Doux en mérinos.', size: '', meters: null, needleMm: null, search: 'cowl', patterns: [{ title: 'DROPS Snood', url: COWL, free: false, language: 'fr', meters: null, metersMax: null }] },
       ],
     })
     // Sans recherche : aucun patron ; grosseur inconnue : null
@@ -196,12 +196,12 @@ describe('idées pour une laine', () => {
 
   it('le handler cherche des patrons pour une idée choisie', async () => {
     const fetchModel = vi.fn<typeof fetch>(async () =>
-      reply([...SEARCH, { type: 'tool_use', name: 'donner_patrons', input: { patterns: [{ title: 'Ribbed Beanie', url: BEANIE, free: true, language: 'en' }, { title: 'Faux', url: 'https://faux.exemple' }] } }]),
+      reply([...SEARCH, { type: 'tool_use', name: 'donner_patrons', input: { patterns: [{ title: 'Ribbed Beanie', url: BEANIE, free: true, language: 'en', meters: null, metersMax: null }, { title: 'Faux', url: 'https://faux.exemple' }] } }]),
     )
     const { handle, log } = handlerWith(fetchModel)
     const response = await handle(post({ idea_patterns: { idea: { title: 'Bonnet', search: 'ribbed beanie', size: 'adulte', meters: 150, needle_mm: 4 }, yarns: [MERINO], weight: 'worsted' } }))
     expect(response.status).toBe(200)
-    expect(await response.json()).toEqual({ patterns: [{ title: 'Ribbed Beanie', url: BEANIE, free: true, language: 'en' }] })
+    expect(await response.json()).toEqual({ patterns: [{ title: 'Ribbed Beanie', url: BEANIE, free: true, language: 'en', meters: null, metersMax: null }] })
     const sent = JSON.parse(fetchModel.mock.calls[0]![1]!.body as string)
     expect(sent.tools[0]).toMatchObject({ name: 'web_search', max_uses: 2 })
     expect(sent.messages[0].content).toBe(

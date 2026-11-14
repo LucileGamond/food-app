@@ -438,7 +438,7 @@ describe('stock de laine', () => {
     await api.knitting.saveStashItem({ id: null, yarn: { ...yarn, name: 'Alpaca' }, notes: '' })
     const [merino, alpaca] = (await api.knitting.listStash()).map((s) => s.id) as [string, string]
     const bonnet = { title: 'Bonnet', why: 'Rapide.', size: 'adulte', meters: 150, needleMm: 4, search: 'beanie', patterns: [] }
-    const snood = { ...bonnet, title: 'Snood rayé', patterns: [{ title: 'Cowl', url: 'https://p.exemple/cowl', free: true, language: 'en' }] }
+    const snood = { ...bonnet, title: 'Snood rayé', patterns: [{ title: 'Cowl', url: 'https://p.exemple/cowl', free: true, language: 'en', meters: 300, metersMax: null }] }
 
     expect(await api.knitting.getStashIdeas([merino])).toBeNull()
     await api.knitting.saveStashIdeas({ stashIds: [merino], wish: '', ideas: [bonnet], weight: 'worsted' })
