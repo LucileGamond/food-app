@@ -182,6 +182,69 @@ export function titleFromFile(name: string): string {
 }
 
 // ---------------------------------------------------------------------------
+// Patron ajouté par un lien
+// ---------------------------------------------------------------------------
+
+/** Ce que la lecture d'un lien a trouvé (sans le modèle) : PDF du patron, nom et image de la page. */
+export interface PatternLink {
+  url: string
+  title: string | null
+  /** Image de la page (le modèle tricoté). */
+  image: File | null
+  pdf: File | null
+}
+
+/** Réponse de la fonction qui lit un lien (fichiers en base64). */
+export interface PatternLinkResponse {
+  url: string
+  title: string | null
+  image: { data: string; type: string } | null
+  pdf: { data: string; name: string } | null
+}
+
+/** Fichier en base64 → fichier, comme s'il avait été choisi sur le téléphone. */
+export function base64ToFile(data: string, name: string, type: string): File {
+  return new File([Uint8Array.from(atob(data), (c) => c.charCodeAt(0))], name, { type })
+}
+
+const IMAGE_EXTENSIONS: Record<string, string> = { 'image/png': 'png', 'image/webp': 'webp' }
+
+export function patternLinkFromResponse(read: PatternLinkResponse): PatternLink {
+  return {
+    url: read.url,
+    title: read.title,
+    image: read.image ? base64ToFile(read.image.data, `photo-du-modele.${IMAGE_EXTENSIONS[read.image.type] ?? 'jpg'}`, read.image.type) : null,
+    pdf: read.pdf ? base64ToFile(read.pdf.data, read.pdf.name, 'application/pdf') : null,
+  }
+}
+
+/** Ce que la lecture d'un lien ajoute au patron en cours de saisie, sans rien remplacer, et ce qu'on en dit. */
+export interface LinkAdditions {
+  title: string | null
+  pdf: File | null
+  image: File | null
+  message: string
+}
+
+export function linkAdditions(link: PatternLink, current: { title: string; files: PatternFiles }): LinkAdditions {
+  const count = fileCount(current.files)
+  const title = !current.title.trim() && link.title ? link.title : null
+  const pdf = link.pdf && !count.pdf ? link.pdf : null
+  const image = link.image && count.photos < MAX_PATTERN_PHOTOS ? link.image : null
+  const parts = [
+    pdf ? 'PDF du patron ajouté' : link.pdf ? 'PDF trouvé, mais le patron en a déjà un' : 'Pas de PDF trouvé (la page demande peut-être une connexion) : le lien est gardé',
+    image && 'photo du modèle ajoutée',
+    title && 'nom repris de la page',
+  ].filter((p): p is string => !!p)
+  return { title, pdf, image, message: `${parts.join(' · ')}.` }
+}
+
+/** Lien saisi qui peut être lu (http ou https). */
+export function isReadableLink(url: string): boolean {
+  return /^https?:\/\/\S+\.\S+$/i.test(url.trim())
+}
+
+// ---------------------------------------------------------------------------
 // « Quel patron pour ma laine ? »
 // ---------------------------------------------------------------------------
 

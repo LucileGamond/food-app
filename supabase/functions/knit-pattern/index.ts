@@ -1,4 +1,5 @@
-// Edge Function Supabase (module Tricot) : lecture d'un patron PDF pour une taille, en étapes.
+// Edge Function Supabase (module Tricot) : lecture d'un patron PDF pour une taille, en étapes, et autres aides du
+// module (étiquette de laine, questions, traduction, adaptation, idées, patron ajouté par un lien).
 // Secrets : ANTHROPIC_API_KEY (obligatoire), ANTHROPIC_MODEL (facultatif, Haiku par défaut).
 
 import { createSignedInCheck } from '../_shared/auth.ts'
@@ -11,6 +12,8 @@ Deno.serve(
     apiKey: Deno.env.get('ANTHROPIC_API_KEY'),
     model: Deno.env.get('ANTHROPIC_MODEL') || undefined,
     fetchModel: fetch,
+    fetchPage: fetch,
+    resolveDns: (host, type) => Deno.resolveDns(host, type),
     log: (message, data) => console.log(JSON.stringify({ message, ...data })),
     isSignedIn: createSignedInCheck(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_ANON_KEY')!),
     recordUsage: createUsageRecorder(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY'), 'knit-pattern'),

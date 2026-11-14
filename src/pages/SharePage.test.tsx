@@ -4,6 +4,7 @@ import { Route, useLocation } from 'react-router-dom'
 import { AppError } from '@/api'
 import { takeSharedPhotos } from '@/lib/sharedPhotos'
 import { fakeApi, renderWithApp } from '@/test/fakes'
+import { DEFAULT_SETTINGS } from '@/lib/settings'
 import { SharePage } from './SharePage'
 
 vi.mock('@/lib/sharedPhotos', () => ({ takeSharedPhotos: vi.fn(async () => [] as File[]), handOffPhotos: vi.fn() }))
@@ -33,6 +34,7 @@ function renderShare(query: string, api = fakeApi()) {
         <Route path="/recettes" element={<Where name="Écran recettes" />} />
         <Route path="/recettes/nouvelle" element={<Where name="Nouvelle recette" />} />
         <Route path="/recettes/:id" element={<Where name="Fiche recette" />} />
+        <Route path="/tricot/patrons/nouveau" element={<Where name="Nouveau patron" />} />
       </>
     ),
   })
@@ -44,7 +46,7 @@ const LINK = '?url=https%3A%2F%2Fwww.marmiton.org%2Frecettes%2Fcrepes.aspx&title
 describe('SharePage (partage depuis le téléphone)', () => {
   it('propose quoi faire du lien partagé, sans rien analyser', async () => {
     const { api } = renderShare(LINK)
-    expect(await screen.findByRole('heading', { name: 'Recette partagée' })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: 'Lien partagé' })).toBeInTheDocument()
     expect(screen.getByText('Pâte à crêpes')).toBeInTheDocument()
     const choices = screen.getByRole('group', { name: 'Que faire de cette recette ?' })
     expect(within(choices).getAllByRole('button').map((b) => b.textContent?.trim())).toEqual(['Enregistrer directement', 'Mettre de côté', 'À planifier'])
@@ -94,13 +96,31 @@ describe('SharePage (partage depuis le téléphone)', () => {
     expect(api.recipes.saveRecipe).not.toHaveBeenCalled()
   })
 
+  it('Tricot affiché : le lien peut devenir un patron de la bibliothèque, lu ensuite', async () => {
+    const api = fakeApi()
+    api.settings.getSettings.mockResolvedValue({ ...DEFAULT_SETTINGS, disabledPages: [] })
+    const { user } = renderShare(LINK, api)
+    await user.click(await screen.findByRole('button', { name: 'Ajouter à mes patrons de tricot' }))
+    expect(await screen.findByText(/Nouveau patron/)).toHaveTextContent(
+      JSON.stringify({ patternLink: { url: 'https://www.marmiton.org/recettes/crepes.aspx', title: 'Pâte à crêpes' } }),
+    )
+    // Rien n'est lu ici : c'est le formulaire du patron qui lit le lien.
+    expect(api.knitting.readPatternLink).not.toHaveBeenCalled()
+  })
+
+  it('Tricot masqué, ou photos partagées : pas de patron proposé', async () => {
+    renderShare(LINK)
+    await screen.findByRole('heading', { name: 'Lien partagé' })
+    expect(screen.queryByRole('button', { name: 'Ajouter à mes patrons de tricot' })).not.toBeInTheDocument()
+  })
+
   it('une erreur reste affichée sur l’écran de choix', async () => {
     const api = fakeApi()
     api.inbox.addItem.mockRejectedValueOnce(new AppError('Déjà dans « À planifier » ou « De côté ».'))
     const { user } = renderShare(LINK, api)
     await user.click(await screen.findByRole('button', { name: 'Mettre de côté' }))
     expect(await screen.findByRole('alert')).toHaveTextContent('Déjà dans « À planifier » ou « De côté ».')
-    expect(screen.getByRole('heading', { name: 'Recette partagée' })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Lien partagé' })).toBeInTheDocument()
   })
 
   it('des photos partagées : aperçu et mêmes choix ; « Préremplir » les passe au formulaire', async () => {

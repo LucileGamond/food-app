@@ -29,7 +29,7 @@ import type { KnitProject, KnitProjectSummary, ReadPattern } from '@/modules/tri
 import type { ProjectProgress } from '@/modules/tricot/lib/progress'
 import type { AdaptedStep } from '@/modules/tricot/lib/adapt'
 import { EMPTY_YARN, type StashItem, type Yarn, type YarnIdea } from '@/modules/tricot/lib/yarn'
-import type { KnitPattern } from '@/modules/tricot/lib/library'
+import type { KnitPattern, PatternLink } from '@/modules/tricot/lib/library'
 import type { StoredReading } from '@/modules/tricot/lib/readings'
 import { DEFAULT_SETTINGS, type UserSettings } from '@/lib/settings'
 import type { AgendaEvent, CalendarSource } from '@/modules/agenda/lib/agenda'
@@ -198,6 +198,7 @@ export function fakeApi(): FakeApi {
       listPatterns: vi.fn(async () => [] as KnitPattern[]),
       getPattern: vi.fn(async () => null as KnitPattern | null),
       listReadings: vi.fn(async () => [] as StoredReading[]),
+      readPatternLink: vi.fn(async (url: string): Promise<PatternLink> => ({ url, title: null, image: null, pdf: null })),
       savePattern: vi.fn(async () => 'new-pattern'),
       deletePattern: vi.fn(async () => undefined),
       getProgress: vi.fn(async (): Promise<ProjectProgress> => ({ notes: '', photos: [] })),

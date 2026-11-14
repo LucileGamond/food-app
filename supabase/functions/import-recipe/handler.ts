@@ -16,7 +16,8 @@ import { CORS_HEADERS, json, MISCONFIGURED } from '../_shared/anthropic.ts'
 import { extractPage, MIN_TEXT_CHARS, type PageContent } from './extract.ts'
 import { extractRecipe, extractRecipeFromPhotos, ImportError, type ImportedRecipe, type ModelUsage, type PhotoInput } from './model.ts'
 import { detectRotation, ROTATIONS } from './orient.ts'
-import { checkPublicUrl, resolvesToPublic, type ResolveDns } from './url.ts'
+import { checkPublicUrl, type ResolveDns } from '../_shared/url.ts'
+import { decodeHtml, download, PAGE_TIMEOUT_MS, toBase64 } from '../_shared/download.ts'
 import { fetchYoutubeVideo, findWrittenRecipe, INSTAGRAM_CAPTION, isInstagram, NOT_WRITTEN, videoText, youtubeId } from './video.ts'
 import { asRecord } from '../_shared/sanitize.ts'
 import type { SignedInCheck } from '../_shared/auth.ts'
@@ -25,14 +26,11 @@ import { trackUsage, type RecordUsage } from '../_shared/usage.ts'
 
 export const MAX_PAGE_BYTES = 3_000_000
 export const MAX_IMAGE_BYTES = 3_000_000
-/** Durée maximale d'un téléchargement, redirections comprises. */
-const PAGE_TIMEOUT_MS = 15_000
 /** Import YouTube (description, recherche web, page trouvée) : borné sous la coupure des fonctions à 150 s. */
 const YOUTUBE_BUDGET_MS = 130_000
 /** En deçà, une étape n'a plus le temps d'aboutir. */
 const MIN_STEP_MS = 15_000
 const TOO_LONG = 'La lecture de cette vidéo prend trop de temps. Réessaie, ou saisis la recette à la main.'
-const MAX_REDIRECTS = 4
 /** Images acceptées : photo d'une page téléchargée, photos envoyées par le navigateur. */
 const IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp'] as const
 
@@ -65,95 +63,6 @@ export interface Deps {
   recordUsage?: RecordUsage
   /** Budget IA du mois (voir _shared/budget.ts) : un message refuse l'import (402). */
   checkBudget?: BudgetCheck
-}
-
-/** Télécharge une ressource publique : redirections vérifiées une à une, taille et durée bornées. */
-async function download(
-  rawUrl: string,
-  accept: string,
-  maxBytes: number,
-  doFetch: typeof fetch,
-  resolve?: ResolveDns,
-): Promise<{ url: URL; type: string; bytes: Uint8Array }> {
-  let check = checkPublicUrl(rawUrl)
-  const signal = AbortSignal.timeout(PAGE_TIMEOUT_MS)
-  for (let hop = 0; ; hop++) {
-    if (!check.ok) throw new ImportError(check.reason, 400)
-    // Nom d'hôte qui pointe vers une adresse privée (vérifié à chaque redirection).
-    if (resolve && !(await resolvesToPublic(check.url.hostname, resolve))) throw new ImportError('Adresse non autorisée.', 400)
-    let response: Response
-    try {
-      response = await doFetch(check.url.href, {
-        redirect: 'manual',
-        headers: {
-          accept,
-          'accept-language': 'fr-FR,fr;q=0.9,en;q=0.5',
-          'user-agent': 'Mozilla/5.0 (compatible; FoodApp/1.0; +import de recette)',
-        },
-        signal,
-      })
-    } catch {
-      throw new ImportError('Impossible de joindre ce site.', 502)
-    }
-    if (response.status >= 300 && response.status < 400 && response.headers.get('location')) {
-      void response.body?.cancel().catch(() => undefined)
-      if (hop >= MAX_REDIRECTS) throw new ImportError('Trop de redirections.', 502)
-      check = checkPublicUrl(response.headers.get('location'), check.url)
-      continue
-    }
-    if (!response.ok) {
-      void response.body?.cancel().catch(() => undefined)
-      throw new ImportError(`Le site a répondu par une erreur (${response.status}).`, 502)
-    }
-    const length = Number(response.headers.get('content-length') ?? 0)
-    if (length > maxBytes) throw new ImportError('La page est trop volumineuse.', 413)
-
-    // Lecture en flux pour ne jamais dépasser la limite, même sans content-length.
-    const reader = response.body?.getReader()
-    const chunks: Uint8Array[] = []
-    let size = 0
-    while (reader) {
-      let chunk: ReadableStreamReadResult<Uint8Array>
-      try {
-        chunk = await reader.read()
-      } catch {
-        // Délai dépassé (ou connexion coupée) pendant la lecture.
-        throw new ImportError('Impossible de joindre ce site.', 502)
-      }
-      const { done, value } = chunk
-      if (done) break
-      size += value.byteLength
-      if (size > maxBytes) {
-        // Sans attendre : l'annulation peut rester en suspens selon la source du flux.
-        void reader.cancel().catch(() => undefined)
-        throw new ImportError('La page est trop volumineuse.', 413)
-      }
-      chunks.push(value)
-    }
-    const bytes = new Uint8Array(size)
-    let offset = 0
-    for (const chunk of chunks) {
-      bytes.set(chunk, offset)
-      offset += chunk.byteLength
-    }
-    return { url: check.url, type: response.headers.get('content-type') ?? '', bytes }
-  }
-}
-
-function decodeHtml(bytes: Uint8Array, contentType: string): string {
-  const head = new TextDecoder('latin1').decode(bytes.slice(0, 2048))
-  const charset = /charset=["']?([\w-]+)/i.exec(contentType)?.[1] ?? /<meta[^>]+charset=["']?([\w-]+)/i.exec(head)?.[1] ?? 'utf-8'
-  try {
-    return new TextDecoder(charset).decode(bytes)
-  } catch {
-    return new TextDecoder('utf-8').decode(bytes)
-  }
-}
-
-function toBase64(bytes: Uint8Array): string {
-  let binary = ''
-  for (let i = 0; i < bytes.length; i += 0x8000) binary += String.fromCharCode(...bytes.subarray(i, i + 0x8000))
-  return btoa(binary)
 }
 
 /** Photo de la recette : facultative, une erreur ne fait jamais échouer l'import. */

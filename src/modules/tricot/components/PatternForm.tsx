@@ -13,19 +13,24 @@ import { Textarea } from '@/components/ui/textarea'
 import { useSignedUrls } from '@/hooks/useSignedUrls'
 import { ACCEPTED_IMAGE_TYPES, compressImage } from '@/lib/image'
 import { usePatternFiles } from '../hooks/usePatternFiles'
-import { EMPTY_PATTERN_DRAFT, fileCount, MAX_PATTERN_PHOTOS, parsePatternDraft, titleFromFile, toPatternDraft, WISHES, type KnitPattern, type PatternDraft, type PatternWish } from '../lib/library'
+import { EMPTY_PATTERN_DRAFT, fileCount, linkAdditions, MAX_PATTERN_PHOTOS, parsePatternDraft, titleFromFile, toPatternDraft, WISHES, type KnitPattern, type PatternDraft, type PatternLink, type PatternWish } from '../lib/library'
 import { MAX_PDF_BYTES } from '../lib/pattern'
+import { PatternLinkField } from './PatternLinkField'
 import { PatternThumbs } from './PatternThumbs'
 
 interface Props {
   /** Patron modifié ; null pour en ajouter un. */
   existing: KnitPattern | null
+  /** Lien partagé depuis le téléphone : prérempli, puis lu tout de suite. */
+  initialLink?: { url: string; title: string | null } | null
   onSaved: (id: string) => void
 }
 
-export function PatternForm({ existing, onSaved }: Props) {
+export function PatternForm({ existing, initialLink = null, onSaved }: Props) {
   const api = useApi()
-  const [draft, setDraft] = useState<PatternDraft>(() => (existing ? toPatternDraft(existing) : EMPTY_PATTERN_DRAFT))
+  const [draft, setDraft] = useState<PatternDraft>(() =>
+    existing ? toPatternDraft(existing) : { ...EMPTY_PATTERN_DRAFT, url: initialLink?.url ?? '', title: initialLink?.title ?? '' },
+  )
   const { files, newPhotoPreviews, choosePdf, removePdf, addPhotos, removePhoto } = usePatternFiles(existing)
   const savedUrls = useSignedUrls(api.knitting.progressPhotoUrls, files.photos)
   const [error, setError] = useState<string | null>(null)
@@ -51,6 +56,15 @@ export function PatternForm({ existing, onSaved }: Props) {
     } finally {
       setPreparing(false)
     }
+  }
+
+  /** Ajoute au patron ce que le lien a donné, sans rien remplacer ; renvoie ce qu'il faut en dire. */
+  async function applyLink(link: PatternLink): Promise<string> {
+    const added = linkAdditions(link, { title: draft.title, files })
+    if (added.title) change({ title: added.title })
+    if (added.pdf) choosePdf(added.pdf)
+    if (added.image) addPhotos([await compressImage(added.image)])
+    return added.message
   }
 
   async function submit(event: FormEvent) {
@@ -128,10 +142,7 @@ export function PatternForm({ existing, onSaved }: Props) {
           )}
         </div>
 
-        <div className="grid gap-1.5">
-          <Label htmlFor="pattern-url">Lien</Label>
-          <Input id="pattern-url" type="url" inputMode="url" className="h-10" value={draft.url} onChange={(e) => change({ url: e.target.value })} placeholder="https://…" />
-        </div>
+        <PatternLinkField value={draft.url} onChange={(url) => change({ url })} onRead={applyLink} readOnMount={!!initialLink} />
       </fieldset>
 
       <div className="grid grid-cols-2 gap-3">

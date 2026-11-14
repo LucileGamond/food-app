@@ -103,3 +103,34 @@ describe('createModelHandler : consommation', () => {
     expect((await open.handler(post({}))).status).toBe(200)
   })
 })
+
+describe('createModelHandler : requête sans le modèle', () => {
+  function setupWithoutModel(overrides: Partial<ModelDeps> = {}) {
+    const deps: ModelDeps = { apiKey: undefined, fetchModel: vi.fn<typeof fetch>(), isSignedIn: async () => 'u1', recordUsage: vi.fn(async () => {}), ...overrides }
+    const handler = createModelHandler(deps, {
+      parse: (body) => body as { kind: 'link' | 'read' },
+      usesModel: (input) => input.kind !== 'link',
+      async run(input) {
+        return { body: { kind: input.kind }, log: {} }
+      },
+      logs: { done: 'ok', refused: 'refusé', failed: 'erreur' },
+      failure: 'Échec.',
+    })
+    return { handler, deps }
+  }
+
+  it('traitée sans clé ni budget vérifiés, et sans rien enregistrer', async () => {
+    const checkBudget = vi.fn(async () => 'Budget atteint.')
+    const { handler, deps } = setupWithoutModel({ checkBudget })
+    const response = await handler(post({ kind: 'link' }))
+    expect(response.status).toBe(200)
+    expect(await response.json()).toEqual({ kind: 'link' })
+    expect(checkBudget).not.toHaveBeenCalled()
+    expect(deps.recordUsage).not.toHaveBeenCalled()
+  })
+
+  it('les autres requêtes restent soumises à la clé et au budget', async () => {
+    expect((await setupWithoutModel().handler(post({ kind: 'read' }))).status).toBe(500)
+    expect((await setupWithoutModel({ apiKey: 'k', checkBudget: async () => 'Budget atteint.' }).handler(post({ kind: 'read' }))).status).toBe(402)
+  })
+})

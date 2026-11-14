@@ -25,6 +25,8 @@ export interface ModelDeps {
 export interface ModelHandlerSpec<Deps extends ModelDeps, Input> {
   /** Lecture et vérification du corps (HttpError 400/413… si invalide). */
   parse: (body: unknown) => Input
+  /** Faux pour une requête traitée sans le modèle (ni budget ni clé vérifiés) ; par défaut, toutes l'utilisent. */
+  usesModel?: (input: Input) => boolean
   /** Mode enregistré avec la consommation ; par défaut le champ `kind` de l'entrée, s'il existe. */
   mode?: (input: Input) => string | null
   /** Traitement : réponse renvoyée et données du journal (consommation comprise ; la durée est ajoutée par le handler). */
@@ -53,10 +55,13 @@ export function createModelHandler<Deps extends ModelDeps, Input>(deps: Deps, sp
     let ok = false
     try {
       input = spec.parse(body)
-      const overBudget = await deps.checkBudget?.()
-      if (overBudget) throw new HttpError(overBudget, 402)
-      if (!deps.apiKey) throw new HttpError(MISCONFIGURED, 500)
-      const result = await spec.run(input, { apiKey: deps.apiKey, model: deps.model, fetch: tracked.fetch }, deps)
+      const usesModel = spec.usesModel?.(input) ?? true
+      if (usesModel) {
+        const overBudget = await deps.checkBudget?.()
+        if (overBudget) throw new HttpError(overBudget, 402)
+        if (!deps.apiKey) throw new HttpError(MISCONFIGURED, 500)
+      }
+      const result = await spec.run(input, { apiKey: deps.apiKey ?? '', model: deps.model, fetch: tracked.fetch }, deps)
       ok = true
       deps.log?.(spec.logs.done, { ...result.log, ms: Date.now() - started })
       return json(result.body)

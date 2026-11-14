@@ -6,7 +6,7 @@ import type { AppSupabaseClient } from '@/api/client'
 import { compressForReading } from '@/lib/image'
 import type { ProgressPhoto, ProjectProgress } from './lib/progress'
 import { describeYarn, yarnFromJson, yarnMeters, yarnsFromJson, type Gauge, type StashItem, type Yarn, type YarnIdea } from './lib/yarn'
-import type { KnitPattern, PatternFields, PatternFiles, PatternWish } from './lib/library'
+import { patternLinkFromResponse, type KnitPattern, type PatternFields, type PatternFiles, type PatternLink, type PatternLinkResponse, type PatternWish } from './lib/library'
 import { readingFromJson, readingKey, readSizeIndex, type StoredReading } from './lib/readings'
 import { sanitizeHighlights } from './lib/sizes'
 import { readTimes } from './lib/passes'
@@ -507,6 +507,11 @@ export function createKnittingApi(db: AppSupabaseClient) {
         .update({ adaptation: adaptation && (adaptationToJson(adaptation) as unknown as Json) })
         .eq('id', projectId)
       if (error) throw toAppError(error, 'Impossible d’enregistrer le patron adapté.')
+    },
+
+    /** Patron ajouté par un lien : PDF (le lien lui-même, ou trouvé dans la page), nom et image de la page, sans le modèle. */
+    async readPatternLink(url: string): Promise<PatternLink> {
+      return patternLinkFromResponse(await invokeKnit<PatternLinkResponse>({ link: { url } }, 'Impossible de lire ce lien.', (d) => typeof d.url === 'string'))
     },
 
     /** Lit l'étiquette d'une pelote en photo, sans rien enregistrer. */

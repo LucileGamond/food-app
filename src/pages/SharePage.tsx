@@ -1,4 +1,4 @@
-import { Link2, ScanText } from 'lucide-react'
+import { BookOpen, Link2, ScanText } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { toast } from 'sonner'
@@ -19,7 +19,8 @@ import type { NavState } from '@/lib/navState'
 /**
  * Cible du partage Android (`share_target` du manifeste) : /partage?url=…&text=…&title=…, ou /partage?photos=partage
  * (photos rangées par le service worker). Un lien ou des photos : au choix, enregistrer directement, mettre de côté,
- * à planifier, ou préremplir le formulaire. Un texte sans lien : une idée ajoutée à « À planifier ».
+ * à planifier, ou préremplir le formulaire. Un lien peut aussi devenir un patron de tricot (bibliothèque). Un texte sans
+ * lien : une idée ajoutée à « À planifier ».
  */
 export function SharePage() {
   const api = useApi()
@@ -95,9 +96,15 @@ export function SharePage() {
     void navigate('/recettes/nouvelle?photos=partage')
   }
 
+  /** Patron de tricot : le formulaire de la bibliothèque lit le lien (PDF, nom, photo). */
+  function addPattern() {
+    if (source!.kind !== 'link') return
+    void navigate('/tricot/patrons/nouveau', { state: { patternLink: { url: source!.url, title: source!.title ?? null } } satisfies NavState })
+  }
+
   return (
     <>
-      <PageHeader title="Recette partagée" description="Que veux-tu en faire ?" />
+      <PageHeader title={source.kind === 'link' ? 'Lien partagé' : 'Recette partagée'} description="Que veux-tu en faire ?" />
       <section className="space-y-5 rounded-2xl border bg-background p-5 shadow-xs">
         {source.kind === 'link' ? (
           <p className="flex items-start gap-2 text-sm">
@@ -134,6 +141,15 @@ export function SharePage() {
           </div>
         ) : (
           !isEnabled('planning') && <p className="text-sm text-muted-foreground">Affiche Recettes ou Planning dans les réglages pour garder cette recette.</p>
+        )}
+
+        {source.kind === 'link' && isEnabled('tricot') && (
+          <div className="space-y-1 border-t pt-4">
+            <Button type="button" variant="outline" className="h-10 px-3" onClick={addPattern}>
+              <BookOpen aria-hidden /> Ajouter à mes patrons de tricot
+            </Button>
+            <p className="text-xs text-muted-foreground">Le PDF du patron, son nom et sa photo sont récupérés depuis le lien.</p>
+          </div>
         )}
       </section>
     </>

@@ -312,7 +312,7 @@ test('aucun écran ni aucune fenêtre ne déborde', async ({ page, isMobile }) =
 
   // Partage depuis le téléphone
   await page.goto(`/partage?text=${encodeURIComponent('Regarde : https://cuisine.exemple.fr/une-autre-recette-au-nom-tres-long-pour-voir')}&title=${encodeURIComponent(LONG_TITLE)}`)
-  await expect(page.getByRole('heading', { name: 'Recette partagée' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Lien partagé' })).toBeVisible()
   await check(page, 'partage')
 
   expect(problems).toEqual([])

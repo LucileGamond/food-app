@@ -351,6 +351,13 @@ describe('bibliothèque de patrons', () => {
 })
 
 describe('bibliothèque de patrons : erreurs', () => {
+  it('lien d’un patron : adresse privée ou invalide refusée par la fonction, sans connexion refusé', async () => {
+    const { api } = await signedInApi()
+    await expect(api.knitting.readPatternLink('http://127.0.0.1/patron.pdf')).rejects.toThrow('Adresse non autorisée.')
+    await expect(api.knitting.readPatternLink('ftp://patrons.exemple/x')).rejects.toThrow('Seules les adresses http(s) sont acceptées.')
+    await expect(createKnittingApi(anonClient()).readPatternLink('https://patrons.exemple/x')).rejects.toThrow()
+  })
+
   it('refuse sans connexion, et n’enregistre rien d’invalide', async () => {
     const anon = createKnittingApi(anonClient())
     const fields: PatternFields = { title: 'Gilet', url: null, size: null, yarnIdea: '', notes: '', metersNeeded: null, needleMm: null, wish: 2 }

@@ -1,5 +1,8 @@
 import {
   EMPTY_PATTERN_DRAFT,
+  isReadableLink,
+  linkAdditions,
+  patternLinkFromResponse,
   filterPatterns,
   matchPatterns,
   parsePatternDraft,
@@ -148,5 +151,59 @@ describe('quel patron pour ma laine', () => {
 
   it('compte aussi les patrons déjà tricotés, après les envies', () => {
     expect(matchPatterns(PARTNER, [needs('Tricoté', 300, null, null), needs('Envie', 300, null, 3)]).fits.map((m) => m.item.id)).toEqual(['Envie', 'Tricoté'])
+  })
+})
+
+describe('patron ajouté par un lien', () => {
+  const PDF = new File(['%PDF'], 'gilet.pdf', { type: 'application/pdf' })
+  const IMAGE = new File(['img'], 'photo.jpg', { type: 'image/jpeg' })
+  const link = { url: 'https://p.exemple/gilet', title: 'Gilet Rosée', image: IMAGE, pdf: PDF }
+
+  it('ajoute PDF, photo et nom à un patron vide', () => {
+    expect(linkAdditions(link, { title: '', files: NO_FILES })).toEqual({
+      title: 'Gilet Rosée',
+      pdf: PDF,
+      image: IMAGE,
+      message: 'PDF du patron ajouté · photo du modèle ajoutée · nom repris de la page.',
+    })
+  })
+
+  it('ne remplace rien de ce qui est déjà saisi', () => {
+    const full = { pdfPath: 'u/p.pdf', newPdf: null, photos: Array.from({ length: 10 }, (_, i) => `u/${i}.jpg`), newPhotos: [] }
+    expect(linkAdditions(link, { title: 'Mon gilet', files: full })).toEqual({ title: null, pdf: null, image: null, message: 'PDF trouvé, mais le patron en a déjà un.' })
+  })
+
+  it('pas de PDF trouvé : le dit, le lien reste', () => {
+    expect(linkAdditions({ ...link, pdf: null, image: null, title: null }, { title: '', files: NO_FILES }).message).toBe(
+      'Pas de PDF trouvé (la page demande peut-être une connexion) : le lien est gardé.',
+    )
+  })
+
+  it('cohérence : ce qui est ajouté reste valable pour l’enregistrement', () => {
+    const added = linkAdditions(link, { title: '', files: NO_FILES })
+    const files = { ...NO_FILES, newPdf: added.pdf, newPhotos: added.image ? [added.image] : [] }
+    expect(parsePatternDraft({ ...EMPTY_PATTERN_DRAFT, title: added.title ?? '', url: link.url }, files)).toHaveProperty('fields')
+  })
+
+  it('transforme la réponse de la fonction en fichiers, comme choisis sur le téléphone', async () => {
+    const link = patternLinkFromResponse({
+      url: 'https://p.exemple/gilet',
+      title: 'Gilet',
+      image: { data: btoa('img'), type: 'image/png' },
+      pdf: { data: btoa('%PDF-1.4'), name: 'gilet.pdf' },
+    })
+    expect([link.image!.name, link.image!.type, await link.image!.text()]).toEqual(['photo-du-modele.png', 'image/png', 'img'])
+    expect([link.pdf!.name, link.pdf!.type, await link.pdf!.text()]).toEqual(['gilet.pdf', 'application/pdf', '%PDF-1.4'])
+    expect(patternLinkFromResponse({ url: 'u', title: null, image: { data: '', type: 'image/webp' }, pdf: null }).image!.name).toBe('photo-du-modele.webp')
+    expect(patternLinkFromResponse({ url: 'u', title: null, image: { data: '', type: 'image/jpeg' }, pdf: null }).image!.name).toBe('photo-du-modele.jpg')
+    expect(patternLinkFromResponse({ url: 'u', title: null, image: null, pdf: null })).toEqual({ url: 'u', title: null, image: null, pdf: null })
+  })
+
+  it('ne lit que les liens http(s) complets', () => {
+    expect(isReadableLink(' https://p.exemple/gilet ')).toBe(true)
+    expect(isReadableLink('http://p.exemple')).toBe(true)
+    expect(isReadableLink('p.exemple/gilet')).toBe(false)
+    expect(isReadableLink('https://')).toBe(false)
+    expect(isReadableLink('')).toBe(false)
   })
 })

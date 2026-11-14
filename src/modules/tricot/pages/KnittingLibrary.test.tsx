@@ -276,6 +276,58 @@ describe('ajout et modification d’un patron', () => {
     expect(existing).toBe(GILET)
   })
 
+  it('récupère depuis le lien le PDF, la photo et le nom, sans rien remplacer', async () => {
+    const user = userEvent.setup()
+    const api = fakeApi()
+    const pdf = new File(['%PDF'], 'gilet-rosee.pdf', { type: 'application/pdf' })
+    api.knitting.readPatternLink.mockResolvedValue({ url: 'https://p.exemple/gilet', title: 'Gilet Rosée', image: new File(['img'], 'photo.jpg', { type: 'image/jpeg' }), pdf })
+    renderWithApp(<KnittingPatternEditPage />, { api, route: '/tricot/patrons/nouveau', path: '/tricot/patrons/nouveau', extraRoutes })
+    const read = await screen.findByRole('button', { name: 'Récupérer' })
+    expect(read).toBeDisabled()
+    await user.type(screen.getByLabelText('Lien'), 'https://p.exemple/gilet')
+    await user.click(read)
+    expect(api.knitting.readPatternLink).toHaveBeenCalledWith('https://p.exemple/gilet')
+    expect(await screen.findByText('PDF du patron ajouté · photo du modèle ajoutée · nom repris de la page.')).toBeInTheDocument()
+    expect(screen.getByLabelText('Nom du patron')).toHaveValue('Gilet Rosée')
+    expect(screen.getByText('gilet-rosee.pdf')).toBeInTheDocument()
+    expect(within(screen.getByRole('list', { name: 'Photos du patron' })).getAllByRole('listitem')).toHaveLength(1)
+
+    await user.click(screen.getByRole('button', { name: 'Enregistrer' }))
+    await waitFor(() => expect(api.knitting.savePattern).toHaveBeenCalledTimes(1))
+    const [fields, files] = api.knitting.savePattern.mock.calls[0]!
+    expect(fields).toMatchObject({ title: 'Gilet Rosée', url: 'https://p.exemple/gilet' })
+    expect(files).toMatchObject({ newPdf: pdf })
+    expect(files.newPhotos).toHaveLength(1)
+  })
+
+  it('lien illisible : erreur lisible, la saisie reste', async () => {
+    const user = userEvent.setup()
+    const api = fakeApi()
+    api.knitting.readPatternLink.mockRejectedValue(new AppError('Le site a répondu par une erreur (404).'))
+    renderWithApp(<KnittingPatternEditPage />, { api, route: '/tricot/patrons/nouveau', path: '/tricot/patrons/nouveau', extraRoutes })
+    await user.type(await screen.findByLabelText('Nom du patron'), 'Bonnet')
+    await user.type(screen.getByLabelText('Lien'), 'https://p.exemple/perdu')
+    await user.click(screen.getByRole('button', { name: 'Récupérer' }))
+    expect(await screen.findByText('Le site a répondu par une erreur (404).')).toBeInTheDocument()
+    expect(screen.getByLabelText('Nom du patron')).toHaveValue('Bonnet')
+  })
+
+  it('lien partagé depuis le téléphone : prérempli et lu tout de suite', async () => {
+    const api = fakeApi()
+    api.knitting.readPatternLink.mockResolvedValue({ url: 'https://p.exemple/gilet', title: 'Titre de la page', image: null, pdf: null })
+    renderWithApp(<KnittingPatternEditPage />, {
+      api,
+      route: { pathname: '/tricot/patrons/nouveau', state: { patternLink: { url: 'https://p.exemple/gilet', title: 'Titre partagé' } } } as unknown as string,
+      path: '/tricot/patrons/nouveau',
+      extraRoutes,
+    })
+    expect(await screen.findByText(/Pas de PDF trouvé/)).toBeInTheDocument()
+    expect(api.knitting.readPatternLink).toHaveBeenCalledTimes(1)
+    expect(screen.getByLabelText('Lien')).toHaveValue('https://p.exemple/gilet')
+    // Le titre partagé est gardé
+    expect(screen.getByLabelText('Nom du patron')).toHaveValue('Titre partagé')
+  })
+
   it('signale un enregistrement impossible et garde la saisie', async () => {
     const user = userEvent.setup()
     const api = fakeApi()

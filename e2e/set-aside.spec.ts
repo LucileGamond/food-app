@@ -26,7 +26,7 @@ test('partage d’un lien : mis de côté, puis prérempli et enregistré depuis
   })
   await login(page)
   await page.goto(`/partage?url=${encodeURIComponent('https://cuisine.exemple.fr/curry')}`)
-  await expect(page.getByRole('heading', { name: 'Recette partagée' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Lien partagé' })).toBeVisible()
   expect((await (await axeFor(page)).exclude('[data-sonner-toaster]').analyze()).violations).toEqual([])
   await page.getByRole('button', { name: 'Mettre de côté' }).click()
 

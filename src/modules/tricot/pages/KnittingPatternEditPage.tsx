@@ -1,5 +1,5 @@
 import { SearchX } from 'lucide-react'
-import { useNavigate, useParams } from 'react-router-dom'
+import { useLocation, useNavigate, useParams } from 'react-router-dom'
 import { toast } from 'sonner'
 import { useApi } from '@/app/ApiContext'
 import { EmptyState } from '@/components/EmptyState'
@@ -7,6 +7,7 @@ import { LoadError } from '@/components/LoadError'
 import { PageHeader } from '@/components/PageHeader'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useAsync } from '@/hooks/useAsync'
+import { navState } from '@/lib/navState'
 import { BackLink } from '../components/BackLink'
 import { PatternForm } from '../components/PatternForm'
 
@@ -15,6 +16,8 @@ export function KnittingPatternEditPage() {
   const { id } = useParams()
   const api = useApi()
   const navigate = useNavigate()
+  // Lien partagé depuis le téléphone (page /partage).
+  const shared = navState(useLocation()).patternLink ?? null
   const existing = useAsync(() => (id ? api.knitting.getPattern(id) : Promise.resolve(null)), [api, id])
 
   const saved = (savedId: string) => {
@@ -36,7 +39,7 @@ export function KnittingPatternEditPage() {
     <>
       {back}
       <PageHeader title={existing.data ? 'Modifier le patron' : 'Ajouter un patron'} />
-      <PatternForm existing={existing.data} onSaved={saved} />
+      <PatternForm existing={existing.data} initialLink={existing.data ? null : shared} onSaved={saved} />
     </>
   )
 }

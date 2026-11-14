@@ -262,6 +262,50 @@ test('ajoute un patron à la bibliothèque, le commence, puis note la laine (ét
   expect(patternReads).toBe(readsBefore)
 })
 
+test('ajoute un patron par un lien : PDF et photo récupérés, aussi depuis un partage', async ({ page }) => {
+  // Lecture du lien simulée (la fonction télécharge la page et le PDF, sans le modèle).
+  const links: string[] = []
+  await page.route('**/functions/v1/knit-pattern', async (route) => {
+    const body = route.request().postDataJSON()
+    links.push(body.link.url)
+    const png = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg=='
+    await route.fulfill({
+      json: body.link.url.includes('bonnet')
+        ? { url: body.link.url, title: 'Bonnet côtelé', image: null, pdf: null }
+        : { url: body.link.url, title: 'Gilet Rosée', image: { data: png, type: 'image/png' }, pdf: { data: Buffer.from('%PDF-1.4 gilet').toString('base64'), name: 'gilet-rosee.pdf' } },
+    })
+  })
+  const { api } = await signedInApi()
+  await api.settings.saveSettings({ ...DEFAULT_SETTINGS, disabledPages: [] })
+  await login(page)
+  await openNavPage(page, 'Tricot')
+
+  // Lien collé dans le formulaire, puis « Récupérer »
+  await page.getByRole('link', { name: /Bibliothèque de patrons/ }).click()
+  await page.getByRole('link', { name: 'Ajouter un patron' }).first().click()
+  await page.getByLabel('Lien').fill('https://patrons.exemple/gilet')
+  await page.getByRole('button', { name: 'Récupérer' }).click()
+  await expect(page.getByText('PDF du patron ajouté · photo du modèle ajoutée · nom repris de la page.')).toBeVisible()
+  await expect(page.getByLabel('Nom du patron')).toHaveValue('Gilet Rosée')
+  await expect(page.getByText('gilet-rosee.pdf')).toBeVisible()
+  await expect(page.getByRole('list', { name: 'Photos du patron' }).getByRole('listitem')).toHaveCount(1)
+  await expectNoA11yViolations(page)
+  await page.getByRole('button', { name: 'Enregistrer' }).click()
+  await expect(page.getByRole('heading', { level: 1, name: 'Gilet Rosée' })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Ouvrir le PDF' })).toBeVisible()
+  await expect(page.getByRole('link', { name: 'Ouvrir le lien' })).toHaveAttribute('href', 'https://patrons.exemple/gilet')
+
+  // Lien partagé depuis le téléphone : « Ajouter à mes patrons de tricot », lu tout de suite
+  await page.goto(`/partage?url=${encodeURIComponent('https://patrons.exemple/bonnet')}&title=${encodeURIComponent('Bonnet (partagé)')}`)
+  await expect(page.getByRole('heading', { name: 'Lien partagé' })).toBeVisible()
+  await page.getByRole('button', { name: 'Ajouter à mes patrons de tricot' }).click()
+  await expect(page.getByText(/Pas de PDF trouvé/)).toBeVisible()
+  await expect(page.getByLabel('Nom du patron')).toHaveValue('Bonnet (partagé)')
+  await page.getByRole('button', { name: 'Enregistrer' }).click()
+  await expect(page.getByRole('heading', { level: 1, name: 'Bonnet (partagé)' })).toBeVisible()
+  expect(links).toEqual(['https://patrons.exemple/gilet', 'https://patrons.exemple/bonnet'])
+})
+
 test('stock de laine : quel patron pour ma laine (la bibliothèque d’abord, puis des idées)', async ({ page }) => {
   await page.route('**/functions/v1/knit-pattern', async (route) => {
     const body = route.request().postDataJSON()
