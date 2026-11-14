@@ -5,7 +5,7 @@ import type { Json } from '@/lib/database.types'
 import type { AppSupabaseClient } from '@/api/client'
 import { compressForReading } from '@/lib/image'
 import type { ProgressPhoto, ProjectProgress } from './lib/progress'
-import { describeYarn, yarnFromJson, yarnMeters, yarnsFromJson, type Gauge, type StashItem, type Yarn, type YarnIdea } from './lib/yarn'
+import { describeYarn, projectHues, yarnFromJson, yarnMeters, yarnsFromJson, type Gauge, type StashItem, type Yarn, type YarnIdea } from './lib/yarn'
 import { MAX_INFO_PHOTOS, patternLinkFromResponse, type KnitPattern, type PatternInfo, type PatternFields, type PatternFiles, type PatternLink, type PatternLinkResponse } from './lib/library'
 import { readingFromJson, readingKey, readSizeIndex, type StoredReading } from './lib/readings'
 import { sanitizeHighlights } from './lib/sizes'
@@ -250,7 +250,7 @@ export function createKnittingApi(db: AppSupabaseClient) {
     async listProjects(): Promise<KnitProjectSummary[]> {
       const { data, error } = await db
         .from('knit_projects')
-        .select('id, title, size, sizes, size_index, adaptation, updated_at, knit_steps(id, position, title, total_rows, row_count, times, pass, done)')
+        .select('id, title, size, sizes, size_index, adaptation, yarns, updated_at, knit_steps(id, position, title, total_rows, row_count, times, pass, done)')
         .order('updated_at', { ascending: false })
         .order('position', { referencedTable: 'knit_steps' })
       if (error) throw toAppError(error, 'Impossible de charger les projets.')
@@ -269,6 +269,7 @@ export function createKnittingApi(db: AppSupabaseClient) {
           stepsDone: p.knit_steps.filter((s) => s.done).length,
           stepsTotal: p.knit_steps.length,
           current: step && { number: index + 1, title: step.title, rowCount: step.row_count, totalRows: adapted ? adapted.totalRows : step.total_rows, times: step.times, pass: step.pass },
+          hues: projectHues(yarnsFromJson(p.yarns)),
         }
       })
     },

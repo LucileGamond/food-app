@@ -5,6 +5,7 @@ import { MAX_ROW_COUNT } from '../../lib/pattern'
 import { formatNeedle } from '../../lib/needles'
 import type { SubstepCount } from '../../lib/substeps'
 import { TOUCH_AREA } from '../../lib/touch'
+import { YarnGauge } from '../YarnGauge'
 
 interface Props {
   rowCount: number
@@ -16,13 +17,17 @@ interface Props {
   onFinishSubstep?: (count: SubstepCount) => void
   /** Aiguille de la sous-étape en cours (mm). */
   needle?: number | null
+  /** Couleurs de la laine du projet (jauge pelote et fil) ; indigo si aucune. */
+  hues?: string[]
+  /** Enroulement de la pelote, propre au projet. */
+  seed?: number
 }
 
 /**
  * Le compteur du mode tricoter, en bas de l'écran sous le pouce : gros +1, petit −1. Il compte dans la sous-étape en
  * cours (« 5 / 16 rangs · côtes ») ; le rang de l'étape et les autres sous-étapes « en même temps » sont rappelés en petit.
  */
-export function ModeCounter({ rowCount, totalRows, onCount, substeps = [], onFinishSubstep, needle = null }: Props) {
+export function ModeCounter({ rowCount, totalRows, onCount, substeps = [], onFinishSubstep, needle = null, hues = [], seed = 1 }: Props) {
   const [main, ...parallel] = substeps
   const knitted = main ? main.row - 1 : rowCount
   const total = main ? main.rows : totalRows
@@ -31,8 +36,6 @@ export function ModeCounter({ rowCount, totalRows, onCount, substeps = [], onFin
   // La ligne « Étape » ne dit quelque chose que si elle diffère du compteur (sinon c'est le même nombre deux fois).
   const stepDiffers = knitted !== rowCount || total !== totalRows
   const below = !!main && (stepDiffers || parallel.length > 0 || canFinish)
-  // Un seul grand nombre : celui qu'on compte vraiment, dans la sous-étape.
-  const done = total === null ? null : Math.min(knitted / total, 1)
   return (
     <div className="space-y-2">
       {(main?.title || needle !== null) && (
@@ -51,11 +54,7 @@ export function ModeCounter({ rowCount, totalRows, onCount, substeps = [], onFin
           <span className="sr-only">Ajouter</span> 1 rang
         </Button>
       </div>
-      {done !== null && (
-        <div className="h-1.5 overflow-hidden rounded-full bg-muted" aria-hidden>
-          <div className="h-full rounded-full bg-brand transition-[width] motion-reduce:transition-none" style={{ width: `${Math.round(done * 100)}%` }} />
-        </div>
-      )}
+      {total !== null && <YarnGauge done={knitted} total={total} hues={hues} seed={seed} className="max-h-11" />}
       {below && (
         <div className="flex flex-wrap items-center justify-center gap-x-3 gap-y-1 text-xs text-muted-foreground tabular-nums">
           {stepDiffers && (

@@ -84,9 +84,9 @@ describe('KnittingPage', () => {
     const user = userEvent.setup()
     const api = fakeApi()
     api.knitting.listProjects.mockResolvedValue([
-      { id: 'p1', title: 'Pull Bergamote', size: 'M', updatedAt: '', stepsDone: 1, stepsTotal: 3, current: { number: 2, title: 'Manches', rowCount: 12, totalRows: 40, times: 2, pass: 1 } },
-      { id: 'p2', title: 'Bonnet', size: '4 ans', updatedAt: '', stepsDone: 2, stepsTotal: 2, current: null },
-      { id: 'p3', title: 'Châle', size: 'Unique', updatedAt: '', stepsDone: 0, stepsTotal: 1, current: { number: 1, title: 'Bordure', rowCount: 1, totalRows: null, times: 1, pass: 1 } },
+      { id: 'p1', title: 'Pull Bergamote', size: 'M', updatedAt: '', stepsDone: 1, stepsTotal: 3, current: { number: 2, title: 'Manches', rowCount: 12, totalRows: 40, times: 2, pass: 1 }, hues: ['#d0563a'] },
+      { id: 'p2', title: 'Bonnet', size: '4 ans', updatedAt: '', stepsDone: 2, stepsTotal: 2, current: null, hues: [] },
+      { id: 'p3', title: 'Châle', size: 'Unique', updatedAt: '', stepsDone: 0, stepsTotal: 1, current: { number: 1, title: 'Bordure', rowCount: 1, totalRows: null, times: 1, pass: 1 }, hues: [] },
     ])
     renderWithApp(<KnittingPage />, { api })
     expect(await screen.findByRole('button', { name: 'Projets en cours' })).toHaveAttribute('aria-expanded', 'true')
@@ -103,6 +103,11 @@ describe('KnittingPage', () => {
     const done = screen.getByRole('list', { name: 'Projets terminés' })
     expect(within(done).getByText('Terminé')).toBeInTheDocument()
     expect(within(done).queryByRole('link', { name: 'Tricoter « Bonnet »' })).not.toBeInTheDocument()
+    // Jauge pelote et fil, aux couleurs de la laine : seulement quand les rangs de l'étape sont connus.
+    const gauges = within(list).getAllByTestId('yarn-gauge')
+    expect(gauges).toHaveLength(1)
+    expect(gauges[0]).toHaveAttribute('data-fraction', '0.300')
+    expect(gauges[0]!.innerHTML).toContain('#d0563a')
   })
 
   it('« + » pour un nouveau projet, sans explication ici ; puis bibliothèque, stock et mesures, chacun sur sa page', async () => {

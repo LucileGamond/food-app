@@ -121,6 +121,8 @@ export interface KnitProjectSummary {
   stepsTotal: number
   /** Étape en cours (null : projet terminé ou sans étape), avec ses rangs du patron adapté quand il est suivi. */
   current: { number: number; title: string; rowCount: number; totalRows: number | null; times: number; pass: number } | null
+  /** Couleurs de la laine du projet (jauge pelote et fil), [] si aucune. */
+  hues: string[]
 }
 
 export interface KnitProject {

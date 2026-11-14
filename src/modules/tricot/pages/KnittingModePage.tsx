@@ -36,6 +36,7 @@ import { currentStepIndex, type KnitProject } from '../lib/pattern'
 import { finishSubstep, substepCounts, type SubstepCount } from '../lib/substeps'
 import { Loading } from '../components/Loading'
 import { projectHues } from '../lib/yarn'
+import { seedOf } from '../lib/yarnGauge'
 import { useYarnHue } from '../components/TricotTheme'
 
 /**
@@ -208,7 +209,7 @@ function Knitting({ project, knit, projectTo }: KnittingProps) {
 
       {!step.done && ready && (
         <footer className="sticky bottom-0 border-t bg-background/95 px-4 py-3 backdrop-blur" style={{ paddingBottom: 'calc(0.75rem + env(safe-area-inset-bottom, 0px))' }}>
-          <ModeCounter rowCount={step.rowCount} totalRows={step.totalRows} onCount={count} substeps={substeps} needle={needle} onFinishSubstep={(c) => void finishSub(c)} />
+          <ModeCounter rowCount={step.rowCount} totalRows={step.totalRows} onCount={count} substeps={substeps} needle={needle} onFinishSubstep={(c) => void finishSub(c)} hues={projectHues(project.yarns)} seed={seedOf(project.id)} />
         </footer>
       )}
 

@@ -11,6 +11,8 @@ import { Loading } from '../components/Loading'
 import type { KnitProjectSummary } from '../lib/pattern'
 import { librarySummary } from '../lib/library'
 import { describePass } from '../lib/passes'
+import { seedOf } from '../lib/yarnGauge'
+import { YarnGauge } from '../components/YarnGauge'
 
 const plural = (n: number, word: string) => `${n} ${word}${n > 1 ? 's' : ''}`
 
@@ -33,6 +35,9 @@ function ProjectRow({ p }: { p: KnitProjectSummary }) {
         <span className="min-w-0 flex-1">
           <span className="block truncate font-medium">{p.title}</span>
           <span className="block truncate text-xs text-muted-foreground tabular-nums">{projectProgress(p)}</span>
+          {p.current && p.current.totalRows !== null && (
+            <YarnGauge done={p.current.rowCount} total={p.current.totalRows} hues={p.hues} seed={seedOf(p.id)} className="mt-1.5 max-h-7 max-w-64" />
+          )}
         </span>
         {!p.current && <ChevronRight className="size-4 shrink-0 text-muted-foreground" aria-hidden />}
       </Link>
