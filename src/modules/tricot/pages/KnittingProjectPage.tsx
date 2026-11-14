@@ -1,4 +1,4 @@
-import { Check, ChevronLeft, ChevronRight, FileText, ListTree, Play, SearchX, Trash2, Undo2, Wand2 } from 'lucide-react'
+import { Check, ChevronLeft, ChevronRight, FileText, ListTree, Play, SearchX, Trash2, Undo2 } from 'lucide-react'
 import { useState } from 'react'
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { toast } from 'sonner'
@@ -42,6 +42,7 @@ import { describePass } from '../lib/passes'
 import { defaultTab, isProjectTab, startIssues, stepsToPrepare, type ProjectTab } from '../lib/phases'
 import { CurrentStepCard } from '../components/CurrentStepCard'
 import { Note } from '../components/Note'
+import { BackLink } from '../components/BackLink'
 import { OrganizeSteps } from '../components/OrganizeSteps'
 
 export function KnittingProjectPage() {
@@ -59,11 +60,7 @@ export function KnittingProjectPage() {
   // Sous-étape à ouvrir, demandée depuis « À préparer ».
   const [fixSection, setFixSection] = useState<number | null>(null)
 
-  const back = (
-    <Link to="/tricot" className="mb-2 inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
-      <ChevronLeft className="size-4" aria-hidden /> Projets
-    </Link>
-  )
+  const back = <BackLink to="/tricot">Tricot</BackLink>
 
   if (loadError) {
     return (
@@ -273,9 +270,7 @@ export function KnittingProjectPage() {
     )
     return (
       <>
-        <Link to={`/tricot/${project.id}?onglet=preparer`} className="mb-2 inline-flex max-w-full items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
-          <ChevronLeft className="size-4 shrink-0" aria-hidden /> <span className="truncate">{project.title}</span>
-        </Link>
+        <BackLink to={`/tricot/${project.id}?onglet=preparer`}>{project.title}</BackLink>
         <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
           {step.done || isReady(step, needles, projectGauges) ? (
             <Link to={knitTo(step.id)} className={cn(buttonVariants(), 'h-10')}>
@@ -330,15 +325,11 @@ export function KnittingProjectPage() {
               />
             </div>
             {step.adapted && (
-              <p className="mt-1 flex items-start gap-1.5 rounded-xl bg-brand/10 p-2 text-sm">
-                <Wand2 className="mt-0.5 size-4 shrink-0 text-brand" aria-hidden />
-                <span>
-                  Patron adapté{step.adapted.note && ` : ${step.adapted.note}`}
-                  <span className="block text-xs text-muted-foreground">
-                    Patron d’origine : {step.adapted.original.totalRows ?? '?'} rangs, {step.adapted.original.stitches ?? '?'} mailles à la fin.
-                  </span>
-                </span>
-              </p>
+              <Note className="mt-2" title={`Patron adapté${step.adapted.note ? ` : ${step.adapted.note}` : ''}`}>
+                <p className="text-xs text-muted-foreground">
+                  Patron d’origine : {step.adapted.original.totalRows ?? '?'} rangs, {step.adapted.original.stitches ?? '?'} mailles à la fin.
+                </p>
+              </Note>
             )}
           </header>
           {step.instructions &&
@@ -364,7 +355,7 @@ export function KnittingProjectPage() {
           <StepNotes key={step.id} step={step} onSave={(notes) => void saveStep(step.id, { notes })} />
           {step.done && (
             <Button variant="outline" className="h-10" onClick={() => void saveStep(step.id, { done: false })}>
-              <Undo2 /> Reprendre l’étape
+              <Undo2 /> Rouvrir l’étape
             </Button>
           )}
         </article>
@@ -455,12 +446,12 @@ export function KnittingProjectPage() {
                 {organizing ? 'Organiser les étapes' : `${steps.length} étapes`}
               </h2>
               <Button
-                variant={organizing ? 'default' : 'outline'}
+                variant="outline"
                 className="h-10"
                 onClick={() => setParams(organizing ? { onglet: 'preparer' } : { onglet: 'preparer', vue: 'organiser' }, { replace: true })}
               >
-                {organizing ? <Check /> : <ListTree />}
-                {organizing ? 'Terminer' : 'Organiser'}
+                {organizing ? <ChevronLeft /> : <ListTree />}
+                {organizing ? 'Retour aux étapes' : 'Organiser'}
               </Button>
             </div>
           )}

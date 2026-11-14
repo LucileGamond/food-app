@@ -10,7 +10,7 @@ interface Props {
   confirmLeave?: boolean
 }
 
-/** Retour à l'écran parent, au-dessus du titre. */
+/** Retour à l'écran parent, au-dessus du titre (un nom long, celui d'un projet, est coupé). */
 export function BackLink({ to, children, confirmLeave = false }: Props) {
   const navigate = useNavigate()
   const [asking, setAsking] = useState(false)
@@ -18,14 +18,14 @@ export function BackLink({ to, children, confirmLeave = false }: Props) {
     <>
       <Link
         to={to}
-        className="mb-2 inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
+        className="mb-2 inline-flex max-w-full items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
         onClick={(event) => {
           if (!confirmLeave) return
           event.preventDefault()
           setAsking(true)
         }}
       >
-        <ChevronLeft className="size-4" aria-hidden /> {children}
+        <ChevronLeft className="size-4 shrink-0" aria-hidden /> <span className="truncate">{children}</span>
       </Link>
       {confirmLeave && (
         <ConfirmDialog

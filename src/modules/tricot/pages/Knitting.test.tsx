@@ -266,6 +266,16 @@ describe('KnittingProjectPage', () => {
     })
   }
 
+  it('retour au-dessus du titre : « Tricot » depuis le projet, le nom du projet depuis une étape (C1)', async () => {
+    const user = userEvent.setup()
+    renderProject(fakeApi(), PROJECT, STEP)
+    const toProject = await screen.findByRole('link', { name: PROJECT.title })
+    expect(toProject).toHaveAttribute('href', '/tricot/p1?onglet=preparer')
+    await user.click(toProject)
+    expect(await screen.findByRole('link', { name: 'Tricot' })).toHaveAttribute('href', '/tricot')
+    expect(screen.queryByRole('link', { name: 'Projets' })).not.toBeInTheDocument()
+  })
+
   it('projet en trois onglets : Démarrer (matériel), Préparer (étapes), Tricoter (étape en cours)', async () => {
     const user = userEvent.setup()
     // Projet commencé et étape en cours prête : il s'ouvre sur « Tricoter »
@@ -656,7 +666,7 @@ describe('KnittingProjectPage', () => {
     // Un seul bouton ouvre le choix : étape d'avant, patron, ou un autre nombre
     await user.click(screen.getByRole('button', { name: 'Modifier les mailles au début' }))
     const form = await screen.findByRole('form', { name: 'Mailles au début' })
-    const choice = within(form).getByLabelText('Reprendre')
+    const choice = within(form).getByLabelText('Partir de')
     expect(Array.from((choice as HTMLSelectElement).options).map((o) => o.textContent)).toEqual([
       'Comme l’étape d’avant (60 mailles)',
       'Comme le patron (64 mailles)',
@@ -902,7 +912,7 @@ describe('KnittingProjectPage', () => {
     expect(screen.getByRole('button', { name: 'Étape précédente' })).toBeDisabled()
 
     // Une étape terminée se rouvre
-    await user.click(screen.getByRole('button', { name: 'Reprendre l’étape' }))
+    await user.click(screen.getByRole('button', { name: 'Rouvrir l’étape' }))
     expect(api.knitting.saveProgress).toHaveBeenLastCalledWith('s1', { done: false })
   })
 

@@ -48,7 +48,7 @@ export function StepStartStitches({ start, set, previous, fromPattern, onSave }:
       <form onSubmit={submit} noValidate aria-label="Mailles au début" className="space-y-1.5">
         {choices.length > 0 && (
           <div className="grid max-w-80 gap-1.5">
-            <Label htmlFor="start-stitches-choice">Reprendre</Label>
+            <Label htmlFor="start-stitches-choice">Partir de</Label>
             <NativeSelect
               id="start-stitches-choice"
               value={choices.find((c) => String(c.stitches) === value.trim())?.value ?? ''}

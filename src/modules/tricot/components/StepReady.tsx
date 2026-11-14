@@ -1,8 +1,9 @@
-import { ChevronRight, CircleAlert } from 'lucide-react'
+import { ChevronRight } from 'lucide-react'
 import type { ReactNode } from 'react'
 import { Link } from 'react-router-dom'
 import { cn } from '@/lib/utils'
 import type { ReadyIssue } from '../lib/ready'
+import { Note } from './Note'
 
 interface Props {
   issues: ReadyIssue[]
@@ -54,33 +55,30 @@ export function StepReady({ issues, setupTo, onFix }: Props) {
   if (issues.length === 0) return null
   const first = issues[0]!
   return (
-    <div role="alert" aria-labelledby="step-ready-title" className="space-y-1.5 rounded-xl border border-amber-500/40 bg-amber-500/10 p-3 text-sm">
-      <p id="step-ready-title" className="flex items-center gap-1.5 font-medium">
-        <CircleAlert className="size-4 shrink-0 text-amber-700 dark:text-amber-400" aria-hidden /> À préparer avant de tricoter
-      </p>
+    <Note kind="todo" role="alert" titleId="step-ready-title" title="À préparer avant de tricoter" className="space-y-1.5">
       {setupTo ? (
         <>
-          <ul className="space-y-0.5">
+          <ul className="-mx-2 space-y-0.5">
             {issues.map((issue) => (
               <Row key={`${issue.index}-${issue.what}`} issue={issue} onFix={onFix} />
             ))}
           </ul>
-          <Link to={setupTo} className="inline-flex min-h-11 items-center px-2 font-medium underline underline-offset-4">
+          <Link to={setupTo} className="inline-flex min-h-11 items-center font-medium underline underline-offset-4">
             Préparer l’étape
           </Link>
         </>
       ) : (
         <>
-          <p className="px-2">
+          <p>
             {issues.length === 1 ? '1 chose à régler' : `${issues.length} choses à régler`}, signalée{issues.length > 1 ? 's' : ''} en orange dans les sous-étapes ci-dessous.
           </p>
           {onFix && (
-            <button type="button" onClick={() => onFix(first.index)} className="inline-flex min-h-11 items-center px-2 font-medium underline underline-offset-4">
+            <button type="button" onClick={() => onFix(first.index)} className="inline-flex min-h-11 items-center font-medium underline underline-offset-4">
               Aller à la première<span className="sr-only"> : {first.text}</span>
             </button>
           )}
         </>
       )}
-    </div>
+    </Note>
   )
 }

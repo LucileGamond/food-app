@@ -56,7 +56,7 @@ export function RowLine({ line, stitches, glossary, setupTo, onOpenChart }: Prop
             <span>
               La suite n’est pas connue : une sous-étape est à régler en rangs.{' '}
               <Link to={setupTo} className="font-medium underline underline-offset-4">
-                Modifier
+                Préparer l’étape
               </Link>
             </span>
           </p>
@@ -69,7 +69,7 @@ export function RowLine({ line, stitches, glossary, setupTo, onOpenChart }: Prop
                   <>
                     {' '}
                     <Link to={setupTo} className="font-medium underline underline-offset-4">
-                      Modifier
+                      Préparer l’étape
                     </Link>
                   </>
                 )}

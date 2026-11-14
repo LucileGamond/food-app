@@ -69,7 +69,7 @@ describe('organiser : une action sur la liste', () => {
     expect(await screen.findByRole('heading', { name: 'Organiser les étapes' })).toBeInTheDocument()
     expect((await screen.findAllByRole('button', { name: /^Regrouper avec/ })).length).toBeGreaterThan(0)
 
-    await user.click(screen.getByRole('button', { name: 'Terminer' }))
+    await user.click(screen.getByRole('button', { name: 'Retour aux étapes' }))
     expect(await screen.findByRole('heading', { name: '3 étapes' })).toBeInTheDocument()
     expect(screen.queryAllByRole('button', { name: /^Regrouper avec/ })).toHaveLength(0)
   })

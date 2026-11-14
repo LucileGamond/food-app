@@ -17,14 +17,17 @@ interface Props {
   role?: 'note' | 'status' | 'alert'
   /** Titre court, en gras sur sa ligne (facultatif). */
   title?: ReactNode
+  /** Identifiant du titre, quand un autre élément y renvoie (aria-describedby). */
+  titleId?: string
   className?: string
   children: ReactNode
 }
 
 /** Encadré du module Tricot : même rayon, même icône et même ton pour un même rôle, partout. */
-export function Note({ kind = 'info', role = 'note', title, className, children }: Props) {
+export function Note({ kind = 'info', role = 'note', title, titleId, className, children }: Props) {
   const { box, icon: Icon, tone } = STYLES[kind]
-  const id = useId()
+  const ownId = useId()
+  const id = titleId ?? ownId
   return (
     <div role={role} aria-labelledby={title ? id : undefined} className={cn('space-y-1 rounded-xl p-3 text-sm', box, className)}>
       <p id={title ? id : undefined} className={cn('flex items-start gap-1.5', title && 'font-medium')}>

@@ -114,7 +114,7 @@ test('charge un patron PDF pour une taille, compte les rangs et retrouve son ava
   await expect(page.getByText('Taille M · 1 / 2 étapes')).toBeVisible()
 
   // Liste des projets : l'étape en cours, et Tricoter d'un toucher ; puis suppression
-  await page.getByRole('link', { name: 'Projets' }).click()
+  await page.getByRole('main').getByRole('link', { name: 'Tricot', exact: true }).click()
   await expect(page.getByRole('link', { name: /^Pull Bergamote/ })).toContainText('Taille M · étape 2 sur 2 : Emmanchures')
   await expect(page.getByRole('link', { name: /^Pull Bergamote/ })).toContainText(/5 \/ \d+ rangs/)
   await expect(page.getByRole('link', { name: 'Tricoter « Pull Bergamote »' })).toHaveAttribute('href', /\/tricoter$/)
@@ -244,7 +244,7 @@ test('ajoute un patron à la bibliothèque, le commence, puis note la laine (ét
 
   // Le patron reste dans la bibliothèque, tricoté
   await page.getByRole('link', { name: 'Gilet Rosée' }).click()
-  await page.getByRole('link', { name: 'Projets' }).click()
+  await page.getByRole('main').getByRole('link', { name: 'Tricot', exact: true }).click()
   await expect(page.getByRole('link', { name: /Bibliothèque de patrons/ })).toContainText('1 patron · 1 tricoté')
   await page.getByRole('link', { name: /Bibliothèque de patrons/ }).click()
   await expect(page.getByRole('list', { name: 'Patrons' })).toContainText('1 projet')

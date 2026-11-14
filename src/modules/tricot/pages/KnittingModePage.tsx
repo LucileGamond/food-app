@@ -17,6 +17,7 @@ import { ModeCounter } from '../components/mode/ModeCounter'
 import { PatternDrawer } from '../components/mode/PatternDrawer'
 import { RowLine } from '../components/mode/RowLine'
 import { StepDone } from '../components/mode/StepDone'
+import { Note } from '../components/Note'
 import { OfflineNote } from '../components/OfflineNote'
 import { StepReady } from '../components/StepReady'
 import { readyIssues } from '../lib/ready'
@@ -179,9 +180,9 @@ function Knitting({ project, knit, projectTo }: KnittingProps) {
         ) : (
           <>
             {needleChange && (
-              <p role="status" className="rounded-xl border border-brand/40 bg-brand/10 p-3 text-sm font-medium">
+              <Note kind="todo" role="status">
                 Change pour l’aiguille {formatNeedle(needles[needleChange.index]!)}
-              </p>
+              </Note>
             )}
             <RowLine line={line} stitches={stitchTrack(step)(row)} glossary={glossary} setupTo={setupTo} onOpenChart={setChartOpen} />
           </>

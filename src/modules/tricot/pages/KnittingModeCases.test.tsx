@@ -193,6 +193,7 @@ describe('mode tricoter : toute l’étape', () => {
     expect(outline).toHaveTextContent('5 cm (à régler) : jerseyÀ régler en rangs dans la préparation : la suite se calculera.')
     expect(outline).toHaveTextContent('6 rangs : côtesRangs pas encore connus (une sous-étape avant est à régler).')
   })
+
 })
 
 describe('mode tricoter : consignes « en même temps »', () => {
@@ -321,7 +322,7 @@ describe('mode tricoter : aiguilles', () => {
 
   it('au premier rang d’une sous-étape qui change d’aiguille : le rappel ; l’aiguille près du compteur', async () => {
     await open(project({ rowCount: 4, sections: steps }, { needles: [3, 3.5] }))
-    expect(screen.getByText('Change pour l’aiguille 3,5 mm')).toHaveAttribute('role', 'status')
+    expect(screen.getByText('Change pour l’aiguille 3,5 mm').closest('[role="status"]')).not.toBeNull()
     expect(screen.getByRole('contentinfo')).toHaveTextContent('10 rangs : jersey · aig. 3,5 mm')
   })
 
