@@ -313,7 +313,9 @@ describe('mode tricoter : un seul compteur, celui de la sous-étape', () => {
     const together = [rows(20, 'jersey'), { ...rows(6, 'encolure'), at: { row: 5, pattern: null } }]
     await open(project({ rowCount: 6, sections: together }))
     expect(counter()).toHaveTextContent('20 rangs : jersey6 sur 20 rangs')
-    expect(counter()).toHaveTextContent('En même temps : 2 / 6')
+    // Une seule fois « En même temps » : les nombres, puis le nom de la sous-étape sans son début (V5b)
+    expect(counter()).toHaveTextContent('En même temps : 2 / 6 · 6 rangs : encolure')
+    expect(counter().textContent!.match(/En même temps/g)).toHaveLength(1)
   })
 })
 
@@ -323,13 +325,15 @@ describe('mode tricoter : aiguilles', () => {
   it('au premier rang d’une sous-étape qui change d’aiguille : le rappel ; l’aiguille près du compteur', async () => {
     await open(project({ rowCount: 4, sections: steps }, { needles: [3, 3.5] }))
     expect(screen.getByText('Change pour l’aiguille 3,5 mm').closest('[role="status"]')).not.toBeNull()
-    expect(screen.getByRole('contentinfo')).toHaveTextContent('10 rangs : jersey · aig. 3,5 mm')
+    // L'aiguille d'abord, pour qu'un titre long ne la coupe jamais (V5a)
+    expect(screen.getByRole('contentinfo')).toHaveTextContent('Aig. 3,5 mm·10 rangs : jersey')
+    expect(screen.getByText('Aig. 3,5 mm')).not.toHaveClass('truncate')
   })
 
   it('aiguille héritée, et pas de rappel au milieu d’une sous-étape', async () => {
     await open(project({ rowCount: 14, sections: steps }, { needles: [3, 3.5] }))
     expect(screen.queryByText(/Change pour l’aiguille/)).not.toBeInTheDocument()
-    expect(screen.getByRole('contentinfo')).toHaveTextContent('2 rangs : jersey · aig. 3,5 mm')
+    expect(screen.getByRole('contentinfo')).toHaveTextContent('Aig. 3,5 mm·2 rangs : jersey')
   })
 })
 

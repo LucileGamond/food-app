@@ -162,7 +162,8 @@ function Knitting({ project, knit, projectTo }: KnittingProps) {
             <X />
           </Link>
           <div className="min-w-0 flex-1">
-            <h1 className="truncate text-lg font-semibold tracking-tight">{step.title}</h1>
+            {/* Un titre long passe sur deux lignes au lieu d'être coupé (V5c). */}
+            <h1 className="line-clamp-2 text-lg leading-tight font-semibold tracking-tight">{step.title}</h1>
             <p className="truncate text-xs text-muted-foreground">
               {[`Étape ${index + 1} sur ${steps.length}`, pass].filter(Boolean).join(' · ')}
             </p>

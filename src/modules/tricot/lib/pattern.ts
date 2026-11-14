@@ -358,6 +358,14 @@ export function describeSection(section: StepSection): string {
   return `${describeStart(section)}${describeBody(section)}`
 }
 
+/**
+ * « En même temps, dès le rang 12 : 1 diminution… » → « 1 diminution… » : quand la ligne dit déjà « En même temps »
+ * (compteur du mode tricoter). Un titre sans ce début reste tel quel.
+ */
+export function withoutAtPrefix(title: string): string {
+  return title.replace(/^En même temps, [^:]*: /, '')
+}
+
 /** « En même temps, dès le rang 46 : », « En même temps, à 15 cm (à régler) : » ; vide pour une section à la suite. */
 function describeStart(section: StepSection): string {
   const at = section.at

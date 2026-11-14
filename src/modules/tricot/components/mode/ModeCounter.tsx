@@ -1,7 +1,7 @@
 import { cn } from '@/lib/utils'
 import { Check, Minus, Plus } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { MAX_ROW_COUNT } from '../../lib/pattern'
+import { MAX_ROW_COUNT, withoutAtPrefix } from '../../lib/pattern'
 import { formatNeedle } from '../../lib/needles'
 import type { SubstepCount } from '../../lib/substeps'
 import { TOUCH_AREA } from '../../lib/touch'
@@ -38,8 +38,13 @@ export function ModeCounter({ rowCount, totalRows, onCount, substeps = [], onFin
   const below = !!main && (stepDiffers || parallel.length > 0 || canFinish)
   return (
     <div className="space-y-2">
+      {/* L'aiguille d'abord : c'est le titre, long, qui se coupe, jamais l'aiguille (V5a). */}
       {(main?.title || needle !== null) && (
-        <p className="truncate text-xs text-muted-foreground">{[main?.title, needle !== null && `aig. ${formatNeedle(needle)}`].filter(Boolean).join(' · ')}</p>
+        <p className="flex min-w-0 gap-1 text-xs text-muted-foreground">
+          {needle !== null && <span className="shrink-0 font-medium text-foreground">Aig. {formatNeedle(needle)}</span>}
+          {needle !== null && main?.title && <span aria-hidden>·</span>}
+          {main?.title && <span className="truncate">{main.title}</span>}
+        </p>
       )}
       <div className="flex items-center gap-3">
         <Button variant="outline" size="icon-lg" aria-label="Retirer un rang" disabled={rowCount === 0} onClick={() => onCount(-1)}>
@@ -64,9 +69,10 @@ export function ModeCounter({ rowCount, totalRows, onCount, substeps = [], onFin
             </span>
           )}
           {parallel.map((p) => (
+            // Les nombres d'abord, puis le nom sans son « En même temps, dès le rang … : » (déjà dit) (V5b).
             <span key={p.index} className="max-w-full truncate">
               En même temps : {p.row - 1}
-              {p.rows !== null && ` / ${p.rows}`} · {p.title}
+              {p.rows !== null && ` / ${p.rows}`} · {withoutAtPrefix(p.title)}
             </span>
           ))}
           {canFinish && (

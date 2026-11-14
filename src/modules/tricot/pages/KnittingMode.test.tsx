@@ -72,7 +72,10 @@ describe('mode tricoter', () => {
   it('ouvre l’étape en cours : le rang à tricoter, la suite, le compteur', async () => {
     const user = userEvent.setup()
     const { api } = renderMode()
-    expect(await screen.findByRole('heading', { level: 1, name: 'Emmanchures' })).toBeInTheDocument()
+    const title = await screen.findByRole('heading', { level: 1, name: 'Emmanchures' })
+    // Un titre long passe sur deux lignes au lieu d'être coupé (V5c)
+    expect(title).toHaveClass('line-clamp-2')
+    expect(title).not.toHaveClass('truncate')
     expect(screen.getByText('Étape 2 sur 3')).toBeInTheDocument()
     // Sous-titre court (L3) : ni le nom du projet ni la taille, coupés sur téléphone
     expect(screen.queryByText(/Pull Bergamote ·/)).not.toBeInTheDocument()

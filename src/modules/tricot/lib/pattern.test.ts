@@ -10,7 +10,9 @@ import {
   sectionToForm,
   actionEffect,
   type SectionForm,
+  type SectionStart,
   type StepSection,
+  withoutAtPrefix,
 } from './pattern'
 
 const rows = (n: number | null, text = '', pattern: string | null = null): StepSection => ({ kind: 'rows', rows: n, every: null, times: null, text, pattern })
@@ -170,5 +172,23 @@ describe('étape en cours', () => {
     expect(currentStepIndex([{ done: true }, { done: false }, { done: false }])).toBe(1)
     expect(currentStepIndex([{ done: true }, { done: true }])).toBe(1)
     expect(currentStepIndex([])).toBe(0)
+  })
+})
+
+/** Compteur du mode tricoter (V5b) : la ligne dit déjà « En même temps », le nom de la sous-étape ne le répète pas. */
+describe('withoutAtPrefix', () => {
+  const body = { kind: 'rows' as const, rows: 6, every: null, times: null, text: 'encolure', pattern: null }
+  it('retire le début « En même temps … : » écrit par describeSection, quel que soit le départ', () => {
+    const starts: SectionStart[] = [{ row: 12, pattern: null }, { row: null, pattern: '15 cm' }, { row: 30, pattern: '10 cm', measured: { rowsPer10: 30, source: 'mine' } }]
+    for (const at of starts) {
+      const title = describeSection({ ...body, at })
+      expect(title).toMatch(/^En même temps, /)
+      expect(withoutAtPrefix(title)).toBe(describeSection(body))
+    }
+  })
+
+  it('laisse tel quel un titre sans ce début', () => {
+    expect(withoutAtPrefix('6 rangs : encolure')).toBe('6 rangs : encolure')
+    expect(withoutAtPrefix('En même temps que le dos : jersey')).toBe('En même temps que le dos : jersey')
   })
 })
