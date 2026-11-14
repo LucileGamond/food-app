@@ -21,6 +21,7 @@ import type { KnitChart } from '../lib/chart'
 import { isChecked, type ProjectGauge } from '../lib/gauges'
 import { readyIssues, rowsOverflow } from '../lib/ready'
 import { TOUCH_AREA } from '../lib/touch'
+import { SECTIONS_HELP } from '../lib/help'
 import {
   describeRange,
   describeSection,
@@ -302,6 +303,7 @@ export function StepSections({
   open = null,
   onOpened,
   organizeTo,
+  headless = false,
 }: {
   step: KnitStep
   onChange: (sections: StepSection[]) => Promise<boolean>
@@ -324,6 +326,8 @@ export function StepSections({
    * toucher l'étape (commencée, patron adapté) : Monter et Descendre restent alors ici.
    */
   organizeTo?: string
+  /** Sans son titre ni son aide : la page les porte (bloc repliable). */
+  headless?: boolean
 }) {
   const offered = choices ?? needles
   const base = useBaseGlossary()
@@ -369,13 +373,16 @@ export function StepSections({
   }
 
   return (
-    <section aria-labelledby={`sections-${step.id}`} className="space-y-2">
-      <div className="flex items-center gap-1">
-        <h3 id={`sections-${step.id}`} className="flex items-center gap-1.5 text-sm font-medium">
-          <ListOrdered className="size-4" aria-hidden /> Sous-étapes
-        </h3>
-        <HelpTip label="sous-étapes">Vérifie et corrige ce que la lecture a compris : le mode tricoter suit ces sous-étapes rang par rang.</HelpTip>
-      </div>
+    // Sans titre (`headless`) : la page la met dans un bloc repliable « Sous-étapes », qui porte le titre et l'aide.
+    <div role={headless ? undefined : 'region'} aria-labelledby={headless ? undefined : `sections-${step.id}`} className="space-y-2">
+      {!headless && (
+        <div className="flex items-center gap-1">
+          <h3 id={`sections-${step.id}`} className="flex items-center gap-1.5 text-sm font-medium">
+            <ListOrdered className="size-4" aria-hidden /> Sous-étapes
+          </h3>
+          <HelpTip label="sous-étapes">{SECTIONS_HELP}</HelpTip>
+        </div>
+      )}
       {over && (
         <Note kind="problem" title="Les sous-étapes dépassent l’étape">
           <p>
@@ -524,6 +531,6 @@ export function StepSections({
           <Plus /> Ajouter une sous-étape
         </Button>
       )}
-    </section>
+    </div>
   )
 }

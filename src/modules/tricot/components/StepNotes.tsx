@@ -5,13 +5,15 @@ import type { KnitStep } from '../lib/pattern'
 import { SaveNote, useSaveNote } from './SaveNote'
 
 /** Notes d'une étape (aiguilles, essais…), enregistrées en quittant le champ, et qui le disent. */
-export function StepNotes({ step, onSave }: { step: Pick<KnitStep, 'id' | 'notes'>; onSave: (notes: string) => Promise<unknown> | unknown }) {
+export function StepNotes({ step, onSave, hideLabel = false }: { step: Pick<KnitStep, 'id' | 'notes'>; onSave: (notes: string) => Promise<unknown> | unknown; hideLabel?: boolean }) {
   const [value, setValue] = useState(step.notes)
   const saved = useSaveNote()
   const id = `notes-${step.id}`
   return (
     <div className="grid gap-1.5">
-      <Label htmlFor={id}>Notes de l’étape</Label>
+      <Label htmlFor={id} className={hideLabel ? 'sr-only' : undefined}>
+        Notes de l’étape
+      </Label>
       <Textarea
         id={id}
         value={value}

@@ -1,6 +1,7 @@
 import { screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { fakeApi, renderWithApp } from '@/test/fakes'
+import { unfoldStepParts } from '@/test/openFold'
 import type { KnitChart } from '../lib/chart'
 import type { KnitProject, KnitStep, StepSection } from '../lib/pattern'
 import { KnittingModePage } from './KnittingModePage'
@@ -76,6 +77,7 @@ const PROJECT: KnitProject = {
 
 function renderProject(project: KnitProject = PROJECT, api = fakeApi()) {
   api.knitting.getProject.mockResolvedValue(structuredClone(project))
+  unfoldStepParts()
   return renderWithApp(<KnittingProjectPage />, { api, route: '/tricot/p1?etape', path: '/tricot/:id' })
 }
 

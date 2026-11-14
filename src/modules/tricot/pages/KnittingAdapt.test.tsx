@@ -6,7 +6,7 @@ import { adaptationPaused, adaptationToJson, applyAdaptation, describeChange, sa
 import type { KnitProject, KnitStep, StepSection } from '../lib/pattern'
 import { KnittingModePage } from './KnittingModePage'
 import { KnittingProjectPage } from './KnittingProjectPage'
-import { openFold } from '@/test/openFold'
+import { openFold, unfoldStepParts } from '@/test/openFold'
 
 const step = (overrides: Partial<KnitStep>): KnitStep => ({
   id: 's1',
@@ -59,6 +59,7 @@ const OVERVIEW = '/tricot/p1?onglet=demarrer'
 
 /** Par défaut, l'étape en cours (?etape vide). */
 function renderProject(api = fakeApi(), value = project(), route = '/tricot/p1?etape') {
+  if (route.includes('etape')) unfoldStepParts()
   api.knitting.getProject.mockResolvedValue(value)
   return renderWithApp(<KnittingProjectPage />, { route, path: '/tricot/:id', api })
 }

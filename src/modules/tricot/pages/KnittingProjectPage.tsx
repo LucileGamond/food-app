@@ -1,4 +1,4 @@
-import { BookOpen, Check, ChevronLeft, ChevronRight, FileText, ListTree, Play, SearchX, Trash2, Undo2 } from 'lucide-react'
+import { BookOpen, Check, ChevronLeft, Grid3x3, ListOrdered, NotebookPen, ChevronRight, FileText, ListTree, Play, SearchX, Trash2, Undo2 } from 'lucide-react'
 import { useState } from 'react'
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { toast } from 'sonner'
@@ -42,9 +42,15 @@ import { defaultTab, isProjectTab, startIssues, stepsToPrepare, type ProjectTab 
 import { CurrentStepCard } from '../components/CurrentStepCard'
 import { Note } from '../components/Note'
 import { BackLink } from '../components/BackLink'
+import { HelpTip } from '../components/HelpTip'
+import { CHARTS_HELP, SECTIONS_HELP } from '../lib/help'
 import { OrganizeSteps } from '../components/OrganizeSteps'
 import { isStarted } from '../lib/organize'
 import { Loading } from '../components/Loading'
+
+/** Les blocs de la préparation d'une étape : une carte légère dans la carte de l'étape. */
+const PART = 'p-3 shadow-none sm:p-3'
+const plural = (n: number, word: string) => `${n} ${word}${n > 1 ? 's' : ''}`
 
 export function KnittingProjectPage() {
   const { id = '' } = useParams()
@@ -60,6 +66,8 @@ export function KnittingProjectPage() {
   const [confirmDelete, setConfirmDelete] = useState(false)
   // Sous-étape à ouvrir, demandée depuis « À préparer ».
   const [fixSection, setFixSection] = useState<number | null>(null)
+  // Blocs de la préparation ouverts à la main, par étape (« s1:sections ») ; sinon repliés, sauf ce qui est à préparer.
+  const [unfolded, setUnfolded] = useState<Record<string, boolean>>({})
 
   const back = <BackLink to="/tricot">Tricot</BackLink>
 
@@ -249,6 +257,12 @@ export function KnittingProjectPage() {
   )
 
   if (stepParam !== null && step) {
+    const toFix = step.done ? 0 : readyIssues(step, needles, projectGauges).length
+    const stepCharts = charts.filter((c) => c.stepId === step.id).length
+    const partKey = (part: string) => `${step.id}:${part}`
+    /** Ouvert à la main, sinon replié (ou ouvert d'office quand il y a à préparer dedans). */
+    const partOpen = (part: string, byDefault = false) => unfolded[partKey(part)] ?? byDefault
+    const togglePart = (part: string, byDefault = false) => setUnfolded((o) => ({ ...o, [partKey(part)]: !(o[partKey(part)] ?? byDefault) }))
     // Mailles de fin : déduites du début saisi, sinon celles du patron
     const stepEnd = endStitches(step)
     const mine = gaugeOfStep(step)
@@ -316,7 +330,13 @@ export function KnittingProjectPage() {
             )}
             {!step.done && (
               <div className="mt-2">
-                <StepReady issues={readyIssues(step, needles, projectGauges)} onFix={setFixSection} />
+                <StepReady
+                  issues={readyIssues(step, needles, projectGauges)}
+                  onFix={(i) => {
+                    setUnfolded((o) => ({ ...o, [partKey('sections')]: true }))
+                    setFixSection(i)
+                  }}
+                />
               </div>
             )}
             <div className="mt-2">
@@ -336,27 +356,72 @@ export function KnittingProjectPage() {
               </Note>
             )}
           </header>
-          {step.instructions &&
-            (step.sections.some((x) => x.source) ? (
-              // Chaque sous-étape montre son paragraphe : le texte complet (corrections, traduction) reste à portée
-              <Fold id="step-text" title="Texte complet de l’étape" className="p-3 shadow-none sm:p-3">
-                {stepText}
-              </Fold>
-            ) : (
-              stepText
-            ))}
-          <StepSections step={step} needles={needles} choices={needleChoices} text={{ sizes: project.sizes, sizeIndex: project.sizeIndex, abbreviations: project.abbreviations ?? [] }} charts={charts.filter((c) => c.stepId === step.id)} gauges={projectGauges} onCheckNeedle={checkNeedle} onSetTotalRows={step.adapted ? undefined : (rows) => setTotalRows(step, rows)} open={fixSection} onOpened={() => setFixSection(null)} organizeTo={adaptation || isStarted(step) ? undefined : `/tricot/${project.id}?onglet=preparer&vue=organiser`} onChange={(sections) => saveSections(step, sections)} />
-          <StepCharts
-            projectId={project.id}
-            pdfPath={project.pdfPath}
-            step={step}
-            steps={steps}
-            charts={charts}
-            hints={project.chartHints}
-            onChanged={reload}
-            identifySection={identifySection}
-          />
-          <StepNotes key={step.id} step={step} onSave={(notes) => void saveStep(step.id, { notes })} />
+          {/* Les parties de l'étape : le même bloc repliable, replié par défaut ; les sous-étapes s'ouvrent s'il y a à préparer. */}
+          {step.instructions && (
+            <Fold
+              id="step-text"
+              title={step.sections.some((x) => x.source) ? 'Texte complet de l’étape' : 'Texte du patron'}
+              className={PART}
+              open={partOpen('text')}
+              onToggle={() => togglePart('text')}
+            >
+              {stepText}
+            </Fold>
+          )}
+          <Fold
+            id={`sections-${step.id}`}
+            title={
+              <>
+                <ListOrdered className="size-4" aria-hidden /> Sous-étapes
+              </>
+            }
+            summary={[plural(step.sections.length, 'sous-étape'), toFix > 0 && `${toFix} à régler`].filter(Boolean).join(' · ') || 'aucune'}
+            action={<HelpTip label="sous-étapes">{SECTIONS_HELP}</HelpTip>}
+            className={PART}
+            open={partOpen('sections', toFix > 0)}
+            onToggle={() => togglePart('sections', toFix > 0)}
+          >
+            <StepSections headless step={step} needles={needles} choices={needleChoices} text={{ sizes: project.sizes, sizeIndex: project.sizeIndex, abbreviations: project.abbreviations ?? [] }} charts={charts.filter((c) => c.stepId === step.id)} gauges={projectGauges} onCheckNeedle={checkNeedle} onSetTotalRows={step.adapted ? undefined : (rows) => setTotalRows(step, rows)} open={fixSection} onOpened={() => setFixSection(null)} organizeTo={adaptation || isStarted(step) ? undefined : `/tricot/${project.id}?onglet=preparer&vue=organiser`} onChange={(sections) => saveSections(step, sections)} />
+          </Fold>
+          <Fold
+            id={`charts-${step.id}`}
+            title={
+              <>
+                <Grid3x3 className="size-4" aria-hidden /> Diagrammes
+              </>
+            }
+            summary={stepCharts > 0 ? plural(stepCharts, 'diagramme') : 'aucun'}
+            action={<HelpTip label="diagrammes">{CHARTS_HELP}</HelpTip>}
+            className={PART}
+            open={partOpen('charts')}
+            onToggle={() => togglePart('charts')}
+          >
+            <StepCharts
+              headless
+              projectId={project.id}
+              pdfPath={project.pdfPath}
+              step={step}
+              steps={steps}
+              charts={charts}
+              hints={project.chartHints}
+              onChanged={reload}
+              identifySection={identifySection}
+            />
+          </Fold>
+          <Fold
+            id={`notes-part-${step.id}`}
+            title={
+              <>
+                <NotebookPen className="size-4" aria-hidden /> Notes de l’étape
+              </>
+            }
+            summary={step.notes.trim() ? 'notes' : 'rien de noté'}
+            className={PART}
+            open={partOpen('notes')}
+            onToggle={() => togglePart('notes')}
+          >
+            <StepNotes key={step.id} hideLabel step={step} onSave={(notes) => void saveStep(step.id, { notes })} />
+          </Fold>
           {step.done && (
             <Button variant="outline" className="h-10" onClick={() => void saveStep(step.id, { done: false })}>
               <Undo2 /> Rouvrir l’étape

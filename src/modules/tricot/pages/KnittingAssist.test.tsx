@@ -5,7 +5,7 @@ import { EMPTY_YARN } from '../lib/yarn'
 import type { KnitProject, KnitStep } from '../lib/pattern'
 import { KnittingModePage } from './KnittingModePage'
 import { KnittingProjectPage } from './KnittingProjectPage'
-import { openFold } from '@/test/openFold'
+import { openFold, unfoldStepParts } from '@/test/openFold'
 
 const step = (overrides: Partial<KnitStep>): KnitStep => ({
   id: 's1',
@@ -47,6 +47,7 @@ const OVERVIEW = '/tricot/p1'
 /** Par défaut, l'étape en cours (?etape vide) ; OVERVIEW : la page du projet. */
 function renderProject(project: KnitProject = PROJECT, api = fakeApi(), route = '/tricot/p1?etape') {
   api.knitting.getProject.mockResolvedValue(structuredClone(project))
+  unfoldStepParts()
   return { ...renderWithApp(<KnittingProjectPage />, { api, route, path: '/tricot/:id' }), api }
 }
 
@@ -231,6 +232,7 @@ describe('hors ligne', () => {
 
     const api = fakeApi()
     api.knitting.getProject.mockRejectedValue(new Error('réseau'))
+    unfoldStepParts()
     renderWithApp(<KnittingProjectPage />, { api, route: '/tricot/p1?etape', path: '/tricot/:id' })
     expect(await screen.findByRole('heading', { name: 'Dos' })).toBeInTheDocument()
     expect(screen.getByText(/Hors ligne/)).toBeInTheDocument()

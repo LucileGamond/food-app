@@ -15,6 +15,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { ChartView } from './ChartView'
 import { HelpTip } from './HelpTip'
 import { PdfPagePicker } from './PdfPagePicker'
+import { CHARTS_HELP } from '../lib/help'
 
 interface Props {
   projectId: string
@@ -30,6 +31,8 @@ interface Props {
   onChanged: () => Promise<void>
   /** Donne un identifiant à la sous-étape `index` de l'étape (pour qu'un diagramme la suive) ; null : échec. */
   identifySection?: (stepId: string, index: number) => Promise<string | null>
+  /** Sans son titre ni son aide : la page les porte (bloc repliable). */
+  headless?: boolean
 }
 
 /** Image choisie pour un nouveau diagramme, recadrée ou non. */
@@ -41,7 +44,7 @@ interface Draft {
 }
 
 /** Diagrammes de l'étape (préparation) : calage, réglage, et ajout d'un diagramme depuis le PDF ou une image. */
-export function StepCharts({ projectId, pdfPath, step, steps, charts, hints, onChanged, identifySection }: Props) {
+export function StepCharts({ projectId, pdfPath, step, steps, charts, hints, onChanged, identifySection, headless = false }: Props) {
   const api = useApi()
   const inputId = useId()
   const [draft, setDraft] = useState<Draft | null>(null)
@@ -115,13 +118,15 @@ export function StepCharts({ projectId, pdfPath, step, steps, charts, hints, onC
   }
 
   return (
-    <section aria-labelledby={`charts-${step.id}`} className="space-y-3">
-      <div className="flex items-center gap-1">
-        <h3 id={`charts-${step.id}`} className="flex items-center gap-1.5 text-sm font-medium">
-          <Grid3x3 className="size-4" aria-hidden /> Diagrammes
-        </h3>
-        <HelpTip label="diagrammes">Un diagramme calé sur une sous-étape la suit : ses rangs se recalculent avec elle, et il la suit si elle change d’étape.</HelpTip>
-      </div>
+    <div role={headless ? undefined : 'region'} aria-labelledby={headless ? undefined : `charts-${step.id}`} className="space-y-3">
+      {!headless && (
+        <div className="flex items-center gap-1">
+          <h3 id={`charts-${step.id}`} className="flex items-center gap-1.5 text-sm font-medium">
+            <Grid3x3 className="size-4" aria-hidden /> Diagrammes
+          </h3>
+          <HelpTip label="diagrammes">{CHARTS_HELP}</HelpTip>
+        </div>
+      )}
       {shown.length === 0 && <p className="text-sm text-muted-foreground">Aucun diagramme : ajoute-le pour suivre ses rangs pendant que tu tricotes.</p>}
       {shown.map((chart) => (
         <ChartView key={chart.id} chart={chart} rowCount={step.rowCount} onEdit={() => setEditing(chart)} onDelete={() => setDeleting(chart)} />
@@ -216,6 +221,6 @@ export function StepCharts({ projectId, pdfPath, step, steps, charts, hints, onC
           if (deleting) await remove(deleting)
         }}
       />
-    </section>
+    </div>
   )
 }

@@ -2,6 +2,7 @@ import { cleanup, fireEvent, screen, waitFor, within } from '@testing-library/re
 import userEvent from '@testing-library/user-event'
 import { Route } from 'react-router-dom'
 import { fakeApi, renderWithApp } from '@/test/fakes'
+import { unfoldStepParts } from '@/test/openFold'
 import { AppError } from '@/api'
 import type { KnitProject, KnitStep, ReadPattern, StepSection } from '../lib/pattern'
 import { EMPTY_YARN, type StashItem } from '../lib/yarn'
@@ -286,6 +287,7 @@ const STEP = '/tricot/p1?etape'
 
 describe('KnittingProjectPage', () => {
   function renderProject(api = fakeApi(), project: KnitProject | null = PROJECT, route = STEP) {
+    if (route.includes('etape')) unfoldStepParts()
     api.knitting.getProject.mockResolvedValue(project && structuredClone(project))
     return renderWithApp(<KnittingProjectPage />, {
       api,
@@ -312,6 +314,37 @@ describe('KnittingProjectPage', () => {
     renderProject(fakeApi(), { ...PROJECT, patternId: null }, OVERVIEW)
     await screen.findByRole('heading', { name: PROJECT.title })
     expect(screen.queryByRole('link', { name: 'Fiche du patron' })).not.toBeInTheDocument()
+  })
+
+  it('préparation : texte, sous-étapes, diagrammes et notes en blocs repliés, avec leur résumé', async () => {
+    // Rendu direct : sans le dépliage automatique des autres tests
+    const api = fakeApi()
+    api.knitting.getProject.mockResolvedValue(structuredClone({ ...PROJECT, needles: [4] }))
+    renderWithApp(<KnittingProjectPage />, { api, route: `${STEP}=s2`, path: '/tricot/:id' })
+    await screen.findByRole('heading', { name: 'Emmanchures', level: 1 })
+    for (const title of ['Texte du patron', 'Sous-étapes', 'Diagrammes', 'Notes de l’étape']) {
+      expect(screen.getByRole('button', { name: title })).toHaveAttribute('aria-expanded', 'false')
+    }
+    expect(screen.getByRole('region', { name: 'Sous-étapes' })).toHaveTextContent('2 sous-étapes')
+    expect(screen.getByRole('region', { name: 'Diagrammes' })).toHaveTextContent('aucun')
+    expect(screen.getByRole('region', { name: 'Notes de l’étape' })).toHaveTextContent('rien de noté')
+    // L'aide reste à portée, même replié
+    expect(screen.getByRole('button', { name: 'Aide : sous-étapes' })).toBeInTheDocument()
+  })
+
+  it('préparation : quelque chose à préparer → les sous-étapes s’ouvrent d’office ; « Aller à la première » les ouvre aussi', async () => {
+    const user = userEvent.setup()
+    const api = fakeApi()
+    // Pas d'aiguille choisie : chaque sous-étape est à régler
+    api.knitting.getProject.mockResolvedValue(structuredClone({ ...PROJECT, needles: [3, 4] }))
+    renderWithApp(<KnittingProjectPage />, { api, route: `${STEP}=s2`, path: '/tricot/:id' })
+    const toggle = await screen.findByRole('button', { name: 'Sous-étapes' })
+    expect(toggle).toHaveAttribute('aria-expanded', 'true')
+    await user.click(toggle)
+    expect(toggle).toHaveAttribute('aria-expanded', 'false')
+    expect(screen.getByRole('region', { name: 'Sous-étapes' })).toHaveTextContent('2 sous-étapes · 2 à régler')
+    await user.click(screen.getByRole('button', { name: /^Aller à la première/ }))
+    expect(toggle).toHaveAttribute('aria-expanded', 'true')
   })
 
   it('en-tête de l’étape : le total de rangs une seule fois, sur la ligne d’avancée (L1)', async () => {
@@ -990,7 +1023,7 @@ describe('KnittingProjectPage', () => {
     expect(screen.queryByRole('switch')).not.toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'Tricoter cette étape' })).toHaveAttribute('href', '/tricot/p1/tricoter?etape=s2')
 
-    const notes = screen.getByLabelText('Notes de l’étape')
+    const notes = screen.getByRole('textbox', { name: 'Notes de l’étape' })
     await user.type(notes, 'Aiguilles 4,5')
     await user.tab()
     expect(api.knitting.saveProgress).toHaveBeenCalledWith('s2', { notes: 'Aiguilles 4,5' })
@@ -1638,6 +1671,7 @@ describe('texte du patron et taille mise en valeur', () => {
     project.sizes = ['S', 'M', 'L']
     project.sizeIndex = 1
     project.steps[1]!.instructions = TEXT
+    unfoldStepParts()
     renderWithApp(<KnittingProjectPage />, { api: (api.knitting.getProject.mockResolvedValue(project), api), route: STEP, path: '/tricot/:id' })
     const article = (await screen.findByRole('heading', { name: 'Emmanchures' })).closest('article')!
     // Nombres surlignés (boutons enfoncés du texte en mode correction)
