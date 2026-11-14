@@ -62,7 +62,7 @@ function renderMode(project: KnitProject = PROJECT, api = fakeApi(), route = '/t
   }
 }
 
-const line = () => screen.findByRole('region', { name: /à tricoter$/ })
+const line = () => screen.findByRole('region', { name: 'À tricoter' })
 // Le prochain rang qui demande quelque chose, rappelé en tête de « Toute l'étape »
 const next = () => screen.queryByText(/^Prochain :/)
 
@@ -73,10 +73,12 @@ describe('mode tricoter', () => {
     const user = userEvent.setup()
     const { api } = renderMode()
     expect(await screen.findByRole('heading', { level: 1, name: 'Emmanchures' })).toBeInTheDocument()
-    expect(screen.getByText('Pull Bergamote · étape 2 sur 3 · taille M')).toBeInTheDocument()
+    expect(screen.getByText('Étape 2 sur 3')).toBeInTheDocument()
+    // Sous-titre court (L3) : ni le nom du projet ni la taille, coupés sur téléphone
+    expect(screen.queryByText(/Pull Bergamote ·/)).not.toBeInTheDocument()
     // 8 rangs faits : rang 9, rien de particulier, la répétition est en cours
     const row = await line()
-    expect(within(row).getByRole('heading')).toHaveTextContent('Rang 9 à tricoter')
+    expect(within(row).getByRole('heading')).toHaveTextContent('À tricoter')
     expect(row).toHaveTextContent('1 dim. de chaque côté — tous les 6 rangs (4 fois)')
     expect(next()).toHaveTextContent('Prochain : rang 10, dans 1 — 1 dim. de chaque côté (1/4)')
     // Toute l'étape : chaque rang à venir, avec dans combien de rangs
@@ -94,11 +96,11 @@ describe('mode tricoter', () => {
 
     await user.click(screen.getByRole('button', { name: 'Ajouter 1 rang' }))
     expect(api.knitting.saveProgress).toHaveBeenCalledWith('s2', { rowCount: 9 })
-    expect(row).toHaveTextContent('Rang 10 à tricoter1 dim. de chaque côté (1/4)')
+    expect(row).toHaveTextContent('À tricoter1 dim. de chaque côté (1/4)')
     expect(next()).toHaveTextContent('Prochain : rang 16, dans 6')
     await user.click(screen.getByRole('button', { name: 'Retirer un rang' }))
     expect(api.knitting.saveProgress).toHaveBeenLastCalledWith('s2', { rowCount: 8 })
-    expect(row).toHaveTextContent('Rang 9 à tricoter')
+    expect(row).toHaveTextContent('À tricoter')
   })
 
   it('mailles en fin de rang : sûres, estimées « (?) » avec la raison, ou inconnues', async () => {
@@ -170,7 +172,7 @@ describe('mode tricoter', () => {
     renderMode(project)
     const alert = await screen.findByRole('alert')
     expect(alert).toHaveTextContent('Sous-étape 2 (Jersey sur 5 cm (à régler) : jersey) : nombre de rangs à régler.')
-    expect(screen.queryByRole('region', { name: /à tricoter$/ })).not.toBeInTheDocument()
+    expect(screen.queryByRole('region', { name: 'À tricoter' })).not.toBeInTheDocument()
     expect(next()).not.toBeInTheDocument()
     await user.click(within(alert).getByRole('link', { name: 'Préparer l’étape' }))
     expect(await screen.findByText('Page du projet')).toBeInTheDocument()
@@ -186,7 +188,7 @@ describe('mode tricoter', () => {
     renderMode(PROJECT, api)
     const add = await screen.findByRole('button', { name: 'Ajouter 1 rang' })
     for (let i = 0; i < 5; i++) add.click()
-    expect(await screen.findByText('Rang 14 à tricoter')).toBeInTheDocument()
+    expect(await screen.findByText('À tricoter')).toBeInTheDocument()
     await vi.waitFor(() => expect(saved).toEqual([9, 10, 11, 12, 13]))
   })
 
@@ -196,7 +198,7 @@ describe('mode tricoter', () => {
     api.knitting.saveProgress.mockRejectedValueOnce(new Error('refusé'))
     renderMode(PROJECT, api)
     await user.click(await screen.findByRole('button', { name: 'Ajouter 1 rang' }))
-    expect(await screen.findByText('Rang 9 à tricoter')).toBeInTheDocument()
+    expect(await screen.findByText('À tricoter')).toBeInTheDocument()
   })
 
   it('dernier rang fait : l’étape se termine après confirmation et la suivante s’ouvre', async () => {
@@ -217,7 +219,7 @@ describe('mode tricoter', () => {
     await user.click(within(await screen.findByRole('alertdialog')).getByRole('button', { name: 'Terminer l’étape' }))
     expect(api.knitting.saveProgress).toHaveBeenCalledWith('s2', { done: true })
     expect(await screen.findByRole('heading', { level: 1, name: 'Encolure' })).toBeInTheDocument()
-    expect(await screen.findByText('Rang 1 à tricoter')).toBeInTheDocument()
+    expect(await screen.findByText('À tricoter')).toBeInTheDocument()
   })
 
   it('étape tricotée 2 fois : la 1re finie, la 2e repart au rang 1, puis l’étape se termine', async () => {
@@ -225,7 +227,7 @@ describe('mode tricoter', () => {
     const project = structuredClone(PROJECT)
     project.steps[1] = { ...project.steps[1]!, title: 'Manche', times: 2, pass: 1, rowCount: 29 }
     const { api } = renderMode(project)
-    expect(await screen.findByText(/étape 2 sur 3 · 1re fois sur 2 · taille M/)).toBeInTheDocument()
+    expect(await screen.findByText('Étape 2 sur 3 · 1re fois sur 2')).toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: 'Ajouter 1 rang' }))
     expect(await screen.findByText('Tous les rangs de la 1re fois sont faits')).toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: 'Commencer la 2e fois' }))
@@ -235,7 +237,7 @@ describe('mode tricoter', () => {
     expect(api.knitting.saveProgress).toHaveBeenLastCalledWith('s2', { pass: 2, rowCount: 0 })
     // Même étape, 2e fois : le déroulé recommence (rang 1), l'étape n'est pas terminée.
     expect(await screen.findByRole('heading', { level: 1, name: 'Manche' })).toBeInTheDocument()
-    expect(await screen.findByText('Rang 1 à tricoter')).toBeInTheDocument()
+    expect(await screen.findByText('À tricoter')).toBeInTheDocument()
     expect(screen.getByText(/2e fois sur 2/)).toBeInTheDocument()
     expect(api.knitting.saveProgress).not.toHaveBeenCalledWith('s2', expect.objectContaining({ done: true }))
 
@@ -258,7 +260,7 @@ describe('mode tricoter', () => {
     await user.click(screen.getByRole('button', { name: 'Terminer la 1re fois' }))
     await user.click(within(await screen.findByRole('alertdialog', { name: 'Commencer la 2e fois ?' })).getByRole('button', { name: 'Commencer la 2e fois' }))
     expect(api.knitting.saveProgress).toHaveBeenLastCalledWith('s3', { pass: 2, rowCount: 0 })
-    expect(await screen.findByText('Rang 1 à tricoter')).toBeInTheDocument()
+    expect(await screen.findByText('À tricoter')).toBeInTheDocument()
   })
 
   it('dernière étape : le projet se termine', async () => {
@@ -325,7 +327,7 @@ describe('mode tricoter', () => {
     renderMode()
     const row = await line()
     await user.click(screen.getByRole('button', { name: 'Ajouter 1 rang' }))
-    expect(row).toHaveTextContent('Rang 10 à tricoter1 dim. de chaque côté (1/4)')
+    expect(row).toHaveTextContent('À tricoter1 dim. de chaque côté (1/4)')
   })
 
   it('garde l’écran allumé et ramène à la page du projet', async () => {

@@ -296,8 +296,7 @@ export function KnittingProjectPage() {
         <article key={step.id} aria-labelledby="step-title" className="space-y-4 rounded-2xl border bg-background p-4 shadow-xs sm:p-5">
           <header>
             <p className="text-xs text-muted-foreground">
-              {[`Étape ${index + 1} sur ${steps.length}`, ...stepFacts({ ...step, stitches: stepEnd, times: 1 })].join(' · ')}
-              {adjustedStitches !== null && ` (≈ ${adjustedStitches} avec ton échantillon)`}
+              Étape {index + 1} sur {steps.length}
             </p>
             <h1 id="step-title" className="text-xl font-semibold tracking-tight">
               {step.title}
@@ -311,6 +310,13 @@ export function KnittingProjectPage() {
               <span aria-hidden>·</span>
               <StepTimes step={step} onChange={(progress) => void saveStep(step.id, progress)} />
             </p>
+            {/* Le total de rangs est sur la ligne d'avancée : ici, seulement les mailles à la fin. */}
+            {stepEnd !== null && (
+              <p className="text-sm text-muted-foreground tabular-nums">
+                {stepFacts({ totalRows: null, stitches: stepEnd })}
+                {adjustedStitches !== null && ` (≈ ${adjustedStitches} avec ton échantillon)`}
+              </p>
+            )}
             {!step.done && (
               <div className="mt-2">
                 <StepReady issues={readyIssues(step, needles, projectGauges)} onFix={setFixSection} />
@@ -401,7 +407,7 @@ export function KnittingProjectPage() {
       {back}
       <PageHeader
         title={project.title}
-        description={`Taille ${followedSize} · ${doneCount} / ${steps.length} étapes`}
+        description={`Taille ${followedSize}`}
         titleAction={
           <div className="flex items-center gap-1">
             {project.patternId && (

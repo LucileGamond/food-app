@@ -285,6 +285,14 @@ describe('KnittingProjectPage', () => {
     expect(screen.queryByRole('link', { name: 'Fiche du patron' })).not.toBeInTheDocument()
   })
 
+  it('en-tête de l’étape : le total de rangs une seule fois, sur la ligne d’avancée (L1)', async () => {
+    renderProject(fakeApi(), PROJECT, `${STEP}=s2`)
+    const header = (await screen.findByRole('heading', { name: 'Emmanchures', level: 1 })).closest('header')!
+    expect(header.textContent!.match(/30 rangs/g)).toHaveLength(1)
+    expect(within(header).getByText('Étape 2 sur 3')).toBeInTheDocument()
+    expect(within(header).getByText('56 mailles à la fin')).toBeInTheDocument()
+  })
+
   it('en bas de la préparation : les étapes voisines, par leur nom (E2)', async () => {
     const user = userEvent.setup()
     renderProject(fakeApi(), PROJECT, `${STEP}=s2`)
@@ -703,7 +711,8 @@ describe('KnittingProjectPage', () => {
     project.steps[0]!.stitches = 60
     project.steps[1]!.sections = [project.steps[1]!.sections[0]!, { ...project.steps[1]!.sections[1]!, actions: [{ text: '1 diminution de chaque côté', rank: null, stitches: -2 }] }]
     const { api } = renderProject(fakeApi(), project, `${STEP}=s2`)
-    expect(await screen.findByText('Étape 2 sur 3 · 30 rangs · 62 mailles à la fin')).toBeInTheDocument()
+    expect(await screen.findByText('Étape 2 sur 3')).toBeInTheDocument()
+    expect(screen.getByText('62 mailles à la fin')).toBeInTheDocument()
     expect(screen.getByText(/Mailles au début :/).parentElement).toHaveTextContent('Mailles au début : 70 mailles')
     // Un seul bouton ouvre le choix : étape d'avant, patron, ou un autre nombre
     await user.click(screen.getByRole('button', { name: 'Modifier les mailles au début' }))
@@ -931,7 +940,8 @@ describe('KnittingProjectPage', () => {
     const user = userEvent.setup()
     const { api } = renderProject()
     expect(await screen.findByRole('heading', { name: 'Emmanchures' })).toBeInTheDocument()
-    expect(screen.getByText('Étape 2 sur 3 · 30 rangs · 56 mailles à la fin')).toBeInTheDocument()
+    expect(screen.getByText('Étape 2 sur 3')).toBeInTheDocument()
+    expect(screen.getByText('56 mailles à la fin')).toBeInTheDocument()
     expect(screen.getByText('8 / 30 rangs')).toBeInTheDocument()
     expect(screen.getByText('Rangs 5 à 28 · prochaine fois : rang 10')).toBeInTheDocument()
     // On tricote dans le mode tricoter : pas de compteur ni d'écran allumé ici
@@ -963,7 +973,8 @@ describe('KnittingProjectPage', () => {
     const { api } = renderProject()
     await screen.findByRole('heading', { name: 'Emmanchures' })
     // L'en-tête ne dit le nombre de fois qu'une fois, dans la ligne d'avancée
-    expect(screen.getByText('Étape 2 sur 3 · 30 rangs · 56 mailles à la fin')).toBeInTheDocument()
+    expect(screen.getByText('Étape 2 sur 3')).toBeInTheDocument()
+    expect(screen.getByText('56 mailles à la fin')).toBeInTheDocument()
     expect(screen.queryByLabelText('À tricoter')).not.toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: 'Nombre de fois : à tricoter 1 fois' }))
     expect(screen.queryByLabelText('En cours')).not.toBeInTheDocument()
@@ -1033,12 +1044,12 @@ describe('KnittingProjectPage', () => {
   it('en-tête du projet : une seule taille affichée, celle suivie ; le choix est dans « Démarrer »', async () => {
     renderProject(fakeApi(), PROJECT, OVERVIEW)
     // Patron à une taille : dans l'en-tête, sans choix
-    expect(await screen.findByText('Taille M · 1 / 3 étapes')).toBeInTheDocument()
+    expect(await screen.findByText('Taille M', { selector: 'p' })).toBeInTheDocument()
     expect(screen.queryByLabelText('Taille')).not.toBeInTheDocument()
     cleanup()
     // Plusieurs tailles : l'en-tête montre la taille suivie (L), pas celle de l'import (M)
     renderProject(fakeApi(), { ...PROJECT, sizes: ['S', 'M', 'L'], sizeIndex: 2 }, START)
-    expect(await screen.findByText('Taille L · 1 / 3 étapes')).toBeInTheDocument()
+    expect(await screen.findByText('Taille L', { selector: 'p' })).toBeInTheDocument()
     expect(screen.getByLabelText('Taille')).toHaveDisplayValue('L')
     cleanup()
     // Taille de l'import hors de la liste : proposée telle quelle

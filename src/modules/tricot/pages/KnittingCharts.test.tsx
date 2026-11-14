@@ -85,7 +85,7 @@ function renderMode(project: KnitProject = PROJECT, api = fakeApi()) {
   return renderWithApp(<KnittingModePage />, { api, route: '/tricot/p1/tricoter', path: '/tricot/:id/tricoter' })
 }
 
-const rowLine = () => screen.findByRole('region', { name: /à tricoter$/ })
+const rowLine = () => screen.findByRole('region', { name: 'À tricoter' })
 
 describe('diagrammes d’une étape', () => {
   it('préparation : le diagramme est calé sur le rang en cours, sans compteur', async () => {

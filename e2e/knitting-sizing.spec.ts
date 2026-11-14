@@ -49,5 +49,5 @@ test('choisit la taille d’un patron selon une fiche de mesures', async ({ page
   await expect(page.getByText('120 rangs · 110 mailles à la fin')).toBeVisible()
 
   await page.getByRole('button', { name: 'Enregistrer le projet' }).click()
-  await expect(page.getByText('Taille L · 0 / 1 étapes')).toBeVisible()
+  await expect(page.getByText('Taille L', { exact: true })).toBeVisible()
 })

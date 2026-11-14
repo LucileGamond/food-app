@@ -58,8 +58,8 @@ test('charge un patron PDF pour une taille, compte les rangs et retrouve son ava
   await expectNoA11yViolations(page)
   await page.getByRole('link', { name: 'Tricoter', exact: true }).click()
   await expect(page.getByRole('heading', { level: 1, name: 'Dos – côtes' })).toBeVisible()
-  const row = page.getByRole('region', { name: /à tricoter$/ })
-  await expect(row.getByRole('heading')).toHaveText('Rang 1 à tricoter')
+  const row = page.getByRole('region', { name: 'À tricoter' })
+  await expect(row.getByRole('heading')).toHaveText('À tricoter')
   await expect(page.getByText(/^Prochain :/)).toContainText('Dernier rang de l’étape, ensuite : Emmanchures')
   await expectNoA11yViolations(page)
   // Fin d'étape anticipée, confirmée : l'étape suivante s'ouvre
@@ -90,7 +90,7 @@ test('charge un patron PDF pour une taille, compte les rangs et retrouve son ava
   // Retour au mode tricoter : 5 rangs terminés, le 6e est à tricoter, avec la diminution
   await page.getByRole('link', { name: 'Tricoter cette étape' }).click()
   for (let i = 0; i < 5; i++) await page.getByRole('button', { name: 'Ajouter 1 rang' }).click()
-  await expect(row).toContainText('Rang 6 à tricoter1 diminution de chaque côté (1/4)')
+  await expect(row).toContainText('À tricoter1 diminution de chaque côté (1/4)')
   await expect(page.getByText(/^Prochain :/)).toHaveText('Prochain : rang 12, dans 6 — 1 diminution de chaque côté (2/4)')
   // 56 mailles à la fin, 4 diminutions de chaque côté devinées d'après le texte : 64 au départ, 62 après ce rang (estimé)
   await expect(row).toContainText('En fin de rang : 62 (?) mailles')
@@ -106,12 +106,12 @@ test('charge un patron PDF pour une taille, compte les rangs et retrouve son ava
 
   // Avancée enregistrée
   await page.reload()
-  await expect(row).toContainText('Rang 6 à tricoter')
+  await expect(row).toContainText('À tricoter')
   await page.getByRole('button', { name: 'Patron' }).click()
   await expect(page.getByLabel('Notes de l’étape', { exact: true })).toHaveValue('Aiguilles 4,5')
   await page.getByRole('link', { name: 'Quitter le mode tricoter' }).click()
   // Plusieurs tailles : la taille suivie se lit dans le choix, pas en double dans l'en-tête
-  await expect(page.getByText('Taille M · 1 / 2 étapes')).toBeVisible()
+  await expect(page.getByText('Taille M', { exact: true })).toBeVisible()
 
   // Liste des projets : l'étape en cours, et Tricoter d'un toucher ; puis suppression
   await page.getByRole('main').getByRole('link', { name: 'Tricot', exact: true }).click()
@@ -393,7 +393,7 @@ test('suit un diagramme ajouté depuis une image, rang par rang', async ({ page 
   expect(await chart.getByRole('img', { name: 'Torsade du patron' }).evaluate((img: HTMLImageElement) => img.naturalWidth)).toBe(1)
   // Mode tricoter : le rang du diagramme est dans la ligne du rang, avec une bande de l'image
   await page.getByRole('link', { name: 'Tricoter cette étape' }).click()
-  const row = page.getByRole('region', { name: /à tricoter$/ })
+  const row = page.getByRole('region', { name: 'À tricoter' })
   await expect(row).toContainText('Torsade : rang 1 sur 6 · Endroit, de droite à gauche')
   await page.getByRole('button', { name: 'Ajouter 1 rang' }).click()
   await expect(row).toContainText('Torsade : rang 2 sur 6 · Envers, de gauche à droite')

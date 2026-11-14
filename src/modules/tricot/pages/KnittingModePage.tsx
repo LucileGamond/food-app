@@ -163,7 +163,7 @@ function Knitting({ project, knit, projectTo }: KnittingProps) {
           <div className="min-w-0 flex-1">
             <h1 className="truncate text-lg font-semibold tracking-tight">{step.title}</h1>
             <p className="truncate text-xs text-muted-foreground">
-              {[project.title, `étape ${index + 1} sur ${steps.length}`, pass, `taille ${size}`].filter(Boolean).join(' · ')}
+              {[`Étape ${index + 1} sur ${steps.length}`, pass].filter(Boolean).join(' · ')}
             </p>
           </div>
           <ScreenAwakeToggle awake={awake} compact className="shrink-0" />

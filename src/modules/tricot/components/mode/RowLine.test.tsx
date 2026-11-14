@@ -11,7 +11,7 @@ function show(line: RowGuide) {
       <RowLine line={line} stitches={{ kind: 'sure', stitches: 80 }} glossary={[]} setupTo={SETUP} onOpenChart={() => {}} />
     </MemoryRouter>,
   )
-  return screen.getByRole('region', { name: `Rang ${line.row} à tricoter` })
+  return screen.getByRole('region', { name: 'À tricoter' })
 }
 
 /** Le mode tricoter renvoie à la préparation avec un seul libellé, partout (C3). */
@@ -26,6 +26,12 @@ describe('RowLine : aller préparer l’étape', () => {
     const region = show({ row: 9, events: [], context: null, charts: [], unknown: true })
     expect(region).toHaveTextContent('La suite n’est pas connue')
     expect(within(region).getByRole('link', { name: 'Préparer l’étape' })).toHaveAttribute('href', SETUP)
+  })
+
+  it('pas de numéro de rang dans la carte : les nombres sont au compteur (L5)', () => {
+    const region = show({ row: 41, events: [], context: '10 rangs : jersey', charts: [], unknown: false })
+    expect(within(region).getByRole('heading')).toHaveTextContent(/^À tricoter$/)
+    expect(region).not.toHaveTextContent('41')
   })
 
   it('rang ordinaire : pas de lien vers la préparation', () => {
