@@ -128,6 +128,9 @@ export function StepText({ text, sizes, sizeIndex, highlights, onChange, abbrevi
       ) : (
         original
       )}
+      {sizes.length > 1 && sizeIndex === null && (
+        <p className="text-xs text-muted-foreground">Aucune taille choisie : les nombres de ta taille ne sont pas surlignés. Choisis-la dans l’onglet Démarrer du projet.</p>
+      )}
       {editing && <p className="text-xs text-muted-foreground">Touche un nombre pour le surligner ou retirer son surlignage.</p>}
       <div className="flex flex-wrap gap-2">
         {english && !translation && onTranslate && !editing && (

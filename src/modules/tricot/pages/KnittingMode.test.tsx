@@ -302,6 +302,36 @@ describe('mode tricoter', () => {
     expect(screen.queryByRole('button', { name: 'Terminer l’étape' })).not.toBeInTheDocument()
   })
 
+  it('volet « Patron » : les nombres de la taille suivie surlignés, dans la sous-étape en cours et le texte complet', async () => {
+    const user = userEvent.setup()
+    const project = structuredClone(PROJECT)
+    project.sizes = ['S', 'M', 'L']
+    project.sizeIndex = 1
+    project.steps[1]!.instructions = 'Tricoter 4 (6-8) rangs, puis diminuer.'
+    project.steps[1]!.sections = project.steps[1]!.sections.map((s, i) => (i === 0 ? { ...s, source: 'Tricoter 4 (6-8) rangs en jersey.' } : s))
+    project.steps[1]!.rowCount = 0
+    renderMode(project)
+    await user.click(await screen.findByRole('button', { name: 'Patron' }))
+    const current = screen.getByRole('region', { name: 'Sous-étape en cours' })
+    expect(within(current).getByText('6', { selector: 'mark' })).toBeInTheDocument()
+    const drawer = screen.getByRole('region', { name: 'Patron' })
+    expect(within(drawer).getAllByText('6', { selector: 'mark' })).toHaveLength(2)
+    expect(within(drawer).queryByText(/Aucune taille choisie/)).not.toBeInTheDocument()
+  })
+
+  it('volet « Patron » : plusieurs tailles, aucune choisie → on le dit, avec où la choisir', async () => {
+    const user = userEvent.setup()
+    const project = structuredClone(PROJECT)
+    project.sizes = ['S', 'M', 'L']
+    project.sizeIndex = null
+    project.steps[1]!.instructions = 'Tricoter 4 (6-8) rangs.'
+    renderMode(project)
+    await user.click(await screen.findByRole('button', { name: 'Patron' }))
+    const drawer = screen.getByRole('region', { name: 'Patron' })
+    expect(within(drawer).queryByText('6', { selector: 'mark' })).not.toBeInTheDocument()
+    expect(within(drawer).getByText(/Aucune taille choisie/)).toHaveTextContent('onglet Démarrer')
+  })
+
   it('volet « Patron » : traduction et correction du surlignage enregistrées avec l’étape', async () => {
     const user = userEvent.setup()
     const project = structuredClone(PROJECT)

@@ -43,7 +43,7 @@ export function PatternDrawer({ step, row, size, sizes, sizeIndex, abbreviations
         {current.length > 0 && (
           <section aria-label="Sous-étape en cours" className="space-y-2">
             {current.map((source, i) => (
-              <SizedText key={i} text={source} sizes={sizes} sizeIndex={sizeIndex} glossary={glossary} className="rounded-lg bg-brand/5 px-3 py-2" />
+              <SizedText key={i} text={source} sizes={sizes} sizeIndex={sizeIndex} glossary={glossary} className="rounded-lg bg-muted/40 px-3 py-2" />
             ))}
           </section>
         )}
