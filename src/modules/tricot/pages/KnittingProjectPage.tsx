@@ -360,7 +360,11 @@ export function KnittingProjectPage() {
           {step.instructions && (
             <Fold
               id="step-text"
-              title={step.sections.some((x) => x.source) ? 'Texte complet de l’étape' : 'Texte du patron'}
+              title={
+                <>
+                  <FileText className="size-4" aria-hidden /> {step.sections.some((x) => x.source) ? 'Texte complet de l’étape' : 'Texte du patron'}
+                </>
+              }
               className={PART}
               open={partOpen('text')}
               onToggle={() => togglePart('text')}
