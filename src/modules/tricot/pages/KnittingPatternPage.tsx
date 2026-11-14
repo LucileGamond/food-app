@@ -75,6 +75,15 @@ function PatternSheet({ pattern }: { pattern: KnitPattern }) {
         <div className="min-w-0 flex-1">
           <h1 className="text-2xl font-semibold tracking-tight break-words">{pattern.title}</h1>
           {facts.length > 0 && <p className="mt-1 text-sm text-muted-foreground">{facts.join(' · ')}</p>}
+          {pattern.tags.length > 0 && (
+            <ul aria-label="Étiquettes" className="mt-2 flex flex-wrap gap-1.5">
+              {pattern.tags.map((tag) => (
+                <li key={tag} className="rounded-full bg-muted px-2.5 py-0.5 text-sm">
+                  {tag}
+                </li>
+              ))}
+            </ul>
+          )}
         </div>
         <Link to={`/tricot/patrons/${pattern.id}/modifier`} className={cn(buttonVariants({ variant: 'outline' }), 'h-10')}>
           <Pencil /> Modifier

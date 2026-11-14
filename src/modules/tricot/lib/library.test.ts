@@ -1,7 +1,15 @@
 import {
   EMPTY_PATTERN_DRAFT,
   isReadableLink,
+  addTag,
+  batchFields,
+  findDuplicates,
+  infoAdditions,
   librarySummary,
+  libraryTags,
+  movePhoto,
+  normalizeTag,
+  planBatch,
   linkAdditions,
   patternFormChanged,
   patternLinkFromResponse,
@@ -15,10 +23,11 @@ import {
   toPatternDraft,
   type KnitPattern,
   type PatternFiles,
+  type PatternInfo,
 } from './library'
 import type { Yarn } from './yarn'
 
-const NO_FILES: PatternFiles = { pdfPath: null, newPdf: null, photos: [], newPhotos: [] }
+const NO_FILES: PatternFiles = { pdfPath: null, newPdf: null, photos: [] }
 const pdf = new File(['%PDF'], 'pull.pdf', { type: 'application/pdf' })
 const WITH_PDF: PatternFiles = { ...NO_FILES, newPdf: pdf }
 
@@ -34,6 +43,7 @@ function pattern(id: string, patch: Partial<KnitPattern> = {}): KnitPattern {
     notes: '',
     metersNeeded: null,
     needleMm: null,
+    tags: [],
     createdAt: '2026-11-01',
     projects: [],
     readSizes: [],
@@ -46,15 +56,18 @@ describe('saisie d’un patron', () => {
 
   it('nettoie la saisie', () => {
     expect(parsePatternDraft(draft, WITH_PDF)).toEqual({
-      fields: { title: 'Pull', url: null, size: 'M', yarnIdea: '', notes: '', metersNeeded: null, needleMm: null },
+      fields: { title: 'Pull', url: null, size: 'M', yarnIdea: '', notes: '', metersNeeded: null, needleMm: null, tags: [] },
     })
     expect(parsePatternDraft({ ...draft, metersNeeded: '350', needleMm: '4,5' }, WITH_PDF)).toMatchObject({ fields: { metersNeeded: 350, needleMm: 4.5 } })
+    // Étiquettes : normalisées, sans doublon ; 10 au plus.
+    expect(parsePatternDraft({ ...draft, tags: [' Pull ', 'pull', 'Bébé'] }, WITH_PDF)).toMatchObject({ fields: { tags: ['pull', 'bébé'] } })
+    expect(parsePatternDraft({ ...draft, tags: Array.from({ length: 11 }, (_, i) => `t${i}`) }, WITH_PDF)).toEqual({ error: '10 étiquettes au plus.' })
   })
 
   it('accepte chaque format seul : PDF, photo déjà gardée ou nouvelle, lien', () => {
     expect(parsePatternDraft(draft, { ...NO_FILES, pdfPath: 'u/p.pdf' })).toHaveProperty('fields')
     expect(parsePatternDraft(draft, { ...NO_FILES, photos: ['u/a.jpg'] })).toHaveProperty('fields')
-    expect(parsePatternDraft(draft, { ...NO_FILES, newPhotos: [new Blob()] })).toHaveProperty('fields')
+    expect(parsePatternDraft(draft, { ...NO_FILES, photos: [new Blob()] })).toHaveProperty('fields')
     expect(parsePatternDraft({ ...draft, url: 'https://patrons.exemple/pull' }, NO_FILES)).toMatchObject({ fields: { url: 'https://patrons.exemple/pull' } })
   })
 
@@ -64,7 +77,7 @@ describe('saisie d’un patron', () => {
     expect(parsePatternDraft({ ...draft, title: 'x'.repeat(201) }, WITH_PDF)).toEqual({ error: 'Nom : 200 caractères au plus.' })
     expect(parsePatternDraft({ ...draft, url: 'patrons.exemple' }, NO_FILES)).toEqual({ error: 'Le lien doit commencer par http:// ou https://.' })
     expect(parsePatternDraft({ ...draft, url: `https://${'x'.repeat(2000)}` }, NO_FILES)).toEqual({ error: 'Lien : 2000 caractères au plus.' })
-    expect(parsePatternDraft(draft, { ...NO_FILES, photos: Array.from({ length: 8 }, (_, i) => `u/${i}.jpg`), newPhotos: [new Blob(), new Blob(), new Blob()] })).toEqual({
+    expect(parsePatternDraft(draft, { ...NO_FILES, photos: [...Array.from({ length: 8 }, (_, i) => `u/${i}.jpg`), new Blob(), new Blob(), new Blob()] })).toEqual({
       error: '10 photos au plus.',
     })
     expect(parsePatternDraft({ ...draft, size: 'x'.repeat(41) }, WITH_PDF)).toEqual({ error: 'Taille : 40 caractères au plus.' })
@@ -75,9 +88,9 @@ describe('saisie d’un patron', () => {
   })
 
   it('cohérence : un patron enregistré, remis en saisie, redonne les mêmes champs', () => {
-    const saved = pattern('Gilet', { url: 'https://patrons.exemple/gilet', size: 'M', yarnIdea: 'Mérinos', notes: 'Col V', metersNeeded: 600, needleMm: 3.75 })
+    const saved = pattern('Gilet', { url: 'https://patrons.exemple/gilet', size: 'M', yarnIdea: 'Mérinos', notes: 'Col V', metersNeeded: 600, needleMm: 3.75, tags: ['gilet', 'bébé'] })
     const parsed = parsePatternDraft(toPatternDraft(saved), NO_FILES)
-    expect(parsed).toEqual({ fields: { title: 'Gilet', url: saved.url, size: 'M', yarnIdea: 'Mérinos', notes: 'Col V', metersNeeded: 600, needleMm: 3.75 } })
+    expect(parsed).toEqual({ fields: { title: 'Gilet', url: saved.url, size: 'M', yarnIdea: 'Mérinos', notes: 'Col V', metersNeeded: 600, needleMm: 3.75, tags: ['gilet', 'bébé'] } })
     expect(toPatternDraft(saved).needleMm).toBe('3,75')
   })
 
@@ -163,7 +176,7 @@ describe('patron ajouté par un lien', () => {
   })
 
   it('ne remplace rien de ce qui est déjà saisi', () => {
-    const full = { pdfPath: 'u/p.pdf', newPdf: null, photos: Array.from({ length: 10 }, (_, i) => `u/${i}.jpg`), newPhotos: [] }
+    const full = { pdfPath: 'u/p.pdf', newPdf: null, photos: Array.from({ length: 10 }, (_, i) => `u/${i}.jpg`) }
     expect(linkAdditions(link, { title: 'Mon gilet', files: full })).toEqual({ title: null, pdf: null, image: null, message: 'PDF trouvé, mais le patron en a déjà un.' })
   })
 
@@ -181,7 +194,7 @@ describe('patron ajouté par un lien', () => {
 
   it('cohérence : ce qui est ajouté reste valable pour l’enregistrement', () => {
     const added = linkAdditions(link, { title: '', files: NO_FILES })
-    const files = { ...NO_FILES, newPdf: added.pdf, newPhotos: added.image ? [added.image] : [] }
+    const files = { ...NO_FILES, newPdf: added.pdf, photos: added.image ? [added.image] : [] }
     expect(parsePatternDraft({ ...EMPTY_PATTERN_DRAFT, title: added.title ?? '', url: link.url }, files)).toHaveProperty('fields')
   })
 
@@ -211,7 +224,7 @@ describe('patron ajouté par un lien', () => {
 describe('saisie changée', () => {
   const saved = pattern('g1', { title: 'Gilet', pdfPath: 'u/g.pdf', photos: ['u/1.jpg', 'u/2.jpg'] })
   const draft = toPatternDraft(saved)
-  const files: PatternFiles = { pdfPath: 'u/g.pdf', newPdf: null, photos: ['u/1.jpg', 'u/2.jpg'], newPhotos: [] }
+  const files: PatternFiles = { pdfPath: 'u/g.pdf', newPdf: null, photos: ['u/1.jpg', 'u/2.jpg'] }
 
   it('rien de touché : pas changée', () => {
     expect(patternFormChanged(draft, { ...draft }, saved, files)).toBe(false)
@@ -220,10 +233,122 @@ describe('saisie changée', () => {
 
   it('un champ, un fichier ajouté, retiré ou remplacé : changée', () => {
     expect(patternFormChanged(draft, { ...draft, notes: 'x' }, saved, files)).toBe(true)
-    expect(patternFormChanged(draft, draft, saved, { ...files, newPhotos: [new Blob()] })).toBe(true)
+    expect(patternFormChanged(draft, draft, saved, { ...files, photos: [...files.photos, new Blob()] })).toBe(true)
     expect(patternFormChanged(draft, draft, saved, { ...files, photos: ['u/1.jpg'] })).toBe(true)
     expect(patternFormChanged(draft, draft, saved, { ...files, photos: ['u/2.jpg', 'u/1.jpg'] })).toBe(true)
     expect(patternFormChanged(draft, draft, saved, { ...files, pdfPath: null })).toBe(true)
     expect(patternFormChanged(EMPTY_PATTERN_DRAFT, EMPTY_PATTERN_DRAFT, null, WITH_PDF)).toBe(true)
+  })
+})
+
+describe('étiquettes', () => {
+  it('normalise : espaces resserrés, minuscules, 30 caractères', () => {
+    expect(normalizeTag('  Pull   Homme ')).toBe('pull homme')
+    expect(normalizeTag('x'.repeat(40))).toHaveLength(30)
+  })
+
+  it('ajoute sans doublon ni vide, 10 au plus', () => {
+    expect(addTag(['pull'], ' Bébé ')).toEqual(['pull', 'bébé'])
+    const tags = ['pull']
+    expect(addTag(tags, 'PULL')).toBe(tags)
+    expect(addTag(tags, '  ')).toBe(tags)
+    const full = Array.from({ length: 10 }, (_, i) => `t${i}`)
+    expect(addTag(full, 'encore')).toBe(full)
+  })
+
+  it('propose les étiquettes de la bibliothèque, les plus employées d’abord', () => {
+    expect(libraryTags([{ tags: ['pull', 'bébé'] }, { tags: ['bonnet', 'bébé'] }, { tags: [] }])).toEqual(['bébé', 'bonnet', 'pull'])
+  })
+
+  it('filtre par étiquette, et la recherche les trouve aussi', () => {
+    const items = [pattern('a', { tags: ['pull'] }), pattern('b', { tags: ['bonnet'] }), pattern('c')]
+    expect(filterPatterns(items, '', 'pull').map((p) => p.id)).toEqual(['a'])
+    expect(filterPatterns(items, 'bonn').map((p) => p.id)).toEqual(['b'])
+    expect(filterPatterns(items, 'a', 'bonnet')).toEqual([])
+  })
+})
+
+describe('ordre des photos', () => {
+  it('déplace une photo ; la première est la couverture', () => {
+    expect(movePhoto(['a', 'b', 'c'], 2, 0)).toEqual(['c', 'a', 'b'])
+    expect(movePhoto(['a', 'b', 'c'], 1, 0)).toEqual(['b', 'a', 'c'])
+    const same = ['a', 'b']
+    expect(movePhoto(same, 0, 0)).toBe(same)
+    expect(movePhoto(same, 5, 0)).toBe(same)
+  })
+
+  it('cohérence : déplacer garde toutes les photos', () => {
+    const photos = ['a', 'b', 'c', 'd']
+    for (let from = 0; from < 4; from++) for (let to = 0; to < 4; to++) expect(movePhoto(photos, from, to).toSorted()).toEqual(photos)
+  })
+})
+
+describe('doublons', () => {
+  const items = [pattern('g1', { title: 'Gilet Rosée', url: 'https://www.patrons.exemple/gilet/' }), pattern('b1', { title: 'Bonnet' })]
+
+  it('même nom (sans accents, casse ni ponctuation) ou même lien', () => {
+    expect(findDuplicates(items, { title: 'gilet-rosee', url: null }).map((p) => p.id)).toEqual(['g1'])
+    expect(findDuplicates(items, { title: 'Autre', url: 'http://patrons.exemple/gilet#haut' }).map((p) => p.id)).toEqual(['g1'])
+    expect(findDuplicates(items, { title: 'Bonnet rayé', url: 'https://patrons.exemple/bonnet' })).toEqual([])
+    expect(findDuplicates(items, { title: ' ', url: null })).toEqual([])
+  })
+
+  it('le patron modifié ne se signale pas lui-même', () => {
+    expect(findDuplicates(items, { title: 'Gilet Rosée', url: null }, 'g1')).toEqual([])
+  })
+})
+
+describe('remplir avec l’IA', () => {
+  const INFO: PatternInfo = { title: 'Pull Bergamote', sizes: ['S', 'M', 'L'], meters: [900, 1000, 1100], needleMm: 3.5, yarn: 'DROPS Alpaca', kind: 'pull' }
+
+  it('remplit les champs vides, le métrage de la taille visée', () => {
+    const { patch, message } = infoAdditions(INFO, { ...EMPTY_PATTERN_DRAFT, size: 'm' })
+    expect(patch).toEqual({ title: 'Pull Bergamote', metersNeeded: '1000', needleMm: '3,5', yarnIdea: 'DROPS Alpaca', tags: ['pull'] })
+    expect(message).toBe('Rempli : nom, métrage, aiguilles, laine, étiquette « pull » · tailles du patron : S, M, L.')
+  })
+
+  it('ne remplace rien de ce qui est saisi', () => {
+    const draft = { ...EMPTY_PATTERN_DRAFT, title: 'Mon pull', size: 'M', metersNeeded: '950', needleMm: '4', yarnIdea: 'Mérinos', tags: ['pull'] }
+    expect(infoAdditions(INFO, draft)).toEqual({ patch: {}, message: 'Rien de nouveau : la fiche était déjà remplie · tailles du patron : S, M, L.' })
+  })
+
+  it('plusieurs tailles sans taille visée : demande la taille pour le métrage', () => {
+    const { patch, message } = infoAdditions(INFO, EMPTY_PATTERN_DRAFT)
+    expect(patch.metersNeeded).toBeUndefined()
+    expect(message).toContain('métrage selon la taille : indique la taille visée et relance')
+  })
+
+  it('taille unique : son métrage, sans taille visée', () => {
+    expect(infoAdditions({ ...INFO, sizes: [], meters: [300] }, EMPTY_PATTERN_DRAFT).patch.metersNeeded).toBe('300')
+  })
+
+  it('cohérence : ce qui est rempli reste valable pour l’enregistrement', () => {
+    const { patch } = infoAdditions(INFO, { ...EMPTY_PATTERN_DRAFT, size: 'L' })
+    expect(parsePatternDraft({ ...EMPTY_PATTERN_DRAFT, size: 'L', ...patch }, WITH_PDF)).toMatchObject({ fields: { metersNeeded: 1100, needleMm: 3.5, tags: ['pull'] } })
+  })
+})
+
+describe('ajout groupé', () => {
+  const library = [pattern('g1', { title: 'Gilet Rosée' })]
+
+  it('un patron par PDF, nommé d’après le fichier ; trop lourds et doublons sautés', () => {
+    const files = [
+      { name: 'Pull Bergamote.pdf', size: 1000 },
+      { name: 'gilet-rosee.pdf', size: 1000 },
+      { name: 'Énorme.pdf', size: 30_000_000 },
+      { name: 'pull bergamote.PDF', size: 1000 },
+    ]
+    expect(planBatch(files, library, 20_000_000)).toEqual([
+      { title: 'Pull Bergamote', skip: null },
+      { title: 'gilet-rosee', skip: 'duplicate' },
+      { title: 'Énorme', skip: 'too-large' },
+      { title: 'pull bergamote', skip: 'duplicate' },
+    ])
+  })
+
+  it('cohérence : chaque patron prévu s’enregistre', () => {
+    for (const item of planBatch([{ name: 'Châle.pdf', size: 10 }, { name: '.pdf', size: 10 }], [], 100)) {
+      expect(parsePatternDraft({ ...EMPTY_PATTERN_DRAFT, title: batchFields(item.title).title }, WITH_PDF)).toHaveProperty('fields')
+    }
   })
 })

@@ -1,6 +1,6 @@
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(17);
+select plan(22);
 
 delete from public.knit_projects;
 delete from public.knit_patterns;
@@ -39,6 +39,14 @@ select throws_ok(
   '23514', null, '10 photos au plus'
 );
 update public.knit_patterns set notes = 'Laine fine', size = 'L' where id = (select v from ids where k = 'photos');
+
+-- Étiquettes : en minuscules, sans doublon ni espace au bord, 30 caractères, 10 au plus
+update public.knit_patterns set tags = array['châle', 'cadeau de noël'] where id = (select v from ids where k = 'photos');
+select is((select tags from public.knit_patterns where id = (select v from ids where k = 'photos')), array['châle', 'cadeau de noël'], 'étiquettes enregistrées');
+select throws_ok($$update public.knit_patterns set tags = array['Châle']$$, '23514', null, 'étiquette en minuscules seulement');
+select throws_ok($$update public.knit_patterns set tags = array['châle', 'châle']$$, '23514', null, 'pas de doublon');
+select throws_ok($$update public.knit_patterns set tags = array[' châle', repeat('x', 31)]$$, '23514', null, 'pas d''espace au bord, 30 caractères au plus');
+select throws_ok($$update public.knit_patterns set tags = (select array_agg('t' || i) from generate_series(1, 11) i)$$, '23514', null, '10 étiquettes au plus');
 select is((select notes from public.knit_patterns where id = (select v from ids where k = 'photos')), 'Laine fine', 'patron modifié');
 select throws_ok(
   $$update public.knit_patterns set profile_id = '22222222-2222-2222-2222-222222222222'$$,

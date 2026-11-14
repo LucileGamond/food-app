@@ -6,7 +6,7 @@ import type { AppSupabaseClient } from '@/api/client'
 import { compressForReading } from '@/lib/image'
 import type { ProgressPhoto, ProjectProgress } from './lib/progress'
 import { describeYarn, yarnFromJson, yarnMeters, yarnsFromJson, type Gauge, type StashItem, type Yarn, type YarnIdea } from './lib/yarn'
-import { patternLinkFromResponse, type KnitPattern, type PatternFields, type PatternFiles, type PatternLink, type PatternLinkResponse } from './lib/library'
+import { MAX_INFO_PHOTOS, patternLinkFromResponse, type KnitPattern, type PatternInfo, type PatternFields, type PatternFiles, type PatternLink, type PatternLinkResponse } from './lib/library'
 import { readingFromJson, readingKey, readSizeIndex, type StoredReading } from './lib/readings'
 import { sanitizeHighlights } from './lib/sizes'
 import { readTimes } from './lib/passes'
@@ -117,7 +117,7 @@ function toStep(row: StepRow): KnitStep {
 }
 
 /** Patron de la bibliothèque, avec ses projets (les plus récents d'abord). */
-const PATTERN_COLUMNS = 'id, title, pdf_path, photos, url, size, yarn_idea, notes, meters_needed, needle_mm, created_at, knit_projects(id, title, size, updated_at), knit_pattern_readings(size_index, size_label)'
+const PATTERN_COLUMNS = 'id, title, pdf_path, photos, url, size, yarn_idea, notes, meters_needed, needle_mm, tags, created_at, knit_projects(id, title, size, updated_at), knit_pattern_readings(size_index, size_label)'
 
 interface PatternRow {
   id: string
@@ -130,6 +130,7 @@ interface PatternRow {
   notes: string
   meters_needed: number | null
   needle_mm: number | null
+  tags: string[]
   created_at: string
   knit_projects: { id: string; title: string; size: string; updated_at: string }[]
   knit_pattern_readings: { size_index: number | null; size_label: string }[]
@@ -147,6 +148,7 @@ function toPattern(r: PatternRow): KnitPattern {
     notes: r.notes,
     metersNeeded: r.meters_needed,
     needleMm: r.needle_mm,
+    tags: r.tags,
     createdAt: r.created_at,
     projects: r.knit_projects.toSorted((a, b) => b.updated_at.localeCompare(a.updated_at)).map((p) => ({ id: p.id, title: p.title, size: p.size })),
     readSizes: r.knit_pattern_readings.toSorted((a, b) => (a.size_index ?? -1) - (b.size_index ?? -1)).map((reading) => reading.size_label),
@@ -162,6 +164,7 @@ function toPatternColumns(fields: PatternFields) {
     notes: fields.notes,
     meters_needed: fields.metersNeeded,
     needle_mm: fields.needleMm,
+    tags: fields.tags,
   }
 }
 
@@ -187,6 +190,12 @@ export function createKnittingApi(db: AppSupabaseClient) {
   }
 
   /** Envoie des photos de patron (déjà réduites, en JPEG) ; renvoie leurs chemins. Rien ne reste si l'une échoue. */
+  async function downloadFrom(bucket: string, path: string, failure: string): Promise<Blob> {
+    const { data, error } = await db.storage.from(bucket).download(path)
+    if (error) throw new AppError(failure)
+    return data
+  }
+
   async function uploadPatternPhotos(photos: Blob[]): Promise<string[]> {
     if (photos.length === 0) return []
     const { data: session } = await db.auth.getSession()
@@ -506,6 +515,28 @@ export function createKnittingApi(db: AppSupabaseClient) {
       if (error) throw toAppError(error, 'Impossible d’enregistrer le patron adapté.')
     },
 
+    /**
+     * « Remplir avec l'IA » : infos générales du patron (nom, tailles, métrage, aiguilles, laine, type) lues dans son PDF,
+     * sinon dans ses premières photos (pages d'un magazine). Payant : seulement à la demande.
+     */
+    async readPatternInfo(files: PatternFiles): Promise<PatternInfo> {
+      let body: Record<string, unknown>
+      if (files.newPdf || files.pdfPath) {
+        const pdf = files.newPdf ?? (await downloadFrom(PATTERN_BUCKET, files.pdfPath!, 'Impossible de récupérer le PDF du patron.'))
+        body = { info: { pdf: await fileToBase64(pdf) } }
+      } else {
+        const photos = await Promise.all(
+          files.photos.slice(0, MAX_INFO_PHOTOS).map(async (photo) => {
+            const blob = typeof photo === 'string' ? await downloadFrom(PROGRESS_BUCKET, photo, 'Impossible de récupérer les photos du patron.') : photo
+            return { data: await fileToBase64(blob), media_type: blob.type || 'image/jpeg' }
+          }),
+        )
+        if (photos.length === 0) throw new AppError('Ajoute d’abord le PDF ou des photos du patron.')
+        body = { info: { photos } }
+      }
+      return invokeKnit<PatternInfo>(body, 'La lecture du patron a échoué.', (d) => Array.isArray(d.sizes) && Array.isArray(d.meters), READ_TIMEOUT_MS)
+    },
+
     /** Patron ajouté par un lien : PDF (le lien lui-même, ou trouvé dans la page), nom et image de la page, sans le modèle. */
     async readPatternLink(url: string): Promise<PatternLink> {
       return patternLinkFromResponse(await invokeKnit<PatternLinkResponse>({ link: { url } }, 'Impossible de lire ce lien.', (d) => typeof d.url === 'string'))
@@ -586,12 +617,15 @@ export function createKnittingApi(db: AppSupabaseClient) {
       const newPdf = files.newPdf ? await uploadPdf(files.newPdf) : null
       let newPhotos: string[]
       try {
-        newPhotos = await uploadPatternPhotos(files.newPhotos)
+        newPhotos = await uploadPatternPhotos(files.photos.filter((p): p is Blob => typeof p !== 'string'))
       } catch (e) {
         if (newPdf) await db.storage.from(PATTERN_BUCKET).remove([newPdf])
         throw e
       }
-      const row = { ...toPatternColumns(fields), pdf_path: newPdf ?? files.pdfPath, photos: [...files.photos, ...newPhotos] }
+      // Photos dans l'ordre choisi : les nouvelles prennent leur place parmi celles déjà enregistrées.
+      let next = 0
+      const photos = files.photos.map((p) => (typeof p === 'string' ? p : newPhotos[next++]!))
+      const row = { ...toPatternColumns(fields), pdf_path: newPdf ?? files.pdfPath, photos }
       const { data, error } = existing
         ? await db.from('knit_patterns').update(row).eq('id', existing.id).select('id').single()
         : await db.from('knit_patterns').insert(row).select('id').single()

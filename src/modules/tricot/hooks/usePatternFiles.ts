@@ -1,29 +1,29 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import type { KnitPattern, PatternFiles } from '../lib/library'
+import { movePhoto as moved, type KnitPattern, type PatternFiles, type PatternPhoto } from '../lib/library'
 
-/** Nouvelle photo (déjà réduite), avec son aperçu local. */
-interface NewPhoto {
+/** Photo affichée dans le formulaire : enregistrée (chemin) ou nouvelle (déjà réduite, avec son aperçu local). */
+export interface FormPhoto {
   key: string
-  blob: Blob
-  url: string
+  photo: PatternPhoto
+  /** Aperçu local d'une nouvelle photo. */
+  preview: string | null
 }
 
 /**
- * Fichiers du formulaire d'un patron : PDF et photos déjà enregistrés (gardés ou retirés) et nouveaux (envoyés à
- * l'enregistrement). Les aperçus locaux sont libérés en partant.
+ * Fichiers du formulaire d'un patron : PDF et photos, enregistrés (gardés ou retirés) et nouveaux (envoyés à
+ * l'enregistrement), dans l'ordre choisi (la première photo sert de couverture). Les aperçus locaux sont libérés en partant.
  */
-export function usePatternFiles(existing: Pick<KnitPattern, 'pdfPath' | 'photos'> | null, initialPdf: File | null = null) {
+export function usePatternFiles(existing: Pick<KnitPattern, 'pdfPath' | 'photos'> | null) {
   const [pdfPath, setPdfPath] = useState(existing?.pdfPath ?? null)
-  const [newPdf, setNewPdf] = useState<File | null>(initialPdf)
-  const [photos, setPhotos] = useState<string[]>(existing?.photos ?? [])
-  const [newPhotos, setNewPhotos] = useState<NewPhoto[]>([])
+  const [newPdf, setNewPdf] = useState<File | null>(null)
+  const [photos, setPhotos] = useState<FormPhoto[]>(() => (existing?.photos ?? []).map((path) => ({ key: path, photo: path, preview: null })))
   const counter = useRef(0)
 
-  const latest = useRef(newPhotos)
+  const latest = useRef(photos)
   useEffect(() => {
-    latest.current = newPhotos
-  }, [newPhotos])
-  useEffect(() => () => latest.current.forEach((p) => URL.revokeObjectURL(p.url)), [])
+    latest.current = photos
+  }, [photos])
+  useEffect(() => () => latest.current.forEach((p) => p.preview && URL.revokeObjectURL(p.preview)), [])
 
   /** Choisit un PDF : il remplace celui du patron. */
   const choosePdf = useCallback((file: File) => {
@@ -38,23 +38,25 @@ export function usePatternFiles(existing: Pick<KnitPattern, 'pdfPath' | 'photos'
 
   const addPhotos = useCallback((blobs: Blob[]) => {
     // Aperçus créés hors de la mise à jour d'état : rejouée deux fois en mode strict, elle en perdrait.
-    const added = blobs.map((blob) => ({ key: `new-${++counter.current}`, blob, url: URL.createObjectURL(blob) }))
-    setNewPhotos((list) => [...list, ...added])
+    const added = blobs.map((blob) => ({ key: `new-${++counter.current}`, photo: blob, preview: URL.createObjectURL(blob) }))
+    setPhotos((list) => [...list, ...added])
   }, [])
 
-  /** Retire la photo n° `index` (les enregistrées d'abord, puis les nouvelles, comme à l'écran). */
+  /** Retire la photo n° `index`, dans l'ordre affiché. */
   const removePhoto = useCallback(
     (index: number) => {
-      if (index < photos.length) return setPhotos((list) => list.filter((_, i) => i !== index))
-      const photo = newPhotos[index - photos.length]
+      const photo = photos[index]
       if (!photo) return
-      URL.revokeObjectURL(photo.url)
-      setNewPhotos((list) => list.filter((p) => p.key !== photo.key))
+      if (photo.preview) URL.revokeObjectURL(photo.preview)
+      setPhotos((list) => list.filter((p) => p.key !== photo.key))
     },
-    [photos.length, newPhotos],
+    [photos],
   )
 
-  const files: PatternFiles = useMemo(() => ({ pdfPath, newPdf, photos, newPhotos: newPhotos.map((p) => p.blob) }), [pdfPath, newPdf, photos, newPhotos])
+  /** Déplace la photo n° `from` en position `to` (0 : couverture). */
+  const movePhoto = useCallback((from: number, to: number) => setPhotos((list) => moved(list, from, to)), [])
 
-  return { files, newPhotoPreviews: newPhotos, choosePdf, removePdf, addPhotos, removePhoto }
+  const files: PatternFiles = useMemo(() => ({ pdfPath, newPdf, photos: photos.map((p) => p.photo) }), [pdfPath, newPdf, photos])
+
+  return { files, photos, choosePdf, removePdf, addPhotos, removePhoto, movePhoto }
 }

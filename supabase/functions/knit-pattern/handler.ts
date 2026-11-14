@@ -12,6 +12,8 @@
 //   → 200 { steps: [{ index, totalRows, stitches, sections, note }] }   (patron adapté : seulement les étapes qui changent)
 // POST { ideas: { yarn: description, meters, needle_mm } }   (idées de modèles pour une laine du stock)
 //   → 200 { ideas: [{ title, why, meters, needleMm, search, patterns: [{ title, url }] }], weight }   (recherche web)
+// POST { info: { pdf } | { photos: [{ data, media_type }] } }   (infos générales d'un patron de la bibliothèque, à la demande)
+//   → 200 { title, sizes, meters, needleMm, yarn, kind }
 // POST { link: { url } }   (patron ajouté à la bibliothèque par un lien, sans le modèle)
 //   → 200 { url, title, image: { data, type } | null, pdf: { data, name } | null }
 //   → 4xx/5xx { error: message lisible }
@@ -23,6 +25,7 @@ import { answerQuestion, parseQuestionInput, parseTranslateInput, translateStep,
 import { parseInput, readPattern, type PatternInput } from './pattern.ts'
 import { parseIdeasInput, suggestIdeas, type IdeasInput } from './ideas.ts'
 import { parseLabelInput, readYarnLabel, type LabelInput } from './yarn.ts'
+import { parseInfoInput, readPatternInfo, type InfoInput } from './info.ts'
 import { parseLinkInput, readLink, type LinkDeps, type LinkInput } from './link.ts'
 
 /** `fetchPage`, `resolveDns` : lecture d'un lien (fetch global par défaut). */
@@ -36,10 +39,13 @@ type Input =
   | { kind: 'translate'; translate: TranslateInput }
   | { kind: 'adapt'; adapt: AdaptInput }
   | { kind: 'link'; link: LinkInput }
+  | { kind: 'info'; info: InfoInput }
 
 function parse(body: unknown): Input {
   const link = parseLinkInput(body)
   if (link) return { kind: 'link', link }
+  const info = parseInfoInput(body)
+  if (info) return { kind: 'info', info }
   const question = parseQuestionInput(body)
   if (question) return { kind: 'question', question }
   const translate = parseTranslateInput(body)
@@ -60,6 +66,10 @@ export function createHandler(deps: Deps) {
       if (input.kind === 'link') {
         const result = await readLink(input.link, { fetchPage: deps.fetchPage ?? fetch, resolveDns: deps.resolveDns })
         return { body: result, log: { link: true, pdf: result.pdf !== null, image: result.image !== null } }
+      }
+      if (input.kind === 'info') {
+        const { info, usage } = await readPatternInfo(input.info, options)
+        return { body: info, log: { info: true, pdf: input.info.pdf !== null, photos: input.info.photos.length, ...usage } }
       }
       if (input.kind === 'question') {
         const { answer, usage } = await answerQuestion(input.question, options)

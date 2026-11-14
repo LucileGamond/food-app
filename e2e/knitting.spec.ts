@@ -150,6 +150,9 @@ test('ajoute un patron à la bibliothèque, le commence, puis note la laine (ét
   await page.getByLabel(/Choisir des photos/).setInputFiles({ name: 'page.png', mimeType: 'image/png', buffer: Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==', 'base64') })
   await expect(page.getByRole('list', { name: 'Photos du patron' }).getByRole('listitem')).toHaveCount(1)
   await page.getByLabel('Taille visée').fill('M')
+  await page.getByLabel('Étiquettes', { exact: true }).fill('Gilet')
+  await page.getByLabel('Étiquettes', { exact: true }).press('Enter')
+  await expect(page.getByRole('list', { name: 'Étiquettes du patron' })).toHaveText('gilet')
   await expectNoA11yViolations(page)
   await page.getByRole('button', { name: 'Enregistrer' }).click()
   // Fiche du patron
@@ -162,6 +165,8 @@ test('ajoute un patron à la bibliothèque, le commence, puis note la laine (ét
   const library = page.getByRole('list', { name: 'Patrons' })
   await expect(library).toContainText('taille M · PDF · 1 photo')
   await expect(library.locator('img')).toHaveCount(1)
+  await page.getByRole('group', { name: 'Étiquettes' }).getByRole('button', { name: 'gilet' }).click()
+  await expect(library.getByRole('listitem')).toHaveCount(1)
   await library.getByRole('link', { name: /Gilet Rosée/ }).click()
 
   // Commencé : PDF et taille repris
@@ -324,9 +329,9 @@ test('stock de laine : quel patron pour ma laine (la bibliothèque d’abord, pu
   })
   const { api } = await signedInApi()
   await api.settings.saveSettings({ ...DEFAULT_SETTINGS, disabledPages: [] })
-  const files = { pdfPath: null, newPdf: null, photos: [], newPhotos: [] }
-  await api.knitting.savePattern({ title: 'Gilet Rosée', url: 'https://patrons.exemple/gilet', size: 'M', yarnIdea: '', notes: '', metersNeeded: 600, needleMm: 4 }, files, null)
-  await api.knitting.savePattern({ title: 'Pull Bergamote', url: 'https://patrons.exemple/pull', size: 'M', yarnIdea: '', notes: '', metersNeeded: 1200, needleMm: 4 }, files, null)
+  const files = { pdfPath: null, newPdf: null, photos: [] }
+  await api.knitting.savePattern({ title: 'Gilet Rosée', url: 'https://patrons.exemple/gilet', size: 'M', yarnIdea: '', notes: '', metersNeeded: 600, needleMm: 4, tags: [] }, files, null)
+  await api.knitting.savePattern({ title: 'Pull Bergamote', url: 'https://patrons.exemple/pull', size: 'M', yarnIdea: '', notes: '', metersNeeded: 1200, needleMm: 4, tags: [] }, files, null)
   await login(page)
   await openNavPage(page, 'Tricot')
 

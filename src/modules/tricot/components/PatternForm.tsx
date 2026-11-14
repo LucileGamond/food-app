@@ -1,7 +1,8 @@
 // Formulaire d'un patron de la bibliothèque (ajout et modification) : ses formats (PDF, photos, lien), puis ce qui
-// aide à le retrouver (taille, envie, besoins, laine envisagée, notes).
+// aide à le retrouver (étiquettes, taille, besoins, laine envisagée, notes), à remplir à la main ou avec l'IA.
 
-import { FileText, ImagePlus, Loader2, X } from 'lucide-react'
+import { FileText, ImagePlus, Loader2, Sparkles, X } from 'lucide-react'
+import { Link } from 'react-router-dom'
 import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { errorMessage } from '@/api'
 import { useApi } from '@/app/ApiContext'
@@ -12,10 +13,27 @@ import { Textarea } from '@/components/ui/textarea'
 import { useSignedUrls } from '@/hooks/useSignedUrls'
 import { ACCEPTED_IMAGE_TYPES, compressImage } from '@/lib/image'
 import { usePatternFiles } from '../hooks/usePatternFiles'
-import { EMPTY_PATTERN_DRAFT, fileCount, linkAdditions, MAX_PATTERN_PHOTOS, parsePatternDraft, patternFormChanged, titleFromFile, toPatternDraft, type KnitPattern, type PatternDraft, type PatternLink } from '../lib/library'
+import {
+  EMPTY_PATTERN_DRAFT,
+  fileCount,
+  findDuplicates,
+  infoAdditions,
+  libraryTags,
+  linkAdditions,
+  MAX_PATTERN_PHOTOS,
+  parsePatternDraft,
+  patternFormChanged,
+  titleFromFile,
+  toPatternDraft,
+  type KnitPattern,
+  type PatternDraft,
+  type PatternLink,
+} from '../lib/library'
 import { MAX_PDF_BYTES } from '../lib/pattern'
 import { PatternLinkField } from './PatternLinkField'
+import { Note } from './Note'
 import { PatternThumbs } from './PatternThumbs'
+import { TagsField } from './TagsField'
 
 interface Props {
   /** Patron modifié ; null pour en ajouter un. */
@@ -23,32 +41,41 @@ interface Props {
   /** Lien partagé depuis le téléphone : prérempli, puis lu tout de suite. */
   initialLink?: { url: string; title: string | null } | null
   onSaved: (id: string) => void
+  /** Patrons de la bibliothèque : étiquettes proposées, doublons signalés. */
+  library?: KnitPattern[]
   /** La saisie diffère de celle du départ (la page prévient avant de la quitter). */
   onChangedChange?: (changed: boolean) => void
 }
 
 const PDF_TOO_LARGE = 'PDF trop lourd (20 Mo au plus).'
 
-export function PatternForm({ existing, initialLink = null, onSaved, onChangedChange }: Props) {
+export function PatternForm({ existing, initialLink = null, onSaved, library = [], onChangedChange }: Props) {
   const api = useApi()
   const [draft, setDraft] = useState<PatternDraft>(() =>
     existing ? toPatternDraft(existing) : { ...EMPTY_PATTERN_DRAFT, url: initialLink?.url ?? '', title: initialLink?.title ?? '' },
   )
-  const { files, newPhotoPreviews, choosePdf, removePdf, addPhotos, removePhoto } = usePatternFiles(existing)
-  const savedUrls = useSignedUrls(api.knitting.progressPhotoUrls, files.photos)
+  const { files, photos, choosePdf, removePdf, addPhotos, removePhoto, movePhoto } = usePatternFiles(existing)
+  const savedUrls = useSignedUrls(
+    api.knitting.progressPhotoUrls,
+    files.photos.filter((p): p is string => typeof p === 'string'),
+  )
   const [error, setError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
   const [preparing, setPreparing] = useState(false)
   const [readingLink, setReadingLink] = useState(false)
+  const [readingInfo, setReadingInfo] = useState(false)
+  const [infoMessage, setInfoMessage] = useState<{ text: string; error: boolean } | null>(null)
 
   const [initial] = useState(draft)
   const changed = !saving && patternFormChanged(initial, draft, existing, files)
   useEffect(() => onChangedChange?.(changed), [changed, onChangedChange])
 
   const latest = useRef({ title: draft.title, files })
+  const latestDraft = useRef(draft)
   useEffect(() => {
     latest.current = { title: draft.title, files }
-  }, [draft.title, files])
+    latestDraft.current = draft
+  }, [draft, files])
 
   const change = (patch: Partial<PatternDraft>) => setDraft((d) => ({ ...d, ...patch }))
   /** Nom proposé d'après le premier fichier choisi, s'il n'y en a pas encore. */
@@ -91,6 +118,23 @@ export function PatternForm({ existing, initialLink = null, onSaved, onChangedCh
     return added.message
   }
 
+  /** « Remplir avec l'IA » : complète les champs vides d'après le PDF ou les photos. */
+  async function readInfo() {
+    setReadingInfo(true)
+    setInfoMessage(null)
+    try {
+      const info = await api.knitting.readPatternInfo(files)
+      // Saisie du moment : on a pu taper pendant la lecture.
+      const added = infoAdditions(info, latestDraft.current)
+      setDraft((d) => ({ ...d, ...added.patch }))
+      setInfoMessage({ text: added.message, error: false })
+    } catch (e) {
+      setInfoMessage({ text: errorMessage(e), error: true })
+    } finally {
+      setReadingInfo(false)
+    }
+  }
+
   function onPdf(file: File | undefined) {
     if (!file) return
     if (file.size > MAX_PDF_BYTES) return setError(PDF_TOO_LARGE)
@@ -115,6 +159,7 @@ export function PatternForm({ existing, initialLink = null, onSaved, onChangedCh
   }
 
   const pdfName = files.newPdf?.name ?? (files.pdfPath ? 'PDF du patron' : null)
+  const duplicates = findDuplicates(library, { title: draft.title, url: draft.url.trim() || null }, existing?.id ?? null)
 
   return (
     <form onSubmit={(e) => void submit(e)} className="max-w-lg space-y-4" noValidate>
@@ -157,8 +202,9 @@ export function PatternForm({ existing, initialLink = null, onSaved, onChangedCh
           {count.photos > 0 && (
             <PatternThumbs
               label="Photos du patron"
-              thumbs={[...files.photos.map((path) => ({ key: path, url: savedUrls[path] })), ...newPhotoPreviews.map((p) => ({ key: p.key, url: p.url }))]}
+              thumbs={photos.map((p) => ({ key: p.key, url: p.preview ?? savedUrls[p.photo as string] }))}
               onRemove={removePhoto}
+              onMove={movePhoto}
             />
           )}
           {count.photos < MAX_PATTERN_PHOTOS && (
@@ -176,6 +222,18 @@ export function PatternForm({ existing, initialLink = null, onSaved, onChangedCh
         <PatternLinkField value={draft.url} onChange={(url) => change({ url })} onRead={applyLink} readOnMount={!!initialLink} onReadingChange={setReadingLink} />
       </fieldset>
 
+      <div className="space-y-1.5">
+        <Button type="button" variant="outline" className="h-10" disabled={readingInfo || (!count.pdf && count.photos === 0)} onClick={() => void readInfo()}>
+          {readingInfo ? <Loader2 className="animate-spin" aria-hidden /> : <Sparkles />} Remplir avec l’IA
+        </Button>
+        <p aria-live="polite" className={infoMessage?.error ? 'text-xs text-destructive' : 'text-xs text-muted-foreground'}>
+          {readingInfo
+            ? 'Lecture du patron…'
+            : (infoMessage?.text ?? (count.pdf || count.photos > 0 ? 'Lit le patron pour remplir les champs vides ci-dessous (quelques centimes au plus).' : 'Ajoute d’abord le PDF ou des photos du patron.'))}
+        </p>
+      </div>
+
+      <TagsField tags={draft.tags} onChange={(tags) => change({ tags })} suggestions={libraryTags(library)} />
       <div className="grid gap-1.5">
         <Label htmlFor="pattern-size">Taille visée</Label>
         <Input id="pattern-size" className="h-10" maxLength={40} value={draft.size} onChange={(e) => change({ size: e.target.value })} placeholder="M, 4 ans…" />
@@ -199,12 +257,26 @@ export function PatternForm({ existing, initialLink = null, onSaved, onChangedCh
         <Label htmlFor="pattern-notes">Notes</Label>
         <Textarea id="pattern-notes" maxLength={2000} value={draft.notes} onChange={(e) => change({ notes: e.target.value })} />
       </div>
+      {duplicates.length > 0 && (
+        <Note kind="todo" role="status">
+          Déjà dans la bibliothèque :{' '}
+          {duplicates.map((d, i) => (
+            <span key={d.id}>
+              {i > 0 && ', '}
+              <Link to={`/tricot/patrons/${d.id}`} className="font-medium underline underline-offset-2">
+                {d.title}
+              </Link>
+            </span>
+          ))}
+          . Tu peux l’enregistrer quand même.
+        </Note>
+      )}
       {error && (
         <p role="alert" className="text-sm text-destructive">
           {error}
         </p>
       )}
-      <Button type="submit" className="h-10" disabled={saving || preparing || readingLink}>
+      <Button type="submit" className="h-10" disabled={saving || preparing || readingLink || readingInfo}>
         {saving && <Loader2 className="animate-spin" aria-hidden />}
         Enregistrer
       </Button>

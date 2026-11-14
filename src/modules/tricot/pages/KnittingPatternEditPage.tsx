@@ -21,6 +21,8 @@ export function KnittingPatternEditPage() {
   // Lien partagé depuis le téléphone (page /partage).
   const shared = navState(useLocation()).patternLink ?? null
   const existing = useAsync(() => (id ? api.knitting.getPattern(id) : Promise.resolve(null)), [api, id])
+  // Étiquettes proposées et doublons signalés ; sans elle, le formulaire marche quand même.
+  const library = useAsync(() => api.knitting.listPatterns(), [api])
   const [changed, setChanged] = useState(false)
   useLeaveWarning(changed)
 
@@ -43,7 +45,7 @@ export function KnittingPatternEditPage() {
     <>
       {back}
       <PageHeader title={existing.data ? 'Modifier le patron' : 'Ajouter un patron'} />
-      <PatternForm existing={existing.data} initialLink={existing.data ? null : shared} onSaved={saved} onChangedChange={setChanged} />
+      <PatternForm existing={existing.data} initialLink={existing.data ? null : shared} onSaved={saved} library={library.data ?? []} onChangedChange={setChanged} />
     </>
   )
 }
