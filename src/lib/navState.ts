@@ -11,8 +11,11 @@ export interface NavState {
   fromInbox?: InboxItem
   /** Fiche d'une recette qui vient d'être enregistrée : proposer de lier les recettes auxquelles elle renvoie. */
   offerLinks?: boolean
-  /** Ajout d'un patron de tricot ouvert depuis un partage : lien à lire. */
-  patternLink?: { url: string; title: string | null }
+  /**
+   * Ajout d'un patron de tricot ouvert depuis un partage ou une idée pour ma laine : lien à lire, et ce que l'idée
+   * sait déjà (laine, métrage, aiguilles).
+   */
+  patternLink?: { url: string; title: string | null; yarnIdea?: string; metersNeeded?: number | null; needleMm?: number | null }
   /** Liste de courses qui vient d'être générée : ce qui n'a pas pu y être ajouté. */
   skipped?: SkippedEntry[]
 }

@@ -387,6 +387,9 @@ test('stock de laine : quel patron pour ma laine (la bibliothèque d’abord, pu
   await match.getByRole('link', { name: 'Garder Cabled Cowl dans ma bibliothèque' }).click()
   await expect(page.getByRole('heading', { level: 1, name: 'Ajouter un patron' })).toBeVisible()
   await expect(page.getByLabel('Lien')).toHaveValue('https://www.ravelry.com/patterns/library/cabled-cowl')
+  await expect(page.getByLabel('Métrage nécessaire (m)')).toHaveValue('300')
+  await expect(page.getByLabel('Aiguilles (mm)')).toHaveValue('4,5')
+  await expect(page.getByLabel('Laine envisagée')).toHaveValue('DROPS Merino')
 })
 
 test('suit un diagramme ajouté depuis une image, rang par rang', async ({ page }) => {

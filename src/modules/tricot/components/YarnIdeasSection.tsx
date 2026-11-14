@@ -69,6 +69,8 @@ export function YarnIdeasSection({ item, stash, emphasize }: Props) {
   const current = fresh && fresh.stashIds.join(',') === key ? fresh : saved.data?.key === key ? saved.data.value : null
   const available = stashMeters(yarns)
   const combinable = stash.filter((s) => s.id !== item.id)
+  /** Laines de l'idée, notées sur le patron gardé. */
+  const ideaYarnText = yarns.map(yarnTitle).join(' + ')
 
   async function keep(value: StashIdeas) {
     setFresh(value)
@@ -213,7 +215,7 @@ export function YarnIdeasSection({ item, stash, emphasize }: Props) {
                             </a>
                             <Link
                               to="/tricot/patrons/nouveau"
-                              state={{ patternLink: { url: p.url, title: p.title } } satisfies NavState}
+                              state={{ patternLink: { url: p.url, title: p.title, yarnIdea: ideaYarnText, metersNeeded: idea.meters, needleMm: idea.needleMm } } satisfies NavState}
                               aria-label={`Garder ${p.title} dans ma bibliothèque`}
                               className="inline-flex shrink-0 items-center gap-1 text-xs text-muted-foreground underline-offset-4 hover:underline"
                             >

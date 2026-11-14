@@ -30,7 +30,9 @@ import {
   type PatternDraft,
   type PatternLink,
 } from '../lib/library'
+import type { NavState } from '@/lib/navState'
 import { MAX_PDF_BYTES } from '../lib/pattern'
+import { decimal } from '../lib/yarn'
 import { PatternLinkField } from './PatternLinkField'
 import { Note } from './Note'
 import { PatternThumbs } from './PatternThumbs'
@@ -40,7 +42,7 @@ interface Props {
   /** Patron modifié ; null pour en ajouter un. */
   existing: KnitPattern | null
   /** Lien partagé depuis le téléphone : prérempli, puis lu tout de suite. */
-  initialLink?: { url: string; title: string | null } | null
+  initialLink?: NonNullable<NavState['patternLink']> | null
   onSaved: (id: string) => void
   /** Patrons de la bibliothèque : étiquettes proposées, doublons signalés. */
   library?: KnitPattern[]
@@ -53,7 +55,16 @@ const PDF_TOO_LARGE = 'PDF trop lourd (20 Mo au plus).'
 export function PatternForm({ existing, initialLink = null, onSaved, library = [], onChangedChange }: Props) {
   const api = useApi()
   const [draft, setDraft] = useState<PatternDraft>(() =>
-    existing ? toPatternDraft(existing) : { ...EMPTY_PATTERN_DRAFT, url: initialLink?.url ?? '', title: initialLink?.title ?? '' },
+    existing
+      ? toPatternDraft(existing)
+      : {
+          ...EMPTY_PATTERN_DRAFT,
+          url: initialLink?.url ?? '',
+          title: initialLink?.title ?? '',
+          yarnIdea: initialLink?.yarnIdea ?? '',
+          metersNeeded: initialLink?.metersNeeded ? String(initialLink.metersNeeded) : '',
+          needleMm: initialLink?.needleMm ? decimal(initialLink.needleMm) : '',
+        },
   )
   const { files, photos, choosePdf, removePdf, addPhotos, removePhoto, movePhoto } = usePatternFiles(existing)
   const savedUrls = useSignedUrls(

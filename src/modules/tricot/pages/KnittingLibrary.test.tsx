@@ -331,6 +331,37 @@ describe('ajout et modification d’un patron', () => {
     expect(screen.getByLabelText('Nom du patron')).toHaveValue('Titre partagé')
   })
 
+  it('patron gardé depuis une idée pour ma laine : laine, métrage et aiguilles préremplis', async () => {
+    const api = fakeApi()
+    api.knitting.readPatternLink.mockResolvedValue({ url: 'https://p.exemple/snood', title: null, image: null, pdf: null })
+    const patternLink = { url: 'https://p.exemple/snood', title: 'Snood', yarnIdea: 'DROPS Merino + Drops Alpaca', metersNeeded: 300, needleMm: 4.5 }
+    renderWithApp(<KnittingPatternEditPage />, {
+      api,
+      route: { pathname: '/tricot/patrons/nouveau', state: { patternLink } } as unknown as string,
+      path: '/tricot/patrons/nouveau',
+      extraRoutes,
+    })
+    expect(await screen.findByLabelText('Métrage nécessaire (m)')).toHaveValue('300')
+    expect(screen.getByLabelText('Aiguilles (mm)')).toHaveValue('4,5')
+    expect(screen.getByLabelText('Laine envisagée')).toHaveValue('DROPS Merino + Drops Alpaca')
+    expect(screen.getByLabelText('Nom du patron')).toHaveValue('Snood')
+    await waitFor(() => expect(api.knitting.readPatternLink).toHaveBeenCalledWith('https://p.exemple/snood'))
+  })
+
+  it('lien partagé sans métrage ni aiguilles : champs vides', async () => {
+    const api = fakeApi()
+    api.knitting.readPatternLink.mockResolvedValue({ url: 'https://p.exemple/x', title: null, image: null, pdf: null })
+    renderWithApp(<KnittingPatternEditPage />, {
+      api,
+      route: { pathname: '/tricot/patrons/nouveau', state: { patternLink: { url: 'https://p.exemple/x', title: null, metersNeeded: null, needleMm: null } } } as unknown as string,
+      path: '/tricot/patrons/nouveau',
+      extraRoutes,
+    })
+    expect(await screen.findByLabelText('Métrage nécessaire (m)')).toHaveValue('')
+    expect(screen.getByLabelText('Aiguilles (mm)')).toHaveValue('')
+    expect(screen.getByLabelText('Laine envisagée')).toHaveValue('')
+  })
+
   it('lecture du lien en cours : « Enregistrer » attend, et un PDF choisi entre-temps est gardé', async () => {
     const user = userEvent.setup()
     const api = fakeApi()

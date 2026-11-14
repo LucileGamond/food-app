@@ -2,6 +2,7 @@ import { cleanup, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { Route, useLocation } from 'react-router-dom'
 import { AppError } from '@/api'
+import type { NavState } from '@/lib/navState'
 import { fakeApi, renderWithApp } from '@/test/fakes'
 import { EMPTY_YARN, type StashIdeas, type StashItem, type Yarn, type YarnIdea } from '../lib/yarn'
 import { YarnIdeasSection } from './YarnIdeasSection'
@@ -17,8 +18,8 @@ const HAT: YarnIdea = { title: 'Bonnet', why: 'Rapide.', size: '', meters: 150, 
 const SAVED: StashIdeas = { stashIds: ['st1'], wish: 'pour bébé', ideas: [HAT], weight: 'dk', updatedAt: '2026-11-10T09:00:00Z' }
 
 function NewPatternPage() {
-  const state = useLocation().state as { patternLink?: { url: string; title: string } } | null
-  return <p>Nouveau patron : {state?.patternLink?.url} · {state?.patternLink?.title}</p>
+  const link = (useLocation().state as NavState | null)?.patternLink
+  return <p>Nouveau patron : {[link?.url, link?.title, link?.yarnIdea, link?.metersNeeded, link?.needleMm].join(' · ')}</p>
 }
 
 function setup(options: { stash?: StashItem[]; current?: StashItem; emphasize?: boolean; configure?: (api: ReturnType<typeof fakeApi>) => void } = {}) {
@@ -206,7 +207,7 @@ describe('Des idées pour ma laine', () => {
     expect(within(ideas).getByRole('link', { name: 'Cowl · p.exemple · Payant' })).toBeInTheDocument()
     expect(within(ideas).queryByRole('button', { name: /Trouver des patrons/ })).not.toBeInTheDocument()
     await user.click(within(ideas).getByRole('link', { name: 'Garder Cowl dans ma bibliothèque' }))
-    expect(await screen.findByText('Nouveau patron : https://p.exemple/cowl · Cowl')).toBeInTheDocument()
+    expect(await screen.findByText('Nouveau patron : https://p.exemple/cowl · Cowl · DROPS Merino · 150 ·')).toBeInTheDocument()
   })
 
   it('recherche Ravelry filtrée avec le métrage de l’ensemble', async () => {
