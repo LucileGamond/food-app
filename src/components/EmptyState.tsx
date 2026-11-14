@@ -1,7 +1,6 @@
-import type { LucideIcon } from 'lucide-react'
-import type { ReactNode } from 'react'
+import type { ComponentType, ReactNode, SVGProps } from 'react'
 
-export function EmptyState({ icon: Icon, title, description, action }: { icon: LucideIcon; title: string; description?: string; action?: ReactNode }) {
+export function EmptyState({ icon: Icon, title, description, action }: { icon: ComponentType<SVGProps<SVGSVGElement>>; title: string; description?: string; action?: ReactNode }) {
   return (
     <div className="flex flex-col items-center rounded-xl border border-dashed bg-background px-6 py-14 text-center">
       <span className="mb-4 flex size-11 items-center justify-center rounded-full bg-muted">

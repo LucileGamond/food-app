@@ -1,5 +1,5 @@
-import { BookOpen, CalendarClock, CalendarDays, GlassWater, HeartPulse, House, Leaf, ListChecks, LogOut, Scale, Settings, ShoppingCart, Spool, Sprout, UtensilsCrossed, type LucideIcon } from 'lucide-react'
-import { useState } from 'react'
+import { BookOpen, CalendarClock, CalendarDays, GlassWater, HeartPulse, House, Leaf, ListChecks, LogOut, Scale, Settings, ShoppingCart, Sprout, UtensilsCrossed } from 'lucide-react'
+import { useState, type ComponentType, type SVGProps } from 'react'
 import { Link, NavLink, Outlet, useLocation } from 'react-router-dom'
 import { Button, buttonVariants } from '@/components/ui/button'
 import { useSettings } from '@/app/SettingsContext'
@@ -8,23 +8,27 @@ import { useAuth } from '@/auth/AuthProvider'
 import { NotificationsPrompt } from '@/components/Notifications'
 import { HOME_PATH, pageOf, sectionOf, visibleSections, type PageKey, type SectionKey } from '@/lib/settings'
 import { cn } from '@/lib/utils'
+import { BasketIcon } from '@/modules/tricot/components/BasketIcon'
 
-const PAGE_ICONS: Record<PageKey, LucideIcon> = {
+/** Icône de page ou de section : Lucide, ou dessinée (panier de pelotes du Tricot). */
+type NavIcon = ComponentType<SVGProps<SVGSVGElement>>
+
+const PAGE_ICONS: Record<PageKey, NavIcon> = {
   planning: CalendarDays,
   recettes: BookOpen,
   courses: ShoppingCart,
   poids: Scale,
   plan: ListChecks,
   hydratation: GlassWater,
-  tricot: Spool,
+  tricot: BasketIcon,
   plantes: Sprout,
   agenda: CalendarClock,
 }
 
-const SECTION_ICONS: Record<SectionKey, LucideIcon> = {
+const SECTION_ICONS: Record<SectionKey, NavIcon> = {
   repas: UtensilsCrossed,
   sante: HeartPulse,
-  tricot: Spool,
+  tricot: BasketIcon,
   plantes: Sprout,
   agenda: CalendarClock,
 }
