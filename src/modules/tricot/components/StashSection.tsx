@@ -14,7 +14,8 @@ import { PageHeader } from '@/components/PageHeader'
 import { Loading } from './Loading'
 import { LoadError } from '@/components/LoadError'
 import { useAsync } from '@/hooks/useAsync'
-import { patternSearchUrl, siteOf, yarnDetails, yarnMeters, yarnTitle, type StashItem, type Yarn, type YarnIdea } from '../lib/yarn'
+import { YarnBand } from './YarnBand'
+import { patternSearchUrl, siteOf, yarnMeters, yarnTitle, type StashItem, type Yarn, type YarnIdea } from '../lib/yarn'
 import { matchPatterns, type KnitPattern } from '../lib/library'
 import { YarnDialog } from './YarnPanel'
 
@@ -195,11 +196,8 @@ export function StashSection({ patterns }: { patterns: KnitPattern[] }) {
           <ul aria-label="Stock de laine" className="space-y-2">
             {stash.data.map((item) => (
               <li key={item.id} className="rounded-2xl border bg-background p-4 shadow-xs">
-                <div className="flex items-start gap-2">
-                  <p className="min-w-0 flex-1 text-sm">
-                    <span className="block font-medium">{yarnTitle(item.yarn)}</span>
-                    <span className="text-muted-foreground">{yarnDetails(item.yarn)}</span>
-                  </p>
+                <div className="flex items-center gap-1">
+                  <YarnBand yarn={item.yarn} />
                   <Button variant="ghost" size="icon-touch" aria-label={`Modifier ${yarnTitle(item.yarn)}`} onClick={() => setEditing(item)}>
                     <Pencil />
                   </Button>

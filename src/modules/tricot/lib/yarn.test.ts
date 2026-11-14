@@ -16,6 +16,8 @@ import {
   toYarnDraft,
   totalLength,
   yarnDetails,
+  yarnFacts,
+  dyeLotWarnings,
   yarnsFromJson,
   yarnTitle,
   type Yarn,
@@ -124,5 +126,31 @@ describe('quel patron pour ma laine', () => {
     expect(parseMeters('350')).toBe(350)
     expect(parseMeters('')).toBeNull()
     expect(parseMeters('0')).toBeUndefined()
+  })
+})
+
+describe('bande de pelote', () => {
+  it('reprend les infos de l’étiquette, le bain en avant', () => {
+    expect(yarnFacts(PARTNER)).toEqual([
+      { label: 'coloris 0012 Ciel' },
+      { label: 'bain 4471', strong: true },
+      { label: '50 g · 125 m' },
+      { label: '50 % laine' },
+      { label: 'aig. 3,5' },
+      { label: '× 6' },
+    ])
+    expect(yarnFacts({ ...EMPTY_YARN, length_m: 200, skeins: 2.5 })).toEqual([{ label: '200 m' }, { label: '× 2,5' }])
+    expect(yarnFacts(EMPTY_YARN)).toEqual([])
+  })
+
+  it('signale une même laine notée avec des bains différents', () => {
+    const lot = (dye_lot: string | null, extra: Partial<Yarn> = {}) => ({ ...PARTNER, dye_lot, ...extra })
+    expect(dyeLotWarnings([lot('4471'), lot('4471')])).toEqual([])
+    expect(dyeLotWarnings([lot('4471'), lot('4480'), lot('4471'), lot(null)])).toEqual([{ title: 'Phildar Partner 3.5 · 0012 Ciel', lots: ['4471', '4480'] }])
+    // Autre coloris, ou laine sans marque ni nom : pas comparables.
+    expect(dyeLotWarnings([lot('4471'), lot('4480', { color: '0020 Rose' })])).toEqual([])
+    expect(dyeLotWarnings([{ ...EMPTY_YARN, dye_lot: '1' }, { ...EMPTY_YARN, dye_lot: '2' }])).toEqual([])
+    // Casse et espaces ignorés.
+    expect(dyeLotWarnings([lot('1'), lot('2', { brand: 'phildar ' })])).toHaveLength(1)
   })
 })

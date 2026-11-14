@@ -145,6 +145,43 @@ export function yarnDetails(yarn: Yarn): string {
     .join(' · ')
 }
 
+/** Une information de la bande de pelote (étiquette) : le bain est mis en avant. */
+export interface YarnFact {
+  label: string
+  strong?: boolean
+}
+
+/** Infos de la bande de pelote, dans l'ordre où on les lit en magasin : coloris, bain, poids et métrage, composition, aiguilles, pelotes. */
+export function yarnFacts(yarn: Yarn): YarnFact[] {
+  const facts: (YarnFact | null)[] = [
+    yarn.color ? { label: `coloris ${yarn.color}` } : null,
+    yarn.dye_lot ? { label: `bain ${yarn.dye_lot}`, strong: true } : null,
+    yarn.weight_g || yarn.length_m ? { label: [yarn.weight_g && `${yarn.weight_g} g`, yarn.length_m && `${yarn.length_m} m`].filter(Boolean).join(' · ') } : null,
+    yarn.composition ? { label: yarn.composition } : null,
+    yarn.needle_mm !== null ? { label: `aig. ${decimal(yarn.needle_mm)}` } : null,
+    yarn.skeins !== null ? { label: `× ${decimal(yarn.skeins)}` } : null,
+  ]
+  return facts.filter((f): f is YarnFact => f !== null)
+}
+
+/** Même laine (marque, nom, coloris) notée avec des bains différents : les couleurs peuvent légèrement différer. */
+export interface DyeLotWarning {
+  title: string
+  lots: string[]
+}
+
+export function dyeLotWarnings(yarns: Yarn[]): DyeLotWarning[] {
+  const groups = new Map<string, { title: string; lots: string[] }>()
+  for (const y of yarns) {
+    if (!y.dye_lot || (!y.brand && !y.name)) continue
+    const key = [y.brand, y.name, y.color].map((v) => (v ?? '').trim().toLowerCase()).join('|')
+    const group = groups.get(key) ?? { title: [yarnTitle(y), y.color].filter(Boolean).join(' · '), lots: [] }
+    if (!group.lots.includes(y.dye_lot)) group.lots.push(y.dye_lot)
+    groups.set(key, group)
+  }
+  return [...groups.values()].filter((g) => g.lots.length > 1)
+}
+
 /** Métrage total du projet (pelotes × métrage), si connu pour toutes les laines comptées. */
 export function totalLength(yarns: Yarn[]): number | null {
   const counted = yarns.filter((y) => y.skeins !== null && y.length_m !== null)

@@ -1257,6 +1257,14 @@ describe('laine et échantillon du projet', () => {
     )
   })
 
+  it('prévient quand une même laine a des bains différents', async () => {
+    const yarn = { ...EMPTY_YARN, brand: 'Phildar', name: 'Partner 3.5', color: 'Ciel', skeins: 3 }
+    await renderProject(fakeApi(), { ...PROJECT, yarns: [{ ...yarn, dye_lot: '4471' }, { ...yarn, dye_lot: '4480', skeins: 2 }] })
+    const panel = await screen.findByRole('region', { name: 'Laine et échantillon' })
+    expect(within(panel).getAllByTestId('yarn-band')).toHaveLength(2)
+    expect(within(panel).getByRole('note')).toHaveTextContent('Bains différents pour Phildar Partner 3.5 · Ciel (4471, 4480)')
+  })
+
   it('la page du projet prend la couleur de sa laine', async () => {
     const api = fakeApi()
     const { unmount } = await renderProject(api, { ...PROJECT, yarns: [{ ...EMPTY_YARN, brand: 'Drops' }, { ...EMPTY_YARN, hues: ['#d0563a', '#e8a33a'] }] })

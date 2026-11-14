@@ -3,11 +3,12 @@
 
 import { GaugesList } from './GaugesList'
 import type { ProjectGauge } from '../lib/gauges'
-import { Camera, Loader2, Pencil, Plus, Trash2 } from 'lucide-react'
+import { Camera, CircleAlert, Loader2, Pencil, Plus, Trash2 } from 'lucide-react'
 import { useState, type FormEvent } from 'react'
 import { toast } from 'sonner'
 import { errorMessage } from '@/api'
 import { HuesField } from './HuesField'
+import { YarnBand } from './YarnBand'
 import { useApi } from '@/app/ApiContext'
 import { ConfirmDialog } from '@/components/ConfirmDialog'
 import { Button } from '@/components/ui/button'
@@ -26,7 +27,7 @@ import {
   toYarnDraft,
   totalLength,
   YARN_TEXT_MAX,
-  yarnDetails,
+  dyeLotWarnings,
   yarnTitle,
   type Gauge,
   type StashItem,
@@ -317,13 +318,10 @@ export function YarnPanel({
       {info.yarns.length === 0 ? (
         <p className="text-sm text-muted-foreground">Aucune laine notée : marque, coloris, bain, métrage… pour racheter la même ou refaire le modèle.</p>
       ) : (
-        <ul className="divide-y">
+        <ul className="space-y-2">
           {info.yarns.map((yarn, index) => (
-            <li key={index} className="flex items-start gap-2 py-2 first:pt-0 last:pb-0">
-              <p className="min-w-0 flex-1 text-sm">
-                <span className="block font-medium">{yarnTitle(yarn)}</span>
-                <span className="text-muted-foreground">{yarnDetails(yarn)}</span>
-              </p>
+            <li key={index} className="flex items-center gap-1">
+              <YarnBand yarn={yarn} />
               <Button variant="ghost" size="icon-touch" aria-label={`Modifier ${yarnTitle(yarn)}`} onClick={() => setEditing(index)}>
                 <Pencil />
               </Button>
@@ -334,6 +332,14 @@ export function YarnPanel({
           ))}
         </ul>
       )}
+      {dyeLotWarnings(info.yarns).map((w) => (
+        <p key={w.title} role="note" className="flex gap-2 rounded-lg border border-garance/30 bg-garance/5 px-3 py-2 text-sm">
+          <CircleAlert className="mt-0.5 size-4 shrink-0 text-garance" aria-hidden />
+          <span>
+            <span className="font-medium">Bains différents</span> pour {w.title} ({w.lots.join(', ')}) : les couleurs peuvent légèrement varier. Alterne les pelotes tous les deux rangs, ou garde l’une pour les bordures.
+          </span>
+        </p>
+      ))}
       {total !== null && <p className="text-sm text-muted-foreground">Environ {total} m de laine en tout.</p>}
 
       <ConfirmDialog
