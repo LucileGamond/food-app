@@ -36,7 +36,7 @@ export function PatternList({ items }: { items: KnitPattern[] }) {
                 )}
               </span>
               <span className="min-w-0 flex-1">
-                <span className="block truncate font-medium">{p.title}</span>
+                <span className="block truncate knit-name">{p.title}</span>
                 <span className="block truncate text-sm text-muted-foreground">{[...patternFacts(p), ...patternFormats(p)].join(' · ')}</span>
               </span>
               <ChevronRight className="size-4 shrink-0 text-muted-foreground" aria-hidden />

@@ -168,7 +168,7 @@ export function AdaptPanel({ project, size, onSaved }: Props) {
           <ul aria-label="Étapes adaptées" className="space-y-2">
             {preview?.map((s) => (
               <li key={s.stepId} className="rounded-xl border p-3 text-sm">
-                <p className="font-medium">{titleOf(s.stepId)}</p>
+                <p className="knit-name">{titleOf(s.stepId)}</p>
                 {describeChange(originalOf(s.stepId), s) && <p className="tabular-nums">{describeChange(originalOf(s.stepId), s)}</p>}
                 {s.note && <p className="text-muted-foreground">{s.note}</p>}
               </li>

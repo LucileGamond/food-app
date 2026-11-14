@@ -586,9 +586,9 @@ export function KnittingProjectPage() {
                             {i + 1}
                           </span>
                           <span className="min-w-0 flex-1">
-                            <span className={cn('flex items-center gap-1.5', isCurrent && 'font-medium')}>
+                            <span className="flex items-center gap-1.5">
                               {s.done && <Check className="size-3.5 shrink-0 text-brand" aria-hidden />}
-                              <span className="truncate">{s.title}</span>
+                              <span className="truncate knit-name">{s.title}</span>
                             </span>
                             {(s.rowCount > 0 || s.totalRows !== null || s.times > 1) && (
                               <span className="block text-xs text-muted-foreground tabular-nums">

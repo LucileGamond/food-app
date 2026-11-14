@@ -49,7 +49,7 @@ function Section({ section, current, isCurrent }: { section: OutlineSection; cur
   const done = current !== null && section.end !== null && !section.cut && section.end < current
   return (
     <li aria-current={isCurrent ? 'step' : undefined} className={cn('space-y-1 rounded-xl border px-3 py-2', isCurrent ? 'border-brand bg-brand/5' : 'bg-background', done && 'text-muted-foreground')}>
-      <p className={cn(!done && 'font-medium')}>{section.title ?? 'Fin de l’étape'}</p>
+      <p className={cn('knit-name', done && 'text-muted-foreground')}>{section.title ?? 'Fin de l’étape'}</p>
       <p className="text-xs text-muted-foreground">
         {section.toSet
           ? 'À régler en rangs dans la préparation : la suite se calculera.'

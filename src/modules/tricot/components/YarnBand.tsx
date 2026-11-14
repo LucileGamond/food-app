@@ -42,7 +42,7 @@ export function YarnBand({ yarn, className }: { yarn: Yarn; className?: string }
     <div className={cn('flex min-w-0 flex-1 items-center gap-3 rounded-lg border border-dashed border-noix/35 bg-card px-3 py-2', className)} data-testid="yarn-band">
       <YarnBall hues={yarn.hues} seed={seedOf([title, yarn.color, ...yarn.hues].join('|'))} className="size-10" />
       <p className="min-w-0 flex-1 text-sm">
-        <span className="block font-tricot text-base leading-tight font-semibold [font-variation-settings:'SOFT'_100]">{title}</span>
+        <span className="block knit-name text-base leading-tight">{title}</span>
         {facts.length > 0 && (
           <span className="mt-0.5 flex flex-wrap gap-x-2.5 gap-y-0.5 text-xs text-muted-foreground">
             {facts.map((f) =>

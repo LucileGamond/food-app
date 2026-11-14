@@ -25,7 +25,7 @@ export function CurrentStepCard({ step, number, total, issues, knitTo, setupTo }
   if (!step) {
     return (
       <section role="status" className="rounded-2xl border border-brand/40 bg-brand/5 p-4">
-        <p className="flex items-center gap-2 font-semibold">
+        <p className="flex items-center gap-2 knit-name">
           <PartyPopper className="size-5 text-brand" aria-hidden /> {total ? 'Projet terminé' : 'Aucune étape à tricoter'}
         </p>
       </section>

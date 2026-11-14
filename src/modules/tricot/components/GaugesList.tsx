@@ -158,7 +158,7 @@ export function GaugesList({ gauges, needles, onSave, openFor, onOpened }: Props
           {gauges.map((gauge) => (
             <li key={String(gauge.needle)} className="flex items-center gap-2 py-1 first:pt-0 last:pb-0">
               <p className="min-w-0 flex-1 text-sm">
-                <span className="block font-medium">{gaugeName(gauge.needle)}</span>
+                <span className="block knit-name">{gaugeName(gauge.needle)}</span>
                 <span className="text-muted-foreground">{formatGaugeCounts(gauge) ?? 'rien de noté'}</span>
               </p>
               <Button variant="ghost" size="icon-touch" aria-label={`Modifier l’échantillon : ${gaugeName(gauge.needle)}`} onClick={() => setEditing({ gauge })}>

@@ -169,7 +169,7 @@ export function ChartFullscreen({ chart, position, open, onOpenChange, counter }
               <Minus />
             </Button>
             <p className="min-w-0 flex-1 text-center text-sm text-muted-foreground">
-              <span className="text-2xl font-semibold text-foreground tabular-nums">{counter.rowCount}</span> rangs faits
+              <span className="knit-name text-2xl text-foreground tabular-nums">{counter.rowCount}</span> rangs faits
             </p>
             <Button className="h-12 px-6" onClick={() => counter.onCount(1)}>
               <Plus />

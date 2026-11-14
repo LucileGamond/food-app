@@ -86,7 +86,7 @@ export function BatchPdfImport({ library, onDone }: Props) {
               <li key={row.key} className="flex items-start gap-2 text-sm">
                 <StatusIcon status={row.status} />
                 <span className="min-w-0 flex-1">
-                  <span className="block truncate font-medium">{row.title}</span>
+                  <span className="block truncate knit-name">{row.title}</span>
                   <span className={row.status === 'failed' ? 'block text-destructive' : 'block text-muted-foreground'}>{row.status === 'failed' ? row.error : STATUS_TEXT[row.status]}</span>
                 </span>
               </li>

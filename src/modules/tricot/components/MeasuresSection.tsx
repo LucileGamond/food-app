@@ -140,7 +140,7 @@ export function MeasuresSection() {
             {list.data.map((profile) => (
               <li key={profile.id} className="flex items-start gap-2 rounded-2xl border bg-background p-4 shadow-xs">
                 <p className="min-w-0 flex-1 text-sm">
-                  <span className="block font-medium">{profile.name}</span>
+                  <span className="block knit-name">{profile.name}</span>
                   <span className="text-muted-foreground">{describeProfile(profile)}</span>
                 </p>
                 <Button variant="ghost" size="icon-touch" aria-label={`Modifier la fiche de ${profile.name}`} onClick={() => setEditing(profile)}>

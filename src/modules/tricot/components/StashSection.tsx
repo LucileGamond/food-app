@@ -73,7 +73,7 @@ function MatchDialog({ item, patterns, onOpenChange }: { item: StashItem | null;
                 <li key={pattern.id}>
                   <Link to={`/tricot/patrons/${pattern.id}`} className="flex items-center gap-3 rounded-xl border p-3 hover:bg-muted/50 focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none">
                     <span className="min-w-0 flex-1 text-sm">
-                      <span className="block font-medium">{pattern.title}</span>
+                      <span className="block knit-name">{pattern.title}</span>
                       <span className="text-muted-foreground">{reasons.join(' · ')}</span>
                     </span>
                     <ChevronRight className="size-4 shrink-0 text-muted-foreground" aria-hidden />
@@ -102,7 +102,7 @@ function MatchDialog({ item, patterns, onOpenChange }: { item: StashItem | null;
             <ul aria-label="Idées de modèles" className="space-y-2">
               {ideas.map((idea) => (
                 <li key={idea.title} className="rounded-xl border p-3 text-sm">
-                  <p className="font-medium">{idea.title}</p>
+                  <p className="knit-name">{idea.title}</p>
                   <p className="text-muted-foreground">
                     {[idea.why, idea.meters !== null && `≈ ${idea.meters} m`, idea.needleMm !== null && `aiguilles ${String(idea.needleMm).replace('.', ',')} mm`].filter(Boolean).join(' · ')}
                   </p>

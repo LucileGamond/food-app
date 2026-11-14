@@ -33,7 +33,7 @@ function ProjectRow({ p }: { p: KnitProjectSummary }) {
     <li className="flex items-center gap-2">
       <Link to={`/tricot/${p.id}`} className={cn(ROW_LINK, '-mx-1 px-1 hover:bg-muted/50')}>
         <span className="min-w-0 flex-1">
-          <span className="block truncate font-medium">{p.title}</span>
+          <span className="block truncate knit-name">{p.title}</span>
           <span className="block truncate text-xs text-muted-foreground tabular-nums">{projectProgress(p)}</span>
           {p.current && p.current.totalRows !== null && (
             <YarnGauge done={p.current.rowCount} total={p.current.totalRows} hues={p.hues} seed={seedOf(p.id)} className="mt-1.5 max-h-7 max-w-64" />
@@ -57,7 +57,7 @@ function Entry({ to, icon: Icon, title, summary }: { to: string; icon: LucideIco
       <Link to={to} className={ROW_LINK}>
         <Icon className="size-5 shrink-0 text-muted-foreground" aria-hidden />
         <span className="min-w-0 flex-1">
-          <span className="block font-medium">{title}</span>
+          <span className="block knit-name">{title}</span>
           {summary && <span className="block truncate text-xs text-muted-foreground">{summary}</span>}
         </span>
         <ChevronRight className="size-4 shrink-0 text-muted-foreground" aria-hidden />

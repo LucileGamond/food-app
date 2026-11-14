@@ -20,7 +20,7 @@ export function StepDone({ done, next, passDone, projectTo, onFinish }: Props) {
   if (done && next === null) {
     return (
       <section role="status" className="space-y-3 rounded-2xl border border-brand/40 bg-brand/5 p-4">
-        <p className="flex items-center gap-2 text-xl font-semibold">
+        <p className="flex items-center gap-2 knit-name text-xl">
           <PartyPopper className="size-5 text-brand" aria-hidden /> Projet terminé
         </p>
         <Link to={projectTo} className={cn(buttonVariants({ variant: 'outline' }), 'h-10')}>
@@ -32,7 +32,7 @@ export function StepDone({ done, next, passDone, projectTo, onFinish }: Props) {
   if (!done && passDone !== null) {
     return (
       <section role="status" className="space-y-3 rounded-2xl border border-brand/40 bg-brand/5 p-4">
-        <p className="text-xl font-semibold">Tous les rangs de la {ordinal(passDone)} fois sont faits</p>
+        <p className="knit-name text-xl">Tous les rangs de la {ordinal(passDone)} fois sont faits</p>
         <Button className="h-12 px-5" onClick={onFinish}>
           <RotateCcw /> Commencer la {ordinal(passDone + 1)} fois
         </Button>
@@ -41,7 +41,7 @@ export function StepDone({ done, next, passDone, projectTo, onFinish }: Props) {
   }
   return (
     <section role="status" className="space-y-3 rounded-2xl border border-brand/40 bg-brand/5 p-4">
-      <p className="text-xl font-semibold">{done ? 'Étape terminée' : 'Tous les rangs de l’étape sont faits'}</p>
+      <p className="knit-name text-xl">{done ? 'Étape terminée' : 'Tous les rangs de l’étape sont faits'}</p>
       {!done && (
         <Button className="h-12 px-5" onClick={onFinish}>
           <Check /> Terminer l’étape

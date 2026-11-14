@@ -148,7 +148,7 @@ export function SizeAdvice({ chart, sizes, readIndex, onReread, rereading }: Pro
         <div role="status" className="rounded-xl bg-muted/50 p-3 text-sm">
           {advice.kind === 'size' ? (
             <>
-              <p className="font-medium">Taille conseillée : {sizes[advice.index]}</p>
+              <p className="knit-name">Taille conseillée : {sizes[advice.index]}</p>
               <p className="text-muted-foreground">{describeAdvice(advice, sizes, chart)}</p>
             </>
           ) : advice.kind === 'no-match' ? (

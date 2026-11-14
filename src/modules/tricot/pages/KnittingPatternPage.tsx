@@ -124,7 +124,7 @@ function PatternSheet({ pattern }: { pattern: KnitPattern }) {
                 <li key={p.id}>
                   <Link to={`/tricot/${p.id}`} className="flex items-center gap-3 rounded-2xl border bg-background p-3 shadow-xs hover:bg-muted/50 focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none">
                     <span className="min-w-0 flex-1">
-                      <span className="block truncate font-medium">{p.title}</span>
+                      <span className="block truncate knit-name">{p.title}</span>
                       <span className="block text-sm text-muted-foreground">Taille {p.size}</span>
                     </span>
                     <ChevronRight className="size-4 shrink-0 text-muted-foreground" aria-hidden />

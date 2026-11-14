@@ -237,3 +237,12 @@
     letter-spacing: -0.005em;
   }
 }
+/* Règle typographique du module Tricot : Fraunces nomme les choses du tricot (titres, noms de projet, patron, étape,
+   laine, échantillon, fiche de mesures, grands nombres, moments comme « Étape terminée ») ; Geist fait fonctionner
+   l'interface (boutons, libellés, aides, métadonnées, badges, texte du patron). Un seul moyen : la classe knit-name. */
+@utility knit-name {
+  font-family: var(--font-tricot);
+  font-variation-settings: 'SOFT' 100, 'WONK' 0;
+  font-weight: 600;
+  letter-spacing: -0.005em;
+}

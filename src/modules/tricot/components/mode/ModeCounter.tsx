@@ -51,7 +51,7 @@ export function ModeCounter({ rowCount, totalRows, onCount, substeps = [], onFin
           <Minus />
         </Button>
         <p className="min-w-0 flex-1 text-center" aria-live="polite">
-          <span className="text-3xl font-semibold tabular-nums">{knitted}</span>
+          <span className="knit-name text-3xl tabular-nums">{knitted}</span>
           <span className="text-sm text-muted-foreground tabular-nums">{total === null ? ' rangs faits' : ` sur ${total} rangs`}</span>
         </p>
         <Button className="h-14 px-6 text-base" disabled={rowCount >= MAX_ROW_COUNT} onClick={() => onCount(1)}>
