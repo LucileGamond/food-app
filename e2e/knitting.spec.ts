@@ -37,9 +37,9 @@ test('charge un patron PDF pour une taille, compte les rangs et retrouve son ava
   await page.getByRole('link', { name: 'Réglages' }).filter({ visible: true }).click()
   await page.getByRole('checkbox', { name: 'Tricot' }).click()
   await openNavPage(page, 'Tricot')
-  await expect(page.getByText('Aucun projet')).toBeVisible()
+  await expect(page.getByText('Aucun projet en cours.')).toBeVisible()
 
-  await page.getByRole('link', { name: 'Nouveau projet' }).first().click()
+  await page.getByRole('link', { name: 'Nouveau projet' }).click()
   await page.getByLabel('Patron (PDF)').setInputFiles({ name: 'bergamote.pdf', mimeType: 'application/pdf', buffer: Buffer.from('%PDF-1.4\n%fin') })
   await page.getByLabel('Taille', { exact: true }).fill('M')
   await page.getByRole('button', { name: 'Lire le patron' }).click()
@@ -121,7 +121,7 @@ test('charge un patron PDF pour une taille, compte les rangs et retrouve son ava
   await page.getByRole('link', { name: /^Pull Bergamote/ }).click()
   await page.getByRole('button', { name: 'Supprimer le projet' }).click()
   await page.getByRole('button', { name: 'Supprimer', exact: true }).click()
-  await expect(page.getByText('Aucun projet')).toBeVisible()
+  await expect(page.getByText('Aucun projet en cours.')).toBeVisible()
 })
 
 test('ajoute un patron à la bibliothèque, le commence, puis note la laine (étiquette) et son échantillon', async ({ page }) => {
@@ -335,8 +335,9 @@ test('stock de laine : quel patron pour ma laine (la bibliothèque d’abord, pu
   await login(page)
   await openNavPage(page, 'Tricot')
 
-  // Laine ajoutée au stock
-  const stash = page.getByRole('region', { name: 'Stock de laine' })
+  // Laine ajoutée au stock, sur sa page
+  await page.getByRole('link', { name: /Stock de laine/ }).click()
+  const stash = page.getByRole('main')
   await stash.getByRole('button', { name: 'Ajouter au stock' }).click()
   const dialog = page.getByRole('dialog', { name: 'Ajouter au stock' })
   await dialog.getByLabel('Marque').fill('DROPS')

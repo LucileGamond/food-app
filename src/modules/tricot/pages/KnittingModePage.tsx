@@ -9,7 +9,6 @@ import { EmptyState } from '@/components/EmptyState'
 import { LoadError } from '@/components/LoadError'
 import { ScreenAwakeToggle } from '@/components/ScreenAwakeToggle'
 import { Button, buttonVariants } from '@/components/ui/button'
-import { Skeleton } from '@/components/ui/skeleton'
 import { useScreenAwake } from '@/hooks/useWakeLock'
 import { cn } from '@/lib/utils'
 import { ChartFullscreen } from '../components/ChartImage'
@@ -35,6 +34,7 @@ import { stitchTrack } from '../lib/stitches'
 import { describePass, finishPass, hasNextPass, ordinal } from '../lib/passes'
 import { currentStepIndex, type KnitProject } from '../lib/pattern'
 import { finishSubstep, substepCounts, type SubstepCount } from '../lib/substeps'
+import { Loading } from '../components/Loading'
 
 /**
  * Mode tricoter : plein écran, écran allumé. Le rang à tricoter (tout ce qu'il demande), ce qui arrive ensuite et le
@@ -62,10 +62,7 @@ function KnittingMode({ id }: { id: string }) {
   if (knit.loadError) return shell(<LoadError message={knit.loadError} onRetry={() => void knit.reload()} />)
   if (knit.loading) {
     return shell(
-      <div className="space-y-3" aria-busy="true" aria-label="Chargement du projet">
-        <Skeleton className="h-32 rounded-2xl" />
-        <Skeleton className="h-48 rounded-2xl" />
-      </div>,
+      <Loading label="Chargement du projet" />,
     )
   }
   if (!knit.project || knit.project.steps.length === 0) {

@@ -1,4 +1,4 @@
-import { cleanup, screen, waitFor, within } from '@testing-library/react'
+import { cleanup, fireEvent, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { Route } from 'react-router-dom'
 import { fakeApi, renderWithApp } from '@/test/fakes'
@@ -8,6 +8,7 @@ import { EMPTY_YARN, type StashItem } from '../lib/yarn'
 import type { KnitPattern } from '../lib/library'
 import { KnittingImportPage } from './KnittingImportPage'
 import { KnittingPage } from './KnittingPage'
+import { KnittingStashPage } from './KnittingStashPage'
 import { KnittingProjectPage } from './KnittingProjectPage'
 
 const step = (overrides: Partial<KnitStep>): KnitStep => ({
@@ -27,6 +28,12 @@ const step = (overrides: Partial<KnitStep>): KnitStep => ({
   translation: null,
   ...overrides,
 })
+
+/** Ouvre un bloc repliable (tous fermés par défaut) s'il ne l'est pas déjà. */
+async function unfold(name: string) {
+  const button = await screen.findByRole('button', { name })
+  if (button.getAttribute('aria-expanded') === 'false') fireEvent.click(button)
+}
 
 const PROJECT: KnitProject = {
   charts: [],
@@ -72,7 +79,8 @@ const PATTERN: ReadPattern = {
 beforeEach(() => localStorage.clear())
 
 describe('KnittingPage', () => {
-  it('liste les projets avec l’étape en cours, et tricote d’un toucher', async () => {
+  it('projets en cours dans un bloc déplié : où ils en sont, et Tricoter d’un toucher ; les terminés à part', async () => {
+    const user = userEvent.setup()
     const api = fakeApi()
     api.knitting.listProjects.mockResolvedValue([
       { id: 'p1', title: 'Pull Bergamote', size: 'M', updatedAt: '', stepsDone: 1, stepsTotal: 3, current: { number: 2, title: 'Manches', rowCount: 12, totalRows: 40, times: 2, pass: 1 } },
@@ -80,38 +88,49 @@ describe('KnittingPage', () => {
       { id: 'p3', title: 'Châle', size: 'Unique', updatedAt: '', stepsDone: 0, stepsTotal: 1, current: { number: 1, title: 'Bordure', rowCount: 1, totalRows: null, times: 1, pass: 1 } },
     ])
     renderWithApp(<KnittingPage />, { api })
-    const list = await screen.findByRole('list', { name: 'Projets de tricot' })
+    expect(await screen.findByRole('button', { name: 'Projets en cours' })).toHaveAttribute('aria-expanded', 'true')
+    const list = await screen.findByRole('list', { name: 'Projets en cours' })
+    expect(within(list).getAllByRole('listitem')).toHaveLength(2)
     expect(within(list).getByRole('link', { name: /^Pull Bergamote/ })).toHaveAttribute('href', '/tricot/p1')
-    expect(within(list).getByText('Taille M · étape 2 sur 3 : Manches')).toBeInTheDocument()
-    expect(within(list).getByText('12 / 40 rangs · 1re fois sur 2')).toBeInTheDocument()
+    expect(within(list).getByText('Étape 2 sur 3 · 12 / 40 rangs · 1re fois sur 2')).toBeInTheDocument()
     expect(within(list).getByRole('link', { name: 'Tricoter « Pull Bergamote »' })).toHaveAttribute('href', '/tricot/p1/tricoter')
-    // Projet fini : pas de bouton Tricoter
-    expect(within(list).getByText('Taille 4 ans · terminé')).toBeInTheDocument()
-    expect(within(list).queryByRole('link', { name: 'Tricoter « Bonnet »' })).not.toBeInTheDocument()
     // Rangs de l'étape inconnus (ou patron adapté suivi) : seulement les rangs faits
-    expect(within(list).getByText('1 rang')).toBeInTheDocument()
+    expect(within(list).getByText('Étape 1 sur 1 · 1 rang')).toBeInTheDocument()
+    // Projet fini : à part, replié, sans bouton Tricoter
+    expect(within(list).queryByText('Bonnet')).not.toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'Terminés (1)' }))
+    const done = screen.getByRole('list', { name: 'Projets terminés' })
+    expect(within(done).getByText('Terminé')).toBeInTheDocument()
+    expect(within(done).queryByRole('link', { name: 'Tricoter « Bonnet »' })).not.toBeInTheDocument()
   })
 
-  it('range la bibliothèque juste sous les projets, puis le stock et les mesures', async () => {
-    renderWithApp(<KnittingPage />, { api: fakeApi() })
-    const library = await screen.findByRole('link', { name: /Bibliothèque de patrons/ })
-    expect(library).toHaveAttribute('href', '/tricot/patrons')
-    const headings = await screen.findAllByRole('heading', { level: 2 })
-    const stock = headings.find((h) => h.textContent === 'Stock de laine')!
-    expect(library.compareDocumentPosition(stock) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
-    const titles = headings.map((h) => h.textContent)
-    expect(titles.indexOf('Stock de laine')).toBeLessThan(titles.indexOf('Fiches de mesures'))
+  it('« + » pour un nouveau projet, sans explication ici ; puis bibliothèque, stock et mesures, chacun sur sa page', async () => {
+    const api = fakeApi()
+    api.knitting.listStash.mockResolvedValue([{ id: 'y1', yarn: { brand: 'DROPS', name: 'Merino', color: null, dye_lot: null, composition: null, weight_g: null, length_m: null, skeins: null, needle_mm: null }, notes: '', createdAt: '2026-11-01' }])
+    renderWithApp(<KnittingPage />, { api })
+    expect(await screen.findByRole('link', { name: 'Nouveau projet' })).toHaveAttribute('href', '/tricot/nouveau')
+    expect(screen.queryByText(/découpé en étapes/)).not.toBeInTheDocument()
+    const others = screen.getByRole('navigation', { name: 'Le reste du tricot' })
+    expect(within(others).getAllByRole('link').map((l) => l.getAttribute('href'))).toEqual(['/tricot/patrons', '/tricot/laine', '/tricot/mesures'])
+    expect(await within(others).findByRole('link', { name: /Stock de laine/ })).toHaveTextContent('1 laine')
+    expect(within(others).getByRole('link', { name: /Fiches de mesures/ })).toHaveTextContent('aucune')
   })
 
-  it('invite à charger un premier patron, et propose de réessayer en cas d’erreur', async () => {
+  it('aucun projet en cours ; une erreur se réessaie', async () => {
     const user = userEvent.setup()
     const api = fakeApi()
     api.knitting.listProjects.mockRejectedValueOnce(new Error('réseau'))
     renderWithApp(<KnittingPage />, { api })
     expect(await screen.findByRole('alert')).toHaveTextContent('Une erreur est survenue.')
     await user.click(screen.getByRole('button', { name: 'Réessayer' }))
-    expect(await screen.findByText('Aucun projet')).toBeInTheDocument()
-    expect(screen.getAllByRole('link', { name: 'Nouveau projet' })[0]).toHaveAttribute('href', '/tricot/nouveau')
+    expect(await screen.findByText('Aucun projet en cours.')).toBeInTheDocument()
+  })
+
+  it('chargement : un spinner nommé', async () => {
+    const api = fakeApi()
+    api.knitting.listProjects.mockReturnValue(new Promise(() => {}))
+    renderWithApp(<KnittingPage />, { api })
+    expect(await screen.findByRole('status', { name: 'Chargement des projets' })).toBeInTheDocument()
   })
 })
 
@@ -126,6 +145,16 @@ describe('KnittingImportPage', () => {
       extraRoutes: <Route path="/tricot/:id" element={<p>Projet ouvert</p>} />,
     })
   }
+
+  it('nouveau projet : explique ce qui va se passer (rangé dans la bibliothèque, puis lu et découpé)', async () => {
+    renderImport()
+    const note = await screen.findByRole('note', { name: 'Ce qui va se passer' })
+    expect(within(note).getAllByRole('listitem').map((li) => li.textContent)).toEqual([
+      'Le patron est rangé dans ta bibliothèque, pour le retrouver ou le refaire.',
+      'L’IA lit le patron pour ta taille et le découpe en étapes et sous-étapes (quelques centimes ; rien si cette taille est déjà lue).',
+      'Tu vérifies les étapes lues, puis tu enregistres le projet.',
+    ])
+  })
 
   it('lit le patron pour la taille choisie, montre les étapes puis enregistre le projet', async () => {
     const user = userEvent.setup()
@@ -331,6 +360,9 @@ describe('KnittingProjectPage', () => {
     // Projet commencé et étape en cours prête : il s'ouvre sur « Tricoter »
     renderProject(fakeApi(), PROJECT, OVERVIEW)
     expect(await screen.findByRole('tab', { name: /3. Tricoter/, selected: true })).toBeInTheDocument()
+    // Deux lignes par onglet (temps + état) : la barre grandit au lieu de laisser le texte déborder
+    expect(screen.getByRole('tablist', { name: 'Temps du projet' })).toHaveClass('group-data-horizontal/tabs:h-auto')
+    for (const tab of screen.getAllByRole('tab')) expect(tab).toHaveClass('h-auto', 'whitespace-normal')
     expect(screen.getByRole('heading', { name: 'Emmanchures' })).toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'Tricoter' })).toHaveAttribute('href', '/tricot/p1/tricoter')
     // Pas d'interrupteur d'écran ni de compteur ici ; le suivi est replié.
@@ -340,10 +372,12 @@ describe('KnittingProjectPage', () => {
       expect(screen.getByRole('button', { name: title })).toHaveAttribute('aria-expanded', 'false')
     }
 
-    // Démarrer : le matériel, la laine ouverte d'office
+    // Démarrer : le matériel, en blocs repliés comme partout
     await user.click(screen.getByRole('tab', { name: /1. Démarrer/ }))
     expect(await screen.findByRole('region', { name: 'Laine et échantillon' })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Laine et échantillon' })).toHaveAttribute('aria-expanded', 'true')
+    expect(screen.getByRole('button', { name: 'Laine et échantillon' })).toHaveAttribute('aria-expanded', 'false')
+    expect(screen.getByRole('button', { name: 'Taille et aiguilles' })).toHaveAttribute('aria-expanded', 'false')
+    expect(screen.getByRole('region', { name: 'Taille et aiguilles' })).toHaveTextContent('Taille M · aiguilles à indiquer')
     expect(screen.getByRole('button', { name: 'Patron adapté à moi' })).toHaveAttribute('aria-expanded', 'false')
 
     // Préparer : les étapes, qui s'ouvrent une par une
@@ -450,6 +484,7 @@ describe('KnittingProjectPage', () => {
   it('aiguilles du patron : indiquées dans « Démarrer »', async () => {
     const user = userEvent.setup()
     const { api } = renderProject(fakeApi(), PROJECT, START)
+    await unfold('Taille et aiguilles')
     expect(await screen.findByText('aucune : indique-les pour que chaque sous-étape choisisse la sienne')).toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: 'Modifier les aiguilles du patron' }))
     const form = screen.getByRole('form', { name: 'Aiguilles du patron' })
@@ -467,6 +502,7 @@ describe('KnittingProjectPage', () => {
     const api = fakeApi()
     api.knitting.saveNeedles.mockRejectedValueOnce(new Error('réseau'))
     renderProject(api, PROJECT, START)
+    await unfold('Taille et aiguilles')
     await user.click(await screen.findByRole('button', { name: 'Modifier les aiguilles du patron' }))
     const form = screen.getByRole('form', { name: 'Aiguilles du patron' })
     await user.type(within(form).getByLabelText('Aiguilles du patron (mm)'), '3 ; 3,5')
@@ -612,6 +648,7 @@ describe('KnittingProjectPage', () => {
     const user = userEvent.setup()
     const project = { ...structuredClone(PROJECT), needles: [3, 3.5], gauges: [{ needle: 3.5, stitches: 22, rows: 30, checked: true }] }
     const { api } = renderProject(fakeApi(), project, START)
+    await unfold('Laine et échantillon')
     const list = await screen.findByRole('region', { name: 'Mes échantillons' })
     expect(within(list).getByText('Aiguille 3,5 mm')).toBeInTheDocument()
     expect(within(list).getByText('22 m. × 30 rangs pour 10 cm')).toBeInTheDocument()
@@ -629,6 +666,7 @@ describe('KnittingProjectPage', () => {
     const user = userEvent.setup()
     const project = { ...structuredClone(PROJECT), needles: [3, 3.5], gauges: [{ needle: 3.5, stitches: 22, rows: 30, checked: false }] }
     const { api } = renderProject(fakeApi(), project, START)
+    await unfold('Laine et échantillon')
     await user.click(await screen.findByRole('button', { name: 'Ajouter un échantillon' }))
     const form = await screen.findByRole('form', { name: 'Échantillon' })
     // L'aiguille déjà notée n'est plus proposée
@@ -651,6 +689,7 @@ describe('KnittingProjectPage', () => {
     const user = userEvent.setup()
     const project = { ...structuredClone(PROJECT), needles: [3, 3.5], gauges: [] }
     const { api } = renderProject(fakeApi(), project, START)
+    await unfold('Laine et échantillon')
     await user.click(await screen.findByRole('button', { name: 'Ajouter un échantillon' }))
     const form = await screen.findByRole('form', { name: 'Échantillon' })
     // Elle tricote trop serré : son échantillon est sur une aiguille que le patron ne conseille pas
@@ -665,6 +704,7 @@ describe('KnittingProjectPage', () => {
   it('mes échantillons : une taille d’aiguille illisible est refusée', async () => {
     const user = userEvent.setup()
     renderProject(fakeApi(), { ...structuredClone(PROJECT), needles: [3] }, START)
+    await unfold('Laine et échantillon')
     await user.click(await screen.findByRole('button', { name: 'Ajouter un échantillon' }))
     const form = await screen.findByRole('form', { name: 'Échantillon' })
     await user.selectOptions(within(form).getByLabelText('Aiguille'), 'Une autre aiguille…')
@@ -677,6 +717,7 @@ describe('KnittingProjectPage', () => {
   it('mes échantillons : sans rien de noté, la saisie est refusée', async () => {
     const user = userEvent.setup()
     renderProject(fakeApi(), { ...structuredClone(PROJECT), needles: [3] }, START)
+    await unfold('Laine et échantillon')
     await user.click(await screen.findByRole('button', { name: 'Ajouter un échantillon' }))
     const form = await screen.findByRole('form', { name: 'Échantillon' })
     await user.click(within(form).getByRole('button', { name: 'Enregistrer' }))
@@ -1026,7 +1067,7 @@ describe('KnittingProjectPage', () => {
       yarnChecks: [{ yarn: 0, grams: 220, rowsDone: 10, at: '2026-11-10T09:00:00.000Z' }],
     }
     renderProject(fakeApi(), project, START)
-    // Démarrer : la laine est ouverte, le patron adapté replié avec son résumé
+    // Démarrer : tout est replié, avec son résumé
     const adapt = await screen.findByRole('button', { name: 'Patron adapté à moi' })
     expect(adapt).toHaveAttribute('aria-expanded', 'false')
     expect(screen.getByRole('region', { name: 'Patron adapté à moi' })).toHaveTextContent('pas encore adapté')
@@ -1034,7 +1075,6 @@ describe('KnittingProjectPage', () => {
     expect(adapt).toHaveAttribute('aria-expanded', 'true')
     expect(screen.getByRole('region', { name: 'Patron adapté à moi' })).not.toHaveTextContent('pas encore adapté')
     // Replié, chaque bloc dit ce qu'il contient
-    await user.click(screen.getByRole('button', { name: 'Laine et échantillon' }))
     expect(screen.getByRole('region', { name: 'Laine et échantillon' })).toHaveTextContent('1 laine · 1 échantillon')
     await user.click(screen.getByRole('tab', { name: /3. Tricoter/ }))
     expect(await screen.findByRole('region', { name: 'Assez de laine pour finir ?' })).toHaveTextContent('pesée le 10/11')
@@ -1106,6 +1146,7 @@ describe('laine et échantillon du projet', () => {
     api.knitting.getProject.mockResolvedValue(structuredClone(project))
     const result = renderWithApp(<KnittingProjectPage />, { api, route: START, path: '/tricot/:id' })
     await screen.findByRole('region', { name: 'Laine et échantillon' })
+    await unfold('Laine et échantillon')
     return result
   }
 
@@ -1208,6 +1249,7 @@ describe('laine et échantillon du projet', () => {
     expect(screen.queryByText(/rangs avec ton échantillon/)).not.toBeInTheDocument()
     await user.click(screen.getByRole('link', { name: 'Pull Bergamote' }))
     await user.click(await screen.findByRole('tab', { name: /1. Démarrer/ }))
+    await unfold('Laine et échantillon')
 
     // Son échantillon se modifie dans la liste ; celui du patron a son propre formulaire
     const list = screen.getByRole('region', { name: 'Mes échantillons' })
@@ -1434,9 +1476,11 @@ describe('stock de laine', () => {
   it('ajoute, modifie et retire une laine du stock', async () => {
     const user = userEvent.setup()
     const api = fakeApi()
-    renderWithApp(<KnittingPage />, { api })
-    const section = await screen.findByRole('region', { name: 'Stock de laine' })
-    // Stock vide : le message se voit même replié
+    renderWithApp(<KnittingStashPage />, { api })
+    await screen.findByRole('heading', { name: 'Stock de laine', level: 1 })
+    expect(screen.getByRole('link', { name: 'Tricot' })).toHaveAttribute('href', '/tricot')
+    const section = document.body
+    // Stock vide : le message le dit
     expect(await within(section).findByText(/Aucune laine en stock/)).toBeInTheDocument()
     await user.click(within(section).getByRole('button', { name: 'Ajouter au stock' }))
     let dialog = await screen.findByRole('dialog', { name: 'Ajouter au stock' })
@@ -1451,11 +1495,7 @@ describe('stock de laine', () => {
     await user.click(within(await screen.findByRole('dialog')).getByRole('button', { name: 'Annuler' }))
     // Recharge avec la laine
     api.knitting.saveStashItem.mockClear()
-    renderWithApp(<KnittingPage />, { api })
-    // Replié par défaut, avec le nombre de laines
-    expect((await screen.findAllByText('1 laine'))[0]).toBeInTheDocument()
-    expect(screen.queryByRole('list', { name: 'Stock de laine' })).not.toBeInTheDocument()
-    await user.click(screen.getAllByRole('button', { name: 'Stock de laine' }).at(-1)!)
+    renderWithApp(<KnittingStashPage />, { api })
     const list = await screen.findByRole('list', { name: 'Stock de laine' })
     await user.click(within(list).getByRole('button', { name: 'Modifier DROPS Merino' }))
     dialog = await screen.findByRole('dialog', { name: 'Modifier la laine' })
@@ -1486,8 +1526,7 @@ describe('stock de laine', () => {
         weight: 'worsted',
       },
     ])
-    renderWithApp(<KnittingPage />, { api })
-    await user.click(await screen.findByRole('button', { name: 'Stock de laine' }))
+    renderWithApp(<KnittingStashPage />, { api })
     await user.click(await screen.findByRole('button', { name: 'Quel patron pour DROPS Merino ?' }))
     const dialog = await screen.findByRole('dialog', { name: 'Quel patron pour cette laine ?' })
     expect(dialog).toHaveTextContent('DROPS Merino · 840 m en stock')
@@ -1515,8 +1554,7 @@ describe('stock de laine', () => {
     const api = fakeApi()
     api.knitting.listStash.mockResolvedValue(STASH)
     api.knitting.yarnIdeas.mockRejectedValue(new AppError('La recherche d’idées a échoué.'))
-    renderWithApp(<KnittingPage />, { api })
-    await user.click(await screen.findByRole('button', { name: 'Stock de laine' }))
+    renderWithApp(<KnittingStashPage />, { api })
     await user.click(await screen.findByRole('button', { name: 'Quel patron pour DROPS Merino ?' }))
     const dialog = await screen.findByRole('dialog')
     expect(dialog).toHaveTextContent('Aucun patron dans ta bibliothèque.')

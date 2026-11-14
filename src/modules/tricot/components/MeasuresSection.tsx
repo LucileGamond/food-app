@@ -11,10 +11,10 @@ import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Skeleton } from '@/components/ui/skeleton'
+import { PageHeader } from '@/components/PageHeader'
+import { Loading } from './Loading'
 import { useAsync } from '@/hooks/useAsync'
 import { describeProfile, MEASURE_KEYS, MEASURE_LABELS, parseMeasure, type MeasureKey, type MeasureProfile } from '../lib/sizing'
-import { Fold } from './Fold'
 
 type Fields = Record<MeasureKey, string>
 
@@ -95,14 +95,11 @@ export function MeasuresSection() {
   const list = useAsync(() => api.knitting.listMeasures(), [api])
   const [editing, setEditing] = useState<MeasureProfile | 'new' | null>(null)
   const [removing, setRemoving] = useState<MeasureProfile | null>(null)
-  const [open, setOpen] = useState(false)
-  const count = list.data?.length ?? 0
 
   async function save(name: string, measures: MeasureProfile['measures']): Promise<boolean> {
     try {
       await api.knitting.saveMeasures({ id: editing && editing !== 'new' ? editing.id : null, name, measures })
       list.reload()
-      setOpen(true)
       return true
     } catch (error) {
       toast.error(errorMessage(error))
@@ -121,25 +118,21 @@ export function MeasuresSection() {
   }
 
   return (
-    <Fold
-      id="knit-measures"
-      variant="section"
-      className="mt-8"
-      title="Fiches de mesures"
-      open={open}
-      onToggle={() => setOpen((o) => !o)}
-      summary={count > 0 ? `${count} fiche${count > 1 ? 's' : ''}` : 'aucune'}
-      action={
-        <Button variant="outline" className="h-10" onClick={() => setEditing('new')}>
-          <Plus /> Nouvelle fiche
-        </Button>
-      }
-    >
+    <>
+      <PageHeader
+        title="Fiches de mesures"
+        description="Tes mesures et celles de tes proches : la taille d’un patron se conseille d’après elles."
+        actions={
+          <Button className="h-10 px-4" onClick={() => setEditing('new')}>
+            <Plus /> Nouvelle fiche
+          </Button>
+        }
+      />
       <div>
         {list.error ? (
           <LoadError message={list.error} onRetry={list.reload} />
         ) : !list.data ? (
-          <Skeleton className="h-16 rounded-2xl" aria-busy="true" aria-label="Chargement des fiches de mesures" />
+          <Loading label="Chargement des fiches de mesures" />
         ) : list.data.length === 0 ? (
           <p className="text-sm text-muted-foreground">Aucune fiche : note tes mesures (et celles de tes proches pour un cadeau), l’appli conseillera la taille d’un patron.</p>
         ) : (
@@ -171,6 +164,6 @@ export function MeasuresSection() {
         confirmLabel="Supprimer"
         onConfirm={remove}
       />
-    </Fold>
+    </>
   )
 }

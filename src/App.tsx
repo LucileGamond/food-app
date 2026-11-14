@@ -37,6 +37,8 @@ const KnittingModePage = lazy(() => import('@/modules/tricot/pages/KnittingModeP
 const KnittingLibraryPage = lazy(() => import('@/modules/tricot/pages/KnittingLibraryPage').then((m) => ({ default: m.KnittingLibraryPage })))
 const KnittingPatternPage = lazy(() => import('@/modules/tricot/pages/KnittingPatternPage').then((m) => ({ default: m.KnittingPatternPage })))
 const KnittingPatternEditPage = lazy(() => import('@/modules/tricot/pages/KnittingPatternEditPage').then((m) => ({ default: m.KnittingPatternEditPage })))
+const KnittingStashPage = lazy(() => import('@/modules/tricot/pages/KnittingStashPage').then((m) => ({ default: m.KnittingStashPage })))
+const KnittingMeasuresPage = lazy(() => import('@/modules/tricot/pages/KnittingMeasuresPage').then((m) => ({ default: m.KnittingMeasuresPage })))
 // Module Plantes (indépendant de la cuisine, partagé par le foyer).
 const PlantsPage = lazy(() => import('@/modules/plantes/pages/PlantsPage').then((m) => ({ default: m.PlantsPage })))
 const PlantFormPage = lazy(() => import('@/modules/plantes/pages/PlantFormPage').then((m) => ({ default: m.PlantFormPage })))
@@ -106,6 +108,8 @@ export function App({ api, auth }: { api: Api; auth: AuthClient }) {
                 <Route path="/tricot/nouveau" element={<KnittingImportPage />} />
                 {/* Bibliothèque de patrons ; « Mettre un patron de côté » (ancienne adresse) y ajoute un patron. */}
                 <Route path="/tricot/patrons" element={<KnittingLibraryPage />} />
+                <Route path="/tricot/laine" element={<KnittingStashPage />} />
+                <Route path="/tricot/mesures" element={<KnittingMeasuresPage />} />
                 <Route path="/tricot/patrons/nouveau" element={<KnittingPatternEditPage />} />
                 <Route path="/tricot/patrons/:id" element={<KnittingPatternPage />} />
                 <Route path="/tricot/patrons/:id/modifier" element={<KnittingPatternEditPage />} />

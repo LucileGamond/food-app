@@ -10,12 +10,12 @@ import { useApi } from '@/app/ApiContext'
 import { ConfirmDialog } from '@/components/ConfirmDialog'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
-import { Skeleton } from '@/components/ui/skeleton'
+import { PageHeader } from '@/components/PageHeader'
+import { Loading } from './Loading'
 import { LoadError } from '@/components/LoadError'
 import { useAsync } from '@/hooks/useAsync'
 import { patternSearchUrl, siteOf, yarnDetails, yarnMeters, yarnTitle, type StashItem, type Yarn, type YarnIdea } from '../lib/yarn'
 import { matchPatterns, type KnitPattern } from '../lib/library'
-import { Fold } from './Fold'
 import { YarnDialog } from './YarnPanel'
 
 /** « Quel patron pour cette laine ? » : patrons de la bibliothèque qui conviennent, puis idées du modèle. */
@@ -150,15 +150,11 @@ export function StashSection({ patterns }: { patterns: KnitPattern[] }) {
   const [editing, setEditing] = useState<StashItem | 'new' | null>(null)
   const [removing, setRemoving] = useState<StashItem | null>(null)
   const [matching, setMatching] = useState<StashItem | null>(null)
-  // Replié par défaut ; ouvert après un ajout pour voir la laine ajoutée.
-  const [open, setOpen] = useState(false)
-  const count = stash.data?.length ?? 0
 
   async function save(yarn: Yarn): Promise<boolean> {
     try {
       await api.knitting.saveStashItem({ id: editing && editing !== 'new' ? editing.id : null, yarn, notes: editing && editing !== 'new' ? editing.notes : '' })
       stash.reload()
-      setOpen(true)
       return true
     } catch (error) {
       toast.error(errorMessage(error))
@@ -178,25 +174,21 @@ export function StashSection({ patterns }: { patterns: KnitPattern[] }) {
   }
 
   return (
-    <Fold
-      id="knit-stash"
-      variant="section"
-      className="mt-8"
-      title="Stock de laine"
-      open={open}
-      onToggle={() => setOpen((o) => !o)}
-      summary={count > 0 ? `${count} laine${count > 1 ? 's' : ''}` : 'vide'}
-      action={
-        <Button variant="outline" className="h-10" onClick={() => setEditing('new')}>
-          <Plus /> Ajouter au stock
-        </Button>
-      }
-    >
+    <>
+      <PageHeader
+        title="Stock de laine"
+        description="Tes pelotes, et les patrons qui leur conviennent."
+        actions={
+          <Button className="h-10 px-4" onClick={() => setEditing('new')}>
+            <Plus /> Ajouter au stock
+          </Button>
+        }
+      />
       <div>
         {stash.error ? (
           <LoadError message={stash.error} onRetry={stash.reload} />
         ) : !stash.data ? (
-          <Skeleton className="h-16 rounded-2xl" aria-busy="true" aria-label="Chargement du stock de laine" />
+          <Loading label="Chargement du stock de laine" />
         ) : stash.data.length === 0 ? (
           <p className="text-sm text-muted-foreground">Aucune laine en stock : note tes pelotes (la photo de l’étiquette suffit) pour savoir quoi en faire.</p>
         ) : (
@@ -240,6 +232,6 @@ export function StashSection({ patterns }: { patterns: KnitPattern[] }) {
         confirmLabel="Supprimer"
         onConfirm={remove}
       />
-    </Fold>
+    </>
   )
 }

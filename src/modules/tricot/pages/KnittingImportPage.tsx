@@ -302,6 +302,14 @@ export function KnittingImportPage() {
         title={fromLibrary ? `Commencer « ${source?.title ?? '…'} »` : 'Nouveau projet'}
         description="Le patron est découpé en étapes ; son texte est gardé tel quel, avec les nombres de ta taille mis en valeur."
       />
+      {/* Ce qui va se passer : expliqué ici seulement (l'accueil n'a qu'un « + »). */}
+      <Note title="Ce qui va se passer" className="mb-4 max-w-lg">
+        <ol className="list-inside list-decimal space-y-0.5">
+          {!fromLibrary && <li>Le patron est rangé dans ta bibliothèque, pour le retrouver ou le refaire.</li>}
+          <li>L’IA lit le patron pour ta taille et le découpe en étapes et sous-étapes (quelques centimes ; rien si cette taille est déjà lue).</li>
+          <li>Tu vérifies les étapes lues, puis tu enregistres le projet.</li>
+        </ol>
+      </Note>
       <form onSubmit={(e) => void read(e)} className="max-w-lg space-y-4" noValidate>
         {fromLibrary && !changingPdf ? libraryPdf : pdfField}
         <div className="grid gap-1.5">

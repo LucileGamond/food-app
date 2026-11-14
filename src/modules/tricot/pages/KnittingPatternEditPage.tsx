@@ -6,12 +6,12 @@ import { useApi } from '@/app/ApiContext'
 import { EmptyState } from '@/components/EmptyState'
 import { LoadError } from '@/components/LoadError'
 import { PageHeader } from '@/components/PageHeader'
-import { Skeleton } from '@/components/ui/skeleton'
 import { useAsync } from '@/hooks/useAsync'
 import { useLeaveWarning } from '@/hooks/useLeaveWarning'
 import { navState } from '@/lib/navState'
 import { BackLink } from '../components/BackLink'
 import { PatternForm } from '../components/PatternForm'
+import { Loading } from '../components/Loading'
 
 /** Ajout d'un patron à la bibliothèque (`/tricot/patrons/nouveau`) ou modification (`/tricot/patrons/:id/modifier`). */
 export function KnittingPatternEditPage() {
@@ -33,7 +33,7 @@ export function KnittingPatternEditPage() {
 
   const back = <BackLink to={id ? `/tricot/patrons/${id}` : '/tricot/patrons'} confirmLeave={changed}>{id ? 'Patron' : 'Bibliothèque'}</BackLink>
   if (existing.error) return <LoadError message={existing.error} onRetry={existing.reload} />
-  if (existing.data === undefined) return <Skeleton className="h-64 max-w-lg rounded-2xl" aria-busy="true" aria-label="Chargement du patron" />
+  if (existing.data === undefined) return <Loading label="Chargement du patron" />
   if (id && existing.data === null)
     return (
       <>

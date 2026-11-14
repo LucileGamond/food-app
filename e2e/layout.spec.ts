@@ -278,7 +278,7 @@ test('aucun écran ni aucune fenêtre ne déborde', async ({ page, isMobile }) =
 
   // Tricot
   await page.goto('/tricot')
-  await expect(page.getByRole('list', { name: 'Projets de tricot' })).toBeVisible()
+  await expect(page.getByRole('list', { name: 'Projets en cours' })).toBeVisible()
   await check(page, 'tricot')
   await page.goto(`/tricot/${knitting}?onglet=preparer`)
   await expect(page.getByRole('navigation', { name: 'Étapes' })).toBeVisible()

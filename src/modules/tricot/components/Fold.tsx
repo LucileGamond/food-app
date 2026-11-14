@@ -10,8 +10,11 @@ interface Props {
   summary?: ReactNode
   /** Bouton d'action à droite du titre (« Ajouter une laine »), toujours visible. */
   action?: ReactNode
-  /** « card » : carte d'un projet ; « section » : partie d'une page (titre plus grand, sans carte). */
-  variant?: 'card' | 'section'
+  /**
+   * « card » : carte d'un projet ; « section » : partie d'une page (titre plus grand, sans carte) ; « sub » : partie
+   * d'une carte (titre de la taille du texte, sans carte).
+   */
+  variant?: 'card' | 'section' | 'sub'
   defaultOpen?: boolean
   /** Ouverture gardée par la page (sinon elle l'est ici). */
   open?: boolean
@@ -34,7 +37,7 @@ export function Fold({ id, title, summary, action, variant = 'card', defaultOpen
       className={cn(variant === 'card' && 'rounded-2xl border bg-background p-4 shadow-xs sm:p-5', variant === 'section' && 'space-y-2', className)}
     >
       <div className="flex items-center gap-3">
-        <h2 id={id} className={cn('min-w-0 flex-1', variant === 'card' ? 'font-semibold' : 'text-lg font-semibold tracking-tight')}>
+        <h2 id={id} className={cn('min-w-0 flex-1', variant === 'section' ? 'text-lg font-semibold tracking-tight' : variant === 'sub' ? 'text-sm font-medium' : 'font-semibold')}>
           <button
             type="button"
             aria-expanded={isOpen}
@@ -50,7 +53,7 @@ export function Fold({ id, title, summary, action, variant = 'card', defaultOpen
       </div>
       {/* Le résumé a sa propre ligne : un bouton d'action ne doit jamais le rogner. */}
       {!isOpen && summary && <p className="mt-0.5 text-sm text-muted-foreground">{summary}</p>}
-      <div id={`${id}-content`} hidden={!isOpen} className={cn(variant === 'card' && 'mt-4 space-y-4', variant === 'section' && 'space-y-3')}>
+      <div id={`${id}-content`} hidden={!isOpen} className={cn(variant === 'card' && 'mt-4 space-y-4', variant === 'section' && 'space-y-3', variant === 'sub' && 'mt-1 space-y-2')}>
         {children}
       </div>
     </section>

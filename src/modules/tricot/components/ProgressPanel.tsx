@@ -12,7 +12,6 @@ import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Skeleton } from '@/components/ui/skeleton'
 import { Textarea } from '@/components/ui/textarea'
 import { useAsync } from '@/hooks/useAsync'
 import { useSignedUrls } from '@/hooks/useSignedUrls'
@@ -20,6 +19,7 @@ import { ACCEPTED_IMAGE_TYPES, compressImage } from '@/lib/image'
 import { CAPTION_MAX, describePhoto, PROJECT_NOTES_MAX, type ProgressPhoto } from '../lib/progress'
 import { Fold } from './Fold'
 import { SaveNote, useSaveNote } from './SaveNote'
+import { Loading } from './Loading'
 
 interface Props {
   projectId: string
@@ -127,7 +127,7 @@ export function ProgressPanel({ projectId, currentStepId, stepTitle }: Props) {
       {progress.error ? (
         <LoadError message={progress.error} onRetry={progress.reload} />
       ) : !progress.data ? (
-        <Skeleton className="h-24 rounded-xl" aria-busy="true" aria-label="Chargement des notes et photos" />
+        <Loading label="Chargement des notes et photos" className="flex justify-center py-4" />
       ) : (
         <>
           <div className="grid gap-1.5">

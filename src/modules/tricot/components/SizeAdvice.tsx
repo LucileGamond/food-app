@@ -87,8 +87,8 @@ export function SizeAdvice({ chart, sizes, readIndex, onReread, rereading }: Pro
       ) : profiles.data && list.length === 0 ? (
         <p className="text-sm text-muted-foreground">
           Aucune fiche de mesures : ajoute-la dans{' '}
-          <Link to="/tricot" className="font-medium text-foreground underline underline-offset-4">
-            Tricot › Fiches de mesures
+          <Link to="/tricot/mesures" className="font-medium text-foreground underline underline-offset-4">
+            Fiches de mesures
           </Link>{' '}
           pour qu’on te conseille une taille.
         </p>

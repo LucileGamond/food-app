@@ -9,13 +9,13 @@ import { EmptyState } from '@/components/EmptyState'
 import { LoadError } from '@/components/LoadError'
 import { Button, buttonVariants } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog'
-import { Skeleton } from '@/components/ui/skeleton'
 import { useAsync } from '@/hooks/useAsync'
 import { useSignedUrls } from '@/hooks/useSignedUrls'
 import { openInNewTab } from '@/lib/openInNewTab'
 import { cn } from '@/lib/utils'
 import { BackLink } from '../components/BackLink'
 import { PatternThumbs } from '../components/PatternThumbs'
+import { Loading } from '../components/Loading'
 import { PdfReader } from '../components/PdfReader'
 import { patternFacts, type KnitPattern } from '../lib/library'
 
@@ -28,10 +28,7 @@ export function KnittingPatternPage() {
   if (pattern.error) return <LoadError message={pattern.error} onRetry={pattern.reload} />
   if (pattern.data === undefined)
     return (
-      <div className="space-y-3" aria-busy="true" aria-label="Chargement du patron">
-        <Skeleton className="h-8 w-2/3" />
-        <Skeleton className="h-24 rounded-2xl" />
-      </div>
+      <Loading label="Chargement du patron" />
     )
   if (pattern.data === null)
     return (

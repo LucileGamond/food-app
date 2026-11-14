@@ -9,6 +9,7 @@ import type { KnitPattern, PatternLink } from '../lib/library'
 import { MAX_PDF_BYTES } from '../lib/pattern'
 import { KnittingLibraryPage } from './KnittingLibraryPage'
 import { KnittingPage } from './KnittingPage'
+import { KnittingStashPage } from './KnittingStashPage'
 import { KnittingPatternEditPage } from './KnittingPatternEditPage'
 import { KnittingPatternPage } from './KnittingPatternPage'
 
@@ -63,14 +64,9 @@ describe('page Tricot : accès à la bibliothèque', () => {
     expect(await within(link).findByText('3 patrons · 1 tricoté')).toBeInTheDocument()
   })
 
-  it('met un patron de côté depuis la page Tricot, sans traverser la bibliothèque', async () => {
-    renderWithApp(<KnittingPage />, { api: fakeApi() })
-    expect(await screen.findByRole('link', { name: 'Ajouter un patron' })).toHaveAttribute('href', '/tricot/patrons/nouveau')
-  })
-
-  it('bibliothèque vide : invite à y garder des patrons', async () => {
+  it('bibliothèque vide : « aucun patron »', async () => {
     renderWithApp(<KnittingPage />)
-    expect(await screen.findByText('Garde ici les patrons qui te font envie')).toBeInTheDocument()
+    expect(await screen.findByRole('link', { name: /Bibliothèque de patrons/ })).toHaveTextContent('aucun patron')
   })
 })
 
@@ -452,8 +448,7 @@ describe('stock de laine et bibliothèque', () => {
     const stash: StashItem[] = [{ id: 'st1', yarn: { ...EMPTY_YARN, brand: 'DROPS', name: 'Merino', length_m: 105, skeins: 8, needle_mm: 4 }, notes: '', createdAt: '2026-11-01' }]
     api.knitting.listStash.mockResolvedValue(stash)
     api.knitting.listPatterns.mockResolvedValue([GILET, PULL])
-    renderWithApp(<KnittingPage />, { api })
-    await user.click(await screen.findByRole('button', { name: 'Stock de laine' }))
+    renderWithApp(<KnittingStashPage />, { api })
     await user.click(await screen.findByRole('button', { name: 'Quel patron pour DROPS Merino ?' }))
     const dialog = await screen.findByRole('dialog', { name: 'Quel patron pour cette laine ?' })
     expect(within(dialog).getByRole('heading', { name: 'Dans ta bibliothèque' })).toBeInTheDocument()

@@ -131,7 +131,7 @@ describe('organiser les étapes', () => {
 
   it('patron adapté : tout est bloqué, avec l’explication', async () => {
     open({ ...PROJECT, adaptation: { active: false, request: 'plus long', at: '2026-11-12', size: 'M', steps: [] } })
-    expect(await screen.findByRole('status')).toHaveTextContent('Le patron a une adaptation')
+    expect((await screen.findAllByText(/Le patron a une adaptation/))[0]).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Actions pour « 18 rangs : côtes »' })).toBeDisabled()
   })
 })

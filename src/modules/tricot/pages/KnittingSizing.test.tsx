@@ -6,7 +6,7 @@ import { fakeApi, renderWithApp } from '@/test/fakes'
 import type { ReadPattern } from '../lib/pattern'
 import type { MeasureProfile } from '../lib/sizing'
 import { KnittingImportPage } from './KnittingImportPage'
-import { KnittingPage } from './KnittingPage'
+import { KnittingMeasuresPage } from './KnittingMeasuresPage'
 
 const LEA: MeasureProfile = { id: 'm1', name: 'Léa', measures: { chest: 92, waist: null, hip: 98, arm: null, head: null } }
 const MOI: MeasureProfile = { id: 'm2', name: 'Moi', measures: { chest: 100, waist: null, hip: null, arm: null, head: null } }
@@ -30,8 +30,9 @@ describe('fiches de mesures', () => {
   it('ajoute, modifie et supprime une fiche', async () => {
     const user = userEvent.setup()
     const api = fakeApi()
-    renderWithApp(<KnittingPage />, { api })
+    renderWithApp(<KnittingMeasuresPage />, { api })
     expect(await screen.findByText(/Aucune fiche : note tes mesures/)).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Tricot' })).toHaveAttribute('href', '/tricot')
 
     await user.click(screen.getByRole('button', { name: 'Nouvelle fiche' }))
     let dialog = await screen.findByRole('dialog', { name: 'Nouvelle fiche de mesures' })
@@ -65,7 +66,7 @@ describe('fiches de mesures', () => {
     const user = userEvent.setup()
     const api = fakeApi()
     api.knitting.saveMeasures.mockRejectedValue(new AppError('Impossible d’enregistrer la fiche de mesures.'))
-    renderWithApp(<KnittingPage />, { api })
+    renderWithApp(<KnittingMeasuresPage />, { api })
     await user.click(await screen.findByRole('button', { name: 'Nouvelle fiche' }))
     const dialog = await screen.findByRole('dialog', { name: 'Nouvelle fiche de mesures' })
     await user.type(within(dialog).getByLabelText('Pour qui'), 'Moi')
@@ -80,7 +81,7 @@ describe('taille selon les mesures, après la lecture', () => {
 
   async function readPattern(api = fakeApi()) {
     const user = userEvent.setup()
-    renderWithApp(<KnittingImportPage />, { api, route: '/tricot/nouveau', path: '/tricot/nouveau', extraRoutes: <Route path="/tricot" element={<p>Page Tricot</p>} /> })
+    renderWithApp(<KnittingImportPage />, { api, route: '/tricot/nouveau', path: '/tricot/nouveau', extraRoutes: <Route path="/tricot/mesures" element={<p>Page des mesures</p>} /> })
     await user.upload(screen.getByLabelText('Patron (PDF)'), pdf)
     await user.click(screen.getByRole('button', { name: 'Lire le patron' }))
     return { user, card: await screen.findByRole('region', { name: 'Quelle taille pour qui ?' }) }
@@ -148,8 +149,8 @@ describe('taille selon les mesures, après la lecture', () => {
     const api = fakeApi()
     api.knitting.readPattern.mockResolvedValue(PATTERN)
     const { user, card } = await readPattern(api)
-    await user.click(await within(card).findByRole('link', { name: 'Tricot › Fiches de mesures' }))
-    expect(await screen.findByText('Page Tricot')).toBeInTheDocument()
+    await user.click(await within(card).findByRole('link', { name: 'Fiches de mesures' }))
+    expect(await screen.findByText('Page des mesures')).toBeInTheDocument()
   })
 
   it('fiches illisibles : message et nouvel essai', async () => {

@@ -8,7 +8,6 @@ import { ConfirmDialog } from '@/components/ConfirmDialog'
 import { EmptyState } from '@/components/EmptyState'
 import { PageHeader } from '@/components/PageHeader'
 import { Button, buttonVariants } from '@/components/ui/button'
-import { Skeleton } from '@/components/ui/skeleton'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { LoadError } from '@/components/LoadError'
 import { cn } from '@/lib/utils'
@@ -27,7 +26,7 @@ import { useKnitProject } from '../hooks/useKnitProject'
 import { forgetProject } from '../lib/offline'
 import { currentStepIndex, newSectionId, stepFacts, type StepSection } from '../lib/pattern'
 import { placeCharts } from '../lib/chartPlace'
-import { effectiveNeedles, sanitizeNeedles } from '../lib/needles'
+import { effectiveNeedles, formatNeedle, sanitizeNeedles } from '../lib/needles'
 import { OfflineNote } from '../components/OfflineNote'
 import { Fold } from '../components/Fold'
 import { StepNotes } from '../components/StepNotes'
@@ -45,6 +44,7 @@ import { Note } from '../components/Note'
 import { BackLink } from '../components/BackLink'
 import { OrganizeSteps } from '../components/OrganizeSteps'
 import { isStarted } from '../lib/organize'
+import { Loading } from '../components/Loading'
 
 export function KnittingProjectPage() {
   const { id = '' } = useParams()
@@ -73,10 +73,7 @@ export function KnittingProjectPage() {
   }
   if (loading) {
     return (
-      <div className="space-y-3" aria-busy="true" aria-label="Chargement du projet">
-        <Skeleton className="h-10 w-2/3 rounded-xl" />
-        <Skeleton className="h-64 rounded-2xl" />
-      </div>
+      <Loading label="Chargement du projet" />
     )
   }
   if (!project) {
@@ -429,9 +426,9 @@ export function KnittingProjectPage() {
       {offlineNote}
 
       <Tabs value={tab} onValueChange={(value) => setParams({ onglet: value as ProjectTab }, { replace: true })} className="gap-4">
-        <TabsList aria-label="Temps du projet" className="h-auto w-full">
+        <TabsList aria-label="Temps du projet" className="h-auto w-full group-data-horizontal/tabs:h-auto">
           {tabs.map((t) => (
-            <TabsTrigger key={t.value} value={t.value} className="flex-col gap-0 py-1.5">
+            <TabsTrigger key={t.value} value={t.value} className="h-auto min-h-11 min-w-0 flex-col gap-0 py-1.5 leading-tight whitespace-normal">
               <span>{t.label}</span>
               <span className={cn('text-xs font-normal', t.todo ? 'text-amber-700 dark:text-amber-400' : 'text-muted-foreground')}>{t.status}</span>
             </TabsTrigger>
@@ -448,12 +445,18 @@ export function KnittingProjectPage() {
               </ul>
             </Note>
           )}
-          <div className="space-y-2">
+          {/* Même bloc repliable que les autres : la taille et les aiguilles, résumées quand c'est replié. */}
+          <Fold
+            id="knit-size-needles"
+            title="Taille et aiguilles"
+            summary={[`Taille ${followedSize}`, needles.length ? `aiguilles ${needles.map(formatNeedle).join(' · ')}` : 'aiguilles à indiquer'].join(' · ')}
+          >
             <SizePicker id="knit-size-index" sizes={project.sizes} sizeIndex={project.sizeIndex} fallback={project.size} onChange={(i) => void changeSize(i)} />
             <ProjectNeedles needles={needles} onSave={saveNeedles} />
-          </div>
+          </Fold>
           <YarnPanel
-            defaultOpen
+            // Ouvert seulement quand on arrive pour noter un échantillon (depuis une sous-étape à convertir).
+            defaultOpen={gaugeParam !== null}
             info={{ yarns: project.yarns, patternGauge: project.patternGauge }}
             onSave={saveInfo}
             gauges={{

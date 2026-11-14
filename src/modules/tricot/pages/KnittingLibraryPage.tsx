@@ -7,12 +7,12 @@ import { LoadError } from '@/components/LoadError'
 import { PageHeader } from '@/components/PageHeader'
 import { buttonVariants } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Skeleton } from '@/components/ui/skeleton'
 import { useAsync } from '@/hooks/useAsync'
 import { cn } from '@/lib/utils'
 import { BackLink } from '../components/BackLink'
 import { PatternList } from '../components/PatternList'
 import { BatchPdfImport } from '../components/BatchPdfImport'
+import { Loading } from '../components/Loading'
 import { filterPatterns, libraryTags } from '../lib/library'
 
 /** Bibliothèque de patrons : tous les patrons gardés, commencés ou non, à chercher et filtrer. */
@@ -45,10 +45,7 @@ export function KnittingLibraryPage() {
       {list.error ? (
         <LoadError message={list.error} onRetry={list.reload} />
       ) : !list.data ? (
-        <div className="space-y-2" aria-busy="true" aria-label="Chargement des patrons">
-          <Skeleton className="h-16 rounded-2xl" />
-          <Skeleton className="h-16 rounded-2xl" />
-        </div>
+        <Loading label="Chargement des patrons" />
       ) : list.data.length === 0 ? (
         <EmptyState icon={BookOpen} title="Aucun patron" description="Garde ici les patrons qui te font envie : un PDF, des photos ou un lien." action={actions} />
       ) : (
