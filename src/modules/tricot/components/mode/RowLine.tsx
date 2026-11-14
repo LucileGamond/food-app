@@ -46,7 +46,8 @@ export function RowLine({ line, stitches, glossary, setupTo, onOpenChart }: Prop
     // Annoncé au lecteur d'écran à chaque rang compté.
     <section aria-labelledby="row-line" className="space-y-3 rounded-2xl border border-brand/40 bg-brand/5 p-4">
       <div role="status" aria-live="polite" className="space-y-2">
-        <h2 id="row-line" className="text-2xl font-semibold tracking-tight tabular-nums">
+        {/* Le grand nombre est celui du compteur : ici, le rang de l'étape se rappelle en petit. */}
+        <h2 id="row-line" className="text-sm font-medium text-muted-foreground tabular-nums">
           Rang {line.row} à tricoter
         </h2>
         {line.unknown ? (

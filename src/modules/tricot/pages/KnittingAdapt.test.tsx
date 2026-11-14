@@ -192,11 +192,11 @@ describe('patron adapté : écran', () => {
     const api = fakeApi()
     api.knitting.getProject.mockResolvedValue(project(ADAPTATION))
     const { unmount } = renderWithApp(<KnittingModePage />, { api, route: '/tricot/p1/tricoter', path: '/tricot/:id/tricoter' })
-    expect(await screen.findByText(/Étape : \d+ \/ 136 rangs/)).toBeInTheDocument()
+    expect(await screen.findByText(/\d+ \/ 136 rangs dans l’étape/)).toBeInTheDocument()
     unmount()
     api.knitting.getProject.mockResolvedValue({ ...project(ADAPTATION), sizes: ['M', 'L'], sizeIndex: 1 })
     renderWithApp(<KnittingModePage />, { api, route: '/tricot/p1/tricoter', path: '/tricot/:id/tricoter' })
-    expect(await screen.findByText(/Étape : \d+ \/ 120 rangs/)).toBeInTheDocument()
+    expect(await screen.findByText(/\d+ \/ 120 rangs dans l’étape/)).toBeInTheDocument()
     expect(screen.getByText(/taille L/)).toBeInTheDocument()
   })
 

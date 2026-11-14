@@ -521,6 +521,6 @@ test('organise les étapes : regroupe, sépare et déplace une sous-étape, puis
   for (let i = 0; i < 5; i++) await page.getByRole('button', { name: 'Ajouter 1 rang' }).click()
   // 5 rangs faits : 4 de côtes, puis le 1er du jersey
   const counter = page.getByRole('contentinfo')
-  await expect(counter).toContainText('1 / 4rangs faits · 4 rangs : jersey')
-  await expect(counter).toContainText('Étape : 5 / 8 rangs')
+  await expect(counter).toContainText('4 rangs : jersey1 sur 4 rangs')
+  await expect(counter).toContainText('5 / 8 rangs dans l’étape')
 })

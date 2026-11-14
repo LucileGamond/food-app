@@ -29,30 +29,37 @@ export function ModeCounter({ rowCount, totalRows, onCount, substeps = [], onFin
   // La ligne « Étape » ne dit quelque chose que si elle diffère du compteur (sinon c'est le même nombre deux fois).
   const stepDiffers = knitted !== rowCount || total !== totalRows
   const below = !!main && (stepDiffers || parallel.length > 0 || canFinish)
+  // Un seul grand nombre : celui qu'on compte vraiment, dans la sous-étape.
+  const done = total === null ? null : Math.min(knitted / total, 1)
   return (
     <div className="space-y-2">
+      {(main?.title || needle !== null) && (
+        <p className="truncate text-xs text-muted-foreground">{[main?.title, needle !== null && `aig. ${formatNeedle(needle)}`].filter(Boolean).join(' · ')}</p>
+      )}
       <div className="flex items-center gap-3">
         <Button variant="outline" size="icon-lg" aria-label="Retirer un rang" disabled={rowCount === 0} onClick={() => onCount(-1)}>
           <Minus />
         </Button>
-        <p className="min-w-0 flex-1 text-center text-sm text-muted-foreground" aria-live="polite">
-          <span className="block text-2xl font-semibold text-foreground tabular-nums">
-            {knitted}
-            {total !== null && <span className="text-base font-normal text-muted-foreground"> / {total}</span>}
-          </span>
-          <span className="block truncate">{['rangs faits', needle !== null && `aig. ${formatNeedle(needle)}`, main?.title].filter(Boolean).join(' · ')}</span>
+        <p className="min-w-0 flex-1 text-center" aria-live="polite">
+          <span className="text-3xl font-semibold tabular-nums">{knitted}</span>
+          <span className="text-sm text-muted-foreground tabular-nums">{total === null ? ' rangs faits' : ` sur ${total} rangs`}</span>
         </p>
         <Button className="h-14 px-6 text-base" disabled={rowCount >= MAX_ROW_COUNT} onClick={() => onCount(1)}>
           <Plus />
           <span className="sr-only">Ajouter</span> 1 rang
         </Button>
       </div>
+      {done !== null && (
+        <div className="h-1.5 overflow-hidden rounded-full bg-muted" aria-hidden>
+          <div className="h-full rounded-full bg-brand transition-[width] motion-reduce:transition-none" style={{ width: `${Math.round(done * 100)}%` }} />
+        </div>
+      )}
       {below && (
         <div className="flex flex-wrap items-center justify-center gap-x-3 gap-y-1 text-xs text-muted-foreground tabular-nums">
           {stepDiffers && (
             <span>
-              Étape : {rowCount}
-              {totalRows !== null && ` / ${totalRows}`} rangs
+              {rowCount}
+              {totalRows !== null && ` / ${totalRows}`} rangs dans l’étape
             </span>
           )}
           {parallel.map((p) => (

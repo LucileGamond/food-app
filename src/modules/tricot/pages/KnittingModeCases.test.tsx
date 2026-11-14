@@ -250,7 +250,7 @@ describe('mode tricoter : patron adapté et cas limites', () => {
     }
     const { line, upcoming, stitches } = await open(project({ rowCount: 7, sections: [rows(20, 'jersey')] }, { adaptation }))
     expect(line).toHaveTextContent('Rang 8 à tricoter1 aug. de chaque côté (1/3)')
-    expect(screen.getByText('/ 24')).toBeInTheDocument()
+    expect(screen.getByRole('contentinfo')).toHaveTextContent('7 sur 24 rangs')
     // 66 à la fin, 3 fois +2 : 60 au départ, 62 après le rang 8
     expect(stitches()).toBe('En fin de rang : 62 mailles')
     expect(texts(upcoming())).toEqual(['Prochain : rang 16, dans 8 — 1 aug. de chaque côté (2/3)'])
@@ -289,29 +289,29 @@ describe('mode tricoter : un seul compteur, celui de la sous-étape', () => {
   it('compte dans la sous-étape en cours ; la finir plus tôt fixe sa longueur aux rangs tricotés', async () => {
     const step = { totalRows: null, rowCount: 14, sections: [rows(12, 'côtes'), rows(10, 'jersey'), rows(4, 'côtes')] }
     const { api } = await open(project(step))
-    expect(counter()).toHaveTextContent('2 / 10rangs faits · 10 rangs : jersey')
-    expect(counter()).toHaveTextContent('Étape : 14 rangs')
+    expect(counter()).toHaveTextContent('10 rangs : jersey2 sur 10 rangs')
+    expect(counter()).toHaveTextContent('14 rangs dans l’étape')
     await userEvent.setup().click(within(counter()).getByRole('button', { name: 'Terminer la sous-étape (2 rangs)' }))
     expect(api.knitting.saveProgress).toHaveBeenCalledWith('s1', { sections: [rows(12, 'côtes'), rows(2, 'jersey'), rows(4, 'côtes')] })
   })
 
   it('longueur connue : rangs sur le total de la sous-étape, l’étape en petit, et la finir plus tôt', async () => {
     await open(project({ rowCount: 11, sections: [rows(12, 'côtes'), rows(8, 'jersey')] }))
-    expect(counter()).toHaveTextContent('11 / 12rangs faits · 12 rangs : côtes')
-    expect(counter()).toHaveTextContent('Étape : 11 / 20 rangs')
+    expect(counter()).toHaveTextContent('12 rangs : côtes11 sur 12 rangs')
+    expect(counter()).toHaveTextContent('11 / 20 rangs dans l’étape')
     expect(within(counter()).getByRole('button', { name: 'Terminer la sous-étape (11 rangs)' })).toBeInTheDocument()
   })
 
   it('une seule sous-étape qui fait toute l’étape : la ligne « Étape » ne répète pas le compteur', async () => {
     await open(project({ rowCount: 11, totalRows: 60, sections: [rows(60, 'jersey')] }))
-    expect(counter()).toHaveTextContent('11 / 60rangs faits · 60 rangs : jersey')
-    expect(counter()).not.toHaveTextContent('Étape :')
+    expect(counter()).toHaveTextContent('60 rangs : jersey11 sur 60 rangs')
+    expect(counter()).not.toHaveTextContent('dans l’étape')
   })
 
   it('« en même temps » : les autres sous-étapes en cours rappelées sous le compteur', async () => {
     const together = [rows(20, 'jersey'), { ...rows(6, 'encolure'), at: { row: 5, pattern: null } }]
     await open(project({ rowCount: 6, sections: together }))
-    expect(counter()).toHaveTextContent('6 / 20rangs faits · 20 rangs : jersey')
+    expect(counter()).toHaveTextContent('20 rangs : jersey6 sur 20 rangs')
     expect(counter()).toHaveTextContent('En même temps : 2 / 6')
   })
 })
@@ -322,13 +322,13 @@ describe('mode tricoter : aiguilles', () => {
   it('au premier rang d’une sous-étape qui change d’aiguille : le rappel ; l’aiguille près du compteur', async () => {
     await open(project({ rowCount: 4, sections: steps }, { needles: [3, 3.5] }))
     expect(screen.getByText('Change pour l’aiguille 3,5 mm')).toHaveAttribute('role', 'status')
-    expect(screen.getByRole('contentinfo')).toHaveTextContent('rangs faits · aig. 3,5 mm · 10 rangs : jersey')
+    expect(screen.getByRole('contentinfo')).toHaveTextContent('10 rangs : jersey · aig. 3,5 mm')
   })
 
   it('aiguille héritée, et pas de rappel au milieu d’une sous-étape', async () => {
     await open(project({ rowCount: 14, sections: steps }, { needles: [3, 3.5] }))
     expect(screen.queryByText(/Change pour l’aiguille/)).not.toBeInTheDocument()
-    expect(screen.getByRole('contentinfo')).toHaveTextContent('aig. 3,5 mm · 2 rangs : jersey')
+    expect(screen.getByRole('contentinfo')).toHaveTextContent('2 rangs : jersey · aig. 3,5 mm')
   })
 })
 
