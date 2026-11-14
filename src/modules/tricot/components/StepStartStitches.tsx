@@ -1,4 +1,4 @@
-import { Pencil } from 'lucide-react'
+import { EditIcon } from './KnitIcons'
 import { useState, type FormEvent } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -107,7 +107,7 @@ export function StepStartStitches({ start, set, previous, fromPattern, onSave }:
           setEditing(true)
         }}
       >
-        <Pencil /> Modifier <span className="sr-only">les mailles au début</span>
+        <EditIcon /> Modifier <span className="sr-only">les mailles au début</span>
       </Button>
     </div>
   )

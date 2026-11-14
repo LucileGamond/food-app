@@ -1,4 +1,5 @@
-import { BookOpen, Plus, Search } from 'lucide-react'
+import { PatternsIcon } from '../components/KnitIcons'
+import { AddIcon, SearchIcon } from '../components/KnitIcons'
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useApi } from '@/app/ApiContext'
@@ -24,7 +25,7 @@ export function KnittingLibraryPage() {
 
   const addLink = (
     <Link to="/tricot/patrons/nouveau" className={cn(buttonVariants(), 'h-10 px-4')}>
-      <Plus /> Ajouter un patron
+      <AddIcon /> Ajouter un patron
     </Link>
   )
   const actions = (
@@ -47,11 +48,11 @@ export function KnittingLibraryPage() {
       ) : !list.data ? (
         <Loading label="Chargement des patrons" />
       ) : list.data.length === 0 ? (
-        <EmptyState icon={BookOpen} title="Aucun patron" description="Garde ici les patrons qui te font envie : un PDF, des photos ou un lien." action={actions} />
+        <EmptyState icon={PatternsIcon} title="Aucun patron" description="Garde ici les patrons qui te font envie : un PDF, des photos ou un lien." action={actions} />
       ) : (
         <div className="space-y-4">
           <div className="relative">
-            <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" aria-hidden />
+            <SearchIcon className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" aria-hidden />
             <Input type="search" aria-label="Chercher un patron" placeholder="Chercher un patron" className="h-10 pl-9" value={search} onChange={(e) => setSearch(e.target.value)} />
           </div>
           {tags.length > 0 && (

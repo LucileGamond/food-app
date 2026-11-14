@@ -18,19 +18,24 @@ export function TricotTheme({ children }: { children?: ReactNode }) {
 }
 
 /**
- * Couleur de la laine du projet (sa première couleur) : remplace l'indigo du module le temps de la page. Le CSS en tire
+ * Couleurs de la laine du projet : la première remplace l'indigo du module le temps de la page, et chacune teinte un
+ * brin du cordon (--yarn-1 à --yarn-3). Le CSS en tire
  * une teinte assez sombre (ou claire en mode sombre) pour garder le texte blanc lisible sur les boutons.
  */
 export function useYarnHue(hues: string[]) {
-  const hue = hues[0] ?? null
+  const key = hues.join(',')
   useEffect(() => {
-    if (!hue) return
+    const all = key ? key.split(',') : []
+    if (all.length === 0) return
     const root = document.documentElement
-    root.style.setProperty('--yarn', hue)
+    root.style.setProperty('--yarn', all[0]!)
+    // Brins du cordon (fil sous le titre, onglet actif, pastille de l'étape en cours) : une couleur par brin.
+    all.forEach((hue, i) => root.style.setProperty(`--yarn-${i + 1}`, hue))
     root.dataset.yarn = ''
     return () => {
       root.style.removeProperty('--yarn')
+      all.forEach((_, i) => root.style.removeProperty(`--yarn-${i + 1}`))
       delete root.dataset.yarn
     }
-  }, [hue])
+  }, [key])
 }

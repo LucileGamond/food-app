@@ -1,4 +1,5 @@
-import { FileText, Grid3x3, ImagePlus, Plus } from 'lucide-react'
+import { FileText } from 'lucide-react'
+import { AddIcon, ChartIcon, PhotoIcon } from './KnitIcons'
 import { useEffect, useId, useState } from 'react'
 import { toast } from 'sonner'
 import { errorMessage } from '@/api'
@@ -122,7 +123,7 @@ export function StepCharts({ projectId, pdfPath, step, steps, charts, hints, onC
       {!headless && (
         <div className="flex items-center gap-1">
           <h3 id={`charts-${step.id}`} className="flex items-center gap-1.5 text-sm font-medium">
-            <Grid3x3 className="size-4" aria-hidden /> Diagrammes
+            <ChartIcon className="size-4" aria-hidden /> Diagrammes
           </h3>
           <HelpTip label="diagrammes">{CHARTS_HELP}</HelpTip>
         </div>
@@ -149,20 +150,20 @@ export function StepCharts({ projectId, pdfPath, step, steps, charts, hints, onC
         {pdfPath ? (
           <DropdownMenu>
             <DropdownMenuTrigger render={<Button type="button" variant="outline" className="h-10" />}>
-              <Plus /> Ajouter un diagramme
+              <AddIcon /> Ajouter un diagramme
             </DropdownMenuTrigger>
             <DropdownMenuContent align="start" className="w-56">
               <DropdownMenuItem onClick={() => setPicking(true)}>
                 <FileText /> Depuis le PDF du patron
               </DropdownMenuItem>
               <DropdownMenuItem onClick={() => document.getElementById(inputId)?.click()}>
-                <ImagePlus /> Depuis une image
+                <PhotoIcon /> Depuis une image
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
         ) : (
           <Button type="button" variant="outline" className="h-10" onClick={() => document.getElementById(inputId)?.click()}>
-            <Plus /> Ajouter un diagramme
+            <AddIcon /> Ajouter un diagramme
           </Button>
         )}
       </div>

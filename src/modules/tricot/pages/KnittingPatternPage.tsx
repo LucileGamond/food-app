@@ -1,4 +1,5 @@
-import { ChevronRight, ExternalLink, FileText, Pencil, Play, SearchX, Trash2 } from 'lucide-react'
+import { ExternalLink, FileText, SearchX } from 'lucide-react'
+import { DeleteIcon, EditIcon, KnitIcon, OpenIcon } from '../components/KnitIcons'
 import { useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { toast } from 'sonner'
@@ -83,10 +84,10 @@ function PatternSheet({ pattern }: { pattern: KnitPattern }) {
           )}
         </div>
         <Link to={`/tricot/patrons/${pattern.id}/modifier`} className={cn(buttonVariants({ variant: 'outline' }), 'h-10')}>
-          <Pencil /> Modifier
+          <EditIcon /> Modifier
         </Link>
         <Button variant="outline" size="icon-lg" className="size-10 text-destructive" aria-label="Supprimer le patron" onClick={() => setConfirmDelete(true)}>
-          <Trash2 />
+          <DeleteIcon />
         </Button>
       </div>
 
@@ -127,7 +128,7 @@ function PatternSheet({ pattern }: { pattern: KnitPattern }) {
                       <span className="block truncate knit-name">{p.title}</span>
                       <span className="block text-sm text-muted-foreground">Taille {p.size}</span>
                     </span>
-                    <ChevronRight className="size-4 shrink-0 text-muted-foreground" aria-hidden />
+                    <OpenIcon className="size-4 shrink-0 text-muted-foreground" aria-hidden />
                   </Link>
                 </li>
               ))}
@@ -136,7 +137,7 @@ function PatternSheet({ pattern }: { pattern: KnitPattern }) {
             <p className="text-sm text-muted-foreground">Pas encore tricoté.</p>
           )}
           <Link to={`/tricot/nouveau?patron=${pattern.id}`} className={cn(buttonVariants(), 'h-auto min-h-10 flex-wrap py-2')}>
-            <Play /> Commencer un projet{' '}
+            <KnitIcon /> Commencer un projet{' '}
             {pattern.readSizes.length > 0 && (
               <span className="text-xs font-normal opacity-80">
                 ({pattern.readSizes.length > 1 ? 'tailles' : 'taille'} {pattern.readSizes.join(', ')} déjà {pattern.readSizes.length > 1 ? 'lues' : 'lue'} : sans relire)

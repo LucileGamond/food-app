@@ -1,4 +1,5 @@
-import { FileText, Grid3x3, Loader2, RotateCcw, Save, Sparkles } from 'lucide-react'
+import { FileText, Grid3x3, Loader2, Save, Sparkles } from 'lucide-react'
+import { ChartIcon, RestartIcon } from '../components/KnitIcons'
 import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { Navigate, useNavigate, useSearchParams } from 'react-router-dom'
 import { toast } from 'sonner'
@@ -181,7 +182,7 @@ export function KnittingImportPage() {
               </p>
               {pdf && (
                 <Button variant="outline" className="h-10" disabled={reading} onClick={() => void readFor(pdf, size.trim())}>
-                  <RotateCcw /> {reading ? 'Lecture…' : 'Relire le patron'}
+                  <RestartIcon /> {reading ? 'Lecture…' : 'Relire le patron'}
                 </Button>
               )}
             </Note>
@@ -216,7 +217,7 @@ export function KnittingImportPage() {
           </ol>
           {hints.some((h) => h.step === null) && (
             <p className="flex items-start gap-1.5 text-sm text-muted-foreground">
-              <Grid3x3 className="mt-0.5 size-4 shrink-0" aria-hidden />
+              <ChartIcon className="mt-0.5 size-4 shrink-0" aria-hidden />
               Autres diagrammes repérés : {hints.filter((h) => h.step === null).map(describeHint).join(' ; ')}
             </p>
           )}
@@ -227,7 +228,7 @@ export function KnittingImportPage() {
               Enregistrer le projet
             </Button>
             <Button variant="outline" className="h-10" onClick={() => setDropping(true)} disabled={saving}>
-              <RotateCcw /> Abandonner cette lecture
+              <RestartIcon /> Abandonner cette lecture
             </Button>
           </div>
           <ConfirmDialog

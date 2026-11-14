@@ -1,5 +1,5 @@
 import { cn } from '@/lib/utils'
-import { Check, Minus, Plus } from 'lucide-react'
+import { AddIcon, DoneIcon, RemoveIcon } from '../KnitIcons'
 import { Button } from '@/components/ui/button'
 import { MAX_ROW_COUNT, withoutAtPrefix } from '../../lib/pattern'
 import { formatNeedle } from '../../lib/needles'
@@ -48,14 +48,14 @@ export function ModeCounter({ rowCount, totalRows, onCount, substeps = [], onFin
       )}
       <div className="flex items-center gap-3">
         <Button variant="outline" size="icon-lg" aria-label="Retirer un rang" disabled={rowCount === 0} onClick={() => onCount(-1)}>
-          <Minus />
+          <RemoveIcon />
         </Button>
         <p className="min-w-0 flex-1 text-center" aria-live="polite">
           <span className="knit-name text-3xl tabular-nums">{knitted}</span>
           <span className="text-sm text-muted-foreground tabular-nums">{total === null ? ' rangs faits' : ` sur ${total} rangs`}</span>
         </p>
         <Button className="h-14 px-6 text-base" disabled={rowCount >= MAX_ROW_COUNT} onClick={() => onCount(1)}>
-          <Plus />
+          <AddIcon />
           <span className="sr-only">Ajouter</span> 1 rang
         </Button>
       </div>
@@ -77,7 +77,7 @@ export function ModeCounter({ rowCount, totalRows, onCount, substeps = [], onFin
           ))}
           {canFinish && (
             <Button variant="ghost" className={cn('relative h-7 px-2 text-xs', TOUCH_AREA)} onClick={() => onFinishSubstep(main)}>
-              <Check /> Terminer la sous-étape ({knitted} rang{knitted > 1 ? 's' : ''})
+              <DoneIcon /> Terminer la sous-étape ({knitted} rang{knitted > 1 ? 's' : ''})
             </Button>
           )}
         </div>

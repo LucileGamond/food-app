@@ -1,7 +1,8 @@
 // « Quelle taille pour qui ? » (après la lecture d'un patron) : tableau des mesures du patron, fiche de mesures choisie
 // et aisance voulue → taille conseillée ; si ce n'est pas la taille lue, on relit le patron pour elle.
 
-import { Loader2, RefreshCw, Ruler } from 'lucide-react'
+import { Loader2, RefreshCw } from 'lucide-react'
+import { MeasuresIcon } from './KnitIcons'
 import { useId, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useApi } from '@/app/ApiContext'
@@ -47,7 +48,7 @@ export function SizeAdvice({ chart, sizes, readIndex, onReread, rereading }: Pro
   return (
     <section aria-labelledby={`${id}-title`} className="space-y-3 rounded-2xl border bg-background p-4 shadow-xs">
       <h2 id={`${id}-title`} className="flex items-center gap-2 font-semibold">
-        <Ruler className="size-4 text-muted-foreground" aria-hidden /> Quelle taille pour qui ?
+        <MeasuresIcon className="size-4 text-muted-foreground" aria-hidden /> Quelle taille pour qui ?
       </h2>
 
       <div className="overflow-x-auto">

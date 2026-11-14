@@ -1,4 +1,5 @@
-import { ArrowLeft, ArrowRight, Minus, Plus, X, ZoomIn, ZoomOut } from 'lucide-react'
+import { ArrowLeft, ArrowRight, X, ZoomIn, ZoomOut } from 'lucide-react'
+import { AddIcon, RemoveIcon } from './KnitIcons'
 import { useEffect, useLayoutEffect, useRef, useState, type PointerEvent } from 'react'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog'
@@ -166,13 +167,13 @@ export function ChartFullscreen({ chart, position, open, onOpenChange, counter }
         {counter && (
           <div className="flex items-center gap-3 border-t px-3 py-3">
             <Button variant="outline" size="icon-lg" aria-label="Retirer un rang" disabled={counter.rowCount === 0} onClick={() => counter.onCount(-1)}>
-              <Minus />
+              <RemoveIcon />
             </Button>
             <p className="min-w-0 flex-1 text-center text-sm text-muted-foreground">
               <span className="knit-name text-2xl text-foreground tabular-nums">{counter.rowCount}</span> rangs faits
             </p>
             <Button className="h-12 px-6" onClick={() => counter.onCount(1)}>
-              <Plus />
+              <AddIcon />
               <span className="sr-only">Ajouter</span> 1 rang
             </Button>
           </div>

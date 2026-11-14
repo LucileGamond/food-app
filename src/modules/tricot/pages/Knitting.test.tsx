@@ -1270,6 +1270,9 @@ describe('laine et échantillon du projet', () => {
     const { unmount } = await renderProject(api, { ...PROJECT, yarns: [{ ...EMPTY_YARN, brand: 'Drops' }, { ...EMPTY_YARN, hues: ['#d0563a', '#e8a33a'] }] })
     await screen.findByRole('region', { name: 'Laine et échantillon' })
     expect(document.documentElement.style.getPropertyValue('--yarn')).toBe('#d0563a')
+    expect(document.documentElement.style.getPropertyValue('--yarn-2')).toBe('#e8a33a')
+    // Petite touche : le cordon de laine sous le nom du projet.
+    expect(screen.getByTestId('project-cord')).toHaveClass('yarn-cord')
     unmount()
     expect(document.documentElement.style.getPropertyValue('--yarn')).toBe('')
   })

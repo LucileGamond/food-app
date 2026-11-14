@@ -1,4 +1,5 @@
-import { Check, SearchX, X } from 'lucide-react'
+import { SearchX, X } from 'lucide-react'
+import { DoneIcon } from '../components/KnitIcons'
 import { useState, type ReactNode } from 'react'
 import { Link, useParams, useSearchParams } from 'react-router-dom'
 import { toast } from 'sonner'
@@ -164,6 +165,7 @@ function Knitting({ project, knit, projectTo }: KnittingProps) {
           <div className="min-w-0 flex-1">
             {/* Un titre long passe sur deux lignes au lieu d'être coupé (V5c). */}
             <h1 className="line-clamp-2 text-lg leading-tight font-semibold tracking-tight">{step.title}</h1>
+            <span className="yarn-cord my-1 w-20" aria-hidden />
             <p className="truncate text-xs text-muted-foreground">
               {[`Étape ${index + 1} sur ${steps.length}`, pass].filter(Boolean).join(' · ')}
             </p>
@@ -203,7 +205,7 @@ function Knitting({ project, knit, projectTo }: KnittingProps) {
         />
         {!finished && ready && (
           <Button variant="outline" className="h-10" onClick={() => setFinishing(true)}>
-            <Check /> {anotherPass ? `Terminer la ${ordinal(step.pass)} fois` : 'Terminer l’étape'}
+            <DoneIcon /> {anotherPass ? `Terminer la ${ordinal(step.pass)} fois` : 'Terminer l’étape'}
           </Button>
         )}
       </main>

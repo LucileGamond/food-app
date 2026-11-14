@@ -1,4 +1,5 @@
-import { Loader2, Pencil, Plus, Trash2 } from 'lucide-react'
+import { Loader2 } from 'lucide-react'
+import { AddIcon, DeleteIcon, EditIcon } from './KnitIcons'
 import { useEffect, useState, type FormEvent } from 'react'
 import { ConfirmDialog } from '@/components/ConfirmDialog'
 import { Button } from '@/components/ui/button'
@@ -162,10 +163,10 @@ export function GaugesList({ gauges, needles, onSave, openFor, onOpened }: Props
                 <span className="text-muted-foreground">{formatGaugeCounts(gauge) ?? 'rien de noté'}</span>
               </p>
               <Button variant="ghost" size="icon-touch" aria-label={`Modifier l’échantillon : ${gaugeName(gauge.needle)}`} onClick={() => setEditing({ gauge })}>
-                <Pencil />
+                <EditIcon />
               </Button>
               <Button variant="ghost" size="icon-touch" aria-label={`Supprimer l’échantillon : ${gaugeName(gauge.needle)}`} onClick={() => setRemoving(gauge)}>
-                <Trash2 />
+                <DeleteIcon />
               </Button>
             </li>
           ))}
@@ -176,7 +177,7 @@ export function GaugesList({ gauges, needles, onSave, openFor, onOpened }: Props
         <GaugeForm gauge={editing.gauge} taken={taken} needles={needles} onSave={save} onCancel={() => setEditing(null)} />
       ) : gauges.length < MAX_GAUGES ? (
         <Button variant="outline" className="h-10" onClick={() => setEditing({ gauge: null })}>
-          <Plus /> Ajouter un échantillon
+          <AddIcon /> Ajouter un échantillon
         </Button>
       ) : (
         <Note>Tu as autant d’échantillons que possible ({MAX_GAUGES}).</Note>

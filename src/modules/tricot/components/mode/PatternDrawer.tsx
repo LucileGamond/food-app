@@ -1,4 +1,4 @@
-import { BookOpen } from 'lucide-react'
+import { PatternsIcon } from '../KnitIcons'
 import type { Abbreviation } from '../../lib/glossary'
 import type { KnitStep } from '../../lib/pattern'
 import type { Highlights } from '../../lib/sizes'
@@ -34,7 +34,7 @@ export function PatternDrawer({ step, row, size, sizes, sizeIndex, abbreviations
       id="pattern-drawer"
       title={
         <>
-          <BookOpen className="size-4 shrink-0 text-muted-foreground" aria-hidden /> Patron
+          <PatternsIcon className="size-4 shrink-0 text-muted-foreground" aria-hidden /> Patron
         </>
       }
       summary="texte de l’étape, question, notes"

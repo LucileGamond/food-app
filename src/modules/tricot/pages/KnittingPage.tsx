@@ -1,4 +1,6 @@
-import { BookOpen, ChevronRight, Play, Plus, Ruler, Spool, type LucideIcon } from 'lucide-react'
+import type { ComponentType, SVGProps } from 'react'
+import { AddIcon, KnitIcon, MeasuresIcon, OpenIcon, PatternsIcon } from '../components/KnitIcons'
+import { YarnBall } from '../components/YarnBand'
 import { Link } from 'react-router-dom'
 import { useApi } from '@/app/ApiContext'
 import { buttonVariants } from '@/components/ui/button'
@@ -39,28 +41,33 @@ function ProjectRow({ p }: { p: KnitProjectSummary }) {
             <YarnGauge done={p.current.rowCount} total={p.current.totalRows} hues={p.hues} seed={seedOf(p.id)} className="mt-1.5 max-h-7 max-w-64" />
           )}
         </span>
-        {!p.current && <ChevronRight className="size-4 shrink-0 text-muted-foreground" aria-hidden />}
+        {!p.current && <OpenIcon className="size-4 shrink-0 text-muted-foreground" aria-hidden />}
       </Link>
       {p.current && (
         <Link to={`/tricot/${p.id}/tricoter`} aria-label={`Tricoter « ${p.title} »`} className={cn(buttonVariants({ size: 'icon-touch' }), 'shrink-0')}>
-          <Play />
+          <KnitIcon />
         </Link>
       )}
     </li>
   )
 }
 
+/** Stock de laine : une pelote chinée (même dessin que la jauge). */
+function StashIcon({ className }: SVGProps<SVGSVGElement>) {
+  return <YarnBall hues={['#7a6a58', '#d8cbb8']} seed={7} className={className} />
+}
+
 /** Une entrée vers une page du module : même dessin pour les trois. */
-function Entry({ to, icon: Icon, title, summary }: { to: string; icon: LucideIcon; title: string; summary: string | null }) {
+function Entry({ to, icon: Icon, title, summary }: { to: string; icon: ComponentType<SVGProps<SVGSVGElement>>; title: string; summary: string | null }) {
   return (
     <li className={ROW}>
       <Link to={to} className={ROW_LINK}>
-        <Icon className="size-5 shrink-0 text-muted-foreground" aria-hidden />
+        <Icon className="size-7 shrink-0 text-muted-foreground" aria-hidden />
         <span className="min-w-0 flex-1">
           <span className="block knit-name">{title}</span>
           {summary && <span className="block truncate text-xs text-muted-foreground">{summary}</span>}
         </span>
-        <ChevronRight className="size-4 shrink-0 text-muted-foreground" aria-hidden />
+        <OpenIcon className="size-4 shrink-0 text-muted-foreground" aria-hidden />
       </Link>
     </li>
   )
@@ -92,7 +99,7 @@ export function KnittingPage() {
         summary={projects === null ? null : ongoing.length === 0 ? 'aucun' : plural(ongoing.length, 'projet')}
         action={
           <Link to="/tricot/nouveau" aria-label="Nouveau projet" className={buttonVariants({ variant: 'outline', size: 'icon-touch' })}>
-            <Plus />
+            <AddIcon />
           </Link>
         }
       >
@@ -130,12 +137,12 @@ export function KnittingPage() {
         <ul className="space-y-2">
           <Entry
             to="/tricot/patrons"
-            icon={BookOpen}
+            icon={PatternsIcon}
             title="Bibliothèque de patrons"
             summary={patterns.data === undefined ? null : patterns.data.length === 0 ? 'aucun patron' : librarySummary(patterns.data)}
           />
-          <Entry to="/tricot/laine" icon={Spool} title="Stock de laine" summary={stash.data === undefined ? null : stash.data.length === 0 ? 'vide' : plural(stash.data.length, 'laine')} />
-          <Entry to="/tricot/mesures" icon={Ruler} title="Fiches de mesures" summary={measures.data === undefined ? null : measures.data.length === 0 ? 'aucune' : plural(measures.data.length, 'fiche')} />
+          <Entry to="/tricot/laine" icon={StashIcon} title="Stock de laine" summary={stash.data === undefined ? null : stash.data.length === 0 ? 'vide' : plural(stash.data.length, 'laine')} />
+          <Entry to="/tricot/mesures" icon={MeasuresIcon} title="Fiches de mesures" summary={measures.data === undefined ? null : measures.data.length === 0 ? 'aucune' : plural(measures.data.length, 'fiche')} />
         </ul>
       </nav>
     </>

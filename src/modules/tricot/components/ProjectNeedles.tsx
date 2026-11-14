@@ -1,4 +1,5 @@
-import { Loader2, Pencil } from 'lucide-react'
+import { Loader2 } from 'lucide-react'
+import { EditIcon } from './KnitIcons'
 import { useState, type FormEvent } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -63,7 +64,7 @@ export function ProjectNeedles({ needles, onSave }: Props) {
       <span className="text-muted-foreground">Aiguilles :</span>
       {needles.length ? <span>{needles.map(formatNeedle).join(' · ')}</span> : <span className="text-muted-foreground">aucune : indique-les pour que chaque sous-étape choisisse la sienne</span>}
       <Button variant="ghost" className="h-10 px-2" onClick={edit}>
-        <Pencil /> Modifier <span className="sr-only">les aiguilles du patron</span>
+        <EditIcon /> Modifier <span className="sr-only">les aiguilles du patron</span>
       </Button>
     </div>
   )

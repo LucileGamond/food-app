@@ -1,25 +1,15 @@
 // Règle typographique du module Tricot (voir index.css, knit-name) : les noms du tricot et les grands nombres sont en
 // Fraunces, par la seule classe knit-name ; le reste de l'interface en Geist.
-import { readdirSync, readFileSync, statSync } from 'node:fs'
-import { join } from 'node:path'
-
-const ROOT = join(__dirname)
-
-function files(dir: string): string[] {
-  return readdirSync(dir).flatMap((f) => {
-    const path = join(dir, f)
-    if (statSync(path).isDirectory()) return files(path)
-    return f.endsWith('.tsx') && !f.endsWith('.test.tsx') ? [path] : []
-  })
-}
+// Sources du module (sans les tests), lues telles quelles par Vite.
+const SOURCES = import.meta.glob<string>(['./**/*.tsx', '!./**/*.test.tsx'], { query: '?raw', import: 'default', eager: true })
 
 /** Éléments JSX (className littéral) qui affichent directement un nom : {p.title}, {step.title}… (les titres h1-h3 sont déjà en Fraunces par index.css). */
-const NAME = /<(span|p|div|h[1-6])\s+className="([^"]*)"[^>]*>\s*\{[\w.]*\.(title|name)\}/g
+const NAME = /<(span|p|div)\s+className="([^"]*)"[^>]*>\s*\{[\w.]*\.(title|name)\}/g
 /** Grands nombres et grands messages. */
 const BIG = /className="([^"]*\btext-(xl|2xl|3xl|4xl)\b[^"]*)"/g
 
 describe('typographie du module Tricot', () => {
-  const sources = files(ROOT).map((path) => ({ path: path.slice(ROOT.length + 1), text: readFileSync(path, 'utf8') }))
+  const sources = Object.entries(SOURCES).map(([path, text]) => ({ path, text }))
 
   it('écrit chaque nom du tricot avec knit-name (Fraunces), jamais en gras Geist', () => {
     const wrong = sources.flatMap(({ path, text }) =>

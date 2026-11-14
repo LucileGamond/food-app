@@ -1,4 +1,4 @@
-import { ChevronRight } from 'lucide-react'
+import { OpenIcon } from './KnitIcons'
 import type { ReactNode } from 'react'
 import { Link } from 'react-router-dom'
 import { cn } from '@/lib/utils'
@@ -26,7 +26,7 @@ function Row({ issue, onFix }: { issue: ReadyIssue; onFix?: (index: number) => v
         <span className="block font-medium">{issue.what}</span>
         <span className="block text-xs text-muted-foreground">{issue.section}</span>
       </span>
-      {onFix && <ChevronRight className="size-4 shrink-0 text-muted-foreground" aria-hidden />}
+      {onFix && <OpenIcon className="size-4 shrink-0 text-muted-foreground" aria-hidden />}
     </>
   )
   const className = cn('flex w-full min-h-11 items-center gap-2 rounded-lg px-2 py-1.5 text-left', onFix && 'hover:bg-amber-500/10 focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none')

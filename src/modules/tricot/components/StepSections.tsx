@@ -1,4 +1,5 @@
-import { ArrowDown, ArrowUp, Check, ListOrdered, ListTree, MoreHorizontal, Pencil, Plus, Ruler, Trash2, X, Grid3x3 } from 'lucide-react'
+import { ArrowDown, ArrowUp, Check, ListOrdered, ListTree, MoreHorizontal, Ruler, X, Grid3x3 } from 'lucide-react'
+import { AddIcon, DeleteIcon, DoneIcon, EditIcon } from './KnitIcons'
 import { useEffect, useId, useState, type FormEvent } from 'react'
 import { Link } from 'react-router-dom'
 import { ConfirmDialog } from '@/components/ConfirmDialog'
@@ -81,10 +82,10 @@ function ConversionCheck({ section, onValidate, onEdit, check }: { section: Step
       </span>
       <div className="mt-2 flex flex-wrap gap-2">
         <Button type="button" className="h-10" onClick={onValidate}>
-          <Check /> {check?.needle != null ? `Valider pour l’aiguille ${formatNeedle(check.needle)}` : 'Valider'}
+          <DoneIcon /> {check?.needle != null ? `Valider pour l’aiguille ${formatNeedle(check.needle)}` : 'Valider'}
         </Button>
         <Button type="button" variant="outline" className="h-10" onClick={onEdit}>
-          <Pencil /> Modifier
+          <EditIcon /> Modifier
         </Button>
       </div>
     </Note>
@@ -259,7 +260,7 @@ function SectionForm({ section, onSave, onCancel, needle }: { section: StepSecti
             ))}
             {form.actions.length < MAX_ACTIONS && (
               <Button type="button" variant="ghost" className="h-10" onClick={() => setForm((f) => ({ ...f, actions: [...f.actions, { text: '', rank: '1', stitches: '' }] }))}>
-                <Plus /> Ajouter une action
+                <AddIcon /> Ajouter une action
               </Button>
             )}
           </fieldset>
@@ -484,7 +485,7 @@ export function StepSections({
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end" className="w-44">
                     <DropdownMenuItem onClick={() => setEditing(index)}>
-                      <Pencil /> Modifier
+                      <EditIcon /> Modifier
                     </DropdownMenuItem>
                     {organizeTo ? (
                       <DropdownMenuItem render={<Link to={organizeTo} />}>
@@ -502,7 +503,7 @@ export function StepSections({
                       </DropdownMenuItem>
                     )}
                     <DropdownMenuItem variant="destructive" onClick={() => setRemoving(index)}>
-                      <Trash2 /> Supprimer
+                      <DeleteIcon /> Supprimer
                     </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
@@ -528,7 +529,7 @@ export function StepSections({
       />
       {editing === null && step.sections.length < MAX_SECTIONS && (
         <Button variant="outline" className="h-10" onClick={() => setEditing(step.sections.length)}>
-          <Plus /> Ajouter une sous-étape
+          <AddIcon /> Ajouter une sous-étape
         </Button>
       )}
     </div>

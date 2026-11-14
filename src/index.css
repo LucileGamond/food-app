@@ -246,3 +246,51 @@
   font-weight: 600;
   letter-spacing: -0.005em;
 }
+/* Couleur du projet par petites touches : un cordon de laine retors (3 brins aux couleurs de la laine, sinon l'indigo
+   et ses nuances) sous le titre du projet, sous l'onglet actif, et une pastille pour l'étape en cours. */
+:root[data-module='tricot'] {
+    --cord-1: var(--yarn-1, oklch(0.45 0.12 265));
+    --cord-2: var(--yarn-2, color-mix(in oklch, var(--cord-1), white 32%));
+    --cord-3: var(--yarn-3, color-mix(in oklch, var(--cord-1), black 22%));
+    --cord: repeating-linear-gradient(115deg, var(--cord-1) 0 2.5px, var(--cord-2) 2.5px 5px, var(--cord-3) 5px 7.5px);
+}
+@utility yarn-cord {
+  display: block;
+  height: 5px;
+  border-radius: 999px;
+  background: var(--cord);
+  box-shadow: inset 0 0 0 0.5px rgb(0 0 0 / 0.25);
+}
+@utility yarn-dot {
+  display: inline-block;
+  border-radius: 999px;
+  background: conic-gradient(var(--cord-1) 0 33%, var(--cord-2) 0 66%, var(--cord-3) 0);
+  box-shadow: inset 0 0 0 1px rgb(0 0 0 / 0.2);
+}
+:root[data-module='tricot'] [data-slot='tabs-trigger'][data-active]::after {
+    opacity: 1;
+    left: 22%;
+    right: 22%;
+    top: auto;
+    bottom: 2px;
+    width: auto;
+    height: 4px;
+    border-radius: 999px;
+    background: var(--cord);
+}
+/* Boutons principaux du module Tricot (Tricoter, +1 rang…) : fond écru soutenu et texte encre, jamais la couleur du
+   projet ; les icônes illustrées y gardent leurs couleurs. */
+:root[data-module='tricot'] .btn-primary {
+    background-color: oklch(0.905 0.03 80);
+    color: oklch(0.2 0.01 60);
+}
+:root[data-module='tricot'] .btn-primary:hover {
+    background-color: oklch(0.87 0.035 78);
+}
+:root[data-module='tricot'].dark .btn-primary {
+    background-color: oklch(0.36 0.03 65);
+    color: oklch(0.95 0.01 70);
+}
+:root[data-module='tricot'].dark .btn-primary:hover {
+    background-color: oklch(0.4 0.035 65);
+}

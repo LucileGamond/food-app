@@ -1,4 +1,5 @@
-import { Check, PartyPopper, RotateCcw } from 'lucide-react'
+import { PartyPopper } from 'lucide-react'
+import { DoneIcon, RestartIcon } from '../KnitIcons'
 import { Link } from 'react-router-dom'
 import { Button, buttonVariants } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
@@ -34,7 +35,7 @@ export function StepDone({ done, next, passDone, projectTo, onFinish }: Props) {
       <section role="status" className="space-y-3 rounded-2xl border border-brand/40 bg-brand/5 p-4">
         <p className="knit-name text-xl">Tous les rangs de la {ordinal(passDone)} fois sont faits</p>
         <Button className="h-12 px-5" onClick={onFinish}>
-          <RotateCcw /> Commencer la {ordinal(passDone + 1)} fois
+          <RestartIcon /> Commencer la {ordinal(passDone + 1)} fois
         </Button>
       </section>
     )
@@ -44,7 +45,7 @@ export function StepDone({ done, next, passDone, projectTo, onFinish }: Props) {
       <p className="knit-name text-xl">{done ? 'Étape terminée' : 'Tous les rangs de l’étape sont faits'}</p>
       {!done && (
         <Button className="h-12 px-5" onClick={onFinish}>
-          <Check /> Terminer l’étape
+          <DoneIcon /> Terminer l’étape
         </Button>
       )}
       {done && next && <p className="text-sm text-muted-foreground">Étape suivante : {next}</p>}

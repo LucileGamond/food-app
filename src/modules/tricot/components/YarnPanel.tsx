@@ -3,7 +3,8 @@
 
 import { GaugesList } from './GaugesList'
 import type { ProjectGauge } from '../lib/gauges'
-import { Camera, CircleAlert, Loader2, Pencil, Plus, Trash2 } from 'lucide-react'
+import { CircleAlert, Loader2 } from 'lucide-react'
+import { AddIcon, DeleteIcon, EditIcon, PhotoIcon } from './KnitIcons'
 import { useState, type FormEvent } from 'react'
 import { toast } from 'sonner'
 import { errorMessage } from '@/api'
@@ -162,7 +163,7 @@ export function YarnDialog({
               disabled={reading}
             />
             <Button type="button" variant="outline" className="h-10 w-full" disabled={reading} onClick={() => document.getElementById('yarn-label-photo')?.click()}>
-              {reading ? <Loader2 className="animate-spin" aria-hidden /> : <Camera />}
+              {reading ? <Loader2 className="animate-spin" aria-hidden /> : <PhotoIcon />}
               {reading ? 'Lecture de l’étiquette…' : 'Photo de l’étiquette'}
             </Button>
           </div>
@@ -309,7 +310,7 @@ export function YarnPanel({
       action={
         info.yarns.length < MAX_YARNS && (
           <Button variant="outline" className="h-10" onClick={() => setEditing('new')}>
-            <Plus /> Ajouter une laine
+            <AddIcon /> Ajouter une laine
           </Button>
         )
       }
@@ -323,10 +324,10 @@ export function YarnPanel({
             <li key={index} className="flex items-center gap-1">
               <YarnBand yarn={yarn} />
               <Button variant="ghost" size="icon-touch" aria-label={`Modifier ${yarnTitle(yarn)}`} onClick={() => setEditing(index)}>
-                <Pencil />
+                <EditIcon />
               </Button>
               <Button variant="ghost" size="icon-touch" aria-label={`Supprimer ${yarnTitle(yarn)}`} onClick={() => setRemoving(index)}>
-                <Trash2 />
+                <DeleteIcon />
               </Button>
             </li>
           ))}

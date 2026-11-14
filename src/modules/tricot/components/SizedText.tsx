@@ -1,4 +1,5 @@
-import { Check, Highlighter, Languages, Loader2, Undo2 } from 'lucide-react'
+import { Highlighter, Languages, Loader2 } from 'lucide-react'
+import { DoneIcon, UndoIcon } from './KnitIcons'
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { NativeSelect } from '@/components/ui/native-select'
@@ -141,7 +142,7 @@ export function StepText({ text, sizes, sizeIndex, highlights, onChange, abbrevi
           </Button>
         )}
         <Button type="button" variant={editing ? 'default' : 'outline'} className="h-10" onClick={() => setEditing((e) => !e)}>
-          {editing ? <Check /> : <Highlighter />}
+          {editing ? <DoneIcon /> : <Highlighter />}
           {editing ? 'Terminé' : 'Corriger le surlignage'}
         </Button>
         {editing && fixed && (
@@ -155,7 +156,7 @@ export function StepText({ text, sizes, sizeIndex, highlights, onChange, abbrevi
               onChange(rest)
             }}
           >
-            <Undo2 /> Annuler mes corrections
+            <UndoIcon /> Annuler mes corrections
           </Button>
         )}
       </div>

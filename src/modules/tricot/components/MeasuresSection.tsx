@@ -1,6 +1,7 @@
 // Fiches de mesures (page Tricot) : la sienne et celles des proches, pour choisir la taille d'un patron.
 
-import { Loader2, Pencil, Plus, Trash2 } from 'lucide-react'
+import { Loader2 } from 'lucide-react'
+import { AddIcon, DeleteIcon, EditIcon } from './KnitIcons'
 import { useState, type FormEvent } from 'react'
 import { toast } from 'sonner'
 import { errorMessage } from '@/api'
@@ -124,7 +125,7 @@ export function MeasuresSection() {
         description="Tes mesures et celles de tes proches : la taille d’un patron se conseille d’après elles."
         actions={
           <Button className="h-10 px-4" onClick={() => setEditing('new')}>
-            <Plus /> Nouvelle fiche
+            <AddIcon /> Nouvelle fiche
           </Button>
         }
       />
@@ -144,10 +145,10 @@ export function MeasuresSection() {
                   <span className="text-muted-foreground">{describeProfile(profile)}</span>
                 </p>
                 <Button variant="ghost" size="icon-touch" aria-label={`Modifier la fiche de ${profile.name}`} onClick={() => setEditing(profile)}>
-                  <Pencil />
+                  <EditIcon />
                 </Button>
                 <Button variant="ghost" size="icon-touch" aria-label={`Supprimer la fiche de ${profile.name}`} onClick={() => setRemoving(profile)}>
-                  <Trash2 />
+                  <DeleteIcon />
                 </Button>
               </li>
             ))}

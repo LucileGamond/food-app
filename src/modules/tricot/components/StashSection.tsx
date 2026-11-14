@@ -1,7 +1,8 @@
 // Stock de laine (page Tricot) : pelotes à la maison, et « Quel patron ? » pour chacune — d'abord dans la bibliothèque
 // de patrons (métrage et aiguilles comparés dans l'application), puis des idées du modèle si besoin.
 
-import { ChevronRight, ExternalLink, Loader2, Pencil, Plus, Sparkles, Trash2, Wand2 } from 'lucide-react'
+import { ExternalLink, Loader2, Sparkles, Wand2 } from 'lucide-react'
+import { AddIcon, DeleteIcon, EditIcon, OpenIcon } from './KnitIcons'
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { toast } from 'sonner'
@@ -76,7 +77,7 @@ function MatchDialog({ item, patterns, onOpenChange }: { item: StashItem | null;
                       <span className="block knit-name">{pattern.title}</span>
                       <span className="text-muted-foreground">{reasons.join(' · ')}</span>
                     </span>
-                    <ChevronRight className="size-4 shrink-0 text-muted-foreground" aria-hidden />
+                    <OpenIcon className="size-4 shrink-0 text-muted-foreground" aria-hidden />
                   </Link>
                 </li>
               ))}
@@ -181,7 +182,7 @@ export function StashSection({ patterns }: { patterns: KnitPattern[] }) {
         description="Tes pelotes, et les patrons qui leur conviennent."
         actions={
           <Button className="h-10 px-4" onClick={() => setEditing('new')}>
-            <Plus /> Ajouter au stock
+            <AddIcon /> Ajouter au stock
           </Button>
         }
       />
@@ -199,10 +200,10 @@ export function StashSection({ patterns }: { patterns: KnitPattern[] }) {
                 <div className="flex items-center gap-1">
                   <YarnBand yarn={item.yarn} />
                   <Button variant="ghost" size="icon-touch" aria-label={`Modifier ${yarnTitle(item.yarn)}`} onClick={() => setEditing(item)}>
-                    <Pencil />
+                    <EditIcon />
                   </Button>
                   <Button variant="ghost" size="icon-touch" aria-label={`Supprimer ${yarnTitle(item.yarn)} du stock`} onClick={() => setRemoving(item)}>
-                    <Trash2 />
+                    <DeleteIcon />
                   </Button>
                 </div>
                 <Button variant="outline" className="mt-3 h-10" onClick={() => setMatching(item)} aria-label={`Quel patron pour ${yarnTitle(item.yarn)} ?`}>

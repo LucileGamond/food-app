@@ -1,7 +1,8 @@
 // Notes et photos d'avancement d'un projet de tricot : modifications faites au patron, essais… et photos prises au fil
 // du projet (rattachées à l'étape en cours), à légender, agrandir ou supprimer.
 
-import { Camera, ImagePlus, Loader2, Trash2 } from 'lucide-react'
+import { Loader2 } from 'lucide-react'
+import { DeleteIcon, PhotoIcon } from './KnitIcons'
 import { useState } from 'react'
 import { toast } from 'sonner'
 import { errorMessage } from '@/api'
@@ -117,7 +118,7 @@ export function ProgressPanel({ projectId, currentStepId, stepTitle }: Props) {
             }}
           />
           <Button variant="outline" className="h-10" disabled={adding || !progress.data} onClick={() => document.getElementById('knit-progress-photo')?.click()}>
-            {adding ? <Loader2 className="animate-spin" aria-hidden /> : <Camera />}
+            {adding ? <Loader2 className="animate-spin" aria-hidden /> : <PhotoIcon />}
             {adding ? 'Envoi…' : 'Photo d’avancement'}
           </Button>
         </div>
@@ -148,7 +149,7 @@ export function ProgressPanel({ projectId, currentStepId, stepTitle }: Props) {
 
           {photos.length === 0 ? (
             <p className="flex items-center gap-2 text-sm text-muted-foreground">
-              <ImagePlus className="size-4 shrink-0" aria-hidden /> Aucune photo : garde une trace de chaque étape.
+              <PhotoIcon className="size-4 shrink-0" aria-hidden /> Aucune photo : garde une trace de chaque étape.
             </p>
           ) : (
             <ul aria-label="Photos d’avancement" className="grid grid-cols-3 gap-2 sm:grid-cols-4">
@@ -195,7 +196,7 @@ export function ProgressPanel({ projectId, currentStepId, stepTitle }: Props) {
                 <SaveNote state={savedCaption.state} />
               </div>
               <Button variant="outline" className="h-10 justify-self-start text-destructive" onClick={() => setRemoving(viewing)}>
-                <Trash2 /> Supprimer la photo
+                <DeleteIcon /> Supprimer la photo
               </Button>
             </>
           )}

@@ -1,4 +1,4 @@
-import { ChevronRight } from 'lucide-react'
+import { OpenIcon } from './KnitIcons'
 import { useState, type ReactNode } from 'react'
 import { cn } from '@/lib/utils'
 
@@ -45,7 +45,7 @@ export function Fold({ id, title, summary, action, variant = 'card', defaultOpen
             onClick={toggle}
             className="-ml-1 inline-flex min-h-11 items-center gap-1.5 rounded-lg px-1 text-left focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none"
           >
-            <ChevronRight className={cn('size-4 shrink-0 text-muted-foreground transition-transform motion-reduce:transition-none', isOpen && 'rotate-90')} aria-hidden />
+            <OpenIcon className={cn('size-4 shrink-0 text-muted-foreground transition-transform motion-reduce:transition-none', isOpen && 'rotate-90')} aria-hidden />
             {title}
           </button>
         </h2>

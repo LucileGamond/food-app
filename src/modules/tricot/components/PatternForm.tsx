@@ -1,7 +1,8 @@
 // Formulaire d'un patron de la bibliothèque (ajout et modification) : ses formats (PDF, photos, lien), puis ce qui
 // aide à le retrouver (étiquettes, taille, besoins, laine envisagée, notes), à remplir à la main ou avec l'IA.
 
-import { FileText, ImagePlus, Loader2, Sparkles, X } from 'lucide-react'
+import { FileText, Loader2, Sparkles, X } from 'lucide-react'
+import { PhotoIcon } from './KnitIcons'
 import { Link } from 'react-router-dom'
 import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { errorMessage } from '@/api'
@@ -212,7 +213,7 @@ export function PatternForm({ existing, initialLink = null, onSaved, library = [
               htmlFor="pattern-photos"
               className="flex h-10 cursor-pointer items-center justify-center gap-2 rounded-lg border border-dashed text-sm text-muted-foreground hover:bg-muted/50 focus-within:ring-3 focus-within:ring-ring/50"
             >
-              {preparing ? <Loader2 className="size-4 animate-spin" aria-hidden /> : <ImagePlus className="size-4" aria-hidden />}
+              {preparing ? <Loader2 className="size-4 animate-spin" aria-hidden /> : <PhotoIcon className="size-4" aria-hidden />}
               {count.photos > 0 ? 'Ajouter des photos' : 'Choisir des photos'}
               <input id="pattern-photos" type="file" multiple accept={ACCEPTED_IMAGE_TYPES.join(',')} className="sr-only" onChange={(e) => void onPhotos(e.target.files)} />
             </label>

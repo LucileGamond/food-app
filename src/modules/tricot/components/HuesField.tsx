@@ -1,4 +1,5 @@
-import { Plus, X } from 'lucide-react'
+import { X } from 'lucide-react'
+import { AddIcon } from './KnitIcons'
 import { MAX_HUES } from '../lib/yarn'
 
 /** Nuancier de teintures (indigo, garance, gaude, noix, sauge, écru, gris, noir) : un toucher ajoute la couleur. */
@@ -48,7 +49,7 @@ export function HuesField({ hues, onChange }: { hues: string[]; onChange: (hues:
       )}
       {!full && (
         <div className="flex flex-wrap items-center gap-1.5" role="group" aria-label="Nuancier">
-          <Plus className="size-4 text-muted-foreground" aria-hidden />
+          <AddIcon className="size-4 text-muted-foreground" aria-hidden />
           {DYES.map((dye) => (
             <button
               key={dye.hex}

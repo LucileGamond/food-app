@@ -52,11 +52,17 @@ describe('useYarnHue', () => {
   it('donne au projet la première couleur de sa laine, le temps de la page', () => {
     const { rerender, unmount } = render(<Project hues={['#d0563a', '#e8a33a']} />)
     expect(root.style.getPropertyValue('--yarn')).toBe('#d0563a')
+    // Un brin du cordon par couleur.
+    expect(root.style.getPropertyValue('--yarn-1')).toBe('#d0563a')
+    expect(root.style.getPropertyValue('--yarn-2')).toBe('#e8a33a')
+    expect(root.style.getPropertyValue('--yarn-3')).toBe('')
     expect(root.dataset.yarn).toBe('')
     rerender(<Project hues={['#7f9a7a']} />)
     expect(root.style.getPropertyValue('--yarn')).toBe('#7f9a7a')
+    expect(root.style.getPropertyValue('--yarn-2')).toBe('')
     unmount()
     expect(root.style.getPropertyValue('--yarn')).toBe('')
+    expect(root.style.getPropertyValue('--yarn-1')).toBe('')
     expect(root.dataset.yarn).toBeUndefined()
   })
 

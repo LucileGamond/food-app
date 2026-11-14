@@ -1,4 +1,5 @@
-import { BookOpen, Check, ChevronLeft, Grid3x3, ListOrdered, NotebookPen, ChevronRight, FileText, ListTree, Play, SearchX, Trash2, Undo2 } from 'lucide-react'
+import { Check, ChevronLeft, ListOrdered, NotebookPen, FileText, ListTree, SearchX } from 'lucide-react'
+import { ChartIcon, DeleteIcon, KnitIcon, OpenIcon, PatternsIcon, UndoIcon } from '../components/KnitIcons'
 import { useState } from 'react'
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { toast } from 'sonner'
@@ -288,11 +289,11 @@ export function KnittingProjectPage() {
         <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
           {step.done || isReady(step, needles, projectGauges) ? (
             <Link to={knitTo(step.id)} className={cn(buttonVariants(), 'h-10')}>
-              <Play /> Tricoter cette étape
+              <KnitIcon /> Tricoter cette étape
             </Link>
           ) : (
             <Button className="h-10" disabled aria-describedby="step-ready-title">
-              <Play /> Tricoter cette étape
+              <KnitIcon /> Tricoter cette étape
             </Button>
           )}
           <div className="ml-auto flex gap-2">
@@ -300,7 +301,7 @@ export function KnittingProjectPage() {
               <ChevronLeft />
             </Button>
             <Button variant="outline" size="icon-lg" aria-label="Étape suivante" disabled={index === steps.length - 1} onClick={() => openStep(steps[index + 1]!.id, true)}>
-              <ChevronRight />
+              <OpenIcon />
             </Button>
           </div>
         </div>
@@ -396,7 +397,7 @@ export function KnittingProjectPage() {
             id={`charts-${step.id}`}
             title={
               <>
-                <Grid3x3 className="size-4" aria-hidden /> Diagrammes
+                <ChartIcon className="size-4" aria-hidden /> Diagrammes
               </>
             }
             summary={stepCharts > 0 ? plural(stepCharts, 'diagramme') : 'aucun'}
@@ -433,7 +434,7 @@ export function KnittingProjectPage() {
           </Fold>
           {step.done && (
             <Button variant="outline" className="h-10" onClick={() => void saveStep(step.id, { done: false })}>
-              <Undo2 /> Rouvrir l’étape
+              <UndoIcon /> Rouvrir l’étape
             </Button>
           )}
         </article>
@@ -449,7 +450,7 @@ export function KnittingProjectPage() {
             )}
             {index < steps.length - 1 && (
               <Button variant="outline" className="h-11 min-w-0 justify-end" onClick={() => openStep(steps[index + 1]!.id, true)}>
-                <span className="truncate">{steps[index + 1]!.title}</span> <ChevronRight />
+                <span className="truncate">{steps[index + 1]!.title}</span> <OpenIcon />
               </Button>
             )}
           </nav>
@@ -478,12 +479,13 @@ export function KnittingProjectPage() {
       {back}
       <PageHeader
         title={project.title}
+        titleDecoration={<span className="yarn-cord mt-1.5 w-32" data-testid="project-cord" aria-hidden />}
         description={`Taille ${followedSize}`}
         titleAction={
           <div className="flex items-center gap-1">
             {project.patternId && (
               <Link to={`/tricot/patrons/${project.patternId}`} aria-label="Fiche du patron" className={buttonVariants({ variant: 'ghost', size: 'icon-touch' })}>
-                <BookOpen />
+                <PatternsIcon />
               </Link>
             )}
             {project.pdfPath && (
@@ -492,7 +494,7 @@ export function KnittingProjectPage() {
               </Button>
             )}
             <Button variant="ghost" size="icon-touch" aria-label="Supprimer le projet" onClick={() => setConfirmDelete(true)}>
-              <Trash2 />
+              <DeleteIcon />
             </Button>
           </div>
         }
@@ -600,13 +602,18 @@ export function KnittingProjectPage() {
                             {/* Les pastilles sous le titre : elles ne le rognent pas. */}
                             {(isCurrent || (!s.done && !isReady(s, needles, projectGauges))) && (
                               <span className="mt-1 flex flex-wrap gap-1">
-                                {isCurrent && <span className="rounded-full bg-brand/15 px-2 py-0.5 text-xs font-medium">En cours</span>}
+                                {isCurrent && (
+                                  <span className="inline-flex items-center gap-1.5 rounded-full bg-brand/15 px-2 py-0.5 text-xs font-medium">
+                                    <span className="yarn-dot size-2.5" aria-hidden />
+                                    En cours
+                                  </span>
+                                )}
                                 {!s.done && !isReady(s, needles, projectGauges) && <span className="rounded-full bg-amber-500/15 px-2 py-0.5 text-xs font-medium">À préparer</span>}
                               </span>
                             )}
                           </span>
                           {s.done && <span className="sr-only">(terminée)</span>}
-                          <ChevronRight className="size-4 shrink-0 text-muted-foreground" aria-hidden />
+                          <OpenIcon className="size-4 shrink-0 text-muted-foreground" aria-hidden />
                         </Link>
                       </li>
                     )

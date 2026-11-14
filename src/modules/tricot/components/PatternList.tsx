@@ -1,4 +1,5 @@
-import { ChevronRight, FileText, Link2 } from 'lucide-react'
+import { FileText, Link2 } from 'lucide-react'
+import { OpenIcon } from './KnitIcons'
 import { Link } from 'react-router-dom'
 import { useApi } from '@/app/ApiContext'
 import { useSignedUrls } from '@/hooks/useSignedUrls'
@@ -39,7 +40,7 @@ export function PatternList({ items }: { items: KnitPattern[] }) {
                 <span className="block truncate knit-name">{p.title}</span>
                 <span className="block truncate text-sm text-muted-foreground">{[...patternFacts(p), ...patternFormats(p)].join(' · ')}</span>
               </span>
-              <ChevronRight className="size-4 shrink-0 text-muted-foreground" aria-hidden />
+              <OpenIcon className="size-4 shrink-0 text-muted-foreground" aria-hidden />
             </Link>
           </li>
         )

@@ -1,4 +1,5 @@
-import { PartyPopper, Play } from 'lucide-react'
+import { PartyPopper } from 'lucide-react'
+import { KnitIcon } from './KnitIcons'
 import { Link } from 'react-router-dom'
 import { buttonVariants } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
@@ -47,7 +48,7 @@ export function CurrentStepCard({ step, number, total, issues, knitTo, setupTo }
         <StepReady issues={issues} setupTo={setupTo} />
       ) : (
         <Link to={knitTo} className={cn(buttonVariants(), 'h-12 px-5 text-base')}>
-          <Play /> Tricoter
+          <KnitIcon /> Tricoter
         </Link>
       )}
     </section>

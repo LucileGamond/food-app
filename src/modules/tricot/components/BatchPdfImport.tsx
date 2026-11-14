@@ -1,4 +1,5 @@
-import { Check, Files, Loader2, Minus, TriangleAlert } from 'lucide-react'
+import { Files, Loader2, TriangleAlert } from 'lucide-react'
+import { DoneIcon, RemoveIcon } from './KnitIcons'
 import { useRef, useState } from 'react'
 import { errorMessage } from '@/api'
 import { useApi } from '@/app/ApiContext'
@@ -107,7 +108,7 @@ export function BatchPdfImport({ library, onDone }: Props) {
 function StatusIcon({ status }: { status: Status }) {
   const className = 'mt-0.5 size-4 shrink-0'
   if (status === 'saving') return <Loader2 className={`${className} animate-spin text-muted-foreground`} aria-hidden />
-  if (status === 'added') return <Check className={`${className} text-emerald-600`} aria-hidden />
+  if (status === 'added') return <DoneIcon className={`${className} text-emerald-600`} aria-hidden />
   if (status === 'failed' || status === 'too-large') return <TriangleAlert className={`${className} text-destructive`} aria-hidden />
-  return <Minus className={`${className} text-muted-foreground`} aria-hidden />
+  return <RemoveIcon className={`${className} text-muted-foreground`} aria-hidden />
 }

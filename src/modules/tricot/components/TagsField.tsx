@@ -1,4 +1,5 @@
-import { Plus, X } from 'lucide-react'
+import { X } from 'lucide-react'
+import { AddIcon } from './KnitIcons'
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -66,7 +67,7 @@ export function TagsField({ tags, onChange, suggestions }: Props) {
             }}
           />
           <Button type="button" variant="outline" className="h-10 shrink-0" disabled={!text.trim()} onClick={() => add(text)}>
-            <Plus /> Ajouter
+            <AddIcon /> Ajouter
           </Button>
         </div>
       )}

@@ -2,7 +2,8 @@
 // « Laine et échantillon » et pour des retouches en texte libre. Avant / après à valider ; ensuite, on bascule
 // entre le patron adapté et celui d'origine, qui n'est jamais modifié.
 
-import { Loader2, RotateCcw, Sparkles, Trash2, Wand2 } from 'lucide-react'
+import { Loader2, Sparkles, Wand2 } from 'lucide-react'
+import { DeleteIcon, RestartIcon } from './KnitIcons'
 import { useState } from 'react'
 import { toast } from 'sonner'
 import { errorMessage } from '@/api'
@@ -120,10 +121,10 @@ export function AdaptPanel({ project, size, onSaved }: Props) {
           </div>
           <div className="flex flex-wrap gap-2">
             <Button variant="outline" className="h-10" onClick={() => setEditing(true)}>
-              <RotateCcw /> Refaire l’adaptation
+              <RestartIcon /> Refaire l’adaptation
             </Button>
             <Button variant="outline" className="h-10 text-destructive" onClick={() => setRemoving(true)}>
-              <Trash2 /> Supprimer l’adaptation
+              <DeleteIcon /> Supprimer l’adaptation
             </Button>
           </div>
         </div>
