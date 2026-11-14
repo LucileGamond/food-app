@@ -200,7 +200,8 @@ export function YarnIdeasSection({ item, stash, emphasize }: Props) {
                     {[idea.why, idea.meters !== null && `≈ ${idea.meters} m`, idea.needleMm !== null && `aiguilles ${decimal(idea.needleMm)} mm`].filter(Boolean).join(' · ')}
                   </p>
                   {fit && (
-                    <Badge variant={fit.enough ? 'secondary' : 'destructive'} className="mt-1">
+                    // Ambre comme « À préparer » du module : lisible sur les fonds écru (contraste AA).
+                    <Badge variant={fit.enough ? 'secondary' : 'outline'} className={fit.enough ? 'mt-1' : 'mt-1 border-amber-500/40 bg-amber-500/10 text-amber-700 dark:text-amber-400'}>
                       {fit.label}
                     </Badge>
                   )}
@@ -234,7 +235,7 @@ export function YarnIdeasSection({ item, stash, emphasize }: Props) {
                   ) : (
                     <div className="mt-2 flex flex-wrap items-center gap-x-2">
                       <span className="text-muted-foreground">{ravelryMissing ? 'Pas de patron.' : 'Rien sur Ravelry.'}</span>
-                      <Button variant="outline" size="sm" disabled={busy} onClick={() => void findPatterns(current, idea)} aria-label={`Chercher des patrons sur internet : ${idea.title}`}>
+                      <Button variant="outline" size="sm" disabled={busy} onClick={() => void findPatterns(current, idea)} aria-label={`Chercher sur internet : ${idea.title}`}>
                         {busy ? <Loader2 className="animate-spin" aria-hidden /> : <SearchIcon />}
                         {busy ? 'Recherche…' : 'Chercher sur internet'}
                       </Button>

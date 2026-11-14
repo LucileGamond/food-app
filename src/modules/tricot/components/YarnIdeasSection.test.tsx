@@ -170,7 +170,7 @@ describe('Des idées pour ma laine', () => {
     const ideas = await ideasList()
     expect(within(ideas).getAllByText('≈ 2 ct')).toHaveLength(2)
     expect(within(ideas).getAllByText('Rien sur Ravelry.')).toHaveLength(2)
-    await user.click(within(ideas).getByRole('button', { name: 'Chercher des patrons sur internet : Pull raglan' }))
+    await user.click(within(ideas).getByRole('button', { name: 'Chercher sur internet : Pull raglan' }))
     expect(api.knitting.ideaPatterns).toHaveBeenCalledWith(SWEATER, [MERINO], 'dk')
     const found = await within(ideas).findByRole('list', { name: 'Patrons trouvés : Pull raglan' })
     expect(within(found).getByRole('link', { name: 'Raglan facile · garnstudio.com · Gratuit · FR' })).toHaveAttribute('href', 'https://www.garnstudio.com/pattern.php?id=9')
@@ -178,26 +178,26 @@ describe('Des idées pour ma laine', () => {
       expect.objectContaining({ ideas: [{ ...SWEATER, patterns: [{ title: 'Raglan facile', url: 'https://www.garnstudio.com/pattern.php?id=9', free: true, language: 'fr', meters: null, metersMax: null }] }, HAT] }),
     )
     // L'autre idée garde son bouton
-    expect(within(ideas).getByRole('button', { name: 'Chercher des patrons sur internet : Bonnet' })).toBeEnabled()
+    expect(within(ideas).getByRole('button', { name: 'Chercher sur internet : Bonnet' })).toBeEnabled()
   })
 
   it('aucun patron trouvé : on le dit ; erreur de recherche lisible', async () => {
     const { api, user } = setup({ configure: (api) => api.knitting.getStashIdeas.mockResolvedValue({ ...SAVED, ideas: [SWEATER, HAT] }) })
     api.knitting.ideaPatterns.mockResolvedValueOnce([]).mockRejectedValueOnce(new AppError('La recherche de patrons a échoué.'))
     const ideas = await ideasList()
-    await user.click(within(ideas).getByRole('button', { name: 'Chercher des patrons sur internet : Pull raglan' }))
+    await user.click(within(ideas).getByRole('button', { name: 'Chercher sur internet : Pull raglan' }))
     expect(await within(ideas).findByText('Aucun patron trouvé sur internet.')).toBeInTheDocument()
-    await user.click(within(ideas).getByRole('button', { name: 'Chercher des patrons sur internet : Bonnet' }))
+    await user.click(within(ideas).getByRole('button', { name: 'Chercher sur internet : Bonnet' }))
     expect(await screen.findByRole('alert')).toHaveTextContent('La recherche de patrons a échoué.')
-    expect(within(ideas).getByRole('button', { name: 'Chercher des patrons sur internet : Bonnet' })).toBeEnabled()
+    expect(within(ideas).getByRole('button', { name: 'Chercher sur internet : Bonnet' })).toBeEnabled()
   })
 
   it('pendant la recherche de patrons : bouton occupé', async () => {
     const { api, user } = setup({ configure: (api) => api.knitting.getStashIdeas.mockResolvedValue(SAVED) })
     api.knitting.ideaPatterns.mockReturnValue(new Promise(() => {}))
     const ideas = await ideasList()
-    await user.click(within(ideas).getByRole('button', { name: 'Chercher des patrons sur internet : Bonnet' }))
-    expect(within(ideas).getByRole('button', { name: 'Chercher des patrons sur internet : Bonnet' })).toBeDisabled()
+    await user.click(within(ideas).getByRole('button', { name: 'Chercher sur internet : Bonnet' }))
+    expect(within(ideas).getByRole('button', { name: 'Chercher sur internet : Bonnet' })).toBeDisabled()
     expect(ideas).toHaveTextContent('Recherche…')
   })
 
@@ -226,7 +226,7 @@ describe('Des idées pour ma laine', () => {
     const { user } = setup({ configure: (api) => api.knitting.getStashIdeas.mockResolvedValue({ ...SAVED, ideas: [{ ...HAT, patterns: [pattern] }] }) })
     const ideas = await ideasList()
     expect(within(ideas).getByRole('link', { name: 'Cowl · p.exemple · Payant · 300 à 600 m' })).toBeInTheDocument()
-    expect(within(ideas).queryByRole('button', { name: /Chercher des patrons/ })).not.toBeInTheDocument()
+    expect(within(ideas).queryByRole('button', { name: /Chercher sur internet/ })).not.toBeInTheDocument()
     await user.click(within(ideas).getByRole('link', { name: 'Garder Cowl dans ma bibliothèque' }))
     expect(await screen.findByText('Nouveau patron : https://p.exemple/cowl · Cowl · DROPS Merino · 150 ·')).toBeInTheDocument()
   })

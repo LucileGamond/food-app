@@ -451,7 +451,7 @@ describe('stock de laine', () => {
     // Relancer remplace (une seule ligne par ensemble de laines)
     await api.knitting.saveStashIdeas({ stashIds: [merino], wish: 'petit', ideas: [{ ...bonnet, title: 'Mitaines' }], weight: 'dk' })
     expect(await api.knitting.getStashIdeas([merino])).toMatchObject({ wish: 'petit', ideas: [{ title: 'Mitaines' }], weight: 'dk' })
-    await expect(api.knitting.saveStashIdeas({ stashIds: [merino], wish: '', ideas: [], weight: null })).rejects.toThrow('Impossible de garder les idées.')
+    await expect(api.knitting.saveStashIdeas({ stashIds: [merino], wish: '', ideas: [], weight: null })).rejects.toThrow('Certaines valeurs sont invalides.')
 
     // Laine retirée : ses idées, seules ou associées, partent avec elle
     await api.knitting.deleteStashItem(alpaca)
