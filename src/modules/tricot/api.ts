@@ -6,7 +6,7 @@ import type { AppSupabaseClient } from '@/api/client'
 import { compressForReading } from '@/lib/image'
 import type { ProgressPhoto, ProjectProgress } from './lib/progress'
 import { describeYarn, yarnFromJson, yarnMeters, yarnsFromJson, type Gauge, type StashItem, type Yarn, type YarnIdea } from './lib/yarn'
-import { patternLinkFromResponse, type KnitPattern, type PatternFields, type PatternFiles, type PatternLink, type PatternLinkResponse, type PatternWish } from './lib/library'
+import { patternLinkFromResponse, type KnitPattern, type PatternFields, type PatternFiles, type PatternLink, type PatternLinkResponse } from './lib/library'
 import { readingFromJson, readingKey, readSizeIndex, type StoredReading } from './lib/readings'
 import { sanitizeHighlights } from './lib/sizes'
 import { readTimes } from './lib/passes'
@@ -117,7 +117,7 @@ function toStep(row: StepRow): KnitStep {
 }
 
 /** Patron de la bibliothèque, avec ses projets (les plus récents d'abord). */
-const PATTERN_COLUMNS = 'id, title, pdf_path, photos, url, size, yarn_idea, notes, meters_needed, needle_mm, wish, created_at, knit_projects(id, title, size, updated_at), knit_pattern_readings(size_index, size_label)'
+const PATTERN_COLUMNS = 'id, title, pdf_path, photos, url, size, yarn_idea, notes, meters_needed, needle_mm, created_at, knit_projects(id, title, size, updated_at), knit_pattern_readings(size_index, size_label)'
 
 interface PatternRow {
   id: string
@@ -130,7 +130,6 @@ interface PatternRow {
   notes: string
   meters_needed: number | null
   needle_mm: number | null
-  wish: number | null
   created_at: string
   knit_projects: { id: string; title: string; size: string; updated_at: string }[]
   knit_pattern_readings: { size_index: number | null; size_label: string }[]
@@ -148,7 +147,6 @@ function toPattern(r: PatternRow): KnitPattern {
     notes: r.notes,
     metersNeeded: r.meters_needed,
     needleMm: r.needle_mm,
-    wish: r.wish as PatternWish | null,
     createdAt: r.created_at,
     projects: r.knit_projects.toSorted((a, b) => b.updated_at.localeCompare(a.updated_at)).map((p) => ({ id: p.id, title: p.title, size: p.size })),
     readSizes: r.knit_pattern_readings.toSorted((a, b) => (a.size_index ?? -1) - (b.size_index ?? -1)).map((reading) => reading.size_label),
@@ -164,7 +162,6 @@ function toPatternColumns(fields: PatternFields) {
     notes: fields.notes,
     meters_needed: fields.metersNeeded,
     needle_mm: fields.needleMm,
-    wish: fields.wish,
   }
 }
 

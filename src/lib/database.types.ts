@@ -271,14 +271,14 @@ isOneToOne: false
                   ]
                 },"knit_patterns": {
                   Row: {
-                    "created_at": string,"id": string,"meters_needed": number | null,"needle_mm": number | null,"notes": string,"pdf_path": string | null,"photos": (string)[],"profile_id": string,"size": string | null,"title": string,"url": string | null,"wish": number | null,"yarn_idea": string
+                    "created_at": string,"id": string,"meters_needed": number | null,"needle_mm": number | null,"notes": string,"pdf_path": string | null,"photos": (string)[],"profile_id": string,"size": string | null,"title": string,"url": string | null,"yarn_idea": string
                   }
                   ComputedFields: never
                   Insert: {
-                    "created_at"?: string,"id"?: string,"meters_needed"?: number | null,"needle_mm"?: number | null,"notes"?: string,"pdf_path"?: string | null,"photos"?: (string)[],"profile_id"?: string,"size"?: string | null,"title": string,"url"?: string | null,"wish"?: number | null,"yarn_idea"?: string
+                    "created_at"?: string,"id"?: string,"meters_needed"?: number | null,"needle_mm"?: number | null,"notes"?: string,"pdf_path"?: string | null,"photos"?: (string)[],"profile_id"?: string,"size"?: string | null,"title": string,"url"?: string | null,"yarn_idea"?: string
                   }
                   Update: {
-                    "created_at"?: string,"id"?: string,"meters_needed"?: number | null,"needle_mm"?: number | null,"notes"?: string,"pdf_path"?: string | null,"photos"?: (string)[],"profile_id"?: string,"size"?: string | null,"title"?: string,"url"?: string | null,"wish"?: number | null,"yarn_idea"?: string
+                    "created_at"?: string,"id"?: string,"meters_needed"?: number | null,"needle_mm"?: number | null,"notes"?: string,"pdf_path"?: string | null,"photos"?: (string)[],"profile_id"?: string,"size"?: string | null,"title"?: string,"url"?: string | null,"yarn_idea"?: string
                   }
                   Relationships: [
                     {

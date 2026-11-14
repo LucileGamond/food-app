@@ -1,4 +1,4 @@
-import { ChevronRight, ExternalLink, FileText, MoreHorizontal, Pencil, Play, SearchX, Trash2 } from 'lucide-react'
+import { ChevronRight, ExternalLink, FileText, Pencil, Play, SearchX, Trash2 } from 'lucide-react'
 import { useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { toast } from 'sonner'
@@ -9,7 +9,6 @@ import { EmptyState } from '@/components/EmptyState'
 import { LoadError } from '@/components/LoadError'
 import { Button, buttonVariants } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog'
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useAsync } from '@/hooks/useAsync'
 import { useSignedUrls } from '@/hooks/useSignedUrls'
@@ -17,6 +16,7 @@ import { openInNewTab } from '@/lib/openInNewTab'
 import { cn } from '@/lib/utils'
 import { BackLink } from '../components/BackLink'
 import { PatternThumbs } from '../components/PatternThumbs'
+import { PdfReader } from '../components/PdfReader'
 import { patternFacts, type KnitPattern } from '../lib/library'
 
 /** Fiche d'un patron : ses formats à ouvrir, ce qu'on en sait, ses projets, et « Commencer un projet ». */
@@ -51,9 +51,10 @@ function PatternSheet({ pattern }: { pattern: KnitPattern }) {
   const [viewing, setViewing] = useState(0)
   const [viewerOpen, setViewerOpen] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
+  const [reading, setReading] = useState(false)
   const facts = patternFacts(pattern)
 
-  async function openPdf() {
+  async function openPdfOutside() {
     await openInNewTab(() => api.knitting.pdfUrl(pattern.pdfPath!)).catch((error: unknown) => toast.error(errorMessage(error)))
   }
 
@@ -78,16 +79,9 @@ function PatternSheet({ pattern }: { pattern: KnitPattern }) {
         <Link to={`/tricot/patrons/${pattern.id}/modifier`} className={cn(buttonVariants({ variant: 'outline' }), 'h-10')}>
           <Pencil /> Modifier
         </Link>
-        <DropdownMenu>
-          <DropdownMenuTrigger render={<Button variant="outline" size="icon-lg" className="size-10" aria-label="Plus d’actions" />}>
-            <MoreHorizontal />
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-52">
-            <DropdownMenuItem variant="destructive" onClick={() => setConfirmDelete(true)}>
-              <Trash2 /> Supprimer
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
+        <Button variant="outline" size="icon-lg" className="size-10 text-destructive" aria-label="Supprimer le patron" onClick={() => setConfirmDelete(true)}>
+          <Trash2 />
+        </Button>
       </div>
 
       <div className="max-w-lg space-y-6">
@@ -95,7 +89,7 @@ function PatternSheet({ pattern }: { pattern: KnitPattern }) {
           {(pattern.pdfPath || pattern.url) && (
             <div className="flex flex-wrap gap-2">
               {pattern.pdfPath && (
-                <Button variant="outline" className="h-10" onClick={() => void openPdf()}>
+                <Button variant="outline" className="h-10" onClick={() => setReading(true)}>
                   <FileText /> Ouvrir le PDF
                 </Button>
               )}
@@ -135,15 +129,14 @@ function PatternSheet({ pattern }: { pattern: KnitPattern }) {
           ) : (
             <p className="text-sm text-muted-foreground">Pas encore tricoté.</p>
           )}
-          <Link to={`/tricot/nouveau?patron=${pattern.id}`} className={cn(buttonVariants(), 'h-10')}>
-            <Play /> Commencer un projet
+          <Link to={`/tricot/nouveau?patron=${pattern.id}`} className={cn(buttonVariants(), 'h-auto min-h-10 flex-wrap py-2')}>
+            <Play /> Commencer un projet{' '}
+            {pattern.readSizes.length > 0 && (
+              <span className="text-xs font-normal opacity-80">
+                ({pattern.readSizes.length > 1 ? 'tailles' : 'taille'} {pattern.readSizes.join(', ')} déjà {pattern.readSizes.length > 1 ? 'lues' : 'lue'} : sans relire)
+              </span>
+            )}
           </Link>
-          {pattern.readSizes.length > 0 && (
-            <p className="text-xs text-muted-foreground">
-              Déjà lu pour {pattern.readSizes.length > 1 ? 'les tailles' : 'la taille'} {pattern.readSizes.join(', ')} : un projet dans {pattern.readSizes.length > 1 ? 'ces tailles' : 'cette taille'} se crée sans
-              relire le patron.
-            </p>
-          )}
           {!pattern.pdfPath && <p className="text-xs text-muted-foreground">Le projet se crée à partir du PDF du patron : il te sera demandé.</p>}
         </section>
       </div>
@@ -158,6 +151,10 @@ function PatternSheet({ pattern }: { pattern: KnitPattern }) {
           )}
         </DialogContent>
       </Dialog>
+
+      {reading && pattern.pdfPath && (
+        <PdfReader title={pattern.title} load={() => api.knitting.downloadPdf(pattern.pdfPath!, pattern.title)} onClose={() => setReading(false)} onOpenOutside={() => void openPdfOutside()} />
+      )}
 
       <ConfirmDialog
         open={confirmDelete}

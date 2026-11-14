@@ -19,8 +19,8 @@ set local request.jwt.claims = '{"sub":"11111111-1111-1111-1111-111111111111","r
 -- Formats : photos dans son dossier, 10 au plus
 -- ---------------------------------------------------------------------------
 with p as (
-  insert into public.knit_patterns (title, photos, url, wish)
-  values ('Châle', array['11111111-1111-1111-1111-111111111111/aaaaaaaa-0000-0000-0000-000000000011.jpg'], 'https://patrons.exemple/chale', 1)
+  insert into public.knit_patterns (title, photos, url)
+  values ('Châle', array['11111111-1111-1111-1111-111111111111/aaaaaaaa-0000-0000-0000-000000000011.jpg'], 'https://patrons.exemple/chale')
   returning id
 )
 insert into ids select 'photos', id from p;
@@ -53,8 +53,8 @@ insert into ids values ('new', public.create_knit_project(
   '[{"title": "Dos", "instructions": "", "total_rows": null, "stitches": null, "sections": []}]', null, null, null
 ));
 select is(
-  (select row(t.title, t.pdf_path, t.size, t.wish)::text from public.knit_patterns t join public.knit_projects p on p.pattern_id = t.id where p.id = (select v from ids where k = 'new')),
-  row('Pull', '11111111-1111-1111-1111-111111111111/aaaaaaaa-0000-0000-0000-000000000021.pdf', 'M', null::smallint)::text,
+  (select row(t.title, t.pdf_path, t.size)::text from public.knit_patterns t join public.knit_projects p on p.pattern_id = t.id where p.id = (select v from ids where k = 'new')),
+  row('Pull', '11111111-1111-1111-1111-111111111111/aaaaaaaa-0000-0000-0000-000000000021.pdf', 'M')::text,
   'nouveau projet : son patron est rangé dans la bibliothèque'
 );
 
@@ -64,9 +64,9 @@ insert into ids values ('from-photos', public.create_knit_project(
   '[{"title": "Bordure", "instructions": "", "total_rows": null, "stitches": null, "sections": []}]', null, null, (select v from ids where k = 'photos')
 ));
 select is(
-  (select row(pdf_path, wish)::text from public.knit_patterns where id = (select v from ids where k = 'photos')),
-  row('11111111-1111-1111-1111-111111111111/aaaaaaaa-0000-0000-0000-000000000022.pdf', null::smallint)::text,
-  'patron commencé : il prend le PDF du projet et n''est plus une envie'
+  (select pdf_path from public.knit_patterns where id = (select v from ids where k = 'photos')),
+  '11111111-1111-1111-1111-111111111111/aaaaaaaa-0000-0000-0000-000000000022.pdf',
+  'patron commencé : il prend le PDF du projet'
 );
 select is((select pattern_id from public.knit_projects where id = (select v from ids where k = 'from-photos')), (select v from ids where k = 'photos'), 'projet relié à son patron');
 

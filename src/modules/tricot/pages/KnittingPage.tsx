@@ -11,7 +11,7 @@ import { cn } from '@/lib/utils'
 import { StashSection } from '../components/StashSection'
 import { MeasuresSection } from '../components/MeasuresSection'
 import type { KnitProjectSummary } from '../lib/pattern'
-import { filterPatterns, type KnitPattern } from '../lib/library'
+import { librarySummary, type KnitPattern } from '../lib/library'
 import { describePass } from '../lib/passes'
 
 /** « Taille M · étape 3 sur 8 : Manches », « Taille M · terminé ». */
@@ -81,8 +81,7 @@ export function KnittingPage() {
 
 /** Accès à la bibliothèque de patrons, avec ce qu'elle contient et de quoi en ajouter un sans la traverser. */
 function LibraryLink({ patterns }: { patterns: KnitPattern[] | undefined }) {
-  const todo = patterns ? filterPatterns(patterns, '', 'todo').length : 0
-  const summary = patterns === undefined ? null : patterns.length === 0 ? 'Garde ici les patrons qui te font envie' : [`${patterns.length} patron${patterns.length > 1 ? 's' : ''}`, todo > 0 && `${todo} à faire`].filter(Boolean).join(' · ')
+  const summary = patterns === undefined ? null : patterns.length === 0 ? 'Garde ici les patrons qui te font envie' : librarySummary(patterns)
   return (
     <div className="mt-8 flex items-center gap-2 rounded-2xl border bg-background shadow-xs transition-colors hover:bg-muted/50">
       <Link to="/tricot/patrons" className="flex min-w-0 flex-1 items-center gap-3 rounded-2xl p-4 focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none">

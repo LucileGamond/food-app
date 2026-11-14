@@ -3,15 +3,6 @@
 
 import { decimal, NEEDLE_TOLERANCE_MM, parseDecimal, parseMeters, yarnMeters, type Yarn } from './yarn'
 
-/** Envie de tricoter un patron : 1 = bientôt, 2 = un jour, 3 = peut-être. */
-export type PatternWish = 1 | 2 | 3
-
-export const WISHES: { value: PatternWish; label: string }[] = [
-  { value: 1, label: 'Bientôt' },
-  { value: 2, label: 'Un jour' },
-  { value: 3, label: 'Peut-être' },
-]
-
 /** Photos par patron (pages d'un magazine, d'un livre). */
 export const MAX_PATTERN_PHOTOS = 10
 
@@ -36,8 +27,6 @@ export interface KnitPattern {
   /** Besoins du patron (taille visée), s'ils sont connus : servent à le retrouver depuis une laine du stock. */
   metersNeeded: number | null
   needleMm: number | null
-  /** Envie notée ; null une fois commencé, ou pour un patron simplement gardé. */
-  wish: PatternWish | null
   createdAt: string
   projects: PatternProject[]
   /** Tailles dont la lecture par le modèle est gardée (un projet dans ces tailles se crée sans relire). */
@@ -53,7 +42,6 @@ export interface PatternFields {
   notes: string
   metersNeeded: number | null
   needleMm: number | null
-  wish: PatternWish | null
 }
 
 /** Fichiers d'un patron en cours de saisie : ceux déjà enregistrés qu'on garde, et les nouveaux à envoyer. */
@@ -74,10 +62,9 @@ export interface PatternDraft {
   notes: string
   metersNeeded: string
   needleMm: string
-  wish: PatternWish | null
 }
 
-export const EMPTY_PATTERN_DRAFT: PatternDraft = { title: '', url: '', size: '', yarnIdea: '', notes: '', metersNeeded: '', needleMm: '', wish: 2 }
+export const EMPTY_PATTERN_DRAFT: PatternDraft = { title: '', url: '', size: '', yarnIdea: '', notes: '', metersNeeded: '', needleMm: '' }
 
 export function toPatternDraft(p: KnitPattern): PatternDraft {
   return {
@@ -88,7 +75,6 @@ export function toPatternDraft(p: KnitPattern): PatternDraft {
     notes: p.notes,
     metersNeeded: p.metersNeeded === null ? '' : String(p.metersNeeded),
     needleMm: p.needleMm === null ? '' : decimal(p.needleMm),
-    wish: p.wish,
   }
 }
 
@@ -124,51 +110,46 @@ export function parsePatternDraft(draft: PatternDraft, files: PatternFiles): { f
       notes: draft.notes.trim(),
       metersNeeded,
       needleMm: needle === null ? null : Math.round(needle * 100) / 100,
-      wish: draft.wish,
     },
   }
 }
 
-/** Les envies d'abord (les plus pressées en tête), puis les autres patrons, les plus récents d'abord. */
-export function sortPatterns<T extends Pick<KnitPattern, 'wish' | 'createdAt'>>(items: T[]): T[] {
-  return items.toSorted((a, b) => (a.wish ?? 4) - (b.wish ?? 4) || (a.wish === null ? b.createdAt.localeCompare(a.createdAt) : a.createdAt.localeCompare(b.createdAt)))
+/** Les patrons les plus récents d'abord. */
+export function sortPatterns<T extends Pick<KnitPattern, 'createdAt'>>(items: T[]): T[] {
+  return items.toSorted((a, b) => b.createdAt.localeCompare(a.createdAt))
 }
-
-export type PatternFilter = 'all' | 'todo' | 'started'
-
-export const PATTERN_FILTERS: { value: PatternFilter; label: string }[] = [
-  { value: 'all', label: 'Tous' },
-  { value: 'todo', label: 'À faire' },
-  { value: 'started', label: 'Commencés' },
-]
 
 /** Minuscules sans accents, pour chercher « rosee » dans « Rosée ». */
 function fold(text: string): string {
   return text.normalize('NFD').replace(/\p{M}/gu, '').toLowerCase()
 }
 
-/** Patrons qui répondent à la recherche (titre, notes, laine, taille, nom des projets) et au filtre, triés. */
-export function filterPatterns(items: KnitPattern[], search: string, filter: PatternFilter): KnitPattern[] {
+/** Patrons qui répondent à la recherche (titre, notes, laine, taille, nom des projets), triés. */
+export function filterPatterns(items: KnitPattern[], search: string): KnitPattern[] {
   const words = fold(search).split(/\s+/).filter(Boolean)
   return sortPatterns(
     items.filter((p) => {
-      if (filter === 'todo' && p.projects.length > 0) return false
-      if (filter === 'started' && p.projects.length === 0) return false
       const text = fold([p.title, p.notes, p.yarnIdea, p.size ?? '', ...p.projects.map((project) => project.title)].join(' '))
       return words.every((w) => text.includes(w))
     }),
   )
 }
 
-/** « Bientôt · taille M · 600 m · aiguilles 4 mm · Mérinos » ; « 2 projets » une fois commencé. */
+/** « 2 projets · taille M · 600 m · aiguilles 4 mm · Mérinos » (les projets, s'il y en a). */
 export function patternFacts(p: KnitPattern): string[] {
   return [
-    p.projects.length > 0 ? `${p.projects.length} projet${p.projects.length > 1 ? 's' : ''}` : WISHES.find((w) => w.value === p.wish)?.label,
+    p.projects.length > 0 && `${p.projects.length} projet${p.projects.length > 1 ? 's' : ''}`,
     p.size && `taille ${p.size}`,
     p.metersNeeded !== null && `${p.metersNeeded} m`,
     p.needleMm !== null && `aiguilles ${decimal(p.needleMm)} mm`,
     p.yarnIdea,
   ].filter((f): f is string => !!f)
+}
+
+/** « 5 patrons · 2 tricotés » : ce que contient la bibliothèque. */
+export function librarySummary(items: Pick<KnitPattern, 'projects'>[]): string {
+  const knitted = items.filter((p) => p.projects.length > 0).length
+  return [`${items.length} patron${items.length > 1 ? 's' : ''}`, knitted > 0 && `${knitted} tricoté${knitted > 1 ? 's' : ''}`].filter(Boolean).join(' · ')
 }
 
 /** « PDF », « 3 photos », « lien » : les formats du patron. */

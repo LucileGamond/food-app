@@ -1,6 +1,6 @@
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(22);
+select plan(21);
 
 delete from public.knit_projects;
 delete from public.knit_patterns;
@@ -29,8 +29,8 @@ set local role authenticated;
 set local request.jwt.claims = '{"sub":"11111111-1111-1111-1111-111111111111","role":"authenticated"}';
 
 with q as (
-  insert into public.knit_patterns (title, pdf_path, size, wish)
-  values ('Gilet', '11111111-1111-1111-1111-111111111111/aaaaaaaa-0000-0000-0000-000000000001.pdf', 'M', 1)
+  insert into public.knit_patterns (title, pdf_path, size)
+  values ('Gilet', '11111111-1111-1111-1111-111111111111/aaaaaaaa-0000-0000-0000-000000000001.pdf', 'M')
   returning id
 )
 insert into ids select 'queued', id from q;
@@ -39,7 +39,6 @@ select throws_ok(
   '23514', null, 'PDF hors de son dossier refusé'
 );
 select throws_ok($$insert into public.knit_patterns (title, url) values ('Lien', 'ftp://patrons')$$, '23514', null, 'lien http(s) seulement');
-select throws_ok($$insert into public.knit_patterns (title, wish) values ('Bonnet', 4)$$, '23514', null, 'envie de 1 à 3');
 
 insert into ids values ('project', public.create_knit_project(
   'Gilet', 'M', '11111111-1111-1111-1111-111111111111/aaaaaaaa-0000-0000-0000-000000000001.pdf',
@@ -51,7 +50,7 @@ select is(
   row(22.0::numeric(4, 1), 30.0::numeric(4, 1), '11111111-1111-1111-1111-111111111111/aaaaaaaa-0000-0000-0000-000000000001.pdf')::text,
   'échantillon du patron et PDF repris'
 );
-select is((select row(count(*), bool_and(wish is null))::text from public.knit_patterns), row(1::bigint, true)::text, 'patron commencé : il reste dans la bibliothèque, sans envie');
+select is((select count(*)::int from public.knit_patterns), 1, 'patron commencé : il reste dans la bibliothèque');
 
 -- Les échantillons de la tricoteuse vivent tous dans needle_gauges, un par aiguille (null : toutes aiguilles).
 update public.knit_projects
@@ -74,7 +73,7 @@ select throws_ok(
   '42501', null, 'pas de projet depuis le patron d''une autre'
 );
 reset role;
-select is((select count(*)::int from public.knit_patterns where wish is null), 2, 'les patrons de Lucile restent tels quels');
+select is((select count(*)::int from public.knit_patterns), 2, 'les patrons de Lucile restent tels quels');
 
 -- Ménage de nuit : le PDF d'un patron de la bibliothèque est gardé.
 select ok(

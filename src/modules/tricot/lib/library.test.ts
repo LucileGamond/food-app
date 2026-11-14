@@ -1,6 +1,7 @@
 import {
   EMPTY_PATTERN_DRAFT,
   isReadableLink,
+  librarySummary,
   linkAdditions,
   patternFormChanged,
   patternLinkFromResponse,
@@ -33,7 +34,6 @@ function pattern(id: string, patch: Partial<KnitPattern> = {}): KnitPattern {
     notes: '',
     metersNeeded: null,
     needleMm: null,
-    wish: 2,
     createdAt: '2026-11-01',
     projects: [],
     readSizes: [],
@@ -46,9 +46,9 @@ describe('saisie d’un patron', () => {
 
   it('nettoie la saisie', () => {
     expect(parsePatternDraft(draft, WITH_PDF)).toEqual({
-      fields: { title: 'Pull', url: null, size: 'M', yarnIdea: '', notes: '', metersNeeded: null, needleMm: null, wish: 2 },
+      fields: { title: 'Pull', url: null, size: 'M', yarnIdea: '', notes: '', metersNeeded: null, needleMm: null },
     })
-    expect(parsePatternDraft({ ...draft, metersNeeded: '350', needleMm: '4,5', wish: null }, WITH_PDF)).toMatchObject({ fields: { metersNeeded: 350, needleMm: 4.5, wish: null } })
+    expect(parsePatternDraft({ ...draft, metersNeeded: '350', needleMm: '4,5' }, WITH_PDF)).toMatchObject({ fields: { metersNeeded: 350, needleMm: 4.5 } })
   })
 
   it('accepte chaque format seul : PDF, photo déjà gardée ou nouvelle, lien', () => {
@@ -75,9 +75,9 @@ describe('saisie d’un patron', () => {
   })
 
   it('cohérence : un patron enregistré, remis en saisie, redonne les mêmes champs', () => {
-    const saved = pattern('Gilet', { url: 'https://patrons.exemple/gilet', size: 'M', yarnIdea: 'Mérinos', notes: 'Col V', metersNeeded: 600, needleMm: 3.75, wish: 1 })
+    const saved = pattern('Gilet', { url: 'https://patrons.exemple/gilet', size: 'M', yarnIdea: 'Mérinos', notes: 'Col V', metersNeeded: 600, needleMm: 3.75 })
     const parsed = parsePatternDraft(toPatternDraft(saved), NO_FILES)
-    expect(parsed).toEqual({ fields: { title: 'Gilet', url: saved.url, size: 'M', yarnIdea: 'Mérinos', notes: 'Col V', metersNeeded: 600, needleMm: 3.75, wish: 1 } })
+    expect(parsed).toEqual({ fields: { title: 'Gilet', url: saved.url, size: 'M', yarnIdea: 'Mérinos', notes: 'Col V', metersNeeded: 600, needleMm: 3.75 } })
     expect(toPatternDraft(saved).needleMm).toBe('3,75')
   })
 
@@ -88,15 +88,9 @@ describe('saisie d’un patron', () => {
 })
 
 describe('liste des patrons', () => {
-  it('les envies d’abord (les plus pressées, puis les plus anciennes), puis les autres, les plus récents d’abord', () => {
-    const items = [
-      pattern('archive-ancien', { wish: null, createdAt: '2026-01-01' }),
-      pattern('peut-etre', { wish: 3, createdAt: '2026-01-01' }),
-      pattern('bientot-recent', { wish: 1, createdAt: '2026-03-01' }),
-      pattern('archive-recent', { wish: null, createdAt: '2026-05-01' }),
-      pattern('bientot-ancien', { wish: 1, createdAt: '2026-02-01' }),
-    ]
-    expect(sortPatterns(items).map((p) => p.id)).toEqual(['bientot-ancien', 'bientot-recent', 'peut-etre', 'archive-recent', 'archive-ancien'])
+  it('les plus récents d’abord', () => {
+    const items = [pattern('janvier', { createdAt: '2026-01-01' }), pattern('mai', { createdAt: '2026-05-01' }), pattern('mars', { createdAt: '2026-03-01' })]
+    expect(sortPatterns(items).map((p) => p.id)).toEqual(['mai', 'mars', 'janvier'])
   })
 
   it('cherche sans tenir compte des accents ni de la casse, dans le titre, les notes, la laine et les projets', () => {
@@ -105,27 +99,25 @@ describe('liste des patrons', () => {
       pattern('Pull', { yarnIdea: 'Mérinos bleu' }),
       pattern('Bonnet', { projects: [{ id: 'p', title: 'Bonnet de Noël', size: 'S' }] }),
     ]
-    expect(filterPatterns(items, 'rosee', 'all').map((p) => p.id)).toEqual(['Gilet Rosée'])
-    expect(filterPatterns(items, 'MERINOS', 'all').map((p) => p.id)).toEqual(['Pull'])
-    expect(filterPatterns(items, 'noel', 'all').map((p) => p.id)).toEqual(['Bonnet'])
-    expect(filterPatterns(items, 'gilet col', 'all').map((p) => p.id)).toEqual(['Gilet Rosée'])
-    expect(filterPatterns(items, 'gilet pull', 'all')).toEqual([])
-    expect(filterPatterns(items, '  ', 'all')).toHaveLength(3)
+    expect(filterPatterns(items, 'rosee').map((p) => p.id)).toEqual(['Gilet Rosée'])
+    expect(filterPatterns(items, 'MERINOS').map((p) => p.id)).toEqual(['Pull'])
+    expect(filterPatterns(items, 'noel').map((p) => p.id)).toEqual(['Bonnet'])
+    expect(filterPatterns(items, 'gilet col').map((p) => p.id)).toEqual(['Gilet Rosée'])
+    expect(filterPatterns(items, 'gilet pull')).toEqual([])
+    expect(filterPatterns(items, '  ')).toHaveLength(3)
   })
 
-  it('filtre les patrons à faire et ceux déjà commencés ; les deux filtres se partagent tous les patrons', () => {
-    const items = [pattern('a'), pattern('b', { projects: [{ id: 'p', title: 'B', size: 'M' }] }), pattern('c', { wish: null })]
-    const todo = filterPatterns(items, '', 'todo').map((p) => p.id)
-    const started = filterPatterns(items, '', 'started').map((p) => p.id)
-    expect(todo).toEqual(['a', 'c'])
-    expect(started).toEqual(['b'])
-    expect([...todo, ...started].toSorted()).toEqual(filterPatterns(items, '', 'all').map((p) => p.id).toSorted())
+  it('résume un patron : projets, taille, besoins, laine', () => {
+    expect(patternFacts(pattern('Gilet', { size: 'M', metersNeeded: 600, needleMm: 3.5, yarnIdea: 'Mérinos' }))).toEqual(['taille M', '600 m', 'aiguilles 3,5 mm', 'Mérinos'])
+    expect(patternFacts(pattern('Pull', { projects: [{ id: '1', title: 'Pull', size: 'M' }, { id: '2', title: 'Pull 2', size: 'L' }] }))).toEqual(['2 projets'])
+    expect(patternFacts(pattern('Bonnet'))).toEqual([])
   })
 
-  it('résume un patron : envie ou projets, taille, besoins, laine', () => {
-    expect(patternFacts(pattern('Gilet', { wish: 1, size: 'M', metersNeeded: 600, needleMm: 3.5, yarnIdea: 'Mérinos' }))).toEqual(['Bientôt', 'taille M', '600 m', 'aiguilles 3,5 mm', 'Mérinos'])
-    expect(patternFacts(pattern('Pull', { wish: null, projects: [{ id: '1', title: 'Pull', size: 'M' }, { id: '2', title: 'Pull 2', size: 'L' }] }))).toEqual(['2 projets'])
-    expect(patternFacts(pattern('Bonnet', { wish: null }))).toEqual([])
+  it('résume la bibliothèque : patrons et ceux déjà tricotés', () => {
+    const knitted = { projects: [{ id: '1', title: 'Pull', size: 'M' }] }
+    expect(librarySummary([{ projects: [] }])).toBe('1 patron')
+    expect(librarySummary([{ projects: [] }, knitted, knitted])).toBe('3 patrons · 2 tricotés')
+    expect(librarySummary([knitted])).toBe('1 patron · 1 tricoté')
   })
 
   it('liste les formats', () => {
@@ -136,11 +128,11 @@ describe('liste des patrons', () => {
 
 describe('quel patron pour ma laine', () => {
   const PARTNER: Yarn = { brand: 'Phildar', name: 'Partner 3.5', color: null, dye_lot: null, composition: null, weight_g: 50, length_m: 125, skeins: 6, needle_mm: 3.5 }
-  const needs = (id: string, metersNeeded: number | null, needleMm: number | null, wish: 1 | 2 | 3 | null = 2) => pattern(id, { metersNeeded, needleMm, wish })
+  const needs = (id: string, metersNeeded: number | null, needleMm: number | null) => pattern(id, { metersNeeded, needleMm })
 
   it('garde les patrons dont le métrage et les aiguilles conviennent, met à part ceux qu’on ne peut pas juger', () => {
     // 6 pelotes de 125 m (750 m), aiguilles 3,5 mm.
-    const result = matchPatterns(PARTNER, [needs('Pull', 900, 3.5), needs('Gilet', 600, 4, 1), needs('Châle', 400, 6), needs('Bonnet', null, null), needs('Snood', 200, null)])
+    const result = matchPatterns(PARTNER, [needs('Pull', 900, 3.5), needs('Gilet', 600, 4), needs('Châle', 400, 6), needs('Bonnet', null, null), needs('Snood', 200, null)])
     expect(result.fits.map((m) => [m.item.id, m.reasons])).toEqual([
       ['Gilet', ['600 m nécessaires, 750 m en stock', 'aiguilles 4 mm (laine : 3,5 mm)']],
       ['Snood', ['200 m nécessaires, 750 m en stock']],
@@ -150,8 +142,9 @@ describe('quel patron pour ma laine', () => {
     expect(matchPatterns({ ...PARTNER, skeins: null }, [needs('Pull', 900, 3.5)]).fits.map((m) => m.reasons)).toEqual([['aiguilles 3,5 mm (laine : 3,5 mm)']])
   })
 
-  it('compte aussi les patrons déjà tricotés, après les envies', () => {
-    expect(matchPatterns(PARTNER, [needs('Tricoté', 300, null, null), needs('Envie', 300, null, 3)]).fits.map((m) => m.item.id)).toEqual(['Envie', 'Tricoté'])
+  it('compte aussi les patrons déjà tricotés', () => {
+    const knitted = pattern('Tricoté', { metersNeeded: 300, projects: [{ id: 'p', title: 'Tricoté', size: 'M' }] })
+    expect(matchPatterns(PARTNER, [knitted, needs('Pas encore', 300, null)]).fits.map((m) => m.item.id)).toEqual(['Tricoté', 'Pas encore'])
   })
 })
 

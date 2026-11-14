@@ -16,6 +16,9 @@ vi.mock('@/lib/image', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@/lib/image')>()),
   compressImage: vi.fn(async (file: File) => new Blob([file], { type: 'image/jpeg' })),
 }))
+vi.mock('@/lib/pdf', () => ({
+  openPdf: vi.fn(async () => ({ pageCount: 2, renderPage: async (page: number) => new File(['jpg'], `page-${page}.jpg`, { type: 'image/jpeg' }), close: async () => undefined })),
+}))
 
 const pattern = (id: string, patch: Partial<KnitPattern> = {}): KnitPattern => ({
   id,
@@ -28,7 +31,6 @@ const pattern = (id: string, patch: Partial<KnitPattern> = {}): KnitPattern => (
   notes: '',
   metersNeeded: null,
   needleMm: null,
-  wish: 2,
   createdAt: '2026-11-01T10:00:00Z',
   projects: [],
   readSizes: [],
@@ -45,19 +47,19 @@ const GILET = pattern('g1', {
   notes: 'Col en V',
   metersNeeded: 600,
   needleMm: 4,
-  wish: 1,
+  createdAt: '2026-11-03T10:00:00Z',
 })
-const PULL = pattern('p1', { title: 'Pull Bergamote', pdfPath: 'u-lucile/pull.pdf', wish: null, projects: [{ id: 'proj1', title: 'Pull Bergamote', size: 'M' }] })
-const BONNET = pattern('b1', { title: 'Bonnet', url: 'https://patrons.exemple/bonnet', wish: 3 })
+const PULL = pattern('p1', { title: 'Pull Bergamote', pdfPath: 'u-lucile/pull.pdf', projects: [{ id: 'proj1', title: 'Pull Bergamote', size: 'M' }] })
+const BONNET = pattern('b1', { title: 'Bonnet', url: 'https://patrons.exemple/bonnet', createdAt: '2026-11-02T10:00:00Z' })
 
 describe('page Tricot : accès à la bibliothèque', () => {
-  it('résume la bibliothèque : nombre de patrons et ceux à faire', async () => {
+  it('résume la bibliothèque : nombre de patrons et ceux déjà tricotés', async () => {
     const api = fakeApi()
     api.knitting.listPatterns.mockResolvedValue([GILET, PULL, BONNET])
     renderWithApp(<KnittingPage />, { api })
     const link = await screen.findByRole('link', { name: /Bibliothèque de patrons/ })
     expect(link).toHaveAttribute('href', '/tricot/patrons')
-    expect(await within(link).findByText('3 patrons · 2 à faire')).toBeInTheDocument()
+    expect(await within(link).findByText('3 patrons · 1 tricoté')).toBeInTheDocument()
   })
 
   it('met un patron de côté depuis la page Tricot, sans traverser la bibliothèque', async () => {
@@ -72,7 +74,7 @@ describe('page Tricot : accès à la bibliothèque', () => {
 })
 
 describe('bibliothèque de patrons', () => {
-  it('liste les patrons, les envies d’abord, avec leurs formats', async () => {
+  it('liste les patrons, les plus récents d’abord, sur une ligne : vignette, ce qu’on en sait, formats', async () => {
     const api = fakeApi()
     api.knitting.listPatterns.mockResolvedValue([PULL, BONNET, GILET])
     renderWithApp(<KnittingLibraryPage />, { api, route: '/tricot/patrons', path: '/tricot/patrons' })
@@ -80,14 +82,16 @@ describe('bibliothèque de patrons', () => {
     const links = within(list).getAllByRole('link')
     expect(links.map((l) => l.querySelector('span span')?.textContent)).toEqual(['Gilet Rosée', 'Bonnet', 'Pull Bergamote'])
     expect(links[0]).toHaveAttribute('href', '/tricot/patrons/g1')
-    expect(links[0]).toHaveTextContent('Bientôt · taille M · 600 m · aiguilles 4 mm · Mérinos')
-    expect(links[0]).toHaveTextContent('PDF · 2 photos · lien')
+    expect(links[0]).toHaveTextContent('taille M · 600 m · aiguilles 4 mm · Mérinos · PDF · 2 photos · lien')
+    // Vignette : la première photo du patron
+    await waitFor(() => expect(links[0]!.querySelector('img')).toHaveAttribute('src', 'https://cdn.test/u-lucile/p1.jpg'))
+    expect(links[1]!.querySelector('img')).toBeNull()
     expect(links[2]).toHaveTextContent('1 projet')
     expect(screen.getByRole('link', { name: 'Ajouter un patron' })).toHaveAttribute('href', '/tricot/patrons/nouveau')
     expect(screen.getByRole('link', { name: 'Tricot' })).toHaveAttribute('href', '/tricot')
   })
 
-  it('cherche et filtre ; les filtres « À faire » et « Commencés » se partagent la liste', async () => {
+  it('cherche un patron, sans autre filtre', async () => {
     const user = userEvent.setup()
     const api = fakeApi()
     api.knitting.listPatterns.mockResolvedValue([PULL, BONNET, GILET])
@@ -100,15 +104,8 @@ describe('bibliothèque de patrons', () => {
     await user.type(screen.getByRole('searchbox'), 'introuvable')
     expect(screen.getByText('Aucun patron ne correspond.')).toBeInTheDocument()
     await user.clear(screen.getByRole('searchbox'))
-
-    await user.click(screen.getByRole('radio', { name: 'À faire' }))
-    const todo = titles()
-    expect(todo).toEqual(['Gilet Rosée', 'Bonnet'])
-    await user.click(screen.getByRole('radio', { name: 'Commencés' }))
-    const started = titles()
-    expect(started).toEqual(['Pull Bergamote'])
-    await user.click(screen.getByRole('radio', { name: 'Tous' }))
-    expect(titles()).toHaveLength(todo.length + started.length)
+    expect(titles()).toEqual(['Gilet Rosée', 'Bonnet', 'Pull Bergamote'])
+    expect(screen.queryByRole('radio')).not.toBeInTheDocument()
   })
 
   it('bibliothèque vide', async () => {
@@ -137,17 +134,20 @@ describe('fiche d’un patron', () => {
     api.knitting.getPattern.mockResolvedValue(GILET)
     renderWithApp(<KnittingPatternPage />, { api, ...route })
     expect(await screen.findByRole('heading', { name: 'Gilet Rosée' })).toBeInTheDocument()
-    expect(screen.getByText('Bientôt · taille M · 600 m · aiguilles 4 mm · Mérinos')).toBeInTheDocument()
+    expect(screen.getByText('taille M · 600 m · aiguilles 4 mm · Mérinos')).toBeInTheDocument()
     expect(screen.getByText('Col en V')).toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'Ouvrir le lien' })).toHaveAttribute('href', 'https://patrons.exemple/gilet')
     expect(screen.getByRole('link', { name: 'Modifier' })).toHaveAttribute('href', '/tricot/patrons/g1/modifier')
     expect(screen.getByRole('link', { name: 'Bibliothèque' })).toHaveAttribute('href', '/tricot/patrons')
 
-    const tab = { location: { href: '' }, close: vi.fn() }
-    const open = vi.spyOn(window, 'open').mockReturnValue(tab as unknown as Window)
+    // Le PDF se lit dans l'application ; il peut aussi s'ouvrir dans le navigateur.
     await user.click(screen.getByRole('button', { name: 'Ouvrir le PDF' }))
-    await waitFor(() => expect(tab.location.href).toBe('https://cdn.test/u-lucile/gilet.pdf'))
-    open.mockRestore()
+    const reader = await screen.findByRole('dialog', { name: 'Gilet Rosée' })
+    expect(await within(reader).findAllByRole('img', { name: /^Page \d$/ })).toHaveLength(2)
+    expect(reader).toHaveTextContent('2 pages')
+    expect(api.knitting.downloadPdf).toHaveBeenCalledWith('u-lucile/gilet.pdf', 'Gilet Rosée')
+    await user.keyboard('{Escape}')
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
 
     const photos = screen.getByRole('list', { name: 'Photos du patron' })
     expect(within(photos).getAllByRole('listitem')).toHaveLength(2)
@@ -172,7 +172,7 @@ describe('fiche d’un patron', () => {
     const api = fakeApi()
     api.knitting.getPattern.mockResolvedValue({ ...GILET, readSizes: ['S', 'M'] })
     renderWithApp(<KnittingPatternPage />, { api, ...route })
-    expect(await screen.findByText(/Déjà lu pour les tailles S, M : un projet dans ces tailles se crée sans\s+relire le patron\./)).toBeInTheDocument()
+    expect(await screen.findByRole('link', { name: 'Commencer un projet (tailles S, M déjà lues : sans relire)' })).toHaveAttribute('href', '/tricot/nouveau?patron=g1')
   })
 
   it('pas encore lu : rien n’est annoncé', async () => {
@@ -180,7 +180,7 @@ describe('fiche d’un patron', () => {
     api.knitting.getPattern.mockResolvedValue(GILET)
     renderWithApp(<KnittingPatternPage />, { api, ...route })
     await screen.findByRole('heading', { name: 'Gilet Rosée' })
-    expect(screen.queryByText(/Déjà lu/)).not.toBeInTheDocument()
+    expect(screen.queryByText(/déjà lue?s?/)).not.toBeInTheDocument()
   })
 
   it('liste ses projets ; sans PDF, prévient qu’il sera demandé', async () => {
@@ -204,8 +204,7 @@ describe('fiche d’un patron', () => {
       path: '/tricot/patrons/:id',
       extraRoutes: <Route path="/tricot/patrons" element={<p>Bibliothèque ouverte</p>} />,
     })
-    await user.click(await screen.findByRole('button', { name: 'Plus d’actions' }))
-    await user.click(await screen.findByRole('menuitem', { name: 'Supprimer' }))
+    await user.click(await screen.findByRole('button', { name: 'Supprimer le patron' }))
     const confirm = await screen.findByRole('alertdialog')
     expect(confirm).toHaveTextContent('ses projets restent, avec leur PDF')
     await user.click(within(confirm).getByRole('button', { name: 'Supprimer' }))
@@ -246,7 +245,6 @@ describe('ajout et modification d’un patron', () => {
     expect(within(thumbs).getAllByRole('listitem')).toHaveLength(1)
     await user.type(screen.getByLabelText('Lien'), 'https://patrons.exemple/gilet')
     await user.type(screen.getByLabelText('Taille visée'), 'M')
-    await user.selectOptions(screen.getByLabelText('Envie'), 'Bientôt')
     await user.type(screen.getByLabelText('Métrage nécessaire (m)'), '600')
     await user.type(screen.getByLabelText('Aiguilles (mm)'), '3,5')
     await user.type(screen.getByLabelText('Laine envisagée'), 'Mérinos')
@@ -254,7 +252,7 @@ describe('ajout et modification d’un patron', () => {
 
     await waitFor(() => expect(api.knitting.savePattern).toHaveBeenCalledTimes(1))
     const [fields, files, existing] = api.knitting.savePattern.mock.calls[0]!
-    expect(fields).toEqual({ title: 'Gilet Rosée', url: 'https://patrons.exemple/gilet', size: 'M', yarnIdea: 'Mérinos', notes: '', metersNeeded: 600, needleMm: 3.5, wish: 1 })
+    expect(fields).toEqual({ title: 'Gilet Rosée', url: 'https://patrons.exemple/gilet', size: 'M', yarnIdea: 'Mérinos', notes: '', metersNeeded: 600, needleMm: 3.5 })
     expect(files).toMatchObject({ pdfPath: null, newPdf: pdf, photos: [] })
     expect(files.newPhotos).toHaveLength(1)
     expect(existing).toBeNull()
@@ -269,15 +267,14 @@ describe('ajout et modification d’un patron', () => {
     expect(await screen.findByRole('heading', { name: 'Modifier le patron' })).toBeInTheDocument()
     expect(screen.getByLabelText('Nom du patron')).toHaveValue('Gilet Rosée')
     expect(screen.getByLabelText('Aiguilles (mm)')).toHaveValue('4')
-    expect(screen.getByLabelText('Envie')).toHaveDisplayValue('Bientôt')
     expect(screen.getByText('PDF du patron')).toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: 'Retirer la photo 1' }))
     await user.click(screen.getByRole('button', { name: 'Retirer le PDF' }))
-    await user.selectOptions(screen.getByLabelText('Envie'), 'Pas d’envie notée')
+    expect(screen.queryByLabelText('Envie')).not.toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: 'Enregistrer' }))
     await waitFor(() => expect(api.knitting.savePattern).toHaveBeenCalledTimes(1))
     const [fields, files, existing] = api.knitting.savePattern.mock.calls[0]!
-    expect(fields).toMatchObject({ title: 'Gilet Rosée', wish: null, needleMm: 4 })
+    expect(fields).toMatchObject({ title: 'Gilet Rosée', needleMm: 4 })
     expect(files).toEqual({ pdfPath: null, newPdf: null, photos: ['u-lucile/p2.jpg'], newPhotos: [] })
     expect(existing).toBe(GILET)
   })

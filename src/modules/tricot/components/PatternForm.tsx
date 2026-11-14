@@ -8,12 +8,11 @@ import { useApi } from '@/app/ApiContext'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { NativeSelect } from '@/components/ui/native-select'
 import { Textarea } from '@/components/ui/textarea'
 import { useSignedUrls } from '@/hooks/useSignedUrls'
 import { ACCEPTED_IMAGE_TYPES, compressImage } from '@/lib/image'
 import { usePatternFiles } from '../hooks/usePatternFiles'
-import { EMPTY_PATTERN_DRAFT, fileCount, linkAdditions, MAX_PATTERN_PHOTOS, parsePatternDraft, patternFormChanged, titleFromFile, toPatternDraft, WISHES, type KnitPattern, type PatternDraft, type PatternLink, type PatternWish } from '../lib/library'
+import { EMPTY_PATTERN_DRAFT, fileCount, linkAdditions, MAX_PATTERN_PHOTOS, parsePatternDraft, patternFormChanged, titleFromFile, toPatternDraft, type KnitPattern, type PatternDraft, type PatternLink } from '../lib/library'
 import { MAX_PDF_BYTES } from '../lib/pattern'
 import { PatternLinkField } from './PatternLinkField'
 import { PatternThumbs } from './PatternThumbs'
@@ -177,22 +176,9 @@ export function PatternForm({ existing, initialLink = null, onSaved, onChangedCh
         <PatternLinkField value={draft.url} onChange={(url) => change({ url })} onRead={applyLink} readOnMount={!!initialLink} onReadingChange={setReadingLink} />
       </fieldset>
 
-      <div className="grid grid-cols-2 gap-3">
-        <div className="grid gap-1.5">
-          <Label htmlFor="pattern-size">Taille visée</Label>
-          <Input id="pattern-size" className="h-10" maxLength={40} value={draft.size} onChange={(e) => change({ size: e.target.value })} placeholder="M, 4 ans…" />
-        </div>
-        <div className="grid gap-1.5">
-          <Label htmlFor="pattern-wish">Envie</Label>
-          <NativeSelect id="pattern-wish" value={draft.wish === null ? '' : String(draft.wish)} onChange={(e) => change({ wish: e.target.value ? (Number(e.target.value) as PatternWish) : null })}>
-            {WISHES.map((w) => (
-              <option key={w.value} value={w.value}>
-                {w.label}
-              </option>
-            ))}
-            <option value="">Pas d’envie notée</option>
-          </NativeSelect>
-        </div>
+      <div className="grid gap-1.5">
+        <Label htmlFor="pattern-size">Taille visée</Label>
+        <Input id="pattern-size" className="h-10" maxLength={40} value={draft.size} onChange={(e) => change({ size: e.target.value })} placeholder="M, 4 ans…" />
       </div>
       <div className="grid grid-cols-2 gap-3">
         <div className="grid gap-1.5">
