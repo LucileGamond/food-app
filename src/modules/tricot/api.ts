@@ -7,8 +7,8 @@ import { compressForReading } from '@/lib/image'
 import type { ProgressPhoto, ProjectProgress } from './lib/progress'
 import { describeYarn, yarnFromJson, yarnMeters, yarnsFromJson, type Gauge, type StashItem, type Yarn, type YarnIdea } from './lib/yarn'
 import type { KnitPattern, PatternFields, PatternFiles, PatternWish } from './lib/library'
-import { readingFromJson, readingSizeLabel, type StoredReading } from './lib/readings'
-import { sanitizeHighlights, sizeIndexOf } from './lib/sizes'
+import { readingFromJson, readingKey, readSizeIndex, type StoredReading } from './lib/readings'
+import { sanitizeHighlights } from './lib/sizes'
 import { readTimes } from './lib/passes'
 import { adaptationPaused, adaptationToJson, sanitizeAdaptation, type Adaptation, type AdaptedStep } from './lib/adapt'
 import { sanitizeAbbreviations, type Abbreviation, type BaseGlossary } from './lib/glossary'
@@ -209,12 +209,12 @@ export function createKnittingApi(db: AppSupabaseClient) {
    * relire. Simple confort : un échec ne gêne pas le projet (il faudra seulement relire la prochaine fois).
    */
   async function keepReading(projectId: string, read: ReadPattern): Promise<void> {
-    // Taille lue inconnue parmi plusieurs : impossible de savoir pour quelle taille la reprendre.
-    if (read.sizes.length > 1 && (read.sizeIndex === null || read.sizeIndex === undefined)) return
+    const key = readingKey(read)
+    if (!key) return
     const { data } = await db.from('knit_projects').select('pattern_id').eq('id', projectId).maybeSingle()
     if (!data?.pattern_id) return
     await db.from('knit_pattern_readings').upsert(
-      { pattern_id: data.pattern_id, size_index: read.sizeIndex ?? null, size_label: readingSizeLabel(read), reading: read as unknown as NonNullable<Json>, read_at: new Date().toISOString() },
+      { pattern_id: data.pattern_id, size_index: key.sizeIndex, size_label: key.sizeLabel, reading: read as unknown as NonNullable<Json>, read_at: new Date().toISOString() },
       { onConflict: 'pattern_id,size_index' },
     )
   }
@@ -314,8 +314,7 @@ export function createKnittingApi(db: AppSupabaseClient) {
       const read = await invokeKnit<ReadPattern>({ pdf: await fileToBase64(pdf), size }, 'La lecture du patron a échoué.', (d) => Array.isArray(d.steps), READ_TIMEOUT_MS)
       return {
         ...read,
-        // Taille lue : celle demandée parmi les tailles du patron, la première sans taille demandée.
-        sizeIndex: read.sizeIndex ?? (read.sizes.length === 0 ? null : size.trim() ? sizeIndexOf(read.sizes, size) : 0),
+        sizeIndex: readSizeIndex(read, size),
         steps: read.steps.map((s) => ({ ...s, times: readTimes(s.times) })),
         sizeChart: sanitizeSizeChart(read.sizeChart, read.sizes.length),
         missingParts: readMissingParts(read.missingParts),

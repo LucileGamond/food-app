@@ -1,5 +1,5 @@
 import type { ReadPattern } from './pattern'
-import { findReading, readingFromJson, readingSizeLabel, type StoredReading } from './readings'
+import { findReading, readingFromJson, readingKey, readingSizeLabel, readSizeIndex, type StoredReading } from './readings'
 
 const READ: ReadPattern = {
   title: 'Pull Bergamote',
@@ -69,5 +69,28 @@ describe('lectures gardées', () => {
   it('cohérence : chaque lecture est retrouvée par le nom de sa propre taille', () => {
     const readings = READ.sizes.map((_, i) => stored({ ...READ, sizeIndex: i }))
     for (const r of readings) expect(findReading(readings, r.sizeLabel)).toBe(r)
+  })
+})
+
+describe('taille d’une lecture', () => {
+  it('prend la taille donnée par la lecture, sinon celle demandée, sinon la première', () => {
+    expect(readSizeIndex({ sizes: ['S', 'M'], sizeIndex: 1 }, 'S')).toBe(1)
+    expect(readSizeIndex({ sizes: ['S', 'M'], sizeIndex: undefined }, ' m ')).toBe(1)
+    expect(readSizeIndex({ sizes: ['S', 'M'], sizeIndex: null }, '')).toBe(0)
+    expect(readSizeIndex({ sizes: ['S', 'M'], sizeIndex: null }, 'XXL')).toBeNull()
+    expect(readSizeIndex({ sizes: [], sizeIndex: null }, 'M')).toBeNull()
+  })
+
+  it('garde une lecture sous sa taille, pas si elle est inconnue parmi plusieurs', () => {
+    expect(readingKey({ sizes: ['S', 'M'], sizeIndex: 1 })).toEqual({ sizeIndex: 1, sizeLabel: 'M' })
+    expect(readingKey({ sizes: [], sizeIndex: undefined })).toEqual({ sizeIndex: null, sizeLabel: 'Unique' })
+    expect(readingKey({ sizes: ['S'], sizeIndex: null })).toEqual({ sizeIndex: null, sizeLabel: 'Unique' })
+    expect(readingKey({ sizes: ['S', 'M'], sizeIndex: null })).toBeNull()
+  })
+
+  it('cohérence : une lecture gardée sous sa taille est retrouvée par cette taille', () => {
+    const read = { ...READ, sizeIndex: readSizeIndex({ ...READ, sizeIndex: undefined }, 'L') }
+    const key = readingKey(read)!
+    expect(findReading([{ ...key, readAt: '', reading: read }], 'L')?.sizeLabel).toBe('L')
   })
 })

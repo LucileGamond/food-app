@@ -313,8 +313,36 @@ describe('bibliothèque de patrons', () => {
     expect(await api.knitting.getProject(first)).not.toBeNull()
   })
 
-  it('patron sans projet supprimé : son PDF part avec lui', async () => {
+  it('ne garde pas une lecture de taille inconnue, et écarte une lecture abîmée', async () => {
+    const { api, db } = await signedInApi()
+    // Plusieurs tailles, sans savoir laquelle a été lue : rien n'est gardé.
+    await api.knitting.createProject({ title: 'Gilet', size: 'M', pdf: null, steps: STEPS, reading: { title: 'Gilet', sizes: ['S', 'M'], sizeIndex: null, steps: STEPS } })
+    // Taille unique : gardée sans position de taille.
+    await api.knitting.createProject({ title: 'Châle', size: 'Unique', pdf: null, steps: STEPS, reading: { title: 'Châle', sizes: [], steps: STEPS } })
+    const patterns = await api.knitting.listPatterns()
+    const gilet = patterns.find((p) => p.title === 'Gilet')!
+    const shawl = patterns.find((p) => p.title === 'Châle')!
+    expect(gilet.readSizes).toEqual([])
+    expect(shawl.readSizes).toEqual(['Unique'])
+    expect((await api.knitting.listReadings(shawl.id)).map((r) => r.sizeIndex)).toEqual([null])
+    // Taille unique d'abord dans la liste des tailles lues.
+    await db.from('knit_pattern_readings').insert({ pattern_id: shawl.id, size_index: 0, size_label: 'Grand', reading: { title: 'Châle', sizes: ['Grand'], steps: [{ title: 'Bordure' }] } })
+    expect((await api.knitting.getPattern(shawl.id))!.readSizes).toEqual(['Unique', 'Grand'])
+    await expect(api.knitting.listReadings('pas-un-identifiant')).rejects.toThrow('Impossible de charger les lectures du patron.')
+
+    // Lecture abîmée en base (étapes sans titre) : écartée, on relira le patron.
+    const { error } = await db.from('knit_pattern_readings').insert({ pattern_id: gilet.id, size_index: 0, size_label: 'S', reading: { title: 'x', sizes: ['S', 'M'], steps: [{ title: ' ' }] } })
+    expect(error).toBeNull()
+    expect(await api.knitting.listReadings(gilet.id)).toEqual([])
+  })
+
+  it('patron sans projet : un PDF remplacé est supprimé, et le PDF part avec le patron', async () => {
     const { api } = await signedInApi()
+    const first = await api.knitting.savePattern(FIELDS, { ...NO_FILES, newPdf: pdf() }, null)
+    const before = (await api.knitting.getPattern(first))!
+    await api.knitting.savePattern(FIELDS, { ...NO_FILES, newPdf: pdf() }, before)
+    await expect(api.knitting.downloadPdf(before.pdfPath!, before.title)).rejects.toThrow()
+    await api.knitting.deletePattern((await api.knitting.getPattern(first))!)
     const id = await api.knitting.savePattern(FIELDS, { ...NO_FILES, newPdf: pdf() }, null)
     const coat = (await api.knitting.getPattern(id))!
     await api.knitting.deletePattern(coat)

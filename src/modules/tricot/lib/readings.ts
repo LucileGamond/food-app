@@ -23,6 +23,20 @@ export function readingSizeLabel(read: Pick<ReadPattern, 'sizes' | 'sizeIndex'>)
   return (read.sizeIndex !== null && read.sizeIndex !== undefined ? read.sizes[read.sizeIndex] : undefined)?.trim().slice(0, 40) || 'Unique'
 }
 
+/** Taille lue : celle donnée par la lecture, sinon celle demandée parmi les tailles du patron, la première sans taille demandée. */
+export function readSizeIndex(read: Pick<ReadPattern, 'sizes' | 'sizeIndex'>, size: string): number | null {
+  if (read.sizeIndex !== null && read.sizeIndex !== undefined) return read.sizeIndex
+  if (read.sizes.length === 0) return null
+  return size.trim() ? sizeIndexOf(read.sizes, size) : 0
+}
+
+/** Taille sous laquelle garder une lecture ; null si elle est inconnue parmi plusieurs (on ne saurait pas quand la reprendre). */
+export function readingKey(read: Pick<ReadPattern, 'sizes' | 'sizeIndex'>): { sizeIndex: number | null; sizeLabel: string } | null {
+  const sizeIndex = read.sizeIndex ?? null
+  if (read.sizes.length > 1 && sizeIndex === null) return null
+  return { sizeIndex, sizeLabel: readingSizeLabel(read) }
+}
+
 /**
  * Lecture gardée qui vaut pour la taille demandée : même taille parmi celles du patron (« m » = « M »), la première si
  * aucune taille n'est demandée (comme le modèle), n'importe laquelle pour un patron en taille unique.
