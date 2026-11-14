@@ -42,8 +42,8 @@ export interface RowsOverflow {
 }
 
 /** Les sous-étapes dépassent-elles le total de l'étape ? (null : d'accord, ou total inconnu) */
-export function rowsOverflow(step: Pick<KnitStep, 'sections' | 'totalRows'>): RowsOverflow | null {
-  const total = step.totalRows
+export function rowsOverflow(step: Pick<KnitStep, 'sections'> & Partial<Pick<KnitStep, 'totalRows'>>): RowsOverflow | null {
+  const total = step.totalRows ?? null
   if (total === null) return null
   const plan = planSections(step.sections, total)
   const ends = plan.flatMap((p) => (p.end === null ? [] : [p.end]))
@@ -56,7 +56,7 @@ export function rowsOverflow(step: Pick<KnitStep, 'sections' | 'totalRows'>): Ro
  * Ce qui manque pour tricoter l'étape ; vide : prête. Aiguilles : à choisir quand le projet en a plusieurs (une seule
  * vaut partout ; sans aiguille au projet, rien n'est demandé).
  */
-export function readyIssues(step: Pick<KnitStep, 'sections' | 'needleFrom' | 'totalRows'>, needles: number[] = [], gauges: ProjectGauge[] = []): ReadyIssue[] {
+export function readyIssues(step: Pick<KnitStep, 'sections' | 'needleFrom'> & Partial<Pick<KnitStep, 'totalRows'>>, needles: number[] = [], gauges: ProjectGauge[] = []): ReadyIssue[] {
   const own = effectiveNeedles(step.sections, needles, step.needleFrom ?? null)
   const issues = step.sections.flatMap((section, index) => {
     const issue = issueOf(section, isChecked(gauges, own[index] ?? null)) ?? (needles.length > 1 && own[index] === null ? 'aiguille à choisir' : null)
@@ -65,7 +65,7 @@ export function readyIssues(step: Pick<KnitStep, 'sections' | 'needleFrom' | 'to
     return [{ index, what: issue, section: described, text: `Sous-étape ${index + 1} (${described}) : ${issue}.`, blocking: true }]
   })
   // Sous-étapes plus longues que l'étape : à régler aussi, sinon le mode tricoter s'arrête avant la fin.
-  const over = step.totalRows === undefined ? null : rowsOverflow(step as Pick<KnitStep, 'sections' | 'totalRows'>)
+  const over = rowsOverflow(step)
   if (over && over.index >= 0) {
     const described = describeSection(step.sections[over.index]!)
     const what = `sous-étapes plus longues que l’étape (jusqu’au rang ${over.end}, pour ${over.total} rangs annoncés)`
@@ -75,5 +75,5 @@ export function readyIssues(step: Pick<KnitStep, 'sections' | 'needleFrom' | 'to
   return issues
 }
 
-export const isReady = (step: Pick<KnitStep, 'sections' | 'needleFrom' | 'totalRows'>, needles: number[] = [], gauges: ProjectGauge[] = []) =>
+export const isReady = (step: Pick<KnitStep, 'sections' | 'needleFrom'> & Partial<Pick<KnitStep, 'totalRows'>>, needles: number[] = [], gauges: ProjectGauge[] = []) =>
   !readyIssues(step, needles, gauges).some((i) => i.blocking)
