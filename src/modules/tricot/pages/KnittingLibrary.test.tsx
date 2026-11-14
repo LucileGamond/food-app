@@ -83,6 +83,9 @@ describe('bibliothèque de patrons', () => {
     // Vignette : la première photo du patron
     await waitFor(() => expect(links[0]!.querySelector('img')).toHaveAttribute('src', 'https://cdn.test/u-lucile/p1.jpg'))
     expect(links[1]!.querySelector('img')).toBeNull()
+    // Sans photo : couverture tricotée propre au patron (jamais pour un patron avec photo).
+    expect(within(links[1]!).getByTestId('knit-cover')).toBeInTheDocument()
+    expect(within(links[0]!).queryByTestId('knit-cover')).not.toBeInTheDocument()
     expect(links[2]).toHaveTextContent('1 projet')
     expect(screen.getByRole('link', { name: 'Ajouter un patron' })).toHaveAttribute('href', '/tricot/patrons/nouveau')
     expect(screen.getByRole('link', { name: 'Tricot' })).toHaveAttribute('href', '/tricot')
