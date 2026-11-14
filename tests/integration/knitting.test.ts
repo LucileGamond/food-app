@@ -1,5 +1,5 @@
 import { createKnittingApi, fileToBase64 } from '@/modules/tricot/api'
-import type { PatternStep } from '@/modules/tricot/lib/pattern'
+import type { PatternStep, ReadPattern } from '@/modules/tricot/lib/pattern'
 import type { PatternFields, PatternFiles } from '@/modules/tricot/lib/library'
 import { ERIC, LUCILE, anonClient, resetData, signedInApi } from './helpers'
 
@@ -282,6 +282,35 @@ describe('bibliothèque de patrons', () => {
     expect(await api.knitting.getPattern(id)).toBeNull()
     expect((await api.knitting.getProject(project))!.pdfPath).toBe(started.pdfPath)
     expect(await api.knitting.progressPhotoUrls(edited.photos)).toEqual({})
+  })
+
+  it('garde la lecture d’un projet avec son patron, une par taille, et la rend pour le suivant', async () => {
+    const { api } = await signedInApi()
+    const eric = await signedInApi(ERIC.email)
+    const read = (sizeIndex: number, title: string): ReadPattern => ({ title, sizes: ['S', 'M', 'L'], sizeIndex, steps: STEPS.map((s) => ({ ...s, times: 1 })), gauge: { stitches: 22, rows: 30 } })
+    const first = await api.knitting.createProject({ title: 'Pull', size: 'M', pdf: pdf(), steps: STEPS, reading: read(1, 'Pull lu en M') })
+    const [library] = await api.knitting.listPatterns()
+    expect(library!.readSizes).toEqual(['M'])
+    const [kept] = await api.knitting.listReadings(library!.id)
+    expect(kept).toMatchObject({ sizeIndex: 1, sizeLabel: 'M', reading: { title: 'Pull lu en M', sizeIndex: 1, steps: [{ title: 'Dos – côtes' }, { title: 'Emmanchures' }] } })
+
+    // Même patron : une autre taille s'ajoute, la même taille remplace ; une lecture reprise (null) ne change rien.
+    const pattern = { id: library!.id, pdfPath: library!.pdfPath }
+    await api.knitting.createProject({ title: 'Pull L', size: 'L', pdf: null, steps: STEPS, pattern, reading: read(2, 'Pull lu en L') })
+    await api.knitting.createProject({ title: 'Pull M bis', size: 'M', pdf: null, steps: STEPS, pattern, reading: read(1, 'Pull relu en M') })
+    await api.knitting.createProject({ title: 'Pull M ter', size: 'M', pdf: null, steps: STEPS, pattern, reading: null })
+    expect((await api.knitting.getPattern(library!.id))!.readSizes).toEqual(['M', 'L'])
+    const readings = await api.knitting.listReadings(library!.id)
+    expect(readings.map((r) => [r.sizeLabel, r.reading.title]).toSorted()).toEqual([
+      ['L', 'Pull lu en L'],
+      ['M', 'Pull relu en M'],
+    ])
+    expect(await eric.api.knitting.listReadings(library!.id)).toEqual([])
+
+    // Patron supprimé : ses lectures partent avec lui, ses projets restent.
+    await api.knitting.deletePattern((await api.knitting.getPattern(library!.id))!)
+    expect(await api.knitting.listReadings(library!.id)).toEqual([])
+    expect(await api.knitting.getProject(first)).not.toBeNull()
   })
 
   it('patron sans projet supprimé : son PDF part avec lui', async () => {

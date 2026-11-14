@@ -132,6 +132,12 @@ function PatternSheet({ pattern }: { pattern: KnitPattern }) {
           <Link to={`/tricot/nouveau?patron=${pattern.id}`} className={cn(buttonVariants(), 'h-10')}>
             <Play /> Commencer un projet
           </Link>
+          {pattern.readSizes.length > 0 && (
+            <p className="text-xs text-muted-foreground">
+              Déjà lu pour {pattern.readSizes.length > 1 ? 'les tailles' : 'la taille'} {pattern.readSizes.join(', ')} : un projet dans {pattern.readSizes.length > 1 ? 'ces tailles' : 'cette taille'} se crée sans
+              relire le patron.
+            </p>
+          )}
           {!pattern.pdfPath && <p className="text-xs text-muted-foreground">Le projet se crée à partir du PDF du patron : il te sera demandé.</p>}
         </section>
       </div>

@@ -29,6 +29,7 @@ const pattern = (id: string, patch: Partial<KnitPattern> = {}): KnitPattern => (
   wish: 2,
   createdAt: '2026-11-01T10:00:00Z',
   projects: [],
+  readSizes: [],
   ...patch,
 })
 
@@ -154,6 +155,21 @@ describe('fiche d’un patron', () => {
     renderWithApp(<KnittingPatternPage />, { api, ...route })
     expect(await screen.findByText('Pas encore tricoté.')).toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'Commencer un projet' })).toHaveAttribute('href', '/tricot/nouveau?patron=g1')
+  })
+
+  it('dit pour quelles tailles le patron est déjà lu', async () => {
+    const api = fakeApi()
+    api.knitting.getPattern.mockResolvedValue({ ...GILET, readSizes: ['S', 'M'] })
+    renderWithApp(<KnittingPatternPage />, { api, ...route })
+    expect(await screen.findByText(/Déjà lu pour les tailles S, M : un projet dans ces tailles se crée sans\s+relire le patron\./)).toBeInTheDocument()
+  })
+
+  it('pas encore lu : rien n’est annoncé', async () => {
+    const api = fakeApi()
+    api.knitting.getPattern.mockResolvedValue(GILET)
+    renderWithApp(<KnittingPatternPage />, { api, ...route })
+    await screen.findByRole('heading', { name: 'Gilet Rosée' })
+    expect(screen.queryByText(/Déjà lu/)).not.toBeInTheDocument()
   })
 
   it('liste ses projets ; sans PDF, prévient qu’il sera demandé', async () => {

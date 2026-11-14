@@ -40,6 +40,8 @@ export interface KnitPattern {
   wish: PatternWish | null
   createdAt: string
   projects: PatternProject[]
+  /** Tailles dont la lecture par le modèle est gardée (un projet dans ces tailles se crée sans relire). */
+  readSizes: string[]
 }
 
 /** Ce qui s'enregistre d'un patron, hors fichiers. */

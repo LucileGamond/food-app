@@ -161,7 +161,7 @@ describe('KnittingImportPage', () => {
     await user.clear(screen.getByLabelText('Nom du projet'))
     await user.type(screen.getByLabelText('Nom du projet'), 'Pull de Noël')
     await user.click(screen.getByRole('button', { name: 'Enregistrer le projet' }))
-    expect(api.knitting.createProject).toHaveBeenCalledWith({ title: 'Pull de Noël', size: 'M', pdf: file, steps: PATTERN.steps, gauge: { stitches: 22, rows: 30 }, pattern: null, chartHints: charts, sizes: ['S', 'M', 'L'], sizeIndex: 1, abbreviations: [], needles: [] })
+    expect(api.knitting.createProject).toHaveBeenCalledWith({ title: 'Pull de Noël', size: 'M', pdf: file, steps: PATTERN.steps, gauge: { stitches: 22, rows: 30 }, pattern: null, chartHints: charts, sizes: ['S', 'M', 'L'], sizeIndex: 1, abbreviations: [], needles: [], reading: { ...PATTERN, charts } })
     expect(await screen.findByText('Projet ouvert')).toBeInTheDocument()
   })
 
@@ -1087,6 +1087,7 @@ describe('projet d’après un patron de la bibliothèque', () => {
     wish: 1,
     createdAt: '2026-11-01T10:00:00Z',
     projects: [],
+    readSizes: [],
   }
 
   it('reprend le PDF et la taille du patron, puis crée le projet relié au patron', async () => {
@@ -1159,6 +1160,84 @@ describe('projet d’après un patron de la bibliothèque', () => {
     expect(api.knitting.downloadPdf).not.toHaveBeenCalled()
   })
 
+  it('taille déjà lue : la lecture gardée est reprise sans l’IA, puis peut être refaite', async () => {
+    const user = userEvent.setup()
+    const api = fakeApi()
+    api.knitting.getPattern.mockResolvedValue({ ...GILET, readSizes: ['M'] })
+    const kept = { ...PATTERN, sizeIndex: 1 }
+    api.knitting.listReadings.mockResolvedValue([{ sizeIndex: 1, sizeLabel: 'M', readAt: '2026-11-13T10:00:00Z', reading: kept }])
+    api.knitting.readPattern.mockResolvedValue({ ...PATTERN, sizeIndex: 1, title: 'Relu' })
+    renderWithApp(<KnittingImportPage />, { api, route: '/tricot/nouveau?patron=q1', path: '/tricot/nouveau', extraRoutes: <Route path="/tricot/:id" element={<p>Projet ouvert</p>} /> })
+    expect(await screen.findByText('Déjà lu pour M : dans ces tailles, rien n’est relu.')).toBeInTheDocument()
+    await user.click(await screen.findByRole('button', { name: 'Reprendre la lecture (taille M)' }))
+    expect(api.knitting.readPattern).not.toHaveBeenCalled()
+    expect(await screen.findByText('Lecture du 13 novembre reprise : rien n’a été relu par l’IA.')).toBeInTheDocument()
+    expect(screen.getByLabelText('Nom du projet')).toHaveValue('Gilet Rosée')
+
+    // Reprise telle quelle : rien de nouveau à garder
+    await user.click(screen.getByRole('button', { name: 'Enregistrer le projet' }))
+    await waitFor(() => expect(api.knitting.createProject).toHaveBeenCalledWith(expect.objectContaining({ steps: kept.steps, reading: null, pattern: { id: 'q1', pdfPath: 'u-lucile/gilet.pdf' } })))
+  })
+
+  it('« Relire avec l’IA » refait la lecture, qui est gardée à son tour', async () => {
+    const user = userEvent.setup()
+    const api = fakeApi()
+    api.knitting.getPattern.mockResolvedValue({ ...GILET, readSizes: ['M'] })
+    api.knitting.listReadings.mockResolvedValue([{ sizeIndex: 1, sizeLabel: 'M', readAt: '2026-11-13T10:00:00Z', reading: { ...PATTERN, sizeIndex: 1 } }])
+    const fresh = { ...PATTERN, sizeIndex: 1, missingParts: [] }
+    api.knitting.readPattern.mockResolvedValue(fresh)
+    renderWithApp(<KnittingImportPage />, { api, route: '/tricot/nouveau?patron=q1', path: '/tricot/nouveau', extraRoutes: <Route path="/tricot/:id" element={<p>Projet ouvert</p>} /> })
+    await screen.findByText('Gilet Rosée.pdf')
+    await user.click(screen.getByRole('button', { name: 'Reprendre la lecture (taille M)' }))
+    await user.click(await screen.findByRole('button', { name: 'Relire avec l’IA' }))
+    await waitFor(() => expect(api.knitting.readPattern).toHaveBeenCalledWith(expect.any(File), 'M'))
+    await waitFor(() => expect(screen.queryByText(/rien n’a été relu/)).not.toBeInTheDocument())
+    await user.click(screen.getByRole('button', { name: 'Enregistrer le projet' }))
+    await waitFor(() => expect(api.knitting.createProject).toHaveBeenCalledWith(expect.objectContaining({ reading: fresh })))
+  })
+
+  it('autre taille : le patron est lu par l’IA, et la lecture gardée', async () => {
+    const user = userEvent.setup()
+    const api = fakeApi()
+    api.knitting.getPattern.mockResolvedValue({ ...GILET, readSizes: ['M'] })
+    api.knitting.listReadings.mockResolvedValue([{ sizeIndex: 1, sizeLabel: 'M', readAt: '2026-11-13T10:00:00Z', reading: { ...PATTERN, sizeIndex: 1 } }])
+    const large = { ...PATTERN, sizeIndex: 2 }
+    api.knitting.readPattern.mockResolvedValue(large)
+    renderWithApp(<KnittingImportPage />, { api, route: '/tricot/nouveau?patron=q1', path: '/tricot/nouveau', extraRoutes: <Route path="/tricot/:id" element={<p>Projet ouvert</p>} /> })
+    await screen.findByText('Gilet Rosée.pdf')
+    const sizeInput = screen.getByLabelText('Taille', { selector: 'input' })
+    await user.clear(sizeInput)
+    await user.type(sizeInput, 'L')
+    await user.click(screen.getByRole('button', { name: 'Lire le patron' }))
+    expect(api.knitting.readPattern).toHaveBeenCalledWith(expect.any(File), 'L')
+    await user.click(await screen.findByRole('button', { name: 'Enregistrer le projet' }))
+    await waitFor(() => expect(api.knitting.createProject).toHaveBeenCalledWith(expect.objectContaining({ size: 'L', reading: large })))
+  })
+
+  it('autre PDF choisi : la lecture gardée ne vaut plus', async () => {
+    const user = userEvent.setup()
+    const api = fakeApi()
+    api.knitting.getPattern.mockResolvedValue({ ...GILET, readSizes: ['M'] })
+    api.knitting.listReadings.mockResolvedValue([{ sizeIndex: 1, sizeLabel: 'M', readAt: '2026-11-13T10:00:00Z', reading: { ...PATTERN, sizeIndex: 1 } }])
+    renderWithApp(<KnittingImportPage />, { api, route: '/tricot/nouveau?patron=q1', path: '/tricot/nouveau' })
+    await user.click(await screen.findByRole('button', { name: 'Choisir un autre PDF' }))
+    expect(screen.queryByText(/Déjà lu pour/)).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Lire le patron' })).toBeInTheDocument()
+  })
+
+  it('patron sans PDF mais déjà lu : le projet se crée sans PDF à choisir', async () => {
+    const user = userEvent.setup()
+    const api = fakeApi()
+    api.knitting.getPattern.mockResolvedValue({ ...GILET, pdfPath: null, readSizes: ['M'] })
+    api.knitting.listReadings.mockResolvedValue([{ sizeIndex: 1, sizeLabel: 'M', readAt: '2026-11-13T10:00:00Z', reading: { ...PATTERN, sizeIndex: 1 } }])
+    renderWithApp(<KnittingImportPage />, { api, route: '/tricot/nouveau?patron=q1', path: '/tricot/nouveau' })
+    const resume = await screen.findByRole('button', { name: 'Reprendre la lecture (taille M)' })
+    expect(resume).toBeEnabled()
+    await user.click(resume)
+    expect(await screen.findByRole('heading', { name: 'Vérifier les étapes' })).toBeInTheDocument()
+    expect(api.knitting.readPattern).not.toHaveBeenCalled()
+  })
+
   it('patron introuvable', async () => {
     const api = fakeApi()
     renderWithApp(<KnittingImportPage />, { api, route: '/tricot/nouveau?patron=perdu', path: '/tricot/nouveau' })
@@ -1192,6 +1271,7 @@ describe('stock de laine', () => {
     wish: 2,
     createdAt: '2026-11-01',
     projects: [],
+    readSizes: [],
   })
 
   it('ajoute, modifie et retire une laine du stock', async () => {

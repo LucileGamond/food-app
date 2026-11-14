@@ -7,7 +7,8 @@ import { compressForReading } from '@/lib/image'
 import type { ProgressPhoto, ProjectProgress } from './lib/progress'
 import { describeYarn, yarnFromJson, yarnMeters, yarnsFromJson, type Gauge, type StashItem, type Yarn, type YarnIdea } from './lib/yarn'
 import type { KnitPattern, PatternFields, PatternFiles, PatternWish } from './lib/library'
-import { sanitizeHighlights } from './lib/sizes'
+import { readingFromJson, readingSizeLabel, type StoredReading } from './lib/readings'
+import { sanitizeHighlights, sizeIndexOf } from './lib/sizes'
 import { readTimes } from './lib/passes'
 import { adaptationPaused, adaptationToJson, sanitizeAdaptation, type Adaptation, type AdaptedStep } from './lib/adapt'
 import { sanitizeAbbreviations, type Abbreviation, type BaseGlossary } from './lib/glossary'
@@ -116,7 +117,7 @@ function toStep(row: StepRow): KnitStep {
 }
 
 /** Patron de la bibliothèque, avec ses projets (les plus récents d'abord). */
-const PATTERN_COLUMNS = 'id, title, pdf_path, photos, url, size, yarn_idea, notes, meters_needed, needle_mm, wish, created_at, knit_projects(id, title, size, updated_at)'
+const PATTERN_COLUMNS = 'id, title, pdf_path, photos, url, size, yarn_idea, notes, meters_needed, needle_mm, wish, created_at, knit_projects(id, title, size, updated_at), knit_pattern_readings(size_index, size_label)'
 
 interface PatternRow {
   id: string
@@ -132,6 +133,7 @@ interface PatternRow {
   wish: number | null
   created_at: string
   knit_projects: { id: string; title: string; size: string; updated_at: string }[]
+  knit_pattern_readings: { size_index: number | null; size_label: string }[]
 }
 
 function toPattern(r: PatternRow): KnitPattern {
@@ -149,6 +151,7 @@ function toPattern(r: PatternRow): KnitPattern {
     wish: r.wish as PatternWish | null,
     createdAt: r.created_at,
     projects: r.knit_projects.toSorted((a, b) => b.updated_at.localeCompare(a.updated_at)).map((p) => ({ id: p.id, title: p.title, size: p.size })),
+    readSizes: r.knit_pattern_readings.toSorted((a, b) => (a.size_index ?? -1) - (b.size_index ?? -1)).map((reading) => reading.size_label),
   }
 }
 
@@ -199,6 +202,21 @@ export function createKnittingApi(db: AppSupabaseClient) {
       throw new AppError('Impossible d’envoyer les photos.')
     }
     return paths
+  }
+
+  /**
+   * Garde la lecture du patron d'un projet, pour sa taille : un prochain projet dans cette taille la reprendra sans
+   * relire. Simple confort : un échec ne gêne pas le projet (il faudra seulement relire la prochaine fois).
+   */
+  async function keepReading(projectId: string, read: ReadPattern): Promise<void> {
+    // Taille lue inconnue parmi plusieurs : impossible de savoir pour quelle taille la reprendre.
+    if (read.sizes.length > 1 && (read.sizeIndex === null || read.sizeIndex === undefined)) return
+    const { data } = await db.from('knit_projects').select('pattern_id').eq('id', projectId).maybeSingle()
+    if (!data?.pattern_id) return
+    await db.from('knit_pattern_readings').upsert(
+      { pattern_id: data.pattern_id, size_index: read.sizeIndex ?? null, size_label: readingSizeLabel(read), reading: read as unknown as NonNullable<Json>, read_at: new Date().toISOString() },
+      { onConflict: 'pattern_id,size_index' },
+    )
   }
 
   /** Diagrammes lus en base, avec l'adresse temporaire de leur image (null si elle n'a pas pu être obtenue). */
@@ -296,6 +314,8 @@ export function createKnittingApi(db: AppSupabaseClient) {
       const read = await invokeKnit<ReadPattern>({ pdf: await fileToBase64(pdf), size }, 'La lecture du patron a échoué.', (d) => Array.isArray(d.steps), READ_TIMEOUT_MS)
       return {
         ...read,
+        // Taille lue : celle demandée parmi les tailles du patron, la première sans taille demandée.
+        sizeIndex: read.sizeIndex ?? (read.sizes.length === 0 ? null : size.trim() ? sizeIndexOf(read.sizes, size) : 0),
         steps: read.steps.map((s) => ({ ...s, times: readTimes(s.times) })),
         sizeChart: sanitizeSizeChart(read.sizeChart, read.sizes.length),
         missingParts: readMissingParts(read.missingParts),
@@ -325,6 +345,8 @@ export function createKnittingApi(db: AppSupabaseClient) {
       abbreviations?: Abbreviation[]
       /** Aiguilles du patron (mm). */
       needles?: number[]
+      /** Lecture faite par le modèle pour ce projet, gardée avec le patron (null : lecture déjà gardée, reprise). */
+      reading?: ReadPattern | null
     }): Promise<string> {
       // PDF du patron déjà envoyé ; sinon celui choisi, envoyé maintenant.
       const reused = input.pattern?.pdfPath ?? null
@@ -368,6 +390,7 @@ export function createKnittingApi(db: AppSupabaseClient) {
           })
           .eq('id', data)
       }
+      if (input.reading) await keepReading(data, input.reading)
       return data
     },
 
@@ -536,6 +559,16 @@ export function createKnittingApi(db: AppSupabaseClient) {
       const { data, error } = await db.from('knit_patterns').select(PATTERN_COLUMNS).order('created_at', { ascending: false })
       if (error) throw toAppError(error, 'Impossible de charger les patrons.')
       return data.map(toPattern)
+    },
+
+    /** Lectures gardées d'un patron (une par taille) ; les lectures abîmées sont écartées. */
+    async listReadings(patternId: string): Promise<StoredReading[]> {
+      const { data, error } = await db.from('knit_pattern_readings').select('size_index, size_label, reading, read_at').eq('pattern_id', patternId)
+      if (error) throw toAppError(error, 'Impossible de charger les lectures du patron.')
+      return data.flatMap((r) => {
+        const reading = readingFromJson(r.reading)
+        return reading ? [{ sizeIndex: r.size_index, sizeLabel: r.size_label, readAt: r.read_at, reading }] : []
+      })
     },
 
     async getPattern(id: string): Promise<KnitPattern | null> {

@@ -32,6 +32,7 @@ function pattern(id: string, patch: Partial<KnitPattern> = {}): KnitPattern {
     wish: 2,
     createdAt: '2026-11-01',
     projects: [],
+    readSizes: [],
     ...patch,
   }
 }

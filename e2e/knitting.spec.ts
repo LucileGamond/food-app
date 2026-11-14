@@ -126,11 +126,13 @@ test('charge un patron PDF pour une taille, compte les rangs et retrouve son ava
 
 test('ajoute un patron à la bibliothèque, le commence, puis note la laine (étiquette) et son échantillon', async ({ page }) => {
   // Lecture par le modèle simulée : patron (avec son échantillon) ou étiquette de laine.
+  let patternReads = 0
   await page.route('**/functions/v1/knit-pattern', async (route) => {
     const body = route.request().postDataJSON()
     if ('label' in body) {
       await route.fulfill({ json: { brand: 'Phildar', name: 'Partner 3.5', color: '0012 Ciel', dye_lot: '4471', composition: null, weight_g: 50, length_m: 125, needle_mm: 3.5 } })
     } else {
+      patternReads++
       await route.fulfill({ json: { ...PATTERN, gauge: { stitches: 22, rows: 30 } } })
     }
   })
@@ -242,6 +244,18 @@ test('ajoute un patron à la bibliothèque, le commence, puis note la laine (ét
   await page.getByRole('radio', { name: 'Commencés' }).click()
   await page.getByRole('link', { name: /Gilet Rosée/ }).click()
   await expect(page.getByRole('list', { name: 'Projets de ce patron' })).toContainText('Gilet Rosée')
+
+  // Deuxième projet du même patron, même taille : la lecture gardée est reprise, sans rappeler le modèle
+  await expect(page.getByText(/Déjà lu pour la taille M/)).toBeVisible()
+  const readsBefore = patternReads
+  await page.getByRole('link', { name: 'Commencer un projet' }).click()
+  await page.getByRole('button', { name: 'Reprendre la lecture (taille M)' }).click()
+  await expect(page.getByText('rien n’a été relu par l’IA', { exact: false })).toBeVisible()
+  await expectNoA11yViolations(page)
+  await page.getByLabel('Nom du projet').fill('Gilet Rosée bis')
+  await page.getByRole('button', { name: 'Enregistrer le projet' }).click()
+  await expect(page.getByRole('heading', { level: 1, name: 'Gilet Rosée bis' })).toBeVisible()
+  expect(patternReads).toBe(readsBefore)
 })
 
 test('stock de laine : quel patron pour ma laine (la bibliothèque d’abord, puis des idées)', async ({ page }) => {

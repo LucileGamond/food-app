@@ -249,6 +249,26 @@ isOneToOne: false
       referencedColumns: ["id"]
     }
                   ]
+                },"knit_pattern_readings": {
+                  Row: {
+                    "pattern_id": string,"read_at": string,"reading": NonNullable<Json>,"size_index": number | null,"size_label": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "pattern_id": string,"read_at"?: string,"reading": NonNullable<Json>,"size_index"?: number | null,"size_label": string
+                  }
+                  Update: {
+                    "pattern_id"?: string,"read_at"?: string,"reading"?: NonNullable<Json>,"size_index"?: number | null,"size_label"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "knit_pattern_readings_pattern_id_fkey"
+      columns: ["pattern_id"]
+isOneToOne: false
+      referencedRelation: "knit_patterns"
+      referencedColumns: ["id"]
+    }
+                  ]
                 },"knit_patterns": {
                   Row: {
                     "created_at": string,"id": string,"meters_needed": number | null,"needle_mm": number | null,"notes": string,"pdf_path": string | null,"photos": (string)[],"profile_id": string,"size": string | null,"title": string,"url": string | null,"wish": number | null,"yarn_idea": string

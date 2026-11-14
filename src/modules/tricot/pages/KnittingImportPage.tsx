@@ -1,4 +1,4 @@
-import { FileText, Grid3x3, Loader2, RotateCcw, Save } from 'lucide-react'
+import { FileText, Grid3x3, Loader2, RotateCcw, Save, Sparkles } from 'lucide-react'
 import { useEffect, useState, type FormEvent } from 'react'
 import { Navigate, useNavigate, useSearchParams } from 'react-router-dom'
 import { toast } from 'sonner'
@@ -19,11 +19,14 @@ import { sizeIndexOf } from '../lib/sizes'
 import { describeSection, MAX_PDF_BYTES, stepFacts, type ReadPattern } from '../lib/pattern'
 import { formatGauge } from '../lib/yarn'
 import type { KnitPattern } from '../lib/library'
+import { findReading, type StoredReading } from '../lib/readings'
+import { formatShortDate, toIsoDate } from '@/lib/dates'
 
 /**
  * Nouveau projet : PDF du patron (+ taille, facultative) → étapes lues par le modèle, vérifiées puis enregistrées. Le
  * patron est rangé dans la bibliothèque.
  * `?patron=<id>` : projet d'après un patron de la bibliothèque (son PDF et sa taille sont repris ; sans PDF, il est demandé).
+ * Une lecture déjà gardée pour la taille demandée est reprise, sans rappeler le modèle ; « Relire avec l'IA » la refait.
  * `?plus-tard` (ancienne adresse de « Mettre de côté ») : ajout d'un patron à la bibliothèque.
  */
 export function KnittingImportPage() {
@@ -43,6 +46,10 @@ export function KnittingImportPage() {
   const [title, setTitle] = useState('')
   const [sizeIndex, setSizeIndex] = useState<number | null>(null)
   const [saving, setSaving] = useState(false)
+  /** Lectures gardées du patron de la bibliothèque (une par taille). */
+  const [readings, setReadings] = useState<StoredReading[]>([])
+  /** Date de la lecture gardée reprise ; null : lecture faite à l'instant par le modèle. */
+  const [reusedAt, setReusedAt] = useState<string | null>(null)
 
   useEffect(() => {
     if (!sourceId) return
@@ -54,6 +61,8 @@ export function KnittingImportPage() {
         if (!item) return setError('Patron introuvable.')
         setSource(item)
         setSize((current) => current || item.size || '')
+        // Sans elles, le patron est simplement relu.
+        if (item.readSizes.length) setReadings(await api.knitting.listReadings(item.id).catch(() => []))
         // Sans PDF (photos ou lien seulement) : il est demandé ci-dessous.
         if (!item.pdfPath) return setChangingPdf(true)
         const file = await api.knitting.downloadPdf(item.pdfPath, item.title)
@@ -67,23 +76,43 @@ export function KnittingImportPage() {
     }
   }, [api, sourceId])
 
+  /** Le PDF du patron est remplacé pour ce projet : ses lectures gardées ne valent plus. */
+  const replacingPdf = changingPdf && !!source?.pdfPath
+  /** Lecture gardée qui vaut pour cette taille. */
+  const storedFor = (chosenSize: string) => (replacingPdf ? null : findReading(readings, chosenSize))
+
   async function read(event: FormEvent) {
     event.preventDefault()
+    if (storedFor(size.trim())) return void readFor(pdf, size.trim())
     if (!pdf) return setError('Choisis le PDF du patron.')
     if (pdf.size > MAX_PDF_BYTES) return setError('PDF trop lourd (20 Mo au plus).')
     await readFor(pdf, size.trim())
   }
 
-  /** Lit le patron pour une taille ; relu pour la taille conseillée, le nom du projet donné est gardé. */
-  async function readFor(file: File, chosenSize: string) {
+  /** Lecture prête à vérifier ; le nom du projet déjà donné est gardé. */
+  function showRead(read: ReadPattern, chosenSize: string) {
+    setSize(chosenSize)
+    setTitle((current) => (pattern && current.trim() && current !== pattern.title ? current : (source?.title ?? read.title)))
+    setPattern(read)
+    setSizeIndex(read.sizeIndex ?? sizeIndexOf(read.sizes, chosenSize))
+  }
+
+  /**
+   * Patron pour une taille : la lecture gardée pour cette taille s'il y en a une (sauf `fresh`), sinon lu par le modèle.
+   * Relu pour la taille conseillée, le nom du projet donné est gardé.
+   */
+  async function readFor(file: File | null, chosenSize: string, fresh = false) {
     setError(null)
+    const stored = fresh ? null : storedFor(chosenSize)
+    if (stored) {
+      setReusedAt(stored.readAt)
+      return showRead(stored.reading, chosenSize)
+    }
+    if (!file) return setError('Choisis le PDF du patron.')
     setReading(true)
     try {
-      const read = await api.knitting.readPattern(file, chosenSize)
-      setSize(chosenSize)
-      setTitle((current) => (pattern && current.trim() && current !== pattern.title ? current : (source?.title ?? read.title)))
-      setPattern(read)
-      setSizeIndex(read.sizeIndex ?? sizeIndexOf(read.sizes, chosenSize))
+      showRead(await api.knitting.readPattern(file, chosenSize), chosenSize)
+      setReusedAt(null)
     } catch (e) {
       if (pattern) toast.error(errorMessage(e))
       else setError(errorMessage(e))
@@ -101,7 +130,7 @@ export function KnittingImportPage() {
     if (!pattern) return
     setSaving(true)
     try {
-      const id = await api.knitting.createProject({ title: title.trim() || pattern.title, size: readSize(pattern), pdf, steps: pattern.steps, gauge: pattern.gauge ?? null, pattern: source && { id: source.id, pdfPath: changingPdf ? null : source.pdfPath }, chartHints: pattern.charts ?? [], sizes: pattern.sizes, sizeIndex, abbreviations: pattern.abbreviations ?? [], needles: pattern.needles ?? [] })
+      const id = await api.knitting.createProject({ title: title.trim() || pattern.title, size: readSize(pattern), pdf, steps: pattern.steps, gauge: pattern.gauge ?? null, pattern: source && { id: source.id, pdfPath: changingPdf ? null : source.pdfPath }, chartHints: pattern.charts ?? [], sizes: pattern.sizes, sizeIndex, abbreviations: pattern.abbreviations ?? [], needles: pattern.needles ?? [], reading: reusedAt ? null : pattern })
       toast.success('Projet enregistré')
       navigate(`/tricot/${id}`)
     } catch (e) {
@@ -123,6 +152,16 @@ export function KnittingImportPage() {
             <Label htmlFor="knit-title">Nom du projet</Label>
             <Input id="knit-title" className="h-10" value={title} onChange={(e) => setTitle(e.target.value)} maxLength={200} />
           </div>
+          {reusedAt && (
+            <Note>
+              <p>Lecture du {formatShortDate(toIsoDate(new Date(reusedAt)))} reprise : rien n’a été relu par l’IA.</p>
+              {pdf && (
+                <Button variant="outline" className="h-10" disabled={reading} onClick={() => void readFor(pdf, size.trim(), true)}>
+                  {reading ? <Loader2 className="animate-spin" aria-hidden /> : <Sparkles />} Relire avec l’IA
+                </Button>
+              )}
+            </Note>
+          )}
           {!!pattern.missingParts?.length && (
             <Note kind="todo" role="alert">
               <p>
@@ -187,6 +226,7 @@ export function KnittingImportPage() {
 
   // Patron de la bibliothèque : son PDF est repris, il n'y a rien à choisir.
   const fromLibrary = sourceId !== null
+  const stored = storedFor(size.trim())
   const pdfField = (
     <div className="grid gap-1.5">
       <Label htmlFor="knit-pdf">Patron (PDF)</Label>
@@ -245,15 +285,18 @@ export function KnittingImportPage() {
           <p id="knit-size-hint" className="text-xs text-muted-foreground">
             Facultatif : sans taille, les rangs et mailles comptés sont ceux de la première taille du patron. Tu pourras changer la taille mise en valeur.
           </p>
+          {readings.length > 0 && !replacingPdf && (
+            <p className="text-xs text-muted-foreground">Déjà lu pour {source?.readSizes.join(', ')} : dans ces tailles, rien n’est relu.</p>
+          )}
         </div>
         {error && (
           <p role="alert" className="text-sm text-destructive">
             {error}
           </p>
         )}
-        <Button type="submit" className="h-10" disabled={reading || (fromLibrary && !pdf)}>
+        <Button type="submit" className="h-10" disabled={reading || (fromLibrary && !pdf && !stored)}>
           {reading && <Loader2 className="animate-spin" aria-hidden />}
-          {reading ? 'Lecture du patron…' : 'Lire le patron'}
+          {reading ? 'Lecture du patron…' : stored ? `Reprendre la lecture (taille ${stored.sizeLabel})` : 'Lire le patron'}
         </Button>
         {reading && <p className="text-sm text-muted-foreground">Ça peut prendre jusqu’à 2 minutes pour un long patron.</p>}
       </form>
