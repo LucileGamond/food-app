@@ -1,5 +1,5 @@
 import { FileText, Grid3x3, Loader2, RotateCcw, Save, Sparkles } from 'lucide-react'
-import { useEffect, useState, type FormEvent } from 'react'
+import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { Navigate, useNavigate, useSearchParams } from 'react-router-dom'
 import { toast } from 'sonner'
 import { errorMessage } from '@/api'
@@ -53,6 +53,12 @@ export function KnittingImportPage() {
   const [reusedAt, setReusedAt] = useState<string | null>(null)
   /** Confirmation avant de jeter la lecture vérifiée. */
   const [dropping, setDropping] = useState(false)
+  /** Le résultat de la lecture prend le focus : l'attente peut durer deux minutes, on regarde ailleurs. */
+  const result = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (pattern) result.current?.focus()
+  }, [pattern])
 
   useEffect(() => {
     if (!sourceId) return
@@ -150,7 +156,10 @@ export function KnittingImportPage() {
           title="Vérifier les étapes"
           description={[pattern.sizes.length < 2 && `Taille ${readSize(pattern)}`, `${pattern.steps.length} étapes`, pattern.gauge && formatGauge(pattern.gauge) && `échantillon ${formatGauge(pattern.gauge)}`].filter(Boolean).join(' · ')}
         />
-        <div className="space-y-4">
+        <div ref={result} tabIndex={-1} className="space-y-4 outline-none">
+          <p role="status" className="sr-only">
+            Patron lu : {pattern.steps.length} étapes. Vérifie-les, puis enregistre le projet.
+          </p>
           <div className="grid gap-1.5">
             <Label htmlFor="knit-title">Nom du projet</Label>
             <Input id="knit-title" className="h-10" value={title} onChange={(e) => setTitle(e.target.value)} maxLength={200} />
@@ -314,7 +323,11 @@ export function KnittingImportPage() {
           {reading && <Loader2 className="animate-spin" aria-hidden />}
           {reading ? 'Lecture du patron…' : stored ? `Reprendre la lecture (taille ${stored.sizeLabel})` : 'Lire le patron'}
         </Button>
-        {reading && <p className="text-sm text-muted-foreground">Ça peut prendre jusqu’à 2 minutes pour un long patron.</p>}
+        {reading && (
+          <p role="status" className="text-sm text-muted-foreground">
+            Lecture du patron en cours ; ça peut prendre jusqu’à 2 minutes pour un long patron.
+          </p>
+        )}
       </form>
     </>
   )

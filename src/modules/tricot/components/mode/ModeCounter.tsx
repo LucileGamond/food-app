@@ -26,6 +26,9 @@ export function ModeCounter({ rowCount, totalRows, onCount, substeps = [], onFin
   const total = main ? main.rows : totalRows
   // Longueur à mesurer : on la finit quand on y est ; connue : seulement avant la fin (finir plus tôt).
   const canFinish = !!main && !!onFinishSubstep && main.finishable && knitted > 0 && (main.rows === null || knitted < main.rows)
+  // La ligne « Étape » ne dit quelque chose que si elle diffère du compteur (sinon c'est le même nombre deux fois).
+  const stepDiffers = knitted !== rowCount || total !== totalRows
+  const below = !!main && (stepDiffers || parallel.length > 0 || canFinish)
   return (
     <div className="space-y-2">
       <div className="flex items-center gap-3">
@@ -44,12 +47,14 @@ export function ModeCounter({ rowCount, totalRows, onCount, substeps = [], onFin
           <span className="sr-only">Ajouter</span> 1 rang
         </Button>
       </div>
-      {main && (
+      {below && (
         <div className="flex flex-wrap items-center justify-center gap-x-3 gap-y-1 text-xs text-muted-foreground tabular-nums">
-          <span>
-            Étape : {rowCount}
-            {totalRows !== null && ` / ${totalRows}`} rangs
-          </span>
+          {stepDiffers && (
+            <span>
+              Étape : {rowCount}
+              {totalRows !== null && ` / ${totalRows}`} rangs
+            </span>
+          )}
           {parallel.map((p) => (
             <span key={p.index} className="max-w-full truncate">
               En même temps : {p.row - 1}

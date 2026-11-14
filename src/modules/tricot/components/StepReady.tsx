@@ -42,26 +42,44 @@ function Row({ issue, onFix }: { issue: ReadyIssue; onFix?: (index: number) => v
   )
 }
 
-/** Ce qu'il reste à préparer avant de tricoter, sous-étape par sous-étape (rien quand l'étape est prête). */
+/**
+ * Ce qu'il reste à préparer avant de tricoter (rien quand l'étape est prête).
+ *
+ * Dans la préparation, les sous-étapes sont juste en dessous avec leur propre encadré et leurs boutons : ici, seulement
+ * le compte et de quoi y aller. Dans le mode tricoter, elles ne sont pas à l'écran : le détail est donné, sous-étape
+ * par sous-étape.
+ */
 export function StepReady({ issues, setupTo, onFix }: Props) {
   // Prête : le bouton « Tricoter » actif le dit déjà
   if (issues.length === 0) return null
+  const first = issues[0]!
   return (
     <div role="alert" aria-labelledby="step-ready-title" className="space-y-1.5 rounded-xl border border-amber-500/40 bg-amber-500/10 p-3 text-sm">
       <p id="step-ready-title" className="flex items-center gap-1.5 font-medium">
         <CircleAlert className="size-4 shrink-0 text-amber-700 dark:text-amber-400" aria-hidden /> À préparer avant de tricoter
       </p>
-      <ul className="space-y-0.5">
-        {issues.map((issue) => (
-          <Row key={`${issue.index}-${issue.what}`} issue={issue} onFix={onFix} />
-        ))}
-      </ul>
       {setupTo ? (
-        <Link to={setupTo} className="inline-flex min-h-11 items-center px-2 font-medium underline underline-offset-4">
-          Préparer l’étape
-        </Link>
+        <>
+          <ul className="space-y-0.5">
+            {issues.map((issue) => (
+              <Row key={`${issue.index}-${issue.what}`} issue={issue} onFix={onFix} />
+            ))}
+          </ul>
+          <Link to={setupTo} className="inline-flex min-h-11 items-center px-2 font-medium underline underline-offset-4">
+            Préparer l’étape
+          </Link>
+        </>
       ) : (
-        <p className="px-2 text-xs text-muted-foreground">Touche une ligne pour corriger la sous-étape.</p>
+        <>
+          <p className="px-2">
+            {issues.length === 1 ? '1 chose à régler' : `${issues.length} choses à régler`}, signalée{issues.length > 1 ? 's' : ''} en orange dans les sous-étapes ci-dessous.
+          </p>
+          {onFix && (
+            <button type="button" onClick={() => onFix(first.index)} className="inline-flex min-h-11 items-center px-2 font-medium underline underline-offset-4">
+              Aller à la première<span className="sr-only"> : {first.text}</span>
+            </button>
+          )}
+        </>
       )}
     </div>
   )

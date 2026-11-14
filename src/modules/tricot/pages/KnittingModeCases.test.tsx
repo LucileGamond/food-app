@@ -302,6 +302,12 @@ describe('mode tricoter : un seul compteur, celui de la sous-étape', () => {
     expect(within(counter()).getByRole('button', { name: 'Terminer la sous-étape (11 rangs)' })).toBeInTheDocument()
   })
 
+  it('une seule sous-étape qui fait toute l’étape : la ligne « Étape » ne répète pas le compteur', async () => {
+    await open(project({ rowCount: 11, totalRows: 60, sections: [rows(60, 'jersey')] }))
+    expect(counter()).toHaveTextContent('11 / 60rangs faits · 60 rangs : jersey')
+    expect(counter()).not.toHaveTextContent('Étape :')
+  })
+
   it('« en même temps » : les autres sous-étapes en cours rappelées sous le compteur', async () => {
     const together = [rows(20, 'jersey'), { ...rows(6, 'encolure'), at: { row: 5, pattern: null } }]
     await open(project({ rowCount: 6, sections: together }))

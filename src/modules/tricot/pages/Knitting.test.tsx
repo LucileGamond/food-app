@@ -214,6 +214,19 @@ describe('KnittingImportPage', () => {
     expect(await screen.findByRole('button', { name: 'Lire le patron' })).toBeInTheDocument()
   })
 
+  it('la fin de la lecture est annoncée et prend le focus', async () => {
+    const user = userEvent.setup()
+    const api = fakeApi()
+    api.knitting.readPattern.mockResolvedValue(PATTERN)
+    renderImport(api)
+    await user.upload(screen.getByLabelText('Patron (PDF)'), pdf())
+    await user.click(screen.getByRole('button', { name: 'Lire le patron' }))
+    // Après une attente qui peut durer deux minutes : un message lu, et le focus sur le résultat
+    const status = await screen.findByRole('status')
+    expect(status).toHaveTextContent(`Patron lu : ${PATTERN.steps.length} étapes. Vérifie-les, puis enregistre le projet.`)
+    expect(document.activeElement).toBe(status.parentElement)
+  })
+
   it('refuse un PDF trop lourd et signale un enregistrement impossible', async () => {
     const user = userEvent.setup()
     const api = fakeApi()
@@ -307,7 +320,7 @@ describe('KnittingProjectPage', () => {
     project.steps[1]!.sections = [project.steps[1]!.sections[0]!, { kind: 'rows', rows: null, every: null, times: null, text: 'jersey', pattern: '5 cm' }]
     const { api } = renderProject(fakeApi(), project, `${STEP}=s2`)
     const alert = await screen.findByRole('alert')
-    expect(alert).toHaveTextContent('À préparer avant de tricoterSous-étape 2 (5 cm (à régler) : jersey) : nombre de rangs à régler.')
+    expect(alert).toHaveTextContent('1 chose à régler, signalée en orange dans les sous-étapes ci-dessous.')
     expect(screen.getByRole('button', { name: 'Tricoter cette étape' })).toBeDisabled()
     expect(screen.queryByRole('link', { name: 'Tricoter cette étape' })).not.toBeInTheDocument()
 
@@ -323,7 +336,7 @@ describe('KnittingProjectPage', () => {
     expect(screen.getByRole('link', { name: 'Tricoter cette étape' })).toHaveAttribute('href', '/tricot/p1/tricoter?etape=s2')
   })
 
-  it('« À préparer » : chaque ligne ouvre sa sous-étape, qui est signalée', async () => {
+  it('« À préparer » : le compte, et le bouton ouvre la sous-étape, qui est signalée', async () => {
     const user = userEvent.setup()
     const project = structuredClone(PROJECT)
     project.steps[1]!.sections = [project.steps[1]!.sections[0]!, { kind: 'rows', rows: null, every: null, times: null, text: 'jersey', pattern: '5 cm' }]
@@ -333,8 +346,11 @@ describe('KnittingProjectPage', () => {
     const items = within(screen.getByRole('region', { name: 'Sous-étapes' })).getAllByRole('listitem')
     expect(items[0]!.className).not.toContain('amber')
     expect(items[1]!.className).toContain('amber')
-    // Toucher la ligne ouvre le formulaire de cette sous-étape
-    await user.click(within(alert).getByRole('button', { name: /^Sous-étape 2/ }))
+    // Le détail est dans la sous-étape, juste en dessous : ici, le compte seulement
+    expect(alert).toHaveTextContent('1 chose à régler, signalée en orange dans les sous-étapes ci-dessous.')
+    expect(alert).not.toHaveTextContent('nombre de rangs à régler.5 cm')
+    // Le bouton ouvre le formulaire de la première sous-étape à régler
+    await user.click(within(alert).getByRole('button', { name: /^Aller à la première/ }))
     const form = await screen.findByRole('form', { name: 'Sous-étape' })
     expect(within(form).getByLabelText('Description (facultatif)')).toHaveValue('jersey')
   })
@@ -386,16 +402,28 @@ describe('KnittingProjectPage', () => {
     expect(api.knitting.saveNeedles).toHaveBeenCalledWith('p1', [3, 3.5])
   })
 
+  it('aiguilles du patron : un enregistrement qui rate le dit, au lieu de ne rien faire', async () => {
+    const user = userEvent.setup()
+    const api = fakeApi()
+    api.knitting.saveNeedles.mockRejectedValueOnce(new Error('réseau'))
+    renderProject(api, PROJECT, START)
+    await user.click(await screen.findByRole('button', { name: 'Modifier les aiguilles du patron' }))
+    const form = screen.getByRole('form', { name: 'Aiguilles du patron' })
+    await user.type(within(form).getByLabelText('Aiguilles du patron (mm)'), '3 ; 3,5')
+    await user.click(within(form).getByRole('button', { name: 'Enregistrer' }))
+    expect(await within(form).findByRole('alert')).toHaveTextContent('Les aiguilles n’ont pas pu être enregistrées. Réessaie.')
+    // Le formulaire reste ouvert avec la saisie
+    expect(within(form).getByLabelText('Aiguilles du patron (mm)')).toHaveValue('3 ; 3,5')
+  })
+
   it('aiguille de chaque sous-étape : à choisir avec plusieurs aiguilles, héritée de la précédente', async () => {
     const user = userEvent.setup()
     const project = { ...structuredClone(PROJECT), needles: [3, 3.5] }
     const { api } = renderProject(fakeApi(), project, `${STEP}=s2`)
     const alert = await screen.findByRole('alert')
-    // Chaque ligne : la phrase entière pour le lecteur d'écran, puis le numéro, ce qui manque et la sous-étape
-    expect(within(alert).getAllByRole('listitem').map((li) => li.textContent)).toEqual([
-      'Sous-étape 1 (4 rangs : jersey) : aiguille à choisir.1aiguille à choisir4 rangs : jersey',
-      'Sous-étape 2 (1 diminution de chaque côté — tous les 6 rangs (4 fois)) : aiguille à choisir.2aiguille à choisir1 diminution de chaque côté — tous les 6 rangs (4 fois)',
-    ])
+    // La préparation compte ; le détail est sur chaque sous-étape, juste en dessous
+    expect(alert).toHaveTextContent('2 choses à régler, signalées en orange dans les sous-étapes ci-dessous.')
+    expect(within(alert).getByRole('button')).toHaveAccessibleName('Aller à la première: Sous-étape 1 (4 rangs : jersey) : aiguille à choisir.')
     expect(screen.getByRole('button', { name: 'Tricoter cette étape' })).toBeDisabled()
     await user.click(screen.getByRole('button', { name: 'Actions pour « 4 rangs : jersey »' }))
     await user.click(await screen.findByRole('menuitem', { name: 'Modifier' }))
