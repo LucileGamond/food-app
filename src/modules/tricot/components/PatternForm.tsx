@@ -2,7 +2,7 @@
 // aide à le retrouver (taille, envie, besoins, laine envisagée, notes).
 
 import { FileText, ImagePlus, Loader2, X } from 'lucide-react'
-import { useState, type FormEvent } from 'react'
+import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { errorMessage } from '@/api'
 import { useApi } from '@/app/ApiContext'
 import { Button } from '@/components/ui/button'
@@ -13,7 +13,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { useSignedUrls } from '@/hooks/useSignedUrls'
 import { ACCEPTED_IMAGE_TYPES, compressImage } from '@/lib/image'
 import { usePatternFiles } from '../hooks/usePatternFiles'
-import { EMPTY_PATTERN_DRAFT, fileCount, linkAdditions, MAX_PATTERN_PHOTOS, parsePatternDraft, titleFromFile, toPatternDraft, WISHES, type KnitPattern, type PatternDraft, type PatternLink, type PatternWish } from '../lib/library'
+import { EMPTY_PATTERN_DRAFT, fileCount, linkAdditions, MAX_PATTERN_PHOTOS, parsePatternDraft, patternFormChanged, titleFromFile, toPatternDraft, WISHES, type KnitPattern, type PatternDraft, type PatternLink, type PatternWish } from '../lib/library'
 import { MAX_PDF_BYTES } from '../lib/pattern'
 import { PatternLinkField } from './PatternLinkField'
 import { PatternThumbs } from './PatternThumbs'
@@ -24,9 +24,13 @@ interface Props {
   /** Lien partagé depuis le téléphone : prérempli, puis lu tout de suite. */
   initialLink?: { url: string; title: string | null } | null
   onSaved: (id: string) => void
+  /** La saisie diffère de celle du départ (la page prévient avant de la quitter). */
+  onChangedChange?: (changed: boolean) => void
 }
 
-export function PatternForm({ existing, initialLink = null, onSaved }: Props) {
+const PDF_TOO_LARGE = 'PDF trop lourd (20 Mo au plus).'
+
+export function PatternForm({ existing, initialLink = null, onSaved, onChangedChange }: Props) {
   const api = useApi()
   const [draft, setDraft] = useState<PatternDraft>(() =>
     existing ? toPatternDraft(existing) : { ...EMPTY_PATTERN_DRAFT, url: initialLink?.url ?? '', title: initialLink?.title ?? '' },
@@ -36,6 +40,16 @@ export function PatternForm({ existing, initialLink = null, onSaved }: Props) {
   const [error, setError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
   const [preparing, setPreparing] = useState(false)
+  const [readingLink, setReadingLink] = useState(false)
+
+  const [initial] = useState(draft)
+  const changed = !saving && patternFormChanged(initial, draft, existing, files)
+  useEffect(() => onChangedChange?.(changed), [changed, onChangedChange])
+
+  const latest = useRef({ title: draft.title, files })
+  useEffect(() => {
+    latest.current = { title: draft.title, files }
+  }, [draft.title, files])
 
   const change = (patch: Partial<PatternDraft>) => setDraft((d) => ({ ...d, ...patch }))
   /** Nom proposé d'après le premier fichier choisi, s'il n'y en a pas encore. */
@@ -60,16 +74,35 @@ export function PatternForm({ existing, initialLink = null, onSaved }: Props) {
 
   /** Ajoute au patron ce que le lien a donné, sans rien remplacer ; renvoie ce qu'il faut en dire. */
   async function applyLink(link: PatternLink): Promise<string> {
-    const added = linkAdditions(link, { title: draft.title, files })
-    if (added.title) change({ title: added.title })
+    let image: Blob | null = null
+    let imageFailed = false
+    if (link.image) {
+      try {
+        image = await compressImage(link.image)
+      } catch {
+        imageFailed = true
+      }
+    }
+    // Saisie du moment (un PDF a pu être choisi pendant la lecture), pas celle du clic sur « Récupérer ».
+    const added = linkAdditions({ ...link, image }, latest.current, { imageFailed })
+    const title = added.title
+    if (title) setDraft((d) => (d.title.trim() ? d : { ...d, title }))
     if (added.pdf) choosePdf(added.pdf)
-    if (added.image) addPhotos([await compressImage(added.image)])
+    if (added.image) addPhotos([added.image])
     return added.message
+  }
+
+  function onPdf(file: File | undefined) {
+    if (!file) return
+    if (file.size > MAX_PDF_BYTES) return setError(PDF_TOO_LARGE)
+    setError(null)
+    choosePdf(file)
+    suggestTitle(file.name)
   }
 
   async function submit(event: FormEvent) {
     event.preventDefault()
-    if (files.newPdf && files.newPdf.size > MAX_PDF_BYTES) return setError('PDF trop lourd (20 Mo au plus).')
+    if (files.newPdf && files.newPdf.size > MAX_PDF_BYTES) return setError(PDF_TOO_LARGE)
     const parsed = parsePatternDraft(draft, files)
     if ('error' in parsed) return setError(parsed.error)
     setError(null)
@@ -112,10 +145,9 @@ export function PatternForm({ existing, initialLink = null, onSaved }: Props) {
               accept="application/pdf,.pdf"
               className="h-10"
               onChange={(e) => {
-                const file = e.target.files?.[0]
-                if (!file) return
-                choosePdf(file)
-                suggestTitle(file.name)
+                onPdf(e.target.files?.[0])
+                // Vidé : choisir de nouveau le même fichier (trop lourd, puis réduit) relance le choix.
+                e.target.value = ''
               }}
             />
           )}
@@ -142,7 +174,7 @@ export function PatternForm({ existing, initialLink = null, onSaved }: Props) {
           )}
         </div>
 
-        <PatternLinkField value={draft.url} onChange={(url) => change({ url })} onRead={applyLink} readOnMount={!!initialLink} />
+        <PatternLinkField value={draft.url} onChange={(url) => change({ url })} onRead={applyLink} readOnMount={!!initialLink} onReadingChange={setReadingLink} />
       </fieldset>
 
       <div className="grid grid-cols-2 gap-3">
@@ -186,7 +218,7 @@ export function PatternForm({ existing, initialLink = null, onSaved }: Props) {
           {error}
         </p>
       )}
-      <Button type="submit" className="h-10" disabled={saving || preparing}>
+      <Button type="submit" className="h-10" disabled={saving || preparing || readingLink}>
         {saving && <Loader2 className="animate-spin" aria-hidden />}
         Enregistrer
       </Button>

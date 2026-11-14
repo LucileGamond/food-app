@@ -222,21 +222,46 @@ export function patternLinkFromResponse(read: PatternLinkResponse): PatternLink 
 export interface LinkAdditions {
   title: string | null
   pdf: File | null
-  image: File | null
+  /** Photo du modèle, déjà réduite. */
+  image: Blob | null
   message: string
 }
 
-export function linkAdditions(link: PatternLink, current: { title: string; files: PatternFiles }): LinkAdditions {
+/** `imageFailed` : la page avait une photo, mais elle n'a pas pu être préparée (le reste est ajouté quand même). */
+export function linkAdditions(
+  link: { title: string | null; pdf: File | null; image: Blob | null },
+  current: { title: string; files: PatternFiles },
+  { imageFailed = false }: { imageFailed?: boolean } = {},
+): LinkAdditions {
   const count = fileCount(current.files)
   const title = !current.title.trim() && link.title ? link.title : null
   const pdf = link.pdf && !count.pdf ? link.pdf : null
   const image = link.image && count.photos < MAX_PATTERN_PHOTOS ? link.image : null
   const parts = [
     pdf ? 'PDF du patron ajouté' : link.pdf ? 'PDF trouvé, mais le patron en a déjà un' : 'Pas de PDF trouvé (la page demande peut-être une connexion) : le lien est gardé',
-    image && 'photo du modèle ajoutée',
+    image ? 'photo du modèle ajoutée' : imageFailed && 'photo du modèle illisible',
     title && 'nom repris de la page',
   ].filter((p): p is string => !!p)
   return { title, pdf, image, message: `${parts.join(' · ')}.` }
+}
+
+/** Saisie qui diffère de celle du départ (champs ou fichiers) : la quitter la perdrait. */
+export function patternFormChanged(
+  initial: PatternDraft,
+  draft: PatternDraft,
+  saved: Pick<KnitPattern, 'pdfPath' | 'photos'> | null,
+  files: PatternFiles,
+): boolean {
+  const fields = (Object.keys(initial) as (keyof PatternDraft)[]).some((k) => initial[k] !== draft[k])
+  const savedPhotos = saved?.photos ?? []
+  return (
+    fields ||
+    files.newPdf !== null ||
+    files.newPhotos.length > 0 ||
+    files.pdfPath !== (saved?.pdfPath ?? null) ||
+    files.photos.length !== savedPhotos.length ||
+    files.photos.some((p, i) => p !== savedPhotos[i])
+  )
 }
 
 /** Lien saisi qui peut être lu (http ou https). */

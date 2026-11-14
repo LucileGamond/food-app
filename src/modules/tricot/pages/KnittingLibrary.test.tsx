@@ -2,9 +2,11 @@ import { screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { Route } from 'react-router-dom'
 import { AppError } from '@/api'
+import { compressImage } from '@/lib/image'
 import { fakeApi, renderWithApp } from '@/test/fakes'
 import { EMPTY_YARN, type StashItem } from '../lib/yarn'
-import type { KnitPattern } from '../lib/library'
+import type { KnitPattern, PatternLink } from '../lib/library'
+import { MAX_PDF_BYTES } from '../lib/pattern'
 import { KnittingLibraryPage } from './KnittingLibraryPage'
 import { KnittingPage } from './KnittingPage'
 import { KnittingPatternEditPage } from './KnittingPatternEditPage'
@@ -152,6 +154,10 @@ describe('fiche d’un patron', () => {
     await user.click(within(photos).getByRole('button', { name: 'Ouvrir la photo 2' }))
     const viewer = await screen.findByRole('dialog', { name: 'Photo 2 sur 2' })
     expect(within(viewer).getByRole('img', { name: 'Photo 2 du patron' })).toHaveAttribute('src', 'https://cdn.test/u-lucile/p2.jpg')
+    // En se fermant, la visionneuse garde son titre (pas de « Photo  sur 2 »).
+    await user.keyboard('{Escape}')
+    expect(screen.queryByText(/^Photo\s+sur/)).not.toBeInTheDocument()
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
   })
 
   it('pas encore tricoté : « Commencer un projet » reprend le patron', async () => {
@@ -326,6 +332,95 @@ describe('ajout et modification d’un patron', () => {
     expect(screen.getByLabelText('Lien')).toHaveValue('https://p.exemple/gilet')
     // Le titre partagé est gardé
     expect(screen.getByLabelText('Nom du patron')).toHaveValue('Titre partagé')
+  })
+
+  it('lecture du lien en cours : « Enregistrer » attend, et un PDF choisi entre-temps est gardé', async () => {
+    const user = userEvent.setup()
+    const api = fakeApi()
+    let finish!: (link: PatternLink) => void
+    api.knitting.readPatternLink.mockImplementation(() => new Promise<PatternLink>((resolve) => (finish = resolve)))
+    renderWithApp(<KnittingPatternEditPage />, { api, route: '/tricot/patrons/nouveau', path: '/tricot/patrons/nouveau', extraRoutes })
+    await user.type(await screen.findByLabelText('Nom du patron'), 'Gilet')
+    await user.type(screen.getByLabelText('Lien'), 'https://p.exemple/gilet')
+    await user.click(screen.getByRole('button', { name: 'Récupérer' }))
+    expect(screen.getByRole('button', { name: 'Enregistrer' })).toBeDisabled()
+
+    const mine = new File(['%PDF'], 'le-mien.pdf', { type: 'application/pdf' })
+    await user.upload(screen.getByLabelText('PDF'), mine)
+    finish({ url: 'https://p.exemple/gilet', title: null, image: null, pdf: new File(['%PDF'], 'du-lien.pdf', { type: 'application/pdf' }) })
+    expect(await screen.findByText('PDF trouvé, mais le patron en a déjà un.')).toBeInTheDocument()
+    expect(screen.getByText('le-mien.pdf')).toBeInTheDocument()
+    expect(screen.queryByText('du-lien.pdf')).not.toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: 'Enregistrer' }))
+    await waitFor(() => expect(api.knitting.savePattern).toHaveBeenCalledTimes(1))
+    expect(api.knitting.savePattern.mock.calls[0]![1]).toMatchObject({ newPdf: mine })
+  })
+
+  it('photo de la page illisible : le reste est ajouté, sans faux message d’erreur', async () => {
+    const user = userEvent.setup()
+    const api = fakeApi()
+    const pdf = new File(['%PDF'], 'gilet.pdf', { type: 'application/pdf' })
+    api.knitting.readPatternLink.mockResolvedValue({ url: 'https://p.exemple/gilet', title: 'Gilet', image: new File(['img'], 'photo.jpg', { type: 'image/jpeg' }), pdf })
+    vi.mocked(compressImage).mockRejectedValueOnce(new Error('image abîmée'))
+    renderWithApp(<KnittingPatternEditPage />, { api, route: '/tricot/patrons/nouveau', path: '/tricot/patrons/nouveau', extraRoutes })
+    await user.type(await screen.findByLabelText('Lien'), 'https://p.exemple/gilet')
+    await user.click(screen.getByRole('button', { name: 'Récupérer' }))
+    expect(await screen.findByText('PDF du patron ajouté · photo du modèle illisible · nom repris de la page.')).toBeInTheDocument()
+    expect(screen.getByText('gilet.pdf')).toBeInTheDocument()
+    expect(screen.queryByRole('list', { name: 'Photos du patron' })).not.toBeInTheDocument()
+  })
+
+  it('refuse un PDF trop lourd dès qu’il est choisi', async () => {
+    const user = userEvent.setup()
+    const api = fakeApi()
+    renderWithApp(<KnittingPatternEditPage />, { api, route: '/tricot/patrons/nouveau', path: '/tricot/patrons/nouveau', extraRoutes })
+    const heavy = new File(['%PDF'], 'enorme.pdf', { type: 'application/pdf' })
+    Object.defineProperty(heavy, 'size', { value: MAX_PDF_BYTES + 1 })
+    await user.upload(await screen.findByLabelText('PDF'), heavy)
+    expect(screen.getByRole('alert')).toHaveTextContent('PDF trop lourd (20 Mo au plus).')
+    expect(screen.queryByText('enorme.pdf')).not.toBeInTheDocument()
+    expect(screen.getByLabelText('Nom du patron')).toHaveValue('')
+  })
+
+  it('quitter une saisie non enregistrée : demande avant, au retour comme en fermant la page', async () => {
+    const user = userEvent.setup()
+    const api = fakeApi()
+    const routes = (
+      <>
+        {extraRoutes}
+        <Route path="/tricot/patrons" element={<p>Liste des patrons</p>} />
+      </>
+    )
+    renderWithApp(<KnittingPatternEditPage />, { api, route: '/tricot/patrons/nouveau', path: '/tricot/patrons/nouveau', extraRoutes: routes })
+    const unload = () => {
+      const event = new Event('beforeunload', { cancelable: true })
+      window.dispatchEvent(event)
+      return event.defaultPrevented
+    }
+    await screen.findByLabelText('Nom du patron')
+    expect(unload()).toBe(false)
+
+    await user.type(screen.getByLabelText('Nom du patron'), 'Gilet')
+    expect(unload()).toBe(true)
+    await user.click(screen.getByRole('link', { name: 'Bibliothèque' }))
+    const dialog = await screen.findByRole('alertdialog', { name: 'Quitter sans enregistrer ?' })
+    await user.click(within(dialog).getByRole('button', { name: 'Annuler' }))
+    expect(screen.getByLabelText('Nom du patron')).toHaveValue('Gilet')
+
+    await user.click(screen.getByRole('link', { name: 'Bibliothèque' }))
+    await user.click(await screen.findByRole('button', { name: 'Quitter' }))
+    expect(await screen.findByText('Liste des patrons')).toBeInTheDocument()
+    expect(unload()).toBe(false)
+  })
+
+  it('rien de changé : le retour part sans rien demander', async () => {
+    const user = userEvent.setup()
+    const api = fakeApi()
+    api.knitting.getPattern.mockResolvedValue(GILET)
+    renderWithApp(<KnittingPatternEditPage />, { api, route: '/tricot/patrons/g1/modifier', path: '/tricot/patrons/:id/modifier', extraRoutes })
+    await user.click(await screen.findByRole('link', { name: 'Patron' }))
+    expect(await screen.findByText('Fiche ouverte')).toBeInTheDocument()
   })
 
   it('signale un enregistrement impossible et garde la saisie', async () => {

@@ -47,7 +47,9 @@ function PatternSheet({ pattern }: { pattern: KnitPattern }) {
   const api = useApi()
   const navigate = useNavigate()
   const photoUrls = useSignedUrls(api.knitting.progressPhotoUrls, pattern.photos)
-  const [viewing, setViewing] = useState<number | null>(null)
+  // Photo ouverte ; l'index reste pendant la fermeture, pour que le titre ne change pas.
+  const [viewing, setViewing] = useState(0)
+  const [viewerOpen, setViewerOpen] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
   const facts = patternFacts(pattern)
 
@@ -104,7 +106,11 @@ function PatternSheet({ pattern }: { pattern: KnitPattern }) {
               )}
             </div>
           )}
-          {pattern.photos.length > 0 && <PatternThumbs label="Photos du patron" thumbs={pattern.photos.map((path) => ({ key: path, url: photoUrls[path] }))} onOpen={setViewing} />}
+          {pattern.photos.length > 0 && <PatternThumbs label="Photos du patron" thumbs={pattern.photos.map((path) => ({ key: path, url: photoUrls[path] }))} onOpen={(i) => {
+                setViewing(i)
+                setViewerOpen(true)
+              }}
+            />}
           {pattern.notes && <p className="text-sm whitespace-pre-line">{pattern.notes}</p>}
         </section>
 
@@ -142,12 +148,12 @@ function PatternSheet({ pattern }: { pattern: KnitPattern }) {
         </section>
       </div>
 
-      <Dialog open={viewing !== null} onOpenChange={(open) => !open && setViewing(null)}>
+      <Dialog open={viewerOpen} onOpenChange={setViewerOpen}>
         <DialogContent className="sm:max-w-2xl">
           <DialogTitle>
-            Photo {viewing !== null ? viewing + 1 : ''} sur {pattern.photos.length}
+            Photo {viewing + 1} sur {pattern.photos.length}
           </DialogTitle>
-          {viewing !== null && photoUrls[pattern.photos[viewing]!] && (
+          {photoUrls[pattern.photos[viewing]!] && (
             <img src={photoUrls[pattern.photos[viewing]!]} alt={`Photo ${viewing + 1} du patron`} className="max-h-[70dvh] w-full rounded-xl object-contain" />
           )}
         </DialogContent>

@@ -14,10 +14,12 @@ interface Props {
   onRead: (link: PatternLink) => Promise<string>
   /** Lire le lien dès l'affichage (lien partagé depuis le téléphone). */
   readOnMount?: boolean
+  /** Lecture en cours ou finie : le formulaire attend qu'elle finisse pour enregistrer. */
+  onReadingChange?: (reading: boolean) => void
 }
 
 /** Lien du patron, et « Récupérer depuis le lien » : PDF, nom et image de la page (sans l'IA, gratuit). */
-export function PatternLinkField({ value, onChange, onRead, readOnMount = false }: Props) {
+export function PatternLinkField({ value, onChange, onRead, readOnMount = false, onReadingChange }: Props) {
   const api = useApi()
   const [reading, setReading] = useState(false)
   const [message, setMessage] = useState<{ text: string; error: boolean } | null>(null)
@@ -25,6 +27,7 @@ export function PatternLinkField({ value, onChange, onRead, readOnMount = false 
 
   async function read() {
     setReading(true)
+    onReadingChange?.(true)
     setMessage(null)
     try {
       setMessage({ text: await onRead(await api.knitting.readPatternLink(value.trim())), error: false })
@@ -32,6 +35,7 @@ export function PatternLinkField({ value, onChange, onRead, readOnMount = false 
       setMessage({ text: errorMessage(e), error: true })
     } finally {
       setReading(false)
+      onReadingChange?.(false)
     }
   }
 

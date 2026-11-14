@@ -2,6 +2,7 @@ import {
   EMPTY_PATTERN_DRAFT,
   isReadableLink,
   linkAdditions,
+  patternFormChanged,
   patternLinkFromResponse,
   filterPatterns,
   matchPatterns,
@@ -179,6 +180,12 @@ describe('patron ajouté par un lien', () => {
     )
   })
 
+  it('photo de la page illisible : le dit, ajoute le reste', () => {
+    expect(linkAdditions({ ...link, image: null }, { title: '', files: NO_FILES }, { imageFailed: true }).message).toBe(
+      'PDF du patron ajouté · photo du modèle illisible · nom repris de la page.',
+    )
+  })
+
   it('cohérence : ce qui est ajouté reste valable pour l’enregistrement', () => {
     const added = linkAdditions(link, { title: '', files: NO_FILES })
     const files = { ...NO_FILES, newPdf: added.pdf, newPhotos: added.image ? [added.image] : [] }
@@ -205,5 +212,25 @@ describe('patron ajouté par un lien', () => {
     expect(isReadableLink('p.exemple/gilet')).toBe(false)
     expect(isReadableLink('https://')).toBe(false)
     expect(isReadableLink('')).toBe(false)
+  })
+})
+
+describe('saisie changée', () => {
+  const saved = pattern('g1', { title: 'Gilet', pdfPath: 'u/g.pdf', photos: ['u/1.jpg', 'u/2.jpg'] })
+  const draft = toPatternDraft(saved)
+  const files: PatternFiles = { pdfPath: 'u/g.pdf', newPdf: null, photos: ['u/1.jpg', 'u/2.jpg'], newPhotos: [] }
+
+  it('rien de touché : pas changée', () => {
+    expect(patternFormChanged(draft, { ...draft }, saved, files)).toBe(false)
+    expect(patternFormChanged(EMPTY_PATTERN_DRAFT, EMPTY_PATTERN_DRAFT, null, NO_FILES)).toBe(false)
+  })
+
+  it('un champ, un fichier ajouté, retiré ou remplacé : changée', () => {
+    expect(patternFormChanged(draft, { ...draft, notes: 'x' }, saved, files)).toBe(true)
+    expect(patternFormChanged(draft, draft, saved, { ...files, newPhotos: [new Blob()] })).toBe(true)
+    expect(patternFormChanged(draft, draft, saved, { ...files, photos: ['u/1.jpg'] })).toBe(true)
+    expect(patternFormChanged(draft, draft, saved, { ...files, photos: ['u/2.jpg', 'u/1.jpg'] })).toBe(true)
+    expect(patternFormChanged(draft, draft, saved, { ...files, pdfPath: null })).toBe(true)
+    expect(patternFormChanged(EMPTY_PATTERN_DRAFT, EMPTY_PATTERN_DRAFT, null, WITH_PDF)).toBe(true)
   })
 })
