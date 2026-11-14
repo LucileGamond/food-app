@@ -17,12 +17,15 @@
 //   → 200 { patterns: [{ title, url, free, language }] }   (recherche web)
 // POST { info: { pdf } | { photos: [{ data, media_type }] } }   (infos générales d'un patron de la bibliothèque, à la demande)
 //   → 200 { title, sizes, meters, needleMm, yarn, kind }
+// POST { ravelry_start: { redirect_uri } } → 200 { url }   (connexion d'un compte Ravelry, voir ravelryAuth.ts)
+// POST { ravelry_finish: { code, state } } → 200 { username }
 // POST { link: { url } }   (patron ajouté à la bibliothèque par un lien, sans le modèle)
 //   → 200 { url, title, image: { data, type } | null, pdf: { data, name } | null }
 //   → 4xx/5xx { error: message lisible }
 // Comme estimate-nutrition : verify_jwt, plus `isSignedIn` pour refuser la clé publique anonyme.
 
 import { adaptPattern, parseAdaptInput, type AdaptInput } from './adapt.ts'
+import { HttpError } from '../_shared/anthropic.ts'
 import { createModelHandler, type ModelDeps } from '../_shared/handler.ts'
 import { answerQuestion, parseQuestionInput, parseTranslateInput, translateStep, type QuestionInput, type TranslateInput } from './assist.ts'
 import { parseInput, readPattern, type PatternInput } from './pattern.ts'
@@ -30,13 +33,14 @@ import { findIdeaPatterns, parseIdeaPatternsInput, parseIdeasInput, suggestIdeas
 import { parseLabelInput, readYarnLabel, type LabelInput } from './yarn.ts'
 import { parseInfoInput, readPatternInfo, type InfoInput } from './info.ts'
 import { parseLinkInput, readLink, type LinkDeps, type LinkInput } from './link.ts'
-import { ravelryConfigured, searchRavelry, type RavelryDeps } from './ravelry.ts'
+import { searchRavelry } from './ravelry.ts'
+import { accessTokenFor, finishRavelry, parseRavelryFinish, parseRavelryStart, startRavelry, type RavelryOAuth } from './ravelryAuth.ts'
 
 /**
- * `fetchPage`, `resolveDns` : lecture d'un lien (fetch global par défaut). `ravelry` : patrons de Ravelry pour les
- * idées (sans identifiants, pas de patrons Ravelry).
+ * `fetchPage`, `resolveDns` : lecture d'un lien (fetch global par défaut). `ravelry` : connexion des comptes Ravelry et
+ * patrons de Ravelry pour les idées (sans compte relié, pas de patrons Ravelry).
  */
-export type Deps = ModelDeps & Partial<LinkDeps> & { ravelry?: Partial<RavelryDeps> }
+export type Deps = ModelDeps & Partial<LinkDeps> & { ravelry?: RavelryOAuth }
 
 type Input =
   | { kind: 'pattern'; pattern: PatternInput }
@@ -47,9 +51,15 @@ type Input =
   | { kind: 'translate'; translate: TranslateInput }
   | { kind: 'adapt'; adapt: AdaptInput }
   | { kind: 'link'; link: LinkInput }
+  | { kind: 'ravelryStart'; ravelryStart: { redirectUri: string } }
+  | { kind: 'ravelryFinish'; ravelryFinish: { code: string; state: string } }
   | { kind: 'info'; info: InfoInput }
 
 function parse(body: unknown): Input {
+  const ravelryStart = parseRavelryStart(body)
+  if (ravelryStart) return { kind: 'ravelryStart', ravelryStart }
+  const ravelryFinish = parseRavelryFinish(body)
+  if (ravelryFinish) return { kind: 'ravelryFinish', ravelryFinish }
   const link = parseLinkInput(body)
   if (link) return { kind: 'link', link }
   const info = parseInfoInput(body)
@@ -72,9 +82,16 @@ function parse(body: unknown): Input {
  * Patrons de Ravelry pour les idées qui n'en ont pas (gratuit) : filtrés par grosseur et métrage disponible (somme des
  * laines, si connue). Ravelry absent ou en erreur : idées sans patrons (la recherche web reste possible).
  */
-async function withRavelryPatterns(ideas: YarnIdea[], weight: string | null, yarns: IdeaYarn[], deps: Deps): Promise<{ ideas: YarnIdea[]; ravelry: string }> {
-  const ravelry = deps.ravelry ?? {}
-  if (!ravelryConfigured(ravelry)) return { ideas, ravelry: 'absent' }
+async function withRavelryPatterns(ideas: YarnIdea[], weight: string | null, yarns: IdeaYarn[], deps: Deps, userId: string | null): Promise<{ ideas: YarnIdea[]; ravelry: string }> {
+  let accessToken: string | null
+  try {
+    accessToken = await accessTokenFor(userId, deps.ravelry)
+  } catch (e) {
+    deps.log?.('ravelry en erreur', { error: e instanceof Error ? e.message : String(e) })
+    return { ideas, ravelry: 'erreur' }
+  }
+  if (!accessToken) return { ideas, ravelry: 'absent' }
+  const ravelry = { fetchRavelry: deps.ravelry!.fetch, accessToken }
   const meters = yarns.every((y) => y.meters !== null) ? yarns.reduce((sum, y) => sum + y.meters!, 0) : null
   let error: string | null = null
   const enriched = await Promise.all(
@@ -95,8 +112,14 @@ async function withRavelryPatterns(ideas: YarnIdea[], weight: string | null, yar
 export function createHandler(deps: Deps) {
   return createModelHandler(deps, {
     parse,
-    usesModel: (input) => input.kind !== 'link',
-    async run(input, options) {
+    usesModel: (input) => input.kind !== 'link' && input.kind !== 'ravelryStart' && input.kind !== 'ravelryFinish',
+    async run(input, options, _deps, { userId }) {
+      if (input.kind === 'ravelryStart' || input.kind === 'ravelryFinish') {
+        if (!userId) throw new HttpError('Connexion requise.', 401)
+        if (input.kind === 'ravelryStart') return { body: await startRavelry(input.ravelryStart, userId, deps.ravelry), log: { ravelryStart: true } }
+        const { username } = await finishRavelry(input.ravelryFinish, userId, deps.ravelry)
+        return { body: { username }, log: { ravelryFinish: true } }
+      }
       if (input.kind === 'link') {
         const result = await readLink(input.link, { fetchPage: deps.fetchPage ?? fetch, resolveDns: deps.resolveDns })
         return { body: result, log: { link: true, pdf: result.pdf !== null, image: result.image !== null } }
@@ -119,7 +142,7 @@ export function createHandler(deps: Deps) {
       }
       if (input.kind === 'ideas') {
         const { ideas: suggested, weight, searches, usage } = await suggestIdeas(input.ideas, options)
-        const { ideas, ravelry } = await withRavelryPatterns(suggested, weight, input.ideas.yarns, deps)
+        const { ideas, ravelry } = await withRavelryPatterns(suggested, weight, input.ideas.yarns, deps, userId)
         const log = { ideas: ideas.length, yarns: input.ideas.yarns.length, wish: input.ideas.wish !== '', patterns: ideas.reduce((n, i) => n + i.patterns.length, 0), searches, ravelry }
         return { body: { ideas, weight }, log: { ...log, ...usage } }
       }

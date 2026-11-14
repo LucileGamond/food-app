@@ -3,6 +3,7 @@
     "lib": ["deno.window", "dom", "dom.iterable"]
   },
   "imports": {
+    "@supabase/supabase-js": "npm:@supabase/supabase-js@2.118.0",
     "linkedom": "npm:linkedom@0.18.13"
   }
 }

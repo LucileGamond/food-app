@@ -30,7 +30,7 @@ export interface ModelHandlerSpec<Deps extends ModelDeps, Input> {
   /** Mode enregistré avec la consommation ; par défaut le champ `kind` de l'entrée, s'il existe. */
   mode?: (input: Input) => string | null
   /** Traitement : réponse renvoyée et données du journal (consommation comprise ; la durée est ajoutée par le handler). */
-  run: (input: Input, options: ModelOptions, deps: Deps) => Promise<{ body: unknown; log: Record<string, unknown> }>
+  run: (input: Input, options: ModelOptions, deps: Deps, context: { userId: string | null }) => Promise<{ body: unknown; log: Record<string, unknown> }>
   /** Messages du journal : succès, requête refusée, erreur inattendue. */
   logs: { done: string; refused: string; failed: string }
   /** Message renvoyé pour une erreur inattendue (« Le calcul des calories a échoué. »). */
@@ -61,7 +61,8 @@ export function createModelHandler<Deps extends ModelDeps, Input>(deps: Deps, sp
         if (overBudget) throw new HttpError(overBudget, 402)
         if (!deps.apiKey) throw new HttpError(MISCONFIGURED, 500)
       }
-      const result = await spec.run(input, { apiKey: deps.apiKey ?? '', model: deps.model, fetch: tracked.fetch }, deps)
+      const userId = typeof signedIn === 'string' ? signedIn : null
+      const result = await spec.run(input, { apiKey: deps.apiKey ?? '', model: deps.model, fetch: tracked.fetch }, deps, { userId })
       ok = true
       deps.log?.(spec.logs.done, { ...result.log, ms: Date.now() - started })
       return json(result.body)

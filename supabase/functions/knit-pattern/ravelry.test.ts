@@ -1,5 +1,6 @@
 import { createHandler } from './handler.ts'
-import { ravelryConfigured, searchRavelry, toFoundPattern } from './ravelry.ts'
+import { searchRavelry, toFoundPattern } from './ravelry.ts'
+import type { RavelryOAuth, RavelryStore, RavelryTokens } from './ravelryAuth.ts'
 
 /** Patron de Ravelry (détails), comme les renvoie patterns.json. */
 const detail = (id: number, extra: Record<string, unknown> = {}) => ({
@@ -23,16 +24,9 @@ function ravelryFetch(details: Record<string, unknown>[], status = 200) {
   })
 }
 
-const deps = (fetchRavelry: typeof fetch) => ({ fetchRavelry, username: 'read-abc', password: 'secret' })
+const deps = (fetchRavelry: typeof fetch) => ({ fetchRavelry, accessToken: 'jeton' })
 
 describe('patrons de Ravelry', () => {
-  it('configuré seulement avec les deux identifiants', () => {
-    expect(ravelryConfigured({ fetchRavelry: fetch, username: 'u', password: 'p' })).toBe(true)
-    expect(ravelryConfigured({ fetchRavelry: fetch, username: 'u' })).toBe(false)
-    expect(ravelryConfigured({ fetchRavelry: fetch, username: '', password: 'p' })).toBe(false)
-    expect(ravelryConfigured({})).toBe(false)
-  })
-
   it('patron de Ravelry → patron trouvé : page, créatrice, métrage en mètres, langue française d’abord', () => {
     expect(toFoundPattern(detail(1, { languages: [{ code: 'en' }, { code: 'fr' }], free: true }))).toEqual({
       title: 'Patron 1 par Jane',
@@ -66,7 +60,7 @@ describe('patrons de Ravelry', () => {
     const search = new URL(String(searchUrl))
     expect(search.origin + search.pathname).toBe('https://api.ravelry.com/patterns/search.json')
     expect(Object.fromEntries(search.searchParams)).toEqual({ query: 'ribbed beanie', craft: 'knitting', page_size: '8', sort: 'best', weight: 'worsted', yardage: '0|918' })
-    expect((init!.headers as Record<string, string>).authorization).toBe(`Basic ${btoa('read-abc:secret')}`)
+    expect((init!.headers as Record<string, string>).authorization).toBe('Bearer jeton')
     // Identifiants multiples séparés par « + », non encodé
     expect(String(fetchRavelry.mock.calls[1]![0])).toBe('https://api.ravelry.com/patterns.json?ids=10+11+12+13')
   })
@@ -87,12 +81,24 @@ describe('patrons de Ravelry', () => {
 
   it('erreurs lisibles : identifiants refusés, erreur, pas de réponse, réponse illisible', async () => {
     const query = { search: 'cowl', weight: null, meters: null }
-    await expect(searchRavelry(query, deps(ravelryFetch([], 401)))).rejects.toThrow('Identifiants Ravelry refusés.')
+    await expect(searchRavelry(query, deps(ravelryFetch([], 401)))).rejects.toThrow('Accès à Ravelry refusé.')
     await expect(searchRavelry(query, deps(ravelryFetch([], 500)))).rejects.toThrow('Ravelry a répondu par une erreur (500).')
     await expect(searchRavelry(query, deps(vi.fn<typeof fetch>().mockRejectedValue(new TypeError('réseau'))))).rejects.toThrow('Ravelry ne répond pas.')
     await expect(searchRavelry(query, deps(vi.fn<typeof fetch>(async () => new Response('pas du json'))))).rejects.toThrow('Réponse de Ravelry illisible.')
   })
 })
+
+/** Connexion Ravelry configurée, compte relié avec un jeton valide (ou sans compte). */
+function oauth(fetchRavelry: typeof fetch, tokens: RavelryTokens | null = { accessToken: 'jeton', refreshToken: 'r', expiresAt: Date.now() + 3_600_000 }): RavelryOAuth {
+  const store: RavelryStore = {
+    saveState: vi.fn(),
+    takeState: vi.fn(),
+    saveAccount: vi.fn(),
+    loadTokens: vi.fn(async () => tokens),
+    saveTokens: vi.fn(),
+  }
+  return { clientId: 'client', redirectUris: [], fetch: fetchRavelry, store }
+}
 
 describe('idées avec les patrons de Ravelry', () => {
   const IDEAS = {
@@ -115,7 +121,7 @@ describe('idées avec les patrons de Ravelry', () => {
   it('ajoute les patrons de Ravelry aux idées qui ont des mots-clés (métrage : somme des laines)', async () => {
     const fetchRavelry = ravelryFetch([detail(1, { free: true })])
     const log = vi.fn()
-    const handle = createHandler({ apiKey: 'cle', fetchModel: fetchModel(), log, isSignedIn: async () => true, ravelry: deps(fetchRavelry) })
+    const handle = createHandler({ apiKey: 'cle', fetchModel: fetchModel(), log, isSignedIn: async () => 'u1', ravelry: oauth(fetchRavelry) })
     const response = await handle(post({ ideas: { yarns: YARNS, search: false } }))
     expect(response.status).toBe(200)
     const body = await response.json()
@@ -130,15 +136,15 @@ describe('idées avec les patrons de Ravelry', () => {
 
   it('métrage d’une laine inconnu : pas de filtre de métrage', async () => {
     const fetchRavelry = ravelryFetch([detail(1)])
-    const handle = createHandler({ apiKey: 'cle', fetchModel: fetchModel(), isSignedIn: async () => true, ravelry: deps(fetchRavelry) })
+    const handle = createHandler({ apiKey: 'cle', fetchModel: fetchModel(), isSignedIn: async () => 'u1', ravelry: oauth(fetchRavelry) })
     await handle(post({ ideas: { yarns: [YARNS[0], { yarn: 'Inconnue' }], search: false } }))
     expect(new URL(String(fetchRavelry.mock.calls[0]![0])).searchParams.has('yardage')).toBe(false)
   })
 
-  it('sans identifiants Ravelry : idées sans patrons, Ravelry pas appelé', async () => {
+  it('compte Ravelry non relié : idées sans patrons, Ravelry pas appelé', async () => {
     const fetchRavelry = ravelryFetch([detail(1)])
     const log = vi.fn()
-    const handle = createHandler({ apiKey: 'cle', fetchModel: fetchModel(), log, isSignedIn: async () => true, ravelry: { fetchRavelry } })
+    const handle = createHandler({ apiKey: 'cle', fetchModel: fetchModel(), log, isSignedIn: async () => 'u1', ravelry: oauth(fetchRavelry, null) })
     const body = await (await handle(post({ ideas: { yarns: YARNS, search: false } }))).json()
     expect(body.ideas.every((i: { patterns: unknown[] }) => i.patterns.length === 0)).toBe(true)
     expect(fetchRavelry).not.toHaveBeenCalled()
@@ -147,11 +153,28 @@ describe('idées avec les patrons de Ravelry', () => {
 
   it('Ravelry en erreur : les idées arrivent quand même, l’erreur est notée', async () => {
     const log = vi.fn()
-    const handle = createHandler({ apiKey: 'cle', fetchModel: fetchModel(), log, isSignedIn: async () => true, ravelry: deps(ravelryFetch([], 401)) })
+    const handle = createHandler({ apiKey: 'cle', fetchModel: fetchModel(), log, isSignedIn: async () => 'u1', ravelry: oauth(ravelryFetch([], 401)) })
     const response = await handle(post({ ideas: { yarns: YARNS, search: false } }))
     expect(response.status).toBe(200)
     expect((await response.json()).ideas).toHaveLength(2)
-    expect(log).toHaveBeenCalledWith('ravelry en erreur', { error: 'Identifiants Ravelry refusés.' })
+    expect(log).toHaveBeenCalledWith('ravelry en erreur', { error: 'Accès à Ravelry refusé.' })
     expect(log).toHaveBeenCalledWith('patron lu', expect.objectContaining({ ravelry: 'erreur', patterns: 0 }))
+  })
+
+  it('connexion Ravelry non configurée ou personne inconnue : idées sans patrons', async () => {
+    const log = vi.fn()
+    const handle = createHandler({ apiKey: 'cle', fetchModel: fetchModel(), log, isSignedIn: async () => true, ravelry: oauth(ravelryFetch([detail(1)])) })
+    await handle(post({ ideas: { yarns: YARNS, search: false } }))
+    expect(log).toHaveBeenCalledWith('patron lu', expect.objectContaining({ ravelry: 'absent' }))
+  })
+
+  it('renouvellement du jeton en échec (Ravelry en panne) : idées sans patrons, erreur notée', async () => {
+    const log = vi.fn()
+    const fetchRavelry = vi.fn<typeof fetch>(async () => new Response('', { status: 500 }))
+    const config = oauth(fetchRavelry, { accessToken: 'vieux', refreshToken: 'r', expiresAt: Date.now() - 1000 })
+    const handle = createHandler({ apiKey: 'cle', fetchModel: fetchModel(), log, isSignedIn: async () => 'u1', ravelry: config })
+    const response = await handle(post({ ideas: { yarns: YARNS, search: false } }))
+    expect(response.status).toBe(200)
+    expect(log).toHaveBeenCalledWith('ravelry en erreur', { error: 'Ravelry a répondu par une erreur (500).' })
   })
 })

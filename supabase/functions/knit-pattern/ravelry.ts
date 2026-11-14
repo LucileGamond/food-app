@@ -1,8 +1,8 @@
 // Patrons de Ravelry (API officielle, gratuite) pour une idée de modèle : recherche avec les filtres du site (tricot,
 // grosseur, métrage disponible), puis détails (métrage, aiguilles, langues, gratuit). Les patrons gratuits, puis en
 // français, passent en premier.
-// Secrets : RAVELRY_USERNAME et RAVELRY_PASSWORD (identifiants « basic auth » en lecture seule d'une application
-// Ravelry) ; sans eux, pas de patrons Ravelry (la recherche web du modèle reste possible).
+// Avec le jeton du compte Ravelry de la personne (voir ravelryAuth.ts) ; sans compte relié, pas de patrons Ravelry (la
+// recherche web du modèle reste possible).
 
 import type { FoundPattern } from './ideas.ts'
 
@@ -14,8 +14,8 @@ const TIMEOUT_MS = 10_000
 
 export interface RavelryDeps {
   fetchRavelry: typeof fetch
-  username?: string
-  password?: string
+  /** Jeton d'accès OAuth du compte Ravelry relié. */
+  accessToken: string
 }
 
 export interface RavelryQuery {
@@ -27,10 +27,6 @@ export interface RavelryQuery {
   meters: number | null
 }
 
-export function ravelryConfigured(deps: Partial<RavelryDeps>): deps is RavelryDeps & { username: string; password: string } {
-  return !!deps.fetchRavelry && !!deps.username && !!deps.password
-}
-
 export class RavelryError extends Error {}
 
 async function get(path: string, params: URLSearchParams, deps: RavelryDeps): Promise<Record<string, unknown>> {
@@ -39,13 +35,13 @@ async function get(path: string, params: URLSearchParams, deps: RavelryDeps): Pr
   let response: Response
   try {
     response = await deps.fetchRavelry(url, {
-      headers: { authorization: `Basic ${btoa(`${deps.username}:${deps.password}`)}`, accept: 'application/json' },
+      headers: { authorization: `Bearer ${deps.accessToken}`, accept: 'application/json' },
       signal: AbortSignal.timeout(TIMEOUT_MS),
     })
   } catch {
     throw new RavelryError('Ravelry ne répond pas.')
   }
-  if (response.status === 401 || response.status === 403) throw new RavelryError('Identifiants Ravelry refusés.')
+  if (response.status === 401 || response.status === 403) throw new RavelryError('Accès à Ravelry refusé.')
   if (!response.ok) throw new RavelryError(`Ravelry a répondu par une erreur (${response.status}).`)
   const body = (await response.json().catch(() => null)) as unknown
   if (typeof body !== 'object' || body === null) throw new RavelryError('Réponse de Ravelry illisible.')
