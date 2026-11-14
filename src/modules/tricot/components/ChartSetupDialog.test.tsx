@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react'
+import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { newChartForm, type ChartSetup } from '../lib/chart'
 import type { StepSection } from '../lib/pattern'
@@ -18,7 +18,7 @@ describe('calage d’un diagramme : sa sous-étape', () => {
     expect(screen.getByLabelText('Dernier rang (facultatif)')).toHaveValue('30')
     await user.click(screen.getByRole('button', { name: 'Enregistrer' }))
     // Sous-étape sans identifiant : sa position, pour lui en donner un à l'enregistrement
-    expect(onSave).toHaveBeenCalledWith(expect.objectContaining({ startRow: 5, endRow: 30, sectionIndex: 1 }))
+    await waitFor(() => expect(onSave).toHaveBeenCalledWith(expect.objectContaining({ startRow: 5, endRow: 30, sectionIndex: 1 })))
   })
 
   it('sous-étape identifiée : suivie par son identifiant ; des rangs tapés à la main la détachent', async () => {
@@ -29,9 +29,13 @@ describe('calage d’un diagramme : sa sous-étape', () => {
     await user.click(screen.getByRole('tab', { name: 'Où il va' }))
     await user.selectOptions(screen.getByLabelText('Sous-étape'), '2. 26 rangs : torsades (rangs 5 à 30)')
     await user.click(screen.getByRole('button', { name: 'Enregistrer' }))
-    expect(onSave).toHaveBeenLastCalledWith(expect.objectContaining({ sectionId: 'tors', startRow: 5 }))
-    expect(onSave.mock.lastCall?.[0]).not.toHaveProperty('sectionIndex')
+    // On attend l'enregistrement lui-même (pas seulement le clic) : sur une machine chargée, il peut arriver après.
+    await waitFor(() => expect(onSave).toHaveBeenCalledTimes(1))
+    expect(onSave.mock.calls[0]![0]).toEqual(expect.objectContaining({ sectionId: 'tors', startRow: 5 }))
+    expect(onSave.mock.calls[0]![0]).not.toHaveProperty('sectionIndex')
     unmount()
+    // Deuxième temps : on ne regarde que ses appels à lui (sinon « le dernier appel » peut encore être celui d'avant).
+    onSave.mockClear()
     render(<ChartSetupDialog open imageUrl="https://cdn.test/c1.png" initial={{ ...newChartForm('s1'), rows: '4', sectionId: 'tors', startRow: '5' }} steps={steps} onCancel={() => undefined} onSave={onSave} />)
     await user.click(screen.getByRole('tab', { name: 'Où il va' }))
     expect(screen.getByLabelText('Sous-étape')).toHaveDisplayValue('2. 26 rangs : torsades (rangs 5 à 30)')
@@ -39,7 +43,9 @@ describe('calage d’un diagramme : sa sous-étape', () => {
     await user.type(screen.getByLabelText('Rang 1 du diagramme au rang de l’étape'), '7')
     expect(screen.getByLabelText('Sous-étape')).toHaveDisplayValue('Rangs choisis à la main')
     await user.click(screen.getByRole('button', { name: 'Enregistrer' }))
-    expect(onSave.mock.lastCall?.[0]).not.toHaveProperty('sectionId')
+    await waitFor(() => expect(onSave).toHaveBeenCalledTimes(1))
+    expect(onSave.mock.calls[0]![0]).toEqual(expect.objectContaining({ startRow: 7 }))
+    expect(onSave.mock.calls[0]![0]).not.toHaveProperty('sectionId')
   })
 })
 
@@ -52,7 +58,7 @@ describe('calage d’un diagramme : les deux traits', () => {
     await user.click(screen.getByRole('button', { name: 'Descendre le trait du haut (dernière ligne)' }))
     await user.click(screen.getByRole('button', { name: 'Monter le trait du bas (ligne 1)' }))
     await user.click(screen.getByRole('button', { name: 'Enregistrer' }))
-    expect(onSave).toHaveBeenCalledWith(expect.objectContaining({ gridTop: 0.01, gridBottom: 0.99 }))
+    await waitFor(() => expect(onSave).toHaveBeenCalledWith(expect.objectContaining({ gridTop: 0.01, gridBottom: 0.99 })))
   })
 
   it('dit où est le problème : le nombre de lignes ramène à la grille', async () => {
