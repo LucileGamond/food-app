@@ -308,21 +308,24 @@ test('ajoute un patron par un lien : PDF et photo récupérés, aussi depuis un 
 })
 
 test('stock de laine : quel patron pour ma laine (la bibliothèque d’abord, puis des idées)', async ({ page }) => {
+  const requests: Record<string, unknown>[] = []
   await page.route('**/functions/v1/knit-pattern', async (route) => {
     const body = route.request().postDataJSON()
-    expect(body.ideas).toMatchObject({ meters: 840, needle_mm: 4 })
+    if (body.link) {
+      await route.fulfill({ json: { url: body.link.url, title: 'Cabled Cowl', image: null, pdf: null } })
+      return
+    }
+    requests.push(body)
+    if (body.idea_patterns) {
+      await route.fulfill({ json: { patterns: [{ title: 'Cabled Cowl', url: 'https://www.ravelry.com/patterns/library/cabled-cowl', free: true, language: 'en' }] } })
+      return
+    }
     await route.fulfill({
       json: {
         weight: 'worsted',
         ideas: [
-          {
-            title: 'Snood torsadé',
-            why: 'Mérinos doux.',
-            meters: 300,
-            needleMm: 4.5,
-            search: 'cabled cowl',
-            patterns: [{ title: 'Cabled Cowl', url: 'https://www.ravelry.com/patterns/library/cabled-cowl' }],
-          },
+          { title: 'Snood torsadé', why: 'Mérinos doux.', size: 'adulte', meters: 300, needleMm: 4.5, search: 'cabled cowl', patterns: [] },
+          { title: 'Pull raglan', why: 'Classique.', size: 'femme M', meters: 1100, needleMm: 4, search: 'raglan sweater', patterns: [] },
         ],
       },
     })
@@ -357,11 +360,33 @@ test('stock de laine : quel patron pour ma laine (la bibliothèque d’abord, pu
   await expect(fits).not.toContainText('Pull Bergamote')
   await expectNoA11yViolations(page)
 
-  // Puis des idées avec l'IA
+  // Puis des idées avec l'IA, sans recherche web, avec une envie
+  await match.getByLabel('Envie de…').fill('un snood')
   await match.getByRole('button', { name: 'Des idées avec l’IA' }).click()
+  const ideas = match.getByRole('list', { name: 'Idées de modèles' })
+  await expect(ideas).toContainText('Snood torsadé · adulte')
+  await expect(ideas).toContainText('Assez de laine (reste ≈ 540 m)')
+  await expect(ideas).toContainText('Il manque ≈ 260 m (3 pelotes)')
+  expect(requests[0]).toMatchObject({ ideas: { yarns: [{ meters: 840, needle_mm: 4 }], wish: 'un snood', search: false } })
+
+  // Patrons d'une idée, à la demande
+  await ideas.getByRole('button', { name: 'Trouver des patrons : Snood torsadé' }).click()
+  await expect(match.getByRole('link', { name: 'Cabled Cowl · ravelry.com · Gratuit · EN' })).toHaveAttribute('href', 'https://www.ravelry.com/patterns/library/cabled-cowl')
+  await expect(match.getByRole('link', { name: 'Plus de patrons sur Ravelry' }).first()).toHaveAttribute('href', 'https://www.ravelry.com/patterns/search#craft=knitting&weight=worsted&yardage=0%7C918&needles=3.5mm%7C3.75mm%7C4.0mm%7C4.5mm&query=cabled%20cowl')
+  await expectNoA11yViolations(page)
+
+  // Idées gardées : revues sans rappeler le modèle
+  await page.keyboard.press('Escape')
+  await stash.getByRole('button', { name: 'Quel patron pour DROPS Merino ?' }).click()
   await expect(match.getByRole('list', { name: 'Idées de modèles' })).toContainText('Snood torsadé')
-  await expect(match.getByRole('link', { name: 'Cabled Cowl · ravelry.com' })).toHaveAttribute('href', 'https://www.ravelry.com/patterns/library/cabled-cowl')
-  await expect(match.getByRole('link', { name: 'Plus de patrons sur Ravelry' })).toHaveAttribute('href', 'https://www.ravelry.com/patterns/search#craft=knitting&weight=worsted&yardage=0%7C918&needles=3.5mm%7C3.75mm%7C4.0mm%7C4.5mm&query=cabled%20cowl')
+  await expect(match).toContainText('envie : un snood')
+  await expect(match.getByRole('button', { name: 'Relancer' })).toBeVisible()
+  expect(requests).toHaveLength(2)
+
+  // « Garder » : ajout à la bibliothèque avec le lien
+  await match.getByRole('link', { name: 'Garder Cabled Cowl dans ma bibliothèque' }).click()
+  await expect(page.getByRole('heading', { level: 1, name: 'Ajouter un patron' })).toBeVisible()
+  await expect(page.getByLabel('Lien')).toHaveValue('https://www.ravelry.com/patterns/library/cabled-cowl')
 })
 
 test('suit un diagramme ajouté depuis une image, rang par rang', async ({ page }) => {
