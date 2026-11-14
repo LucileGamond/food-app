@@ -152,7 +152,7 @@ describe('diagrammes d’une étape', () => {
     await user.type(within(dialog).getByLabelText('Lignes de la grille'), '24')
     await user.click(within(dialog).getByRole('tab', { name: 'Où il va' }))
     await user.type(within(dialog).getByLabelText('Nom (facultatif)'), 'Jacquard')
-    await user.click(within(dialog).getByLabelText('Recommencer le diagramme après le dernier rang'))
+    await user.click(within(dialog).getByRole('checkbox', { name: 'Recommencer le diagramme après le dernier rang' }))
     await user.click(within(dialog).getByRole('button', { name: 'Enregistrer' }))
     await waitFor(() =>
       expect(api.knitting.addChart).toHaveBeenCalledWith('p1', image, { stepId: 's2', title: 'Jacquard', gridTop: 0, gridBottom: 1, rows: 24, startRow: 1, repeats: false, flat: true, oddOnly: false }),
@@ -316,9 +316,9 @@ describe('diagrammes d’une étape', () => {
     await user.click(await screen.findByRole('button', { name: 'Modifier Torsade' }))
     const dialog = await screen.findByRole('dialog', { name: 'Caler le diagramme' })
     await user.click(within(dialog).getByRole('tab', { name: 'Où il va' }))
-    const oddOnly = within(dialog).getByLabelText(/Seuls les rangs endroit/)
-    expect(oddOnly).toBeDisabled()
-    await user.click(within(dialog).getByLabelText(/Tricot à plat/))
+    const oddOnly = within(dialog).getByRole('checkbox', { name: /Seuls les rangs endroit/ })
+    expect(oddOnly).toHaveAttribute('aria-disabled', 'true')
+    await user.click(within(dialog).getByRole('checkbox', { name: /Tricot à plat/ }))
     await user.click(oddOnly)
     await user.click(within(dialog).getByRole('button', { name: 'Enregistrer' }))
     await waitFor(() => expect(api.knitting.updateChart).toHaveBeenCalledWith('c1', expect.objectContaining({ flat: true, oddOnly: true })))
@@ -341,7 +341,7 @@ describe('diagrammes d’une étape', () => {
     expect(within(dialog).getByLabelText('Lignes de la grille')).toHaveValue('12')
     await user.click(within(dialog).getByRole('tab', { name: 'Où il va' }))
     expect(within(dialog).getByLabelText('Nom (facultatif)')).toHaveValue('Jacquard')
-    expect(within(dialog).getByLabelText(/Seuls les rangs endroit/)).toBeChecked()
+    expect(within(dialog).getByRole('checkbox', { name: /Seuls les rangs endroit/ })).toBeChecked()
     await user.click(within(dialog).getByRole('button', { name: 'Enregistrer' }))
     await waitFor(() =>
       expect(api.knitting.addChart).toHaveBeenCalledWith('p1', expect.anything(), expect.objectContaining({ stepId: 's2', title: 'Jacquard', rows: 12, oddOnly: true })),

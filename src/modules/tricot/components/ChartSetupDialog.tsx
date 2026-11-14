@@ -1,6 +1,7 @@
 import { ChevronDown, ChevronUp, Crop, Loader2 } from 'lucide-react'
 import { useId, useRef, useState, type PointerEvent } from 'react'
 import { Button } from '@/components/ui/button'
+import { Checkbox } from '@/components/ui/checkbox'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -220,25 +221,32 @@ export function ChartSetupDialog({ open, imageUrl, initial, steps, onCrop, onCan
               <Label htmlFor={`${id}-end`}>Dernier rang (facultatif)</Label>
               <Input id={`${id}-end`} className="h-10" inputMode="numeric" maxLength={4} placeholder="fin de l’étape" value={form.endRow ?? ''} onChange={(e) => update({ endRow: e.target.value })} />
             </div>
-            <div className="grid gap-2 text-sm sm:col-span-2">
-              <label className="flex items-center gap-2">
-                <input type="checkbox" className="size-4 accent-brand" checked={form.repeats} onChange={(e) => update({ repeats: e.target.checked })} />
-                Recommencer le diagramme après le dernier rang
-              </label>
-              <label className="flex items-center gap-2">
-                <input type="checkbox" className="size-4 accent-brand" checked={form.flat} onChange={(e) => update({ flat: e.target.checked })} />
-                Tricot à plat (allers-retours) : rangs pairs sur l’envers, lus de gauche à droite
-              </label>
-              <label className={cn('flex items-center gap-2', !form.flat && 'text-muted-foreground')}>
-                <input
-                  type="checkbox"
-                  className="size-4 accent-brand"
+            {/* Les cases du projet : même cible au doigt et même focus que partout ailleurs. */}
+            <div className="grid gap-3 text-sm sm:col-span-2">
+              <div className="flex items-start gap-2.5">
+                <Checkbox id={`${id}-repeats`} className="mt-0.5" checked={form.repeats} onCheckedChange={(checked) => update({ repeats: checked === true })} />
+                <Label htmlFor={`${id}-repeats`} className="font-normal">
+                  Recommencer le diagramme après le dernier rang
+                </Label>
+              </div>
+              <div className="flex items-start gap-2.5">
+                <Checkbox id={`${id}-flat`} className="mt-0.5" checked={form.flat} onCheckedChange={(checked) => update({ flat: checked === true })} />
+                <Label htmlFor={`${id}-flat`} className="font-normal">
+                  Tricot à plat (allers-retours) : rangs pairs sur l’envers, lus de gauche à droite
+                </Label>
+              </div>
+              <div className="flex items-start gap-2.5">
+                <Checkbox
+                  id={`${id}-odd-only`}
+                  className="mt-0.5"
                   checked={form.flat && form.oddOnly}
                   disabled={!form.flat}
-                  onChange={(e) => update({ oddOnly: e.target.checked })}
+                  onCheckedChange={(checked) => update({ oddOnly: checked === true })}
                 />
-                Seuls les rangs endroit sont dessinés (une ligne pour deux rangs)
-              </label>
+                <Label htmlFor={`${id}-odd-only`} className={cn('font-normal', !form.flat && 'text-muted-foreground')}>
+                  Seuls les rangs endroit sont dessinés (une ligne pour deux rangs)
+                </Label>
+              </div>
             </div>
           </TabsContent>
         </Tabs>
