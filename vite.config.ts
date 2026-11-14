@@ -1,5 +1,6 @@
 /// <reference types="vitest/config" />
 import tailwindcss from '@tailwindcss/vite'
+import basicSsl from '@vitejs/plugin-basic-ssl'
 import react from '@vitejs/plugin-react'
 import { execSync } from 'node:child_process'
 import { fileURLToPath } from 'node:url'
@@ -18,12 +19,15 @@ function lastCommit(): { hash: string; date: string } {
 
 const commit = lastCommit()
 
-export default defineConfig({
+// `npm run dev:https` (mode « https ») : certificat local auto-signé, pour les services qui n'acceptent que des
+// adresses de retour en HTTPS (connexion à Ravelry : https://localhost:5173/reglages/ravelry).
+export default defineConfig(({ mode }) => ({
   define: {
     'import.meta.env.VITE_COMMIT_HASH': JSON.stringify(commit.hash),
     'import.meta.env.VITE_COMMIT_DATE': JSON.stringify(commit.date),
   },
   plugins: [
+    ...(mode === 'https' ? [basicSsl()] : []),
     react(),
     tailwindcss(),
     VitePWA({
@@ -104,4 +108,4 @@ export default defineConfig({
       thresholds: { lines: 85, branches: 85, functions: 85, statements: 85 },
     },
   },
-})
+}))
