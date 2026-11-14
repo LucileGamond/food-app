@@ -385,7 +385,10 @@ export function KnittingProjectPage() {
             open={partOpen('sections', toFix > 0)}
             onToggle={() => togglePart('sections', toFix > 0)}
           >
-            <StepSections headless step={step} needles={needles} choices={needleChoices} text={{ sizes: project.sizes, sizeIndex: project.sizeIndex, abbreviations: project.abbreviations ?? [] }} charts={charts.filter((c) => c.stepId === step.id)} gauges={projectGauges} onCheckNeedle={checkNeedle} onSetTotalRows={step.adapted ? undefined : (rows) => setTotalRows(step, rows)} open={fixSection} onOpened={() => setFixSection(null)} organizeTo={adaptation || isStarted(step) ? undefined : `/tricot/${project.id}?onglet=preparer&vue=organiser`} onChange={(sections) => saveSections(step, sections)} />
+            {/* Ouvert d'office (à préparer) : un geste dedans le garde ouvert, même quand il n'y a plus rien à régler. */}
+            <div onClickCapture={() => setUnfolded((o) => ({ ...o, [partKey('sections')]: true }))}>
+              <StepSections headless step={step} needles={needles} choices={needleChoices} text={{ sizes: project.sizes, sizeIndex: project.sizeIndex, abbreviations: project.abbreviations ?? [] }} charts={charts.filter((c) => c.stepId === step.id)} gauges={projectGauges} onCheckNeedle={checkNeedle} onSetTotalRows={step.adapted ? undefined : (rows) => setTotalRows(step, rows)} open={fixSection} onOpened={() => setFixSection(null)} organizeTo={adaptation || isStarted(step) ? undefined : `/tricot/${project.id}?onglet=preparer&vue=organiser`} onChange={(sections) => saveSections(step, sections)} />
+            </div>
           </Fold>
           <Fold
             id={`charts-${step.id}`}

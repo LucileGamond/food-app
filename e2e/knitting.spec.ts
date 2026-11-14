@@ -180,8 +180,9 @@ test('ajoute un patron à la bibliothèque, le commence, puis note la laine (ét
   await expect(page.getByText(/échantillon 22 m\. × 30 rangs pour 10 cm/)).toBeVisible()
   await page.getByRole('button', { name: 'Enregistrer le projet' }).click()
 
-  // Laine lue sur l'étiquette (onglet « Démarrer », carte ouverte)
+  // Laine lue sur l'étiquette (onglet « Démarrer », carte repliée qu'on ouvre)
   const panel = page.getByRole('region', { name: 'Laine et échantillon' })
+  await panel.getByRole('button', { name: 'Laine et échantillon' }).click()
   await panel.getByRole('button', { name: 'Ajouter une laine' }).click()
   const dialog = page.getByRole('dialog', { name: 'Ajouter une laine' })
   await dialog.getByLabel('Photo de l’étiquette').setInputFiles({
@@ -376,6 +377,8 @@ test('suit un diagramme ajouté depuis une image, rang par rang', async ({ page 
   await page.getByRole('tab', { name: /2. Préparer/ }).click()
   await page.getByRole('link', { name: /Dos – côtes/ }).click()
   await expect(page.getByRole('heading', { name: 'Dos – côtes' })).toBeVisible()
+  // Les diagrammes sont dans leur bloc, replié par défaut
+  await page.getByRole('button', { name: 'Diagrammes' }).click()
 
   // Image du diagramme (PNG d'un pixel), calée sur 6 lignes
   const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==', 'base64')
@@ -441,6 +444,8 @@ test('aides pendant le tricot : abréviations, pesée de la laine et rangs compt
   await page.getByRole('tab', { name: /2. Préparer/ }).click()
   await page.getByRole('link', { name: /Devant/ }).click()
   await expect(page.getByRole('heading', { name: 'Devant' })).toBeVisible()
+  // Le texte du patron est dans son bloc, replié par défaut
+  await page.getByRole('button', { name: /^Texte/ }).click()
 
   // Abréviations expliquées d'un toucher (le dos est fini : on est sur le devant) : celles du glossaire en base
   // (« jeté »), puis celles du patron (« C4F »). Le glossaire arrive après le texte : on l'attend avant de toucher.

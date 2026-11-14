@@ -564,6 +564,28 @@ describe('KnittingProjectPage', () => {
     expect(api.knitting.saveProgress).toHaveBeenLastCalledWith('s2', { sections })
   })
 
+  it('sous-étapes ouvertes d’office : une fois tout réglé, elles restent ouvertes (pas de repli sous le doigt)', async () => {
+    const user = userEvent.setup()
+    const api = fakeApi()
+    const project = { ...structuredClone(PROJECT), needles: [3, 3.5] }
+    api.knitting.getProject.mockResolvedValue(structuredClone(project))
+    // Rendu direct : sans le dépliage automatique des autres tests
+    renderWithApp(<KnittingProjectPage />, { api, route: `${STEP}=s2`, path: '/tricot/:id' })
+    const toggle = await screen.findByRole('button', { name: 'Sous-étapes' })
+    expect(toggle).toHaveAttribute('aria-expanded', 'true')
+    await user.click(screen.getByRole('button', { name: 'Actions pour « 4 rangs : jersey »' }))
+    await user.click(await screen.findByRole('menuitem', { name: 'Modifier' }))
+    const form = screen.getByRole('form', { name: 'Sous-étape' })
+    await user.selectOptions(within(form).getByLabelText('Aiguille'), '3 mm')
+    // Rechargé : plus rien à régler (la 2e sous-étape hérite de l'aiguille)
+    const fixed = structuredClone(project)
+    fixed.steps[1]!.sections = [{ ...fixed.steps[1]!.sections[0]!, needle: 3 }, fixed.steps[1]!.sections[1]!]
+    api.knitting.getProject.mockResolvedValue(fixed)
+    await user.click(within(form).getByRole('button', { name: 'Enregistrer' }))
+    expect(await screen.findByRole('link', { name: 'Tricoter cette étape' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Sous-étapes' })).toHaveAttribute('aria-expanded', 'true')
+  })
+
   it('aiguille héritée : la 2e sous-étape prend celle de la 1re, l’étape est prête', async () => {
     const project = structuredClone(PROJECT)
     project.steps[1]!.sections = [{ ...project.steps[1]!.sections[0]!, needle: 3 }, project.steps[1]!.sections[1]!]
