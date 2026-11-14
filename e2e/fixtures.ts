@@ -20,10 +20,13 @@ const PAGE_SECTIONS: Record<string, string> = { Planning: 'Repas', Recettes: 'Re
 /** Ouvre une page depuis la navigation (sur téléphone : l'onglet de sa section, puis la page en haut de l'écran). */
 export async function openNavPage(page: Page, name: string) {
   const nav = page.getByRole('navigation', { name: 'Navigation principale' }).filter({ visible: true })
+  const section = PAGE_SECTIONS[name]
   const link = nav.getByRole('link', { name, exact: true })
+  // Sans section, la page est forcément un lien direct : on l'attend, au lieu de compter avant que la navigation soit là.
+  if (!section) return link.click()
   if ((await link.count()) > 0) return link.click()
-  await nav.getByRole('link', { name: PAGE_SECTIONS[name], exact: true }).click()
-  await page.getByRole('navigation', { name: `Pages de la section ${PAGE_SECTIONS[name]}` }).getByRole('link', { name, exact: true }).click()
+  await nav.getByRole('link', { name: section, exact: true }).click()
+  await page.getByRole('navigation', { name: `Pages de la section ${section}` }).getByRole('link', { name, exact: true }).click()
 }
 
 /** Page présente dans la navigation (lien direct, ou page de sa section sur téléphone). */
