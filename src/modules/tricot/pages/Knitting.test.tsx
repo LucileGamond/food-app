@@ -1631,17 +1631,20 @@ describe('stock de laine', () => {
     api.knitting.listStash.mockResolvedValue(STASH)
     // 840 m, aiguilles 4 mm
     api.knitting.listPatterns.mockResolvedValue([pattern('Gilet', 600, 4, 'u-lucile/gilet.pdf'), pattern('Pull', 1200, 4), pattern('Bonnet', null, null)])
-    api.knitting.yarnIdeas.mockResolvedValue([
-      {
-        title: 'Snood torsadé',
-        why: 'Mérinos doux.',
-        meters: 300,
-        needleMm: 4.5,
-        search: 'cabled cowl',
-        patterns: [{ title: 'Cabled Cowl par Jane', url: 'https://www.ravelry.com/patterns/library/cabled-cowl' }],
-        weight: 'worsted',
-      },
-    ])
+    api.knitting.yarnIdeas.mockResolvedValue({
+      ideas: [
+        {
+          title: 'Snood torsadé',
+          why: 'Mérinos doux.',
+          size: 'adulte',
+          meters: 300,
+          needleMm: 4.5,
+          search: 'cabled cowl',
+          patterns: [{ title: 'Cabled Cowl par Jane', url: 'https://www.ravelry.com/patterns/library/cabled-cowl', free: true, language: 'en' }],
+        },
+      ],
+      weight: 'worsted',
+    })
     renderWithApp(<KnittingStashPage />, { api })
     await user.click(await screen.findByRole('button', { name: 'Quel patron pour DROPS Merino ?' }))
     const dialog = await screen.findByRole('dialog', { name: 'Quel patron pour cette laine ?' })
@@ -1653,12 +1656,13 @@ describe('stock de laine', () => {
     expect(dialog).toHaveTextContent('À vérifier (métrage ou aiguilles non notés) : Bonnet.')
 
     await user.click(within(dialog).getByRole('button', { name: 'Des idées avec l’IA' }))
-    expect(api.knitting.yarnIdeas).toHaveBeenCalledWith(MERINO)
+    expect(api.knitting.yarnIdeas).toHaveBeenCalledWith([MERINO], { wish: '', search: false })
     const ideas = await within(dialog).findByRole('list', { name: 'Idées de modèles' })
-    expect(ideas).toHaveTextContent('Snood torsadé')
+    expect(ideas).toHaveTextContent('Snood torsadé · adulte')
     expect(ideas).toHaveTextContent('Mérinos doux. · ≈ 300 m · aiguilles 4,5 mm')
+    expect(ideas).toHaveTextContent('Assez de laine (reste ≈ 540 m)')
     // Vrai patron trouvé sur internet, puis recherche Ravelry filtrée (tricot, grosseur, métrage en yards, aiguilles à 0,5 mm près)
-    expect(within(ideas).getByRole('link', { name: 'Cabled Cowl par Jane · ravelry.com' })).toHaveAttribute('href', 'https://www.ravelry.com/patterns/library/cabled-cowl')
+    expect(within(ideas).getByRole('link', { name: 'Cabled Cowl par Jane · ravelry.com · Gratuit · EN' })).toHaveAttribute('href', 'https://www.ravelry.com/patterns/library/cabled-cowl')
     expect(within(ideas).getByRole('link', { name: 'Plus de patrons sur Ravelry' })).toHaveAttribute(
       'href',
       'https://www.ravelry.com/patterns/search#craft=knitting&weight=worsted&yardage=0%7C918&needles=3.5mm%7C3.75mm%7C4.0mm%7C4.5mm&query=cabled%20cowl',

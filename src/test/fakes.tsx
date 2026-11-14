@@ -28,7 +28,7 @@ import type { Plant, PlantPhoto, WateringEvent } from '@/modules/plantes/lib/pla
 import type { KnitProject, KnitProjectSummary, ReadPattern } from '@/modules/tricot/lib/pattern'
 import type { ProjectProgress } from '@/modules/tricot/lib/progress'
 import type { AdaptedStep } from '@/modules/tricot/lib/adapt'
-import { EMPTY_YARN, type StashItem, type Yarn, type YarnIdea } from '@/modules/tricot/lib/yarn'
+import { EMPTY_YARN, type FoundPattern, type StashIdeas, type StashItem, type Yarn, type YarnIdea } from '@/modules/tricot/lib/yarn'
 import type { KnitPattern, PatternInfo, PatternLink } from '@/modules/tricot/lib/library'
 import type { StoredReading } from '@/modules/tricot/lib/readings'
 import { DEFAULT_SETTINGS, type UserSettings } from '@/lib/settings'
@@ -211,7 +211,10 @@ export function fakeApi(): FakeApi {
       listStash: vi.fn(async () => [] as StashItem[]),
       saveStashItem: vi.fn(async () => undefined),
       deleteStashItem: vi.fn(async () => undefined),
-      yarnIdeas: vi.fn(async () => [] as YarnIdea[]),
+      yarnIdeas: vi.fn(async () => ({ ideas: [] as YarnIdea[], weight: null as string | null })),
+      ideaPatterns: vi.fn(async () => [] as FoundPattern[]),
+      getStashIdeas: vi.fn(async (): Promise<StashIdeas | null> => null),
+      saveStashIdeas: vi.fn(async () => undefined),
       downloadPdf: vi.fn(async (_path: string, name: string) => new File(['%PDF'], `${name}.pdf`, { type: 'application/pdf' })),
       addChart: vi.fn(async () => undefined),
       askAboutStep: vi.fn(async () => 'Réponse du modèle.'),

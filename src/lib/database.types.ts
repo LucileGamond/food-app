@@ -361,6 +361,26 @@ isOneToOne: false
       referencedColumns: ["id"]
     }
                   ]
+                },"knit_stash_ideas": {
+                  Row: {
+                    "created_at": string,"id": string,"ideas": NonNullable<Json>,"profile_id": string,"stash_ids": string[],"updated_at": string,"weight": string | null,"wish": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "created_at"?: string,"id"?: string,"ideas": NonNullable<Json>,"profile_id"?: string,"stash_ids": string[],"updated_at"?: string,"weight"?: string | null,"wish"?: string
+                  }
+                  Update: {
+                    "created_at"?: string,"id"?: string,"ideas"?: NonNullable<Json>,"profile_id"?: string,"stash_ids"?: string[],"updated_at"?: string,"weight"?: string | null,"wish"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "knit_stash_ideas_profile_id_fkey"
+      columns: ["profile_id"]
+isOneToOne: false
+      referencedRelation: "profiles"
+      referencedColumns: ["id"]
+    }
+                  ]
                 },"knit_steps": {
                   Row: {
                     "done": boolean,"highlights": NonNullable<Json>,"id": string,"instructions": string,"notes": string,"pass": number,"position": number,"project_id": string,"row_count": number,"sections": NonNullable<Json>,"start_stitches": number | null,"stitches": number | null,"times": number,"title": string,"total_rows": number | null,"translation": string | null

@@ -291,17 +291,106 @@ export function siteOf(url: string): string {
   }
 }
 
-/** Idée de modèle proposée par le modèle pour une laine. */
+/** Patron trouvé sur internet pour une idée (adresse vérifiée dans les résultats de recherche). */
+export interface FoundPattern {
+  title: string
+  url: string
+  /** Gratuit, payant, ou inconnu. */
+  free: boolean | null
+  /** Langue (« fr », « en »), si connue. */
+  language: string | null
+}
+
+/** Idée de modèle proposée par le modèle pour une ou plusieurs laines. */
 export interface YarnIdea {
   title: string
   why: string
+  /** Pour qui, quelle taille (« adulte », « enfant 4 ans »), ou ''. */
+  size: string
   meters: number | null
   needleMm: number | null
   search: string
-  /** Vrais patrons trouvés sur internet (adresses vérifiées dans les résultats de recherche). */
-  patterns: { title: string; url: string }[]
+  /** Vrais patrons trouvés sur internet ; vide tant qu'on n'en a pas cherché. */
+  patterns: FoundPattern[]
+}
+
+/** Idées pour un ensemble de laines du stock, gardées pour les revoir sans repayer. */
+export interface StashIdeas {
+  /** Laines du stock concernées, triées. */
+  stashIds: string[]
+  wish: string
+  ideas: YarnIdea[]
   /** Grosseur de la laine (catégorie Ravelry), pour filtrer la recherche. */
   weight: string | null
+  updatedAt: string
+}
+
+/** Laines associées au plus pour des idées. */
+export const MAX_IDEA_YARNS = 4
+/** Longueur maximale de l'envie (« un pull pour bébé »). */
+export const MAX_WISH = 120
+
+/** Clé d'un ensemble de laines : identifiants triés, sans doublon. */
+export function ideasKey(stashIds: readonly string[]): string[] {
+  return [...new Set(stashIds)].sort()
+}
+
+/** Une laine telle que décrite au modèle. */
+export function ideaYarn(yarn: Yarn): { yarn: string; meters: number | null; needle_mm: number | null } {
+  return { yarn: describeYarn(yarn), meters: yarnMeters(yarn), needle_mm: yarn.needle_mm }
+}
+
+/** Métrage disponible pour plusieurs laines ; null si l'un manque. */
+export function stashMeters(yarns: readonly Yarn[]): number | null {
+  let total = 0
+  for (const yarn of yarns) {
+    const meters = yarnMeters(yarn)
+    if (meters === null) return null
+    total += meters
+  }
+  return yarns.length ? total : null
+}
+
+/**
+ * Assez de laine pour l'idée ? « Assez de laine (reste ≈ 150 m) », ou « Il manque ≈ 200 m (2 pelotes) » (pelotes
+ * comptées pour une seule laine au métrage connu). null si le métrage de l'idée ou du stock est inconnu.
+ */
+export function ideaFit(ideaMeters: number | null, yarns: readonly Yarn[]): { enough: boolean; label: string } | null {
+  const available = stashMeters(yarns)
+  if (ideaMeters === null || available === null) return null
+  if (ideaMeters <= available) {
+    const spare = available - ideaMeters
+    return { enough: true, label: spare > 0 ? `Assez de laine (reste ≈ ${spare} m)` : 'Assez de laine, tout juste' }
+  }
+  const missing = ideaMeters - available
+  const length = yarns.length === 1 ? yarns[0]!.length_m : null
+  const skeins = length ? Math.ceil(missing / length) : null
+  return { enough: false, label: `Il manque ≈ ${missing} m${skeins ? ` (${skeins} pelote${skeins > 1 ? 's' : ''})` : ''}` }
+}
+
+/** « Gratuit · FR », « Payant · EN », ou ''. */
+export function patternNote(pattern: Pick<FoundPattern, 'free' | 'language'>): string {
+  return [pattern.free === true && 'Gratuit', pattern.free === false && 'Payant', pattern.language?.toUpperCase()].filter(Boolean).join(' · ')
+}
+
+/** Idées lues en base (ou renvoyées par le modèle) : champs manquants complétés. */
+export function ideasFromJson(raw: unknown): YarnIdea[] {
+  if (!Array.isArray(raw)) return []
+  const str = (v: unknown) => (typeof v === 'string' ? v : '')
+  const num = (v: unknown) => (typeof v === 'number' && Number.isFinite(v) ? v : null)
+  return raw
+    .filter((v): v is Record<string, unknown> => typeof v === 'object' && v !== null && typeof (v as Record<string, unknown>).title === 'string')
+    .map((i) => ({
+      title: str(i.title),
+      why: str(i.why),
+      size: str(i.size),
+      meters: num(i.meters),
+      needleMm: num(i.needleMm),
+      search: str(i.search),
+      patterns: (Array.isArray(i.patterns) ? i.patterns : [])
+        .filter((p): p is Record<string, unknown> => typeof p === 'object' && p !== null && typeof (p as Record<string, unknown>).url === 'string')
+        .map((p) => ({ title: str(p.title) || str(p.url), url: str(p.url), free: typeof p.free === 'boolean' ? p.free : null, language: str(p.language) || null })),
+    }))
 }
 
 /** « 350 » → 350 ; '' → null ; undefined si invalide (1 à 20 000 m). */

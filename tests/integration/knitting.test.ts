@@ -426,7 +426,40 @@ describe('stock de laine', () => {
     expect(await api.knitting.listStash()).toEqual([])
     await expect(createKnittingApi(anonClient()).listStash()).rejects.toThrow()
     // Idées : le modèle n'est pas disponible ici, l'erreur est lisible.
-    await expect(api.knitting.yarnIdeas(yarn)).rejects.toThrow()
+    await expect(api.knitting.yarnIdeas([yarn])).rejects.toThrow()
+    await expect(api.knitting.ideaPatterns({ title: 'Bonnet', why: '', size: '', meters: null, needleMm: null, search: 'beanie', patterns: [] }, [yarn], null)).rejects.toThrow()
+  })
+
+  it('garde les idées d’une laine ou de laines associées, les relance, et les oublie avec la laine', async () => {
+    const { api } = await signedInApi()
+    const eric = await signedInApi(ERIC.email)
+    const yarn = { brand: 'DROPS', name: 'Merino', color: null, dye_lot: null, composition: null, weight_g: 50, length_m: 105, skeins: 8, needle_mm: 4, hues: [] }
+    await api.knitting.saveStashItem({ id: null, yarn, notes: '' })
+    await api.knitting.saveStashItem({ id: null, yarn: { ...yarn, name: 'Alpaca' }, notes: '' })
+    const [merino, alpaca] = (await api.knitting.listStash()).map((s) => s.id) as [string, string]
+    const bonnet = { title: 'Bonnet', why: 'Rapide.', size: 'adulte', meters: 150, needleMm: 4, search: 'beanie', patterns: [] }
+    const snood = { ...bonnet, title: 'Snood rayé', patterns: [{ title: 'Cowl', url: 'https://p.exemple/cowl', free: true, language: 'en' }] }
+
+    expect(await api.knitting.getStashIdeas([merino])).toBeNull()
+    await api.knitting.saveStashIdeas({ stashIds: [merino], wish: '', ideas: [bonnet], weight: 'worsted' })
+    // Ordre des laines indifférent
+    await api.knitting.saveStashIdeas({ stashIds: [alpaca, merino], wish: ' rayures ', ideas: [snood], weight: null })
+    expect(await api.knitting.getStashIdeas([merino])).toMatchObject({ stashIds: [merino], wish: '', ideas: [bonnet], weight: 'worsted' })
+    expect(await api.knitting.getStashIdeas([merino, alpaca])).toMatchObject({ wish: 'rayures', ideas: [snood], weight: null })
+    expect(await eric.api.knitting.getStashIdeas([merino])).toBeNull()
+
+    // Relancer remplace (une seule ligne par ensemble de laines)
+    await api.knitting.saveStashIdeas({ stashIds: [merino], wish: 'petit', ideas: [{ ...bonnet, title: 'Mitaines' }], weight: 'dk' })
+    expect(await api.knitting.getStashIdeas([merino])).toMatchObject({ wish: 'petit', ideas: [{ title: 'Mitaines' }], weight: 'dk' })
+    await expect(api.knitting.saveStashIdeas({ stashIds: [merino], wish: '', ideas: [], weight: null })).rejects.toThrow('Impossible de garder les idées.')
+
+    // Laine retirée : ses idées, seules ou associées, partent avec elle
+    await api.knitting.deleteStashItem(alpaca)
+    expect(await api.knitting.getStashIdeas([merino, alpaca])).toBeNull()
+    expect(await api.knitting.getStashIdeas([merino])).not.toBeNull()
+    await api.knitting.deleteStashItem(merino)
+    expect(await api.knitting.getStashIdeas([merino])).toBeNull()
+    await expect(createKnittingApi(anonClient()).getStashIdeas([merino])).rejects.toThrow()
   })
 })
 

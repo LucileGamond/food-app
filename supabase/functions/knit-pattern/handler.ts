@@ -10,8 +10,11 @@
 //   → 200 { text, numbersKept }
 // POST { adapt: { request, size, pattern_gauge, my_gauge, steps: [{ title, instructions, total_rows, stitches, sections }] } }
 //   → 200 { steps: [{ index, totalRows, stitches, sections, note }] }   (patron adapté : seulement les étapes qui changent)
-// POST { ideas: { yarn: description, meters, needle_mm } }   (idées de modèles pour une laine du stock)
-//   → 200 { ideas: [{ title, why, meters, needleMm, search, patterns: [{ title, url }] }], weight }   (recherche web)
+// POST { ideas: { yarns: [{ yarn: description, meters, needle_mm }], wish, search } }   (idées pour des laines du stock)
+//   → 200 { ideas: [{ title, why, size, meters, needleMm, search, patterns: [{ title, url, free, language }] }], weight }
+//   (search: false → sans recherche web ni patrons)
+// POST { idea_patterns: { idea: { title, search, size, meters, needle_mm }, yarns, weight } }   (patrons d'une idée)
+//   → 200 { patterns: [{ title, url, free, language }] }   (recherche web)
 // POST { info: { pdf } | { photos: [{ data, media_type }] } }   (infos générales d'un patron de la bibliothèque, à la demande)
 //   → 200 { title, sizes, meters, needleMm, yarn, kind }
 // POST { link: { url } }   (patron ajouté à la bibliothèque par un lien, sans le modèle)
@@ -23,7 +26,7 @@ import { adaptPattern, parseAdaptInput, type AdaptInput } from './adapt.ts'
 import { createModelHandler, type ModelDeps } from '../_shared/handler.ts'
 import { answerQuestion, parseQuestionInput, parseTranslateInput, translateStep, type QuestionInput, type TranslateInput } from './assist.ts'
 import { parseInput, readPattern, type PatternInput } from './pattern.ts'
-import { parseIdeasInput, suggestIdeas, type IdeasInput } from './ideas.ts'
+import { findIdeaPatterns, parseIdeaPatternsInput, parseIdeasInput, suggestIdeas, type IdeaPatternsInput, type IdeasInput } from './ideas.ts'
 import { parseLabelInput, readYarnLabel, type LabelInput } from './yarn.ts'
 import { parseInfoInput, readPatternInfo, type InfoInput } from './info.ts'
 import { parseLinkInput, readLink, type LinkDeps, type LinkInput } from './link.ts'
@@ -35,6 +38,7 @@ type Input =
   | { kind: 'pattern'; pattern: PatternInput }
   | { kind: 'label'; label: LabelInput }
   | { kind: 'ideas'; ideas: IdeasInput }
+  | { kind: 'ideaPatterns'; ideaPatterns: IdeaPatternsInput }
   | { kind: 'question'; question: QuestionInput }
   | { kind: 'translate'; translate: TranslateInput }
   | { kind: 'adapt'; adapt: AdaptInput }
@@ -52,6 +56,8 @@ function parse(body: unknown): Input {
   if (translate) return { kind: 'translate', translate }
   const adapt = parseAdaptInput(body)
   if (adapt) return { kind: 'adapt', adapt }
+  const ideaPatterns = parseIdeaPatternsInput(body)
+  if (ideaPatterns) return { kind: 'ideaPatterns', ideaPatterns }
   const ideas = parseIdeasInput(body)
   if (ideas) return { kind: 'ideas', ideas }
   const label = parseLabelInput(body)
@@ -85,7 +91,12 @@ export function createHandler(deps: Deps) {
       }
       if (input.kind === 'ideas') {
         const { ideas, weight, searches, usage } = await suggestIdeas(input.ideas, options)
-        return { body: { ideas, weight }, log: { ideas: ideas.length, patterns: ideas.reduce((n, i) => n + i.patterns.length, 0), searches, ...usage } }
+        const log = { ideas: ideas.length, yarns: input.ideas.yarns.length, wish: input.ideas.wish !== '', patterns: ideas.reduce((n, i) => n + i.patterns.length, 0), searches }
+        return { body: { ideas, weight }, log: { ...log, ...usage } }
+      }
+      if (input.kind === 'ideaPatterns') {
+        const { patterns, searches, usage } = await findIdeaPatterns(input.ideaPatterns, options)
+        return { body: { patterns }, log: { ideaPatterns: true, patterns: patterns.length, searches, ...usage } }
       }
       if (input.kind === 'label') {
         const { yarn, usage } = await readYarnLabel(input.label, options)

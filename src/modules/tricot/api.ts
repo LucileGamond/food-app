@@ -5,7 +5,7 @@ import type { Json } from '@/lib/database.types'
 import type { AppSupabaseClient } from '@/api/client'
 import { compressForReading } from '@/lib/image'
 import type { ProgressPhoto, ProjectProgress } from './lib/progress'
-import { describeYarn, projectHues, yarnFromJson, yarnMeters, yarnsFromJson, type Gauge, type StashItem, type Yarn, type YarnIdea } from './lib/yarn'
+import { ideasFromJson, ideasKey, ideaYarn, projectHues, yarnFromJson, yarnsFromJson, type FoundPattern, type Gauge, type StashIdeas, type StashItem, type Yarn, type YarnIdea } from './lib/yarn'
 import { MAX_INFO_PHOTOS, patternLinkFromResponse, type KnitPattern, type PatternInfo, type PatternFields, type PatternFiles, type PatternLink, type PatternLinkResponse } from './lib/library'
 import { readingFromJson, readingKey, readSizeIndex, type StoredReading } from './lib/readings'
 import { sanitizeHighlights } from './lib/sizes'
@@ -694,16 +694,58 @@ export function createKnittingApi(db: AppSupabaseClient) {
       if (error) throw toAppError(error, 'Impossible de supprimer la fiche de mesures.')
     },
 
-    /** Idées de modèles pour une laine, avec de vrais patrons trouvés sur internet (aucun patron mis de côté ne convient). */
-    async yarnIdeas(yarn: Yarn): Promise<YarnIdea[]> {
-      const { ideas, weight } = await invokeKnit<{ ideas: Omit<YarnIdea, 'weight'>[]; weight?: string | null }>(
-        { ideas: { yarn: describeYarn(yarn), meters: yarnMeters(yarn), needle_mm: yarn.needle_mm } },
+    /**
+     * Idées de modèles pour une ou plusieurs laines (associées), selon l'envie. Sans `search`, sans recherche web ni
+     * patrons (quelques dixièmes de centime) ; avec, de vrais patrons trouvés sur internet (jusqu'à 2 minutes).
+     */
+    async yarnIdeas(yarns: Yarn[], { wish = '', search = false }: { wish?: string; search?: boolean } = {}): Promise<{ ideas: YarnIdea[]; weight: string | null }> {
+      const { ideas, weight } = await invokeKnit<{ ideas: unknown; weight?: string | null }>(
+        { ideas: { yarns: yarns.map(ideaYarn), wish: wish.trim(), search } },
         'La recherche d’idées a échoué.',
         (d) => Array.isArray(d.ideas),
         // Recherche web comprise : jusqu'à 2 minutes côté modèle.
         READ_TIMEOUT_MS,
       )
-      return ideas.map((idea) => ({ ...idea, patterns: Array.isArray(idea.patterns) ? idea.patterns : [], weight: weight ?? null }))
+      return { ideas: ideasFromJson(ideas), weight: weight ?? null }
+    },
+
+    /** Vrais patrons trouvés sur internet pour une idée choisie (2 recherches web au plus). */
+    async ideaPatterns(idea: YarnIdea, yarns: Yarn[], weight: string | null): Promise<FoundPattern[]> {
+      const { patterns } = await invokeKnit<{ patterns: unknown }>(
+        { idea_patterns: { idea: { title: idea.title, search: idea.search, size: idea.size, meters: idea.meters, needle_mm: idea.needleMm }, yarns: yarns.map(ideaYarn), weight } },
+        'La recherche de patrons a échoué.',
+        (d) => Array.isArray(d.patterns),
+        READ_TIMEOUT_MS,
+      )
+      return ideasFromJson([{ title: idea.title, patterns }])[0]!.patterns
+    },
+
+    /** Idées gardées pour cet ensemble de laines du stock, s'il y en a. */
+    async getStashIdeas(stashIds: string[]): Promise<StashIdeas | null> {
+      const key = ideasKey(stashIds)
+      const { data, error } = await db
+        .from('knit_stash_ideas')
+        .select('stash_ids, wish, ideas, weight, updated_at')
+        .contains('stash_ids', key)
+        .containedBy('stash_ids', key)
+        .maybeSingle()
+      if (error) throw toAppError(error, 'Impossible de charger les idées gardées.')
+      if (!data) return null
+      const ideas = ideasFromJson(data.ideas)
+      return ideas.length ? { stashIds: data.stash_ids, wish: data.wish, ideas, weight: data.weight, updatedAt: data.updated_at } : null
+    },
+
+    /** Garde (ou remplace) les idées d'un ensemble de laines du stock. */
+    async saveStashIdeas(input: { stashIds: string[]; wish: string; ideas: YarnIdea[]; weight: string | null }): Promise<void> {
+      const key = ideasKey(input.stashIds)
+      const ideas = input.ideas as unknown as NonNullable<Json>
+      const row = { wish: input.wish.trim(), ideas, weight: input.weight }
+      const { data: existing, error: readError } = await db.from('knit_stash_ideas').select('id').contains('stash_ids', key).containedBy('stash_ids', key).maybeSingle()
+      if (readError) throw toAppError(readError, 'Impossible de garder les idées.')
+      const { error } = existing
+        ? await db.from('knit_stash_ideas').update({ ...row, updated_at: new Date().toISOString() }).eq('id', existing.id)
+        : await db.from('knit_stash_ideas').insert({ ...row, stash_ids: key })
+      if (error) throw toAppError(error, 'Impossible de garder les idées.')
     },
 
     /** PDF d'un patron en attente, pour le lire au moment de commencer. */

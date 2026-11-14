@@ -1,7 +1,7 @@
 // Stock de laine (page Tricot) : pelotes à la maison, et « Quel patron ? » pour chacune — d'abord dans la bibliothèque
-// de patrons (métrage et aiguilles comparés dans l'application), puis des idées du modèle si besoin.
+// de patrons (métrage et aiguilles comparés dans l'application), puis des idées du modèle si besoin (YarnIdeasSection).
 
-import { ExternalLink, Loader2, Sparkles, Wand2 } from 'lucide-react'
+import { Wand2 } from 'lucide-react'
 import { AddIcon, DeleteIcon, EditIcon, OpenIcon } from './KnitIcons'
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
@@ -16,41 +16,21 @@ import { Loading } from './Loading'
 import { LoadError } from '@/components/LoadError'
 import { useAsync } from '@/hooks/useAsync'
 import { YarnBand } from './YarnBand'
-import { patternSearchUrl, siteOf, yarnMeters, yarnTitle, type StashItem, type Yarn, type YarnIdea } from '../lib/yarn'
+import { yarnMeters, yarnTitle, type StashItem, type Yarn } from '../lib/yarn'
 import { matchPatterns, type KnitPattern } from '../lib/library'
 import { YarnDialog } from './YarnPanel'
+import { YarnIdeasSection } from './YarnIdeasSection'
 
 /** « Quel patron pour cette laine ? » : patrons de la bibliothèque qui conviennent, puis idées du modèle. */
-function MatchDialog({ item, patterns, onOpenChange }: { item: StashItem | null; patterns: KnitPattern[]; onOpenChange: (open: boolean) => void }) {
-  const api = useApi()
-  const [ideas, setIdeas] = useState<YarnIdea[] | null>(null)
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
+function MatchDialog({ item, stash, patterns, onOpenChange }: { item: StashItem | null; stash: StashItem[]; patterns: KnitPattern[]; onOpenChange: (open: boolean) => void }) {
   const yarn = item?.yarn
   const { fits, unknown } = yarn ? matchPatterns(yarn, patterns) : { fits: [], unknown: [] }
   const meters = yarn ? yarnMeters(yarn) : null
 
-  async function askIdeas(target: Yarn) {
-    setLoading(true)
-    setError(null)
-    try {
-      setIdeas(await api.knitting.yarnIdeas(target))
-    } catch (e) {
-      setError(errorMessage(e))
-    } finally {
-      setLoading(false)
-    }
-  }
-
   return (
     <Dialog
       open={item !== null}
-      onOpenChange={(open) => {
-        if (open) return
-        onOpenChange(false)
-        setIdeas(null)
-        setError(null)
-      }}
+      onOpenChange={(open) => !open && onOpenChange(false)}
     >
       <DialogContent className="max-h-[90dvh] overflow-y-auto sm:max-w-lg">
         <DialogHeader>
@@ -90,57 +70,7 @@ function MatchDialog({ item, patterns, onOpenChange }: { item: StashItem | null;
           )}
         </section>
 
-        <section aria-labelledby="match-ideas" className="space-y-2">
-          <h3 id="match-ideas" className="text-sm font-medium">
-            Des idées
-          </h3>
-          {ideas === null ? (
-            <Button variant={fits.length === 0 ? 'default' : 'outline'} className="h-10" disabled={loading || !yarn} onClick={() => yarn && void askIdeas(yarn)}>
-              {loading ? <Loader2 className="animate-spin" aria-hidden /> : <Sparkles />}
-              {loading ? 'Recherche d’idées…' : 'Des idées avec l’IA'}
-            </Button>
-          ) : (
-            <ul aria-label="Idées de modèles" className="space-y-2">
-              {ideas.map((idea) => (
-                <li key={idea.title} className="rounded-xl border p-3 text-sm">
-                  <p className="knit-name">{idea.title}</p>
-                  <p className="text-muted-foreground">
-                    {[idea.why, idea.meters !== null && `≈ ${idea.meters} m`, idea.needleMm !== null && `aiguilles ${String(idea.needleMm).replace('.', ',')} mm`].filter(Boolean).join(' · ')}
-                  </p>
-                  {idea.patterns.length > 0 && (
-                    <ul aria-label={`Patrons trouvés : ${idea.title}`} className="mt-2 space-y-1">
-                      {idea.patterns.map((p) => (
-                        <li key={p.url}>
-                          <a href={p.url} target="_blank" rel="noreferrer" className="inline-flex items-start gap-1 font-medium text-brand underline-offset-4 hover:underline">
-                            <ExternalLink className="mt-0.5 size-3.5 shrink-0" aria-hidden />
-                            <span>
-                              {p.title} <span className="font-normal text-muted-foreground">· {siteOf(p.url)}</span>
-                            </span>
-                          </a>
-                        </li>
-                      ))}
-                    </ul>
-                  )}
-                  {idea.search && (
-                    <a
-                      href={patternSearchUrl(idea.search, { weight: idea.weight, meters, needleMm: yarn?.needle_mm ?? null })}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="mt-1 inline-flex items-center gap-1 text-muted-foreground underline-offset-4 hover:underline"
-                    >
-                      <ExternalLink className="size-3.5" aria-hidden /> Plus de patrons sur Ravelry
-                    </a>
-                  )}
-                </li>
-              ))}
-            </ul>
-          )}
-          {error && (
-            <p role="alert" className="text-sm text-destructive">
-              {error}
-            </p>
-          )}
-        </section>
+        {item && <YarnIdeasSection key={item.id} item={item} stash={stash} emphasize={fits.length === 0} />}
       </DialogContent>
     </Dialog>
   )
@@ -222,7 +152,7 @@ export function StashSection({ patterns }: { patterns: KnitPattern[] }) {
         onOpenChange={(open) => !open && setEditing(null)}
         onSave={save}
       />
-      <MatchDialog item={matching} patterns={patterns} onOpenChange={() => setMatching(null)} />
+      <MatchDialog item={matching} stash={stash.data ?? []} patterns={patterns} onOpenChange={() => setMatching(null)} />
       <ConfirmDialog
         open={removing !== null}
         onOpenChange={(open) => !open && setRemoving(null)}
