@@ -436,7 +436,7 @@ test('aides pendant le tricot : abréviations, pesée de la laine et rangs compt
   const id = await api.knitting.createProject({ title: 'Pull Aides', size: 'M', pdf: null, steps, abbreviations: [{ abbr: 'C4F', meaning: 'Torsade de 4 mailles devant.' }] })
   const project = (await api.knitting.getProject(id))!
   await api.knitting.saveProjectInfo(id, {
-    yarns: [{ brand: 'DROPS', name: 'Merino', color: null, dye_lot: null, composition: null, weight_g: 50, length_m: 100, skeins: 10, needle_mm: 4 }],
+    yarns: [{ brand: 'DROPS', name: 'Merino', color: null, dye_lot: null, composition: null, weight_g: 50, length_m: 100, skeins: 10, needle_mm: 4, hues: [] }],
     patternGauge: { stitches: null, rows: null },
   })
   await api.knitting.saveProgress(project.steps[0]!.id, { rowCount: 100, done: true })

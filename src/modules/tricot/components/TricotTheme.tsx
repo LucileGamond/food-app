@@ -16,3 +16,21 @@ export function TricotTheme({ children }: { children?: ReactNode }) {
   }, [])
   return children ?? <Outlet />
 }
+
+/**
+ * Couleur de la laine du projet (sa première couleur) : remplace l'indigo du module le temps de la page. Le CSS en tire
+ * une teinte assez sombre (ou claire en mode sombre) pour garder le texte blanc lisible sur les boutons.
+ */
+export function useYarnHue(hues: string[]) {
+  const hue = hues[0] ?? null
+  useEffect(() => {
+    if (!hue) return
+    const root = document.documentElement
+    root.style.setProperty('--yarn', hue)
+    root.dataset.yarn = ''
+    return () => {
+      root.style.removeProperty('--yarn')
+      delete root.dataset.yarn
+    }
+  }, [hue])
+}

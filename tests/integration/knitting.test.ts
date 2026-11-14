@@ -211,7 +211,7 @@ describe('laine et échantillon', () => {
     let project = (await api.knitting.getProject(id))!
     expect(project).toMatchObject({ yarns: [], patternGauge: { stitches: 22, rows: null }, gauges: [] })
 
-    const yarn = { brand: 'Phildar', name: 'Partner 3.5', color: null, dye_lot: '4471', composition: null, weight_g: 50, length_m: 125, skeins: 6.5, needle_mm: 3.5 }
+    const yarn = { brand: 'Phildar', name: 'Partner 3.5', color: null, dye_lot: '4471', composition: null, weight_g: 50, length_m: 125, skeins: 6.5, needle_mm: 3.5, hues: ['#3f4fa0', '#d8cbb8'] }
     await api.knitting.saveProjectInfo(id, { yarns: [yarn], patternGauge: { stitches: 22, rows: 30 } })
     // Les échantillons de la tricoteuse vivent dans leur propre liste, par aiguille
     await api.knitting.saveGauges(id, [{ needle: null, stitches: 24, rows: 28.5, checked: false }])
@@ -411,7 +411,7 @@ describe('stock de laine', () => {
   it('ajoute, modifie et retire des laines du stock, chacun les siennes', async () => {
     const { api } = await signedInApi()
     const eric = await signedInApi(ERIC.email)
-    const yarn = { brand: 'DROPS', name: 'Merino', color: null, dye_lot: null, composition: null, weight_g: 50, length_m: 105, skeins: 8, needle_mm: 4 }
+    const yarn = { brand: 'DROPS', name: 'Merino', color: null, dye_lot: null, composition: null, weight_g: 50, length_m: 105, skeins: 8, needle_mm: 4, hues: [] }
     await api.knitting.saveStashItem({ id: null, yarn, notes: 'Bleu' })
     let stash = await api.knitting.listStash()
     expect(stash).toEqual([expect.objectContaining({ yarn, notes: 'Bleu' })])

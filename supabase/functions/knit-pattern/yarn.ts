@@ -23,7 +23,12 @@ export interface Yarn {
   weight_g: number | null
   length_m: number | null
   needle_mm: number | null
+  /** Couleurs du fil vues sur la photo (1 à 3, « #rrggbb »), [] si le fil n'est pas visible. */
+  hues: string[]
 }
+
+/** Couleurs d'une laine : 3 au plus (mêmes bornes que la base : knit_yarns_are_valid). */
+export const MAX_HUES = 3
 
 /** Corps { label: base64, media_type } ; null si ce n'est pas une demande de lecture d'étiquette. */
 export function parseLabelInput(body: unknown): LabelInput | null {
@@ -52,8 +57,14 @@ export const YARN_TOOL: Tool = {
       weight_g: { type: ['integer', 'null'], description: 'Poids d’une pelote en grammes.' },
       length_m: { type: ['integer', 'null'], description: 'Métrage d’une pelote en mètres (convertir les yards : 1 yd = 0,9144 m).' },
       needle_mm: { type: ['number', 'null'], description: 'Aiguilles conseillées en mm (la plus petite si une fourchette « 3,5-4 »).' },
+      hues: {
+        type: 'array',
+        items: { type: 'string', description: 'Couleur au format hexadécimal « #rrggbb ».' },
+        description:
+          'Couleurs du fil lui-même, vues sur la photo (pelote, écheveau ou échantillon) : 1 à 3, de la plus présente à la moins présente (plusieurs pour un chiné ou un dégradé). Liste vide si le fil n’est pas visible : ne déduis pas la couleur du nom du coloris ni de l’étiquette imprimée.',
+      },
     },
-    required: ['is_label', 'brand', 'name', 'color', 'dye_lot', 'composition', 'weight_g', 'length_m', 'needle_mm'],
+    required: ['is_label', 'brand', 'name', 'color', 'dye_lot', 'composition', 'weight_g', 'length_m', 'needle_mm', 'hues'],
   },
 }
 
@@ -62,6 +73,7 @@ const SYSTEM = [
   'Relève seulement ce qui est écrit ; laisse à null ce qui est absent ou illisible, sans rien deviner.',
   'Les symboles d’entretien et les pictogrammes d’aiguilles donnent souvent la taille d’aiguilles conseillée.',
   'Si la photo ne montre pas une étiquette de laine, mets is_label à false.',
+  'Si le fil est visible sur la photo, relève aussi sa couleur réelle (hues), corrigée de l’éclairage autant que possible.',
 ].join('\n')
 
 function text(value: unknown): string | null {
@@ -70,6 +82,13 @@ function text(value: unknown): string | null {
 
 function whole(value: unknown, min: number, max: number): number | null {
   return typeof value === 'number' && Number.isFinite(value) && Math.round(value) >= min && Math.round(value) <= max ? Math.round(value) : null
+}
+
+/** Couleurs « #rrggbb » valides, en minuscules, sans doublon, 3 au plus. */
+export function sanitizeHues(value: unknown): string[] {
+  if (!Array.isArray(value)) return []
+  const hues = value.filter((h): h is string => typeof h === 'string' && /^#[0-9a-f]{6}$/i.test(h.trim())).map((h) => h.trim().toLowerCase())
+  return [...new Set(hues)].slice(0, MAX_HUES)
 }
 
 /** Valide et borne ce que le modèle a renvoyé (mêmes bornes que la base : knit_yarns_are_valid). */
@@ -88,7 +107,7 @@ export function sanitizeYarn(input: unknown): Yarn {
     needle_mm: needle,
   }
   if (Object.values(yarn).every((v) => v === null)) throw new HttpError('Rien de lisible sur cette étiquette.', 422)
-  return yarn
+  return { ...yarn, hues: sanitizeHues(data.hues) }
 }
 
 export async function readYarnLabel(input: LabelInput, options: ModelOptions): Promise<{ yarn: Yarn; usage: ModelUsage | null }> {

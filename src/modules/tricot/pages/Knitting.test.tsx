@@ -1229,6 +1229,51 @@ describe('laine et échantillon du projet', () => {
     )
   })
 
+  it('remplit les couleurs du fil vues sur la photo, qu’on ajuste à la main', async () => {
+    const user = userEvent.setup()
+    const api = fakeApi()
+    api.knitting.readYarnLabel.mockResolvedValue({ ...EMPTY_YARN, brand: 'Drops', hues: ['#7a6a58', '#d8cbb8'] })
+    await renderProject(api)
+    await user.click(await screen.findByRole('button', { name: 'Ajouter une laine' }))
+    const dialog = await screen.findByRole('dialog', { name: 'Ajouter une laine' })
+    // Couleur choisie avant la photo : remplacée par celles vues sur la photo.
+    await user.click(within(dialog).getByRole('button', { name: 'Ajouter Indigo' }))
+    await user.upload(within(dialog).getByLabelText('Photo de l’étiquette'), new File(['img'], 'etiquette.jpg', { type: 'image/jpeg' }))
+    await waitFor(() => expect(within(dialog).getByLabelText('Couleur 2')).toHaveValue('#d8cbb8'))
+    expect(within(dialog).getByLabelText('Couleur 1')).toHaveValue('#7a6a58')
+    await user.click(within(dialog).getByRole('button', { name: 'Retirer la couleur 2' }))
+    await user.click(within(dialog).getByRole('button', { name: 'Ajouter Gaude' }))
+    await user.click(within(dialog).getByRole('button', { name: 'Enregistrer' }))
+    await waitFor(() =>
+      expect(api.knitting.saveProjectInfo).toHaveBeenCalledWith('p1', {
+        yarns: [{ ...EMPTY_YARN, brand: 'Drops', hues: ['#7a6a58', '#e2b93a'] }],
+        patternGauge: { stitches: null, rows: null },
+      }),
+    )
+  })
+
+  it('la page du projet prend la couleur de sa laine', async () => {
+    const api = fakeApi()
+    const { unmount } = await renderProject(api, { ...PROJECT, yarns: [{ ...EMPTY_YARN, brand: 'Drops' }, { ...EMPTY_YARN, hues: ['#d0563a', '#e8a33a'] }] })
+    await screen.findByRole('region', { name: 'Laine et échantillon' })
+    expect(document.documentElement.style.getPropertyValue('--yarn')).toBe('#d0563a')
+    unmount()
+    expect(document.documentElement.style.getPropertyValue('--yarn')).toBe('')
+  })
+
+  it('garde les couleurs choisies quand la photo n’en montre pas', async () => {
+    const user = userEvent.setup()
+    const api = fakeApi()
+    api.knitting.readYarnLabel.mockResolvedValue({ ...EMPTY_YARN, brand: 'Phildar' })
+    await renderProject(api)
+    await user.click(await screen.findByRole('button', { name: 'Ajouter une laine' }))
+    const dialog = await screen.findByRole('dialog', { name: 'Ajouter une laine' })
+    await user.click(within(dialog).getByRole('button', { name: 'Ajouter Sauge' }))
+    await user.upload(within(dialog).getByLabelText('Photo de l’étiquette'), new File(['img'], 'etiquette.jpg', { type: 'image/jpeg' }))
+    await waitFor(() => expect(within(dialog).getByLabelText('Marque')).toHaveValue('Phildar'))
+    expect(within(dialog).getByLabelText('Couleur 1')).toHaveValue('#7f9a7a')
+  })
+
   it('signale une étiquette illisible et une saisie invalide', async () => {
     const user = userEvent.setup()
     const api = fakeApi()

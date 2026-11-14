@@ -1,6 +1,6 @@
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(21);
+select plan(26);
 
 delete from public.knit_projects;
 delete from public.knit_patterns;
@@ -20,6 +20,11 @@ select ok(not public.knit_yarns_are_valid(jsonb_build_array(jsonb_build_object('
 select ok(not public.knit_yarns_are_valid('[{"weight_g": 50.5}]'), 'poids entier');
 select ok(not public.knit_yarns_are_valid('[{"skeins": 2.3}]'), 'pelotes par demi');
 select ok(not public.knit_yarns_are_valid('[{"needle_mm": 40}]'), 'aiguilles bornées');
+select ok(public.knit_yarns_are_valid('[{"brand": "Drops", "hues": ["#3f4fa0", "#d8cbb8", "#7a3f8f"]}]'), 'couleurs de la laine : 3 au plus');
+select ok(public.knit_yarns_are_valid('[{"hues": []}]'), 'couleurs de la laine : liste vide permise');
+select ok(not public.knit_yarns_are_valid('[{"hues": ["#111111", "#222222", "#333333", "#444444"]}]'), 'couleurs de la laine : 4 refusées');
+select ok(not public.knit_yarns_are_valid('[{"hues": ["bleu"]}]'), 'couleur au format #rrggbb');
+select ok(not public.knit_yarns_are_valid('[{"hues": "#3f4fa0"}]'), 'couleurs en liste');
 select ok(not public.knit_yarns_are_valid('{"brand": "x"}'), 'une liste');
 
 -- ---------------------------------------------------------------------------

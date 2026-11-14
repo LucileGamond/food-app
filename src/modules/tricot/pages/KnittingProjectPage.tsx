@@ -21,7 +21,8 @@ import { ProgressPanel } from '../components/ProgressPanel'
 import { AdaptPanel } from '../components/AdaptPanel'
 import { stepsToFollow, withAdaptedSections, type ShownStep } from '../lib/adapt'
 import { YarnPanel, type ProjectInfo } from '../components/YarnPanel'
-import { adjustCount } from '../lib/yarn'
+import { adjustCount, projectHues } from '../lib/yarn'
+import { useYarnHue } from '../components/TricotTheme'
 import { useKnitProject } from '../hooks/useKnitProject'
 import { forgetProject } from '../lib/offline'
 import { currentStepIndex, newSectionId, stepFacts, type StepSection } from '../lib/pattern'
@@ -57,6 +58,7 @@ export function KnittingProjectPage() {
   const api = useApi()
   const navigate = useNavigate()
   const { project, loading, loadError, reload, saveStep, offline, pending } = useKnitProject(api, id)
+  useYarnHue(projectHues(project?.yarns ?? []))
   const [params, setParams] = useSearchParams()
   // Préparation d'une étape (?etape=<id>, vide : l'étape en cours) ; sans paramètre, la vue du projet (liste des étapes).
   // On tricote dans le mode tricoter (/tricot/:id/tricoter) ; ici, on prépare : texte, sections, diagrammes.

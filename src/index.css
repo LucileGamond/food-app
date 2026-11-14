@@ -209,6 +209,19 @@
     --brand-soft: oklch(0.32 0.05 265);
     --ring: oklch(0.74 0.1 265 / 60%);
 }
+/* Projet dont la laine a une couleur : elle remplace l'indigo, ramenée à une clarté qui garde le texte lisible. */
+@supports (color: oklch(from red l c h)) {
+    :root[data-module='tricot'][data-yarn] {
+        --brand: oklch(from var(--yarn) 0.46 min(c, 0.16) h);
+        --brand-soft: oklch(from var(--yarn) 0.94 min(c, 0.04) h);
+        --ring: oklch(from var(--yarn) 0.46 min(c, 0.16) h / 60%);
+    }
+    :root[data-module='tricot'][data-yarn].dark {
+        --brand: oklch(from var(--yarn) 0.76 min(c, 0.13) h);
+        --brand-soft: oklch(from var(--yarn) 0.32 min(c, 0.05) h);
+        --ring: oklch(from var(--yarn) 0.76 min(c, 0.13) h / 60%);
+    }
+}
 @theme inline {
     --color-gaude: var(--gaude);
     --color-garance: var(--garance);

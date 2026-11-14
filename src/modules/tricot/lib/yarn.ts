@@ -11,6 +11,8 @@ export interface Yarn {
   length_m: number | null
   skeins: number | null
   needle_mm: number | null
+  /** Couleurs du fil (1 à 3, « #rrggbb ») : vues sur la photo de l'étiquette ou choisies à la main. */
+  hues: string[]
 }
 
 /** Mailles et rangs pour 10 cm. */
@@ -22,13 +24,28 @@ export interface Gauge {
 export const MAX_YARNS = 6
 export const YARN_TEXT_MAX = 80
 
-export const EMPTY_YARN: Yarn = { brand: null, name: null, color: null, dye_lot: null, composition: null, weight_g: null, length_m: null, skeins: null, needle_mm: null }
+export const EMPTY_YARN: Yarn = { brand: null, name: null, color: null, dye_lot: null, composition: null, weight_g: null, length_m: null, skeins: null, needle_mm: null, hues: [] }
+
+/** Couleurs d'une laine : 3 au plus (un chiné, un dégradé). */
+export const MAX_HUES = 3
+
+/** Couleurs « #rrggbb » valides, en minuscules, sans doublon, 3 au plus (mêmes règles que la base). */
+export function normalizeHues(value: unknown): string[] {
+  if (!Array.isArray(value)) return []
+  const hues = value.filter((h): h is string => typeof h === 'string' && /^#[0-9a-f]{6}$/i.test(h.trim())).map((h) => h.trim().toLowerCase())
+  return [...new Set(hues)].slice(0, MAX_HUES)
+}
+
+/** Couleurs d'un projet : celles de la première laine qui en a, sinon aucune (le module garde son indigo). */
+export function projectHues(yarns: Yarn[]): string[] {
+  return yarns.find((y) => y.hues.length > 0)?.hues ?? []
+}
 
 type YarnText = 'brand' | 'name' | 'color' | 'dye_lot' | 'composition'
 type YarnNumber = 'weight_g' | 'length_m' | 'skeins' | 'needle_mm'
 
-/** Laine en cours de saisie : tout en texte. */
-export type YarnDraft = Record<YarnText | YarnNumber, string>
+/** Laine en cours de saisie : tout en texte, sauf les couleurs. */
+export type YarnDraft = Record<YarnText | YarnNumber, string> & { hues: string[] }
 
 const NUMBERS: Record<YarnNumber, { min: number; max: number; step: number; label: string }> = {
   weight_g: { min: 1, max: 1000, step: 1, label: 'Poids : un nombre entier de grammes (1 à 1000).' },
@@ -53,6 +70,7 @@ export function toYarnDraft(yarn: Yarn): YarnDraft {
     length_m: num(yarn.length_m),
     skeins: num(yarn.skeins),
     needle_mm: num(yarn.needle_mm),
+    hues: [...yarn.hues],
   }
 }
 
@@ -78,7 +96,8 @@ export function parseYarn(draft: YarnDraft): { yarn: Yarn } | { error: string } 
     if (!Number.isFinite(value) || value < min || value > max || Math.abs(steps * step - value) > 1e-9) return { error: label }
     yarn[key] = step < 1 ? Math.round(value * 100) / 100 : value
   }
-  if (Object.values(yarn).every((v) => v === null)) return { error: 'Remplis au moins un champ.' }
+  yarn.hues = normalizeHues(draft.hues)
+  if (yarn.hues.length === 0 && Object.values(yarn).every((v) => v === null || Array.isArray(v))) return { error: 'Remplis au moins un champ.' }
   return { yarn }
 }
 
@@ -97,6 +116,7 @@ export function yarnFromJson(value: unknown): Yarn {
     length_m: num(r.length_m),
     skeins: num(r.skeins),
     needle_mm: num(r.needle_mm),
+    hues: normalizeHues(r.hues),
   }
 }
 

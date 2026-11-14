@@ -7,6 +7,7 @@ import { Camera, Loader2, Pencil, Plus, Trash2 } from 'lucide-react'
 import { useState, type FormEvent } from 'react'
 import { toast } from 'sonner'
 import { errorMessage } from '@/api'
+import { HuesField } from './HuesField'
 import { useApi } from '@/app/ApiContext'
 import { ConfirmDialog } from '@/components/ConfirmDialog'
 import { Button } from '@/components/ui/button'
@@ -40,7 +41,7 @@ export interface ProjectInfo {
   patternGauge: Gauge
 }
 
-const FIELDS: { key: keyof YarnDraft; label: string; placeholder?: string; numeric?: boolean; unit?: string }[] = [
+const FIELDS: { key: Exclude<keyof YarnDraft, 'hues'>; label: string; placeholder?: string; numeric?: boolean; unit?: string }[] = [
   { key: 'brand', label: 'Marque', placeholder: 'Phildar' },
   { key: 'name', label: 'Nom de la laine', placeholder: 'Partner 3.5' },
   { key: 'color', label: 'Coloris', placeholder: '0012 Ciel' },
@@ -88,10 +89,12 @@ export function YarnDialog({
     setError(null)
     try {
       const read = await api.knitting.readYarnLabel(photo)
-      // Les champs lus remplacent ceux saisis ; le nombre de pelotes reste celui saisi.
+      // Les champs lus remplacent ceux saisis ; le nombre de pelotes reste celui saisi, et les couleurs aussi si la
+      // photo n'en montre pas.
       setDraft((current) => {
         const filled = toYarnDraft(read)
-        return Object.fromEntries(Object.entries(current).map(([k, v]) => [k, filled[k as keyof YarnDraft] || v])) as YarnDraft
+        const texts = Object.fromEntries(FIELDS.map(({ key }) => [key, filled[key] || current[key]]))
+        return { ...current, ...texts, hues: filled.hues.length > 0 ? filled.hues : current.hues }
       })
       toast.success('Étiquette lue : vérifie les champs')
     } catch (e) {
@@ -162,6 +165,8 @@ export function YarnDialog({
               {reading ? 'Lecture de l’étiquette…' : 'Photo de l’étiquette'}
             </Button>
           </div>
+
+          <HuesField hues={draft.hues} onChange={(hues) => setDraft((d) => ({ ...d, hues }))} />
 
           <div className="grid grid-cols-2 gap-3">
             {FIELDS.map((field) => (

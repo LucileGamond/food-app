@@ -35,6 +35,8 @@ import { describePass, finishPass, hasNextPass, ordinal } from '../lib/passes'
 import { currentStepIndex, type KnitProject } from '../lib/pattern'
 import { finishSubstep, substepCounts, type SubstepCount } from '../lib/substeps'
 import { Loading } from '../components/Loading'
+import { projectHues } from '../lib/yarn'
+import { useYarnHue } from '../components/TricotTheme'
 
 /**
  * Mode tricoter : plein écran, écran allumé. Le rang à tricoter (tout ce qu'il demande), ce qui arrive ensuite et le
@@ -48,6 +50,7 @@ export function KnittingModePage() {
 function KnittingMode({ id }: { id: string }) {
   const api = useApi()
   const knit = useKnitProject(api, id)
+  useYarnHue(projectHues(knit.project?.yarns ?? []))
   const projectTo = `/tricot/${id}`
 
   const shell = (children: ReactNode) => (

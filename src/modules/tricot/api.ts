@@ -551,7 +551,8 @@ export function createKnittingApi(db: AppSupabaseClient) {
         'La lecture de l’étiquette a échoué.',
         (d) => typeof d === 'object',
       )
-      return { ...read, skeins: null }
+      // Les couleurs vues sur la photo sont revérifiées (format, 3 au plus).
+      return { ...yarnFromJson(read), skeins: null }
     },
 
     /** Question sur le rang en cours : réponse courte du modèle, avec le texte de l'étape en contexte. */

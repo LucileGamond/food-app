@@ -1,6 +1,6 @@
 import { render, screen } from '@testing-library/react'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
-import { TricotTheme } from './TricotTheme'
+import { TricotTheme, useYarnHue } from './TricotTheme'
 
 const root = document.documentElement
 
@@ -40,5 +40,29 @@ describe('TricotTheme', () => {
     root.dataset.module = 'plantes'
     unmount()
     expect(root.dataset.module).toBe('plantes')
+  })
+})
+
+describe('useYarnHue', () => {
+  function Project({ hues }: { hues: string[] }) {
+    useYarnHue(hues)
+    return null
+  }
+
+  it('donne au projet la première couleur de sa laine, le temps de la page', () => {
+    const { rerender, unmount } = render(<Project hues={['#d0563a', '#e8a33a']} />)
+    expect(root.style.getPropertyValue('--yarn')).toBe('#d0563a')
+    expect(root.dataset.yarn).toBe('')
+    rerender(<Project hues={['#7f9a7a']} />)
+    expect(root.style.getPropertyValue('--yarn')).toBe('#7f9a7a')
+    unmount()
+    expect(root.style.getPropertyValue('--yarn')).toBe('')
+    expect(root.dataset.yarn).toBeUndefined()
+  })
+
+  it('sans couleur, le module garde son indigo', () => {
+    render(<Project hues={[]} />)
+    expect(root.dataset.yarn).toBeUndefined()
+    expect(root.style.getPropertyValue('--yarn')).toBe('')
   })
 })

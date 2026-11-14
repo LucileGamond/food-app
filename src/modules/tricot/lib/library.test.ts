@@ -140,7 +140,7 @@ describe('liste des patrons', () => {
 })
 
 describe('quel patron pour ma laine', () => {
-  const PARTNER: Yarn = { brand: 'Phildar', name: 'Partner 3.5', color: null, dye_lot: null, composition: null, weight_g: 50, length_m: 125, skeins: 6, needle_mm: 3.5 }
+  const PARTNER: Yarn = { brand: 'Phildar', name: 'Partner 3.5', color: null, dye_lot: null, composition: null, weight_g: 50, length_m: 125, skeins: 6, needle_mm: 3.5, hues: [] }
   const needs = (id: string, metersNeeded: number | null, needleMm: number | null) => pattern(id, { metersNeeded, needleMm })
 
   it('garde les patrons dont le métrage et les aiguilles conviennent, met à part ceux qu’on ne peut pas juger', () => {

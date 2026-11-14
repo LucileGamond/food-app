@@ -1,6 +1,6 @@
 import { createHandler } from './handler.ts'
 import { sanitizeGauge, sanitizePattern } from './pattern.ts'
-import { MAX_LABEL_BASE64, parseLabelInput, sanitizeYarn } from './yarn.ts'
+import { MAX_LABEL_BASE64, parseLabelInput, sanitizeHues, sanitizeYarn, YARN_TOOL } from './yarn.ts'
 
 const PHOTO = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII='
 
@@ -39,6 +39,7 @@ describe('étiquette de laine', () => {
       weight_g: 50,
       length_m: 125,
       needle_mm: 3.5,
+      hues: [],
     })
     expect(sanitizeYarn({ ...LABEL, weight_g: 5000, length_m: -3, needle_mm: 80, brand: '', color: 42 })).toMatchObject({
       brand: null,
@@ -47,6 +48,23 @@ describe('étiquette de laine', () => {
       length_m: null,
       needle_mm: null,
     })
+  })
+
+  it('relève les couleurs du fil vues sur la photo : #rrggbb en minuscules, sans doublon, 3 au plus', () => {
+    expect(sanitizeYarn({ ...LABEL, hues: ['#3F4FA0', ' #d8cbb8 '] }).hues).toEqual(['#3f4fa0', '#d8cbb8'])
+    expect(sanitizeHues(['#111111', '#111111', 'bleu', '#12345', 42, '#222222', '#333333', '#444444'])).toEqual(['#111111', '#222222', '#333333'])
+    expect(sanitizeHues('#3f4fa0')).toEqual([])
+    expect(sanitizeHues(undefined)).toEqual([])
+  })
+
+  it('demande au modèle les couleurs du fil, sans les déduire du nom du coloris', () => {
+    const schema = YARN_TOOL.input_schema as { required: string[]; properties: Record<string, { description?: string }> }
+    expect(schema.required).toContain('hues')
+    expect(schema.properties.hues!.description).toContain('ne déduis pas la couleur du nom du coloris')
+  })
+
+  it('des couleurs seules ne suffisent pas : il faut une étiquette lisible', () => {
+    expect(() => sanitizeYarn({ is_label: true, hues: ['#3f4fa0'] })).toThrow('Rien de lisible sur cette étiquette.')
   })
 
   it('refuse une photo sans étiquette, ou illisible', () => {
