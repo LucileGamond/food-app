@@ -1,4 +1,4 @@
-import { ArrowDown, ArrowUp, Check, ListOrdered, MoreHorizontal, Pencil, Plus, Ruler, Trash2, X, Grid3x3 } from 'lucide-react'
+import { ArrowDown, ArrowUp, Check, ListOrdered, ListTree, MoreHorizontal, Pencil, Plus, Ruler, Trash2, X, Grid3x3 } from 'lucide-react'
 import { useEffect, useId, useState, type FormEvent } from 'react'
 import { Link } from 'react-router-dom'
 import { ConfirmDialog } from '@/components/ConfirmDialog'
@@ -20,6 +20,7 @@ import { Note } from './Note'
 import type { KnitChart } from '../lib/chart'
 import { isChecked, type ProjectGauge } from '../lib/gauges'
 import { readyIssues, rowsOverflow } from '../lib/ready'
+import { TOUCH_AREA } from '../lib/touch'
 import {
   describeRange,
   describeSection,
@@ -300,6 +301,7 @@ export function StepSections({
   onSetTotalRows,
   open = null,
   onOpened,
+  organizeTo,
 }: {
   step: KnitStep
   onChange: (sections: StepSection[]) => Promise<boolean>
@@ -317,6 +319,11 @@ export function StepSections({
   /** Sous-étape à ouvrir (demandée depuis « À préparer ») ; `onOpened` quand c'est fait. */
   open?: number | null
   onOpened?: () => void
+  /**
+   * Adresse d'« Organiser », où les sous-étapes se déplacent avec leur texte. Absente quand Organiser ne peut pas
+   * toucher l'étape (commencée, patron adapté) : Monter et Descendre restent alors ici.
+   */
+  organizeTo?: string
 }) {
   const offered = choices ?? needles
   const base = useBaseGlossary()
@@ -417,7 +424,8 @@ export function StepSections({
                       type="button"
                       onClick={() => setEditing(index)}
                       className={cn(
-                        'mt-1 inline-flex min-h-7 items-center gap-1 rounded-full px-2 text-xs focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none',
+                        'relative mt-1 inline-flex min-h-7 items-center gap-1 rounded-full px-2 text-xs focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none',
+                        TOUCH_AREA,
                         own[index] === null ? 'bg-amber-500/15 font-medium' : 'bg-muted text-muted-foreground',
                       )}
                     >
@@ -471,12 +479,17 @@ export function StepSections({
                     <DropdownMenuItem onClick={() => setEditing(index)}>
                       <Pencil /> Modifier
                     </DropdownMenuItem>
-                    {index > 0 && (
+                    {organizeTo ? (
+                      <DropdownMenuItem render={<Link to={organizeTo} />}>
+                        <ListTree /> Déplacer…
+                      </DropdownMenuItem>
+                    ) : null}
+                    {!organizeTo && index > 0 && (
                       <DropdownMenuItem onClick={() => move(index, -1)}>
                         <ArrowUp /> Monter
                       </DropdownMenuItem>
                     )}
-                    {index < step.sections.length - 1 && (
+                    {!organizeTo && index < step.sections.length - 1 && (
                       <DropdownMenuItem onClick={() => move(index, 1)}>
                         <ArrowDown /> Descendre
                       </DropdownMenuItem>

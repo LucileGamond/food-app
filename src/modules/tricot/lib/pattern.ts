@@ -131,6 +131,8 @@ export interface KnitProject {
   sizes: string[]
   sizeIndex: number | null
   pdfPath: string | null
+  /** Patron de la bibliothèque dont le projet est issu (absent : patron supprimé, ou projet d'avant la bibliothèque). */
+  patternId?: string | null
   steps: KnitStep[]
   /** Diagrammes du patron, chacun rattaché (ou non) à une étape. */
   charts: KnitChart[]

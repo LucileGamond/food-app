@@ -3,7 +3,7 @@ import userEvent from '@testing-library/user-event'
 import { Route } from 'react-router-dom'
 import { fakeApi, renderWithApp } from '@/test/fakes'
 import { AppError } from '@/api'
-import type { KnitProject, KnitStep, ReadPattern } from '../lib/pattern'
+import type { KnitProject, KnitStep, ReadPattern, StepSection } from '../lib/pattern'
 import { EMPTY_YARN, type StashItem } from '../lib/yarn'
 import type { KnitPattern } from '../lib/library'
 import { KnittingImportPage } from './KnittingImportPage'
@@ -274,6 +274,48 @@ describe('KnittingProjectPage', () => {
     await user.click(toProject)
     expect(await screen.findByRole('link', { name: 'Tricot' })).toHaveAttribute('href', '/tricot')
     expect(screen.queryByRole('link', { name: 'Projets' })).not.toBeInTheDocument()
+  })
+
+  it('projet issu de la bibliothèque : un lien vers sa fiche patron ; sans patron, pas de lien (E4)', async () => {
+    renderProject(fakeApi(), { ...PROJECT, patternId: 'g1' }, OVERVIEW)
+    expect(await screen.findByRole('link', { name: 'Fiche du patron' })).toHaveAttribute('href', '/tricot/patrons/g1')
+    cleanup()
+    renderProject(fakeApi(), { ...PROJECT, patternId: null }, OVERVIEW)
+    await screen.findByRole('heading', { name: PROJECT.title })
+    expect(screen.queryByRole('link', { name: 'Fiche du patron' })).not.toBeInTheDocument()
+  })
+
+  it('en bas de la préparation : les étapes voisines, par leur nom (E2)', async () => {
+    const user = userEvent.setup()
+    renderProject(fakeApi(), PROJECT, `${STEP}=s2`)
+    const nav = await screen.findByRole('navigation', { name: 'Étapes voisines' })
+    expect(within(nav).getAllByRole('button').map((b) => b.textContent?.trim())).toEqual(['Dos – côtes', 'Encolure'])
+    await user.click(within(nav).getByRole('button', { name: 'Encolure' }))
+    expect(await screen.findByRole('heading', { name: 'Encolure' })).toBeInTheDocument()
+    // Dernière étape : seulement la précédente
+    expect(within(screen.getByRole('navigation', { name: 'Étapes voisines' })).getAllByRole('button').map((b) => b.textContent?.trim())).toEqual(['Emmanchures'])
+  })
+
+  it('étape pas commencée : ses sous-étapes se déplacent dans Organiser, pas ici (E3)', async () => {
+    const user = userEvent.setup()
+    const sections: StepSection[] = [
+      { kind: 'rows', rows: 4, every: null, times: null, text: 'côtes', pattern: null },
+      { kind: 'rows', rows: 10, every: null, times: null, text: 'jersey', pattern: null },
+    ]
+    const project = { ...PROJECT, steps: PROJECT.steps.map((s) => (s.id === 's3' ? { ...s, sections } : s)) }
+    renderProject(fakeApi(), project, `${STEP}=s3`)
+    await user.click(await screen.findByRole('button', { name: 'Actions pour « 10 rangs : jersey »' }))
+    expect(await screen.findByRole('menuitem', { name: 'Déplacer…' })).toHaveAttribute('href', '/tricot/p1?onglet=preparer&vue=organiser')
+    expect(screen.queryByRole('menuitem', { name: 'Monter' })).not.toBeInTheDocument()
+    expect(screen.getByRole('menuitem', { name: 'Modifier' })).toBeInTheDocument()
+  })
+
+  it('étape commencée : Organiser ne la touche plus, Monter et Descendre restent dans la préparation (E3)', async () => {
+    const user = userEvent.setup()
+    renderProject(fakeApi(), PROJECT, `${STEP}=s2`)
+    await user.click(await screen.findByRole('button', { name: 'Actions pour « 4 rangs : jersey »' }))
+    expect(await screen.findByRole('menuitem', { name: 'Descendre' })).toBeInTheDocument()
+    expect(screen.queryByRole('menuitem', { name: 'Déplacer…' })).not.toBeInTheDocument()
   })
 
   it('projet en trois onglets : Démarrer (matériel), Préparer (étapes), Tricoter (étape en cours)', async () => {

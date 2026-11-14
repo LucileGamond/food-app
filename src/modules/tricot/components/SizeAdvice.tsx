@@ -128,7 +128,7 @@ export function SizeAdvice({ chart, sizes, readIndex, onReread, rereading }: Pro
                 </Label>
                 <Input
                   id={`${id}-ease`}
-                  className="h-8 w-16"
+                  className="h-10 w-16"
                   inputMode="decimal"
                   value={easeText}
                   onChange={(e) => {

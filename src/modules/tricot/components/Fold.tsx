@@ -40,7 +40,7 @@ export function Fold({ id, title, summary, action, variant = 'card', defaultOpen
             aria-expanded={isOpen}
             aria-controls={`${id}-content`}
             onClick={toggle}
-            className="-ml-1 inline-flex min-h-9 items-center gap-1.5 rounded-lg px-1 text-left focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none"
+            className="-ml-1 inline-flex min-h-11 items-center gap-1.5 rounded-lg px-1 text-left focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none"
           >
             <ChevronRight className={cn('size-4 shrink-0 text-muted-foreground transition-transform motion-reduce:transition-none', isOpen && 'rotate-90')} aria-hidden />
             {title}

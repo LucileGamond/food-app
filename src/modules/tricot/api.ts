@@ -285,7 +285,7 @@ export function createKnittingApi(db: AppSupabaseClient) {
       const { data, error } = await db
         .from('knit_projects')
         .select(
-          `id, title, size, sizes, size_index, pdf_path, chart_hints, abbreviations, yarn_checks, yarns, pattern_gauge_stitches, pattern_gauge_rows, adaptation, needles, needle_gauges, knit_steps(id, position, title, instructions, total_rows, stitches, start_stitches, sections, row_count, times, pass, notes, done, highlights, translation), knit_charts(${CHART_COLUMNS})`,
+          `id, title, size, sizes, size_index, pdf_path, pattern_id, chart_hints, abbreviations, yarn_checks, yarns, pattern_gauge_stitches, pattern_gauge_rows, adaptation, needles, needle_gauges, knit_steps(id, position, title, instructions, total_rows, stitches, start_stitches, sections, row_count, times, pass, notes, done, highlights, translation), knit_charts(${CHART_COLUMNS})`,
         )
         .eq('id', id)
         .order('position', { referencedTable: 'knit_steps' })
@@ -301,6 +301,7 @@ export function createKnittingApi(db: AppSupabaseClient) {
         // Une donnée abîmée ne fait que retirer la mise en valeur.
         sizeIndex: data.size_index !== null && data.size_index < data.sizes.length ? data.size_index : null,
         pdfPath: data.pdf_path,
+        patternId: data.pattern_id,
         steps: data.knit_steps.map(toStep),
         charts: await signCharts(data.knit_charts),
         chartHints: sanitizeHints(data.chart_hints),

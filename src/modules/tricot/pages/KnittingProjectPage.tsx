@@ -1,4 +1,4 @@
-import { Check, ChevronLeft, ChevronRight, FileText, ListTree, Play, SearchX, Trash2, Undo2 } from 'lucide-react'
+import { BookOpen, Check, ChevronLeft, ChevronRight, FileText, ListTree, Play, SearchX, Trash2, Undo2 } from 'lucide-react'
 import { useState } from 'react'
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { toast } from 'sonner'
@@ -44,6 +44,7 @@ import { CurrentStepCard } from '../components/CurrentStepCard'
 import { Note } from '../components/Note'
 import { BackLink } from '../components/BackLink'
 import { OrganizeSteps } from '../components/OrganizeSteps'
+import { isStarted } from '../lib/organize'
 
 export function KnittingProjectPage() {
   const { id = '' } = useParams()
@@ -341,7 +342,7 @@ export function KnittingProjectPage() {
             ) : (
               stepText
             ))}
-          <StepSections step={step} needles={needles} choices={needleChoices} text={{ sizes: project.sizes, sizeIndex: project.sizeIndex, abbreviations: project.abbreviations ?? [] }} charts={charts.filter((c) => c.stepId === step.id)} gauges={projectGauges} onCheckNeedle={checkNeedle} onSetTotalRows={step.adapted ? undefined : (rows) => setTotalRows(step, rows)} open={fixSection} onOpened={() => setFixSection(null)} onChange={(sections) => saveSections(step, sections)} />
+          <StepSections step={step} needles={needles} choices={needleChoices} text={{ sizes: project.sizes, sizeIndex: project.sizeIndex, abbreviations: project.abbreviations ?? [] }} charts={charts.filter((c) => c.stepId === step.id)} gauges={projectGauges} onCheckNeedle={checkNeedle} onSetTotalRows={step.adapted ? undefined : (rows) => setTotalRows(step, rows)} open={fixSection} onOpened={() => setFixSection(null)} organizeTo={adaptation || isStarted(step) ? undefined : `/tricot/${project.id}?onglet=preparer&vue=organiser`} onChange={(sections) => saveSections(step, sections)} />
           <StepCharts
             projectId={project.id}
             pdfPath={project.pdfPath}
@@ -359,6 +360,23 @@ export function KnittingProjectPage() {
             </Button>
           )}
         </article>
+        {/* En bas d'une longue préparation : passer à l'étape voisine sans remonter. */}
+        {steps.length > 1 && (
+          <nav aria-label="Étapes voisines" className="mt-3 grid grid-cols-2 gap-2">
+            {index > 0 ? (
+              <Button variant="outline" className="h-11 min-w-0 justify-start" onClick={() => openStep(steps[index - 1]!.id, true)}>
+                <ChevronLeft /> <span className="truncate">{steps[index - 1]!.title}</span>
+              </Button>
+            ) : (
+              <span />
+            )}
+            {index < steps.length - 1 && (
+              <Button variant="outline" className="h-11 min-w-0 justify-end" onClick={() => openStep(steps[index + 1]!.id, true)}>
+                <span className="truncate">{steps[index + 1]!.title}</span> <ChevronRight />
+              </Button>
+            )}
+          </nav>
+        )}
       </>
     )
   }
@@ -386,6 +404,11 @@ export function KnittingProjectPage() {
         description={`Taille ${followedSize} · ${doneCount} / ${steps.length} étapes`}
         titleAction={
           <div className="flex items-center gap-1">
+            {project.patternId && (
+              <Link to={`/tricot/patrons/${project.patternId}`} aria-label="Fiche du patron" className={buttonVariants({ variant: 'ghost', size: 'icon-touch' })}>
+                <BookOpen />
+              </Link>
+            )}
             {project.pdfPath && (
               <Button variant="ghost" size="icon-touch" aria-label="Voir le PDF" onClick={() => void openPdf()}>
                 <FileText />

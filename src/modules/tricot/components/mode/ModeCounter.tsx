@@ -1,8 +1,10 @@
+import { cn } from '@/lib/utils'
 import { Check, Minus, Plus } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { MAX_ROW_COUNT } from '../../lib/pattern'
 import { formatNeedle } from '../../lib/needles'
 import type { SubstepCount } from '../../lib/substeps'
+import { TOUCH_AREA } from '../../lib/touch'
 
 interface Props {
   rowCount: number
@@ -69,7 +71,7 @@ export function ModeCounter({ rowCount, totalRows, onCount, substeps = [], onFin
             </span>
           ))}
           {canFinish && (
-            <Button variant="ghost" className="h-7 px-2 text-xs" onClick={() => onFinishSubstep(main)}>
+            <Button variant="ghost" className={cn('relative h-7 px-2 text-xs', TOUCH_AREA)} onClick={() => onFinishSubstep(main)}>
               <Check /> Terminer la sous-étape ({knitted} rang{knitted > 1 ? 's' : ''})
             </Button>
           )}

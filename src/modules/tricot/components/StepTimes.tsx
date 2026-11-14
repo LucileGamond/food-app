@@ -1,3 +1,4 @@
+import { cn } from '@/lib/utils'
 import { Repeat } from 'lucide-react'
 import { useId } from 'react'
 import { Label } from '@/components/ui/label'
@@ -6,6 +7,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import type { StepProgress } from '../api'
 import type { KnitStep } from '../lib/pattern'
 import { MAX_STEP_TIMES, describePass, ordinal, withTimes } from '../lib/passes'
+import { TOUCH_AREA_INLINE } from '../lib/touch'
 
 const range = (n: number) => Array.from({ length: n }, (_, i) => i + 1)
 
@@ -23,7 +25,7 @@ export function StepTimes({ step, onChange }: { step: Pick<KnitStep, 'times' | '
           <button
             type="button"
             aria-label={`Nombre de fois : ${label}`}
-            className="inline-flex items-center gap-1 rounded-lg px-1 underline decoration-dotted underline-offset-4 hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none"
+            className={cn('relative inline-flex items-center gap-1 rounded-lg px-1 underline decoration-dotted underline-offset-4 hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none', TOUCH_AREA_INLINE)}
           />
         }
       >

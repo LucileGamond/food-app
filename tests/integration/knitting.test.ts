@@ -238,7 +238,9 @@ describe('bibliothèque de patrons', () => {
 
     // Deuxième projet du même patron (autre taille) : le PDF est repris, rien n'est renvoyé.
     const second = await api.knitting.createProject({ title: 'Pull pour Eric', size: 'L', pdf: null, steps: STEPS, pattern: { id: library!.id, pdfPath: library!.pdfPath } })
-    expect((await api.knitting.getProject(second))!.pdfPath).toBe(library!.pdfPath)
+    expect((await api.knitting.getProject(second))!).toMatchObject({ pdfPath: library!.pdfPath, patternId: library!.id })
+    // Le premier projet, créé avec son PDF, est relié au patron rangé dans la bibliothèque (lien « Fiche du patron »).
+    expect((await api.knitting.getProject(first))!.patternId).toBe(library!.id)
     const patterns = await api.knitting.listPatterns()
     expect(patterns).toHaveLength(1)
     expect(patterns[0]!.projects.map((p) => p.id).toSorted()).toEqual([first, second].toSorted())
