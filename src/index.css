@@ -194,6 +194,8 @@
     --brand: oklch(0.45 0.12 265);
     --brand-soft: oklch(0.94 0.03 265);
     --ring: oklch(0.45 0.12 265 / 60%);
+    /* « À préparer » (ambre) : plus foncé, pour rester lisible sur les fonds écru (contraste AA). */
+    --color-amber-700: oklch(0.47 0.13 50);
 }
 :root[data-module='tricot'].dark {
     --page: oklch(0.17 0.012 60);
