@@ -22,7 +22,8 @@ interface Props {
   className?: string
 }
 
-const CHOSEN = 'rounded bg-brand/15 px-0.5 font-semibold text-foreground'
+// Taille choisie : surlignée en jaune gaude, la couleur « tu es ici » du module.
+const CHOSEN = 'rounded bg-gaude/45 px-0.5 font-semibold text-foreground'
 
 /** Texte du patron recopié tel quel : nombres de la taille choisie surlignés, ceux des autres tailles estompés. */
 export function SizedText({ text, sizes, sizeIndex, highlights = {}, onToggle, glossary = [], className }: Props) {

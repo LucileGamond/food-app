@@ -1,4 +1,4 @@
-import { render, screen, within } from '@testing-library/react'
+import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
 import type { Api } from '@/api'
@@ -72,6 +72,27 @@ describe('App', () => {
     // Santé : seul le plan alimentaire reste
     expect(within(nav).getByRole('group', { name: 'Santé' })).toHaveTextContent('Plan')
     expect(screen.getAllByRole('link', { name: 'Réglages' })[0]).toHaveAttribute('href', '/reglages')
+  })
+
+  it('habille les pages Tricot de leur identité visuelle, et seulement elles', async () => {
+    const user = userEvent.setup()
+    const api = fakeApi()
+    api.settings.getSettings.mockResolvedValue({ ...DEFAULT_SETTINGS, disabledPages: [] })
+    render(
+      <MemoryRouter initialEntries={['/planning']}>
+        <App api={api as unknown as Api} auth={fakeAuth()} />
+      </MemoryRouter>,
+    )
+    await screen.findByRole('heading', { name: 'Planning' })
+    expect(document.documentElement.dataset.module).toBeUndefined()
+
+    const nav = screen.getAllByRole('navigation', { name: 'Navigation principale' })[0]!
+    await user.click(await within(nav).findByRole('link', { name: 'Tricot' }))
+    await waitFor(() => expect(document.documentElement.dataset.module).toBe('tricot'), { timeout: 5000 })
+
+    await user.click(within(nav).getByRole('link', { name: 'Planning' }))
+    await screen.findByRole('heading', { name: 'Planning' })
+    expect(document.documentElement.dataset.module).toBeUndefined()
   })
 
   it('ouvre le suivi d’hydratation une fois activé', async () => {

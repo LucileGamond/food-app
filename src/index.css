@@ -2,6 +2,7 @@
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
 @import "@fontsource-variable/geist";
+@import "@fontsource-variable/fraunces/full.css";
 
 @custom-variant dark (&:is(.dark *));
 
@@ -164,5 +165,60 @@
 @layer base {
   body {
     @apply bg-page antialiased;
+  }
+}
+/* Module Tricot : identité « Teinturerie ». Posée sur <html data-module="tricot"> par TricotTheme, le temps des pages
+   du module : fond écru, accent indigo (remplacé par la couleur de la laine d'un projet), gaude pour « tu es ici »,
+   garance pour les alertes, brou de noix pour les textes secondaires, titres en Fraunces. */
+:root {
+    --gaude: oklch(0.83 0.14 92);
+    --garance: oklch(0.52 0.15 30);
+    --noix: oklch(0.45 0.05 55);
+}
+.dark {
+    --gaude: oklch(0.78 0.13 90);
+    --garance: oklch(0.7 0.14 32);
+    --noix: oklch(0.74 0.04 60);
+}
+:root[data-module='tricot'] {
+    --page: oklch(0.968 0.012 80);
+    --background: oklch(0.993 0.004 80);
+    --card: oklch(0.993 0.004 80);
+    --popover: oklch(0.993 0.004 80);
+    --muted: oklch(0.945 0.014 78);
+    --secondary: oklch(0.945 0.014 78);
+    --accent: oklch(0.945 0.014 78);
+    --border: oklch(0.895 0.018 75);
+    --input: oklch(0.895 0.018 75);
+    --muted-foreground: var(--noix);
+    --brand: oklch(0.45 0.12 265);
+    --brand-soft: oklch(0.94 0.03 265);
+    --ring: oklch(0.45 0.12 265 / 60%);
+}
+:root[data-module='tricot'].dark {
+    --page: oklch(0.17 0.012 60);
+    --background: oklch(0.2 0.014 60);
+    --card: oklch(0.215 0.015 60);
+    --popover: oklch(0.215 0.015 60);
+    --muted: oklch(0.27 0.016 60);
+    --secondary: oklch(0.27 0.016 60);
+    --accent: oklch(0.27 0.016 60);
+    --border: oklch(1 0.02 70 / 12%);
+    --input: oklch(1 0.02 70 / 16%);
+    --brand: oklch(0.74 0.1 265);
+    --brand-soft: oklch(0.32 0.05 265);
+    --ring: oklch(0.74 0.1 265 / 60%);
+}
+@theme inline {
+    --color-gaude: var(--gaude);
+    --color-garance: var(--garance);
+    --color-noix: var(--noix);
+    --font-tricot: 'Fraunces Variable', Georgia, serif;
+}
+@layer base {
+  :root[data-module='tricot'] :is(h1, h2, h3, [data-slot='dialog-title'], [data-slot='card-title'], [data-slot='alert-dialog-title']) {
+    font-family: var(--font-tricot);
+    font-variation-settings: 'SOFT' 100, 'WONK' 0;
+    letter-spacing: -0.005em;
   }
 }

@@ -1,5 +1,6 @@
 import { lazy, Suspense } from 'react'
 import { Navigate, Route, Routes } from 'react-router-dom'
+import { TricotTheme } from '@/modules/tricot/components/TricotTheme'
 import { Toaster } from 'sonner'
 import type { Api } from '@/api'
 import { ApiProvider } from '@/app/ApiContext'
@@ -72,7 +73,9 @@ export function App({ api, auth }: { api: Api; auth: AuthClient }) {
                 path="/tricot/:id/tricoter"
                 element={
                   <PageGuard page="tricot">
-                    <KnittingModePage />
+                    <TricotTheme>
+                      <KnittingModePage />
+                    </TricotTheme>
                   </PageGuard>
                 }
               />
@@ -104,18 +107,21 @@ export function App({ api, auth }: { api: Api; auth: AuthClient }) {
                 <Route path="/courses/:id" element={<ShoppingListPage />} />
                 <Route path="/hydratation" element={<HydrationPage />} />
                 <Route path="/reglages" element={<SettingsPage />} />
-                <Route path="/tricot" element={<KnittingPage />} />
-                <Route path="/tricot/nouveau" element={<KnittingImportPage />} />
-                {/* Bibliothèque de patrons ; « Mettre un patron de côté » (ancienne adresse) y ajoute un patron. */}
-                <Route path="/tricot/patrons" element={<KnittingLibraryPage />} />
-                <Route path="/tricot/laine" element={<KnittingStashPage />} />
-                <Route path="/tricot/mesures" element={<KnittingMeasuresPage />} />
-                <Route path="/tricot/patrons/nouveau" element={<KnittingPatternEditPage />} />
-                <Route path="/tricot/patrons/:id" element={<KnittingPatternPage />} />
-                <Route path="/tricot/patrons/:id/modifier" element={<KnittingPatternEditPage />} />
-                <Route path="/tricot/a-faire" element={<Navigate to="/tricot/patrons/nouveau" replace />} />
-                <Route path="/tricot/:id" element={<KnittingProjectPage />} />
-                <Route path="/tricot/:id/organiser" element={<KnittingOrganizePage />} />
+                {/* Module Tricot : son identité visuelle (TricotTheme) le temps de ses pages. */}
+                <Route element={<TricotTheme />}>
+                  <Route path="/tricot" element={<KnittingPage />} />
+                  <Route path="/tricot/nouveau" element={<KnittingImportPage />} />
+                  {/* Bibliothèque de patrons ; « Mettre un patron de côté » (ancienne adresse) y ajoute un patron. */}
+                  <Route path="/tricot/patrons" element={<KnittingLibraryPage />} />
+                  <Route path="/tricot/laine" element={<KnittingStashPage />} />
+                  <Route path="/tricot/mesures" element={<KnittingMeasuresPage />} />
+                  <Route path="/tricot/patrons/nouveau" element={<KnittingPatternEditPage />} />
+                  <Route path="/tricot/patrons/:id" element={<KnittingPatternPage />} />
+                  <Route path="/tricot/patrons/:id/modifier" element={<KnittingPatternEditPage />} />
+                  <Route path="/tricot/a-faire" element={<Navigate to="/tricot/patrons/nouveau" replace />} />
+                  <Route path="/tricot/:id" element={<KnittingProjectPage />} />
+                  <Route path="/tricot/:id/organiser" element={<KnittingOrganizePage />} />
+                </Route>
                 <Route path="/plantes" element={<PlantsPage />} />
                 <Route path="/plantes/nouvelle" element={<PlantFormPage />} />
                 <Route path="/plantes/:id" element={<PlantDetailPage />} />

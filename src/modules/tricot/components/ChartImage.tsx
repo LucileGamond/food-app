@@ -97,11 +97,11 @@ export function ChartImage({ chart, position, zoom, onZoom, className }: ImagePr
         <img src={chart.imageUrl} alt={`${name} du patron`} className="block w-full select-none" draggable={false} />
         {band && row && (
           <>
-            {/* Rangs déjà faits : sous la bande, jusqu'au bas de la grille (la ligne en cours reste nette). */}
+            {/* Rang en cours en jaune gaude (« tu es ici » du module Tricot). Rangs déjà faits : sous la bande, jusqu'au bas de la grille (la ligne en cours reste nette). */}
             <div className="pointer-events-none absolute inset-x-0 bg-white/55" style={{ top: pct(band.bottom), height: pct(chart.gridBottom - band.bottom) }} aria-hidden />
             <div
               ref={bandRef}
-              className={cn('pointer-events-none absolute inset-x-0 border-y-2 border-brand', row.drawn ? 'bg-brand/20' : 'border-dashed bg-brand/5')}
+              className={cn('pointer-events-none absolute inset-x-0 border-y-2 border-gaude', row.drawn ? 'bg-gaude/30' : 'border-dashed bg-gaude/10')}
               style={{ top: pct(band.top), height: pct(band.bottom - band.top) }}
               data-testid="chart-band"
               data-direction={row.direction}
