@@ -251,10 +251,16 @@ function GaugeForm({ info, onSave }: { info: ProjectInfo; onSave: (patternGauge:
           {error}
         </p>
       )}
-      <Button type="submit" variant="outline" className="h-10" disabled={saving || unchanged}>
+      {/* Un bouton gris sans raison laisse croire à une panne : on dit pourquoi. */}
+      <Button type="submit" variant="outline" className="h-10" disabled={saving || unchanged} aria-describedby={unchanged && !saving ? 'gauge-pattern-why' : undefined}>
         {saving && <Loader2 className="animate-spin" aria-hidden />}
         Enregistrer l’échantillon du patron
       </Button>
+      {unchanged && !saving && (
+        <p id="gauge-pattern-why" className="text-xs text-muted-foreground">
+          Rien à enregistrer : c’est déjà ce qui est noté.
+        </p>
+      )}
     </form>
   )
 }

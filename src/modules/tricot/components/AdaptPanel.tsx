@@ -18,6 +18,7 @@ import type { KnitProject } from '../lib/pattern'
 import { formatGauge, gaugeDiffers } from '../lib/yarn'
 import { Fold } from './Fold'
 import { Note } from './Note'
+import { SaveNote, useSaveNote } from './SaveNote'
 import { defaultGauge } from '../lib/gauges'
 
 interface Props {
@@ -36,6 +37,7 @@ export function AdaptPanel({ project, size, onSaved }: Props) {
   const [preview, setPreview] = useState<AdaptedStep[] | null>(null)
   const [removing, setRemoving] = useState(false)
   const [saving, setSaving] = useState(false)
+  const saved = useSaveNote()
   const paused = adaptationPaused(adaptation, size)
 
   // L'IA part de l'échantillon qui vaut pour tout le projet (celui sans aiguille, sinon le premier noté).
@@ -104,14 +106,17 @@ export function AdaptPanel({ project, size, onSaved }: Props) {
               Adaptation en pause : elle a été faite pour la taille {adaptation.size}, tu suis maintenant la taille {size}. Refais l’adaptation pour la taille {size}.
             </Note>
           )}
-          <div className="flex items-center gap-2">
-            <Checkbox
-              id="knit-adapt-active"
-              checked={adaptation.active}
-              disabled={saving || paused}
-              onCheckedChange={(checked) => void save({ ...adaptation, active: checked === true })}
-            />
-            <Label htmlFor="knit-adapt-active">Suivre le patron adapté</Label>
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+            <span className="flex items-center gap-2">
+              <Checkbox
+                id="knit-adapt-active"
+                checked={adaptation.active}
+                disabled={saving || paused}
+                onCheckedChange={(checked) => void saved.run(() => save({ ...adaptation, active: checked === true }))}
+              />
+              <Label htmlFor="knit-adapt-active">Suivre le patron adapté</Label>
+            </span>
+            <SaveNote state={saved.state} />
           </div>
           <div className="flex flex-wrap gap-2">
             <Button variant="outline" className="h-10" onClick={() => setEditing(true)}>

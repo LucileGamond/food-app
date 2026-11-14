@@ -19,6 +19,7 @@ import { useSignedUrls } from '@/hooks/useSignedUrls'
 import { ACCEPTED_IMAGE_TYPES, compressImage } from '@/lib/image'
 import { CAPTION_MAX, describePhoto, PROJECT_NOTES_MAX, type ProgressPhoto } from '../lib/progress'
 import { Fold } from './Fold'
+import { SaveNote, useSaveNote } from './SaveNote'
 
 interface Props {
   projectId: string
@@ -38,6 +39,8 @@ export function ProgressPanel({ projectId, currentStepId, stepTitle }: Props) {
   const [adding, setAdding] = useState(false)
   const [viewing, setViewing] = useState<ProgressPhoto | null>(null)
   const [removing, setRemoving] = useState<ProgressPhoto | null>(null)
+  const savedNotes = useSaveNote()
+  const savedCaption = useSaveNote()
 
   // Notes saisies (sinon celles enregistrées), enregistrées en quittant le champ.
   const shownNotes = notes ?? progress.data?.notes ?? ''
@@ -134,9 +137,13 @@ export function ProgressPanel({ projectId, currentStepId, stepTitle }: Props) {
               maxLength={PROJECT_NOTES_MAX}
               placeholder="Modifications faites au patron, essais, pour qui…"
               value={shownNotes}
-              onChange={(e) => setNotes(e.target.value)}
-              onBlur={() => void saveNotes()}
+              onChange={(e) => {
+                setNotes(e.target.value)
+                savedNotes.reset()
+              }}
+              onBlur={() => void savedNotes.run(saveNotes)}
             />
+            <SaveNote state={savedNotes.state} />
           </div>
 
           {photos.length === 0 ? (
@@ -149,7 +156,10 @@ export function ProgressPanel({ projectId, currentStepId, stepTitle }: Props) {
                 <li key={photo.id}>
                   <button
                     type="button"
-                    onClick={() => setViewing(photo)}
+                    onClick={() => {
+                      savedCaption.reset()
+                      setViewing(photo)
+                    }}
                     aria-label={`Voir la photo : ${photo.caption || describePhoto(photo, stepTitle)}`}
                     className="block aspect-square w-full overflow-hidden rounded-xl bg-muted focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none"
                   >
@@ -179,8 +189,10 @@ export function ProgressPanel({ projectId, currentStepId, stepTitle }: Props) {
                   maxLength={CAPTION_MAX}
                   defaultValue={viewing.caption}
                   placeholder="Fin du dos, essai de torsade…"
-                  onBlur={(e) => void saveCaption(viewing, e.target.value)}
+                  onChange={() => savedCaption.reset()}
+                  onBlur={(e) => void savedCaption.run(() => saveCaption(viewing, e.target.value))}
                 />
+                <SaveNote state={savedCaption.state} />
               </div>
               <Button variant="outline" className="h-10 justify-self-start text-destructive" onClick={() => setRemoving(viewing)}>
                 <Trash2 /> Supprimer la photo

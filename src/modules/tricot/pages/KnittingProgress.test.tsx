@@ -75,6 +75,8 @@ describe('notes et photos d’avancement', () => {
     await user.type(notes, 'Manches raccourcies de 2 cm')
     await user.tab()
     await waitFor(() => expect(api.knitting.saveProjectNotes).toHaveBeenCalledWith('p1', 'Manches raccourcies de 2 cm'))
+    // Ce qui s'enregistre tout seul le dit
+    expect(await screen.findByText('Enregistré')).toBeInTheDocument()
     // Sans changement : rien n'est enregistré.
     await user.click(notes)
     await user.tab()
