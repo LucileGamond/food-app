@@ -1,4 +1,4 @@
-import { ArrowDown, ArrowUp, Check, MoreHorizontal, Ruler, X } from 'lucide-react'
+import { ArrowDown, ArrowUp, MoreHorizontal, Ruler, X } from 'lucide-react'
 import { AddIcon, ChartIcon, CloseIcon, DeleteIcon, DoneIcon, EditIcon, OrganizeIcon, StepsIcon, NeedlesIcon } from './KnitIcons'
 import { useEffect, useId, useState, type FormEvent } from 'react'
 import { Link } from 'react-router-dom'
@@ -457,7 +457,7 @@ export function StepSections({
               <div className="flex items-start gap-2">
                 <SectionNumber n={index + 1} className="mt-0.5" />
                 <p className={cn('min-w-0 flex-1 pt-0.5', !done && 'font-medium')}>
-                  {done && <Check className="mr-1 inline size-3.5" aria-label="Faite" />}
+                  {done && <DoneIcon className="mr-1 inline size-3.5" aria-label="Faite" />}
                   {describeSection(section)}
                 </p>
                 <DropdownMenu>

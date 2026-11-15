@@ -12,6 +12,8 @@ import { errorMessage } from '@/api'
 import { HuesField } from './HuesField'
 import { RavelryYarnSearch } from './RavelryYarnSearch'
 import { YarnBand } from './YarnBand'
+import { cn } from '@/lib/utils'
+import { TOUCH_AREA } from '../lib/touch'
 import { useApi } from '@/app/ApiContext'
 import { ConfirmDialog } from '@/components/ConfirmDialog'
 import { Button } from '@/components/ui/button'
@@ -339,14 +341,20 @@ export function YarnPanel({
       ) : (
         <ul className="space-y-2">
           {info.yarns.map((yarn, index) => (
-            <li key={index} className="flex items-center gap-1">
-              <YarnBand yarn={yarn} />
-              <Button variant="ghost" size="icon-touch" aria-label={`Modifier ${yarnTitle(yarn)}`} onClick={() => setEditing(index)}>
-                <EditIcon />
-              </Button>
-              <Button variant="ghost" size="icon-touch" aria-label={`Supprimer ${yarnTitle(yarn)}`} onClick={() => setRemoving(index)}>
-                <DeleteIcon />
-              </Button>
+            <li key={index} className="flex">
+              <YarnBand
+                yarn={yarn}
+                actions={
+                  <>
+                    <Button variant="ghost" size="icon-sm" className={cn('relative', TOUCH_AREA)} aria-label={`Modifier ${yarnTitle(yarn)}`} onClick={() => setEditing(index)}>
+                      <EditIcon className="size-5" />
+                    </Button>
+                    <Button variant="ghost" size="icon-sm" className={cn('relative', TOUCH_AREA)} aria-label={`Supprimer ${yarnTitle(yarn)}`} onClick={() => setRemoving(index)}>
+                      <DeleteIcon className="size-5" />
+                    </Button>
+                  </>
+                }
+              />
             </li>
           ))}
         </ul>

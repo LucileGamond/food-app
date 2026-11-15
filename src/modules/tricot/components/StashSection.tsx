@@ -16,6 +16,8 @@ import { Loading } from './Loading'
 import { LoadError } from '@/components/LoadError'
 import { useAsync } from '@/hooks/useAsync'
 import { YarnBand } from './YarnBand'
+import { cn } from '@/lib/utils'
+import { TOUCH_AREA } from '../lib/touch'
 import { yarnMeters, yarnTitle, type StashItem, type Yarn } from '../lib/yarn'
 import { matchPatterns, type KnitPattern } from '../lib/library'
 import { YarnDialog } from './YarnPanel'
@@ -127,15 +129,19 @@ export function StashSection({ patterns }: { patterns: KnitPattern[] }) {
           <ul aria-label="Stock de laine" className="space-y-2">
             {stash.data.map((item) => (
               <li key={item.id} className="rounded-2xl border bg-background p-4 shadow-xs">
-                <div className="flex items-center gap-1">
-                  <YarnBand yarn={item.yarn} />
-                  <Button variant="ghost" size="icon-touch" aria-label={`Modifier ${yarnTitle(item.yarn)}`} onClick={() => setEditing(item)}>
-                    <EditIcon />
-                  </Button>
-                  <Button variant="ghost" size="icon-touch" aria-label={`Supprimer ${yarnTitle(item.yarn)} du stock`} onClick={() => setRemoving(item)}>
-                    <DeleteIcon />
-                  </Button>
-                </div>
+                <YarnBand
+                  yarn={item.yarn}
+                  actions={
+                    <>
+                      <Button variant="ghost" size="icon-sm" className={cn('relative', TOUCH_AREA)} aria-label={`Modifier ${yarnTitle(item.yarn)}`} onClick={() => setEditing(item)}>
+                        <EditIcon className="size-5" />
+                      </Button>
+                      <Button variant="ghost" size="icon-sm" className={cn('relative', TOUCH_AREA)} aria-label={`Supprimer ${yarnTitle(item.yarn)} du stock`} onClick={() => setRemoving(item)}>
+                        <DeleteIcon className="size-5" />
+                      </Button>
+                    </>
+                  }
+                />
                 <Button variant="outline" className="mt-3 h-10" onClick={() => setMatching(item)} aria-label={`Quel patron pour ${yarnTitle(item.yarn)} ?`}>
                   <Wand2 /> Quel patron ?
                 </Button>

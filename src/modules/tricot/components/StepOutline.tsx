@@ -1,4 +1,3 @@
-import { Check } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { cn } from '@/lib/utils'
 import { Fold } from './Fold'
@@ -6,7 +5,7 @@ import { describeEvent } from '../lib/guide'
 import { outlineIndicesAt, stepOutline, type OutlineRow, type OutlineSection } from '../lib/outline'
 import type { StepSection } from '../lib/pattern'
 import type { StitchCount } from '../lib/stitches'
-import { StepsIcon } from './KnitIcons'
+import { DoneIcon, StepsIcon } from './KnitIcons'
 import { plural } from '@/lib/text'
 
 interface Props {
@@ -18,10 +17,10 @@ interface Props {
 }
 
 
-/** « → 58 mailles », « → 58 (?) mailles ». */
+/** « → 58 mailles », « → ≈ 58 mailles » (estimation). */
 function stitchesText(count: StitchCount | null): string | null {
   if (!count || count.kind === 'unknown') return null
-  return `→ ${count.stitches}${count.kind === 'estimate' ? ' (?)' : ''} maille${count.stitches > 1 ? 's' : ''}`
+  return `→ ${count.kind === 'estimate' ? '≈ ' : ''}${count.stitches} maille${count.stitches > 1 ? 's' : ''}`
 }
 
 function Row({ item, current }: { item: OutlineRow; current: number | null }) {
@@ -31,7 +30,7 @@ function Row({ item, current }: { item: OutlineRow; current: number | null }) {
   return (
     <li aria-current={here ? 'step' : undefined} className={cn('flex gap-2 rounded-lg px-2 py-1', here && 'bg-brand/10 font-medium', done && 'text-muted-foreground')}>
       <span className="w-16 shrink-0 tabular-nums">
-        {done && <Check className="mr-0.5 inline size-3.5" aria-label="Fait" />}
+        {done && <DoneIcon className="mr-0.5 inline size-3.5" aria-label="Fait" />}
         Rang {item.row}
       </span>
       <span className="min-w-0">

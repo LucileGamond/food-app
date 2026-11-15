@@ -27,6 +27,10 @@ const REPLACED: Record<string, string> = {
   // Précédent et suivant ont le même chevron (2026-11-15)
   ChevronLeft: 'BackIcon',
   ChevronRight: 'OpenIcon',
+  // Coche « fait » illustrée, et aide en petit « i » (2026-11-15)
+  Check: 'DoneIcon',
+  CircleHelp: 'Info (le « i » des aides)',
+  HelpCircle: 'Info (le « i » des aides)',
 }
 
 describe('icônes du module Tricot', () => {

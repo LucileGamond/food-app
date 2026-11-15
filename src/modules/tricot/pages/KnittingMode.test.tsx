@@ -90,8 +90,8 @@ describe('mode tricoter', () => {
     // Mailles de fin non indiquées : inconnues
     const { unmount } = renderMode()
     await line()
-    expect(screen.getByText(/En fin de rang/)).toHaveTextContent('En fin de rang : (?) mailles')
-    await user.click(screen.getByRole('button', { name: 'Pourquoi (?)' }))
+    expect(screen.getByText(/En fin de rang/)).toHaveTextContent('En fin de rang : mailles inconnues')
+    await user.click(screen.getByRole('button', { name: 'Pourquoi ce nombre ?' }))
     expect(await screen.findByText('Le nombre de mailles à la fin de l’étape n’est pas indiqué.')).toBeInTheDocument()
     unmount()
 
@@ -100,8 +100,8 @@ describe('mode tricoter', () => {
     guessed.steps[1]!.stitches = 56
     const second = renderMode(guessed)
     await line()
-    expect(screen.getByText(/En fin de rang/)).toHaveTextContent('En fin de rang : 64 (?) mailles')
-    await user.click(screen.getByRole('button', { name: 'Pourquoi (?)' }))
+    expect(screen.getByText(/En fin de rang/)).toHaveTextContent('En fin de rang : ≈ 64 mailles')
+    await user.click(screen.getByRole('button', { name: 'Pourquoi ce nombre ?' }))
     expect(await screen.findByText('Effet de « 1 dim. de chaque côté » deviné : -2 mailles.')).toBeInTheDocument()
     second.unmount()
 
@@ -111,7 +111,7 @@ describe('mode tricoter', () => {
     renderMode(sure)
     await line()
     expect(screen.getByText(/En fin de rang/)).toHaveTextContent('En fin de rang : 64 mailles')
-    expect(screen.queryByRole('button', { name: 'Pourquoi (?)' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Pourquoi ce nombre ?' })).not.toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: /^Rang \d+ fini$/ }))
     expect(screen.getByText(/En fin de rang/)).toHaveTextContent('En fin de rang : 62 mailles')
   })

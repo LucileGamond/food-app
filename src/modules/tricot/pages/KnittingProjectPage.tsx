@@ -1,5 +1,5 @@
-import { Check, SearchX } from 'lucide-react'
-import { BackIcon, ChartIcon, DeleteIcon, KnitIcon, NotesIcon, OpenIcon, OrganizeIcon, PatternsIcon, PdfIcon, StepsIcon, UndoIcon } from '../components/KnitIcons'
+import { SearchX } from 'lucide-react'
+import { BackIcon, ChartIcon, DeleteIcon, DoneIcon, KnitIcon, NotesIcon, OpenIcon, OrganizeIcon, PatternsIcon, PdfIcon, StepsIcon, UndoIcon } from '../components/KnitIcons'
 import { useState } from 'react'
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { toast } from 'sonner'
@@ -595,7 +595,7 @@ export function KnittingProjectPage() {
                           </span>
                           <span className="min-w-0 flex-1">
                             <span className="flex items-center gap-1.5">
-                              {s.done && <Check className="size-3.5 shrink-0 text-brand" aria-hidden />}
+                              {s.done && <DoneIcon className="size-4 shrink-0" aria-hidden />}
                               <span className="truncate knit-name">{s.title}</span>
                             </span>
                             {(s.rowCount > 0 || s.totalRows !== null || s.times > 1) && (

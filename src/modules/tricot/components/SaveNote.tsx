@@ -1,7 +1,8 @@
 // Règle du module Tricot : le texte libre s'enregistre tout seul (en quittant le champ) et le dit discrètement ; les
 // nombres qui recalculent les étapes gardent un bouton « Enregistrer ». Ce petit mot est la moitié « le dit ».
 
-import { Check, Loader2 } from 'lucide-react'
+import { Loader2 } from 'lucide-react'
+import { DoneIcon } from './KnitIcons'
 import { useCallback, useState } from 'react'
 import { cn } from '@/lib/utils'
 
@@ -38,7 +39,7 @@ export function SaveNote({ state, className }: { state: SaveState; className?: s
       )}
       {state === 'saved' && (
         <>
-          <Check className="size-3" aria-hidden /> Enregistré
+          <DoneIcon className="size-3.5" aria-hidden /> Enregistré
         </>
       )}
     </p>
