@@ -60,9 +60,9 @@ test('charge un patron PDF pour une taille, compte les rangs et retrouve son ava
   await expect(page.getByRole('heading', { level: 1, name: 'Dos – côtes' })).toBeVisible()
   const row = page.getByRole('region', { name: 'Ce rang' })
   await expect(row.getByRole('heading', { level: 2 })).toHaveText('Ce rang')
-  // Le rang suivant, sous ce rang : rien de particulier, et quand arrive la suite
-  const nextRow = page.getByRole('region', { name: 'Rang suivant' })
-  await expect(nextRow).toContainText('Dernier rang de l’étape, ensuite : Emmanchures')
+  // Le rang suivant, sous ce rang ; puis « Ensuite » : quand arrive la prochaine chose à faire
+  await expect(page.getByRole('region', { name: 'Rang suivant' })).toBeVisible()
+  await expect(page.getByRole('region', { name: 'Ensuite' })).toContainText('Dernier rang de l’étape, ensuite : Emmanchures')
   await expectNoA11yViolations(page)
   // Fin d'étape anticipée, confirmée : l'étape suivante s'ouvre
   await page.getByRole('button', { name: 'Terminer l’étape' }).click()
