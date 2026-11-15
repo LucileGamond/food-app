@@ -55,6 +55,8 @@ test('charge un patron PDF pour une taille, compte les rangs et retrouve son ava
   await expect(page.getByRole('navigation', { name: 'Étapes' }).getByRole('list').getByRole('link')).toHaveCount(2)
   // On tricote dans le mode tricoter, sur l'étape en cours
   await page.getByRole('tab', { name: /3. Tricoter/ }).click()
+  // « Photo d'avancement » s'active en fondu une fois les photos chargées : on mesure le contraste après le fondu
+  await expect(page.getByRole('button', { name: 'Photo d’avancement' })).toHaveCSS('opacity', '1')
   await expectNoA11yViolations(page)
   await page.getByRole('link', { name: 'Tricoter', exact: true }).click()
   await expect(page.getByRole('heading', { level: 1, name: 'Dos – côtes' })).toBeVisible()

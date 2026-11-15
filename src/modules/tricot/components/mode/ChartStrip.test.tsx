@@ -28,7 +28,8 @@ function strip(row: number) {
   const button = container.querySelector('button')!
   const img = container.querySelector('img')!
   const band = button.querySelector('span')!
-  return { button, img, band, onOpen }
+  const direction = () => container.querySelector('[data-testid="chart-direction"]')
+  return { button, img, band, onOpen, direction }
 }
 
 /** Partie de l'image visible dans la bande (fractions de la hauteur), d'après le placement de l'image. */
@@ -55,8 +56,10 @@ describe('bande du diagramme', () => {
     // Rang 1 (endroit, de droite à gauche) contre le bas de la grille ; rang 2 (envers) dans l'autre sens
     const first = strip(1)
     expect(visible(first.img).bottom).toBeCloseTo(0.735, 3)
-    expect(first.band.querySelector('span')!.className).toContain('right-1')
-    expect(strip(2).band.querySelector('span')!.className).toContain('left-1')
+    // La flèche est à côté de la bande, pas dessus, du côté où le rang commence
+    expect(first.band.querySelector('svg')).toBeNull()
+    expect(first.direction()).toHaveAttribute('data-side', 'right')
+    expect(strip(2).direction()).toHaveAttribute('data-side', 'left')
     const full: KnitChart = { ...CHART, gridTop: 0, gridBottom: 1, rows: 1 }
     const { container } = render(<ChartStrip chart={full} position={chartPosition(full, 1) as ChartRow} onOpen={() => undefined} />)
     const img = container.querySelector('img')!
@@ -83,7 +86,7 @@ describe('bande du diagramme', () => {
     const { container } = render(<ChartStrip chart={jacquard} position={chartPosition(jacquard, 2) as ChartRow} onOpen={() => undefined} />)
     const band = container.querySelector('button > span')!
     expect(band.className).toContain('border-dashed')
-    expect(band.querySelector('svg')).toBeNull()
+    expect(container.querySelector('[data-testid="chart-direction"]')).toBeNull()
   })
 
   it('sans image : rien', () => {
