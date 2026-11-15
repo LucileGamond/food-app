@@ -354,7 +354,6 @@ const ORG_2 = strand(cubic([18, 32], [32, 28], [42, 36], [58, 32]), 5, PALETTES.
 const ORG_3 = strand(cubic([6, 50], [20, 46], [30, 54], [44, 50]), 5, PALETTES.garance)
 const JOIN_A = strand(cubic([4, 18], [16, 16], [22, 30], [30, 32]), 5.2, PALETTES.indigo)
 const JOIN_B = strand(cubic([60, 46], [48, 48], [42, 34], [34, 32]), 5.2, PALETTES.garance)
-const QUESTION = strand(join(cubic([24, 22], [24, 12], [42, 12], [41, 22]), cubic([41, 22], [40, 28], [32, 28], [32, 34])), 4.6, PALETTES.indigo)
 const starPoint = (k: number): Point => {
   const a = ((k % 10) * Math.PI) / 5 - Math.PI / 2
   const r = k % 2 ? 11 : 25
@@ -449,15 +448,18 @@ export function JoinIcon(props: IconProps) {
   )
 }
 
-/** Une question : une bulle et un « ? » en fil. */
+/** Une question : une étiquette de laine (comme celle d'une pelote) et un « ? » imprimé (choisie le 2026-11-15). */
 export function QuestionIcon(props: IconProps) {
   return (
     <Icon name="question" {...props}>
       {() => (
         <>
-          <path d="M8 8 H56 V44 H26 L14 56 V44 H8 Z" fill="#f4ead8" stroke={WOOD[2]} strokeWidth={2} strokeLinejoin="round" />
-          <Strand s={QUESTION} />
-          <circle cx={32} cy={39} r={2.6} fill={PALETTES.indigo[2]} stroke={PALETTES.indigo[4]} strokeWidth={1} />
+          <path d="M14 10 H50 L56 16 V48 L50 54 H14 L8 48 V16 Z" fill="#f4ead8" stroke={WOOD[2]} strokeWidth={2} strokeLinejoin="round" />
+          <circle cx={16} cy={32} r={3} stroke={WOOD[2]} strokeWidth={1.6} />
+          <path d="M14 32 L2 22" stroke={PALETTES.garance[2]} strokeWidth={2} strokeLinecap="round" />
+          <text x={36} y={44} textAnchor="middle" fontSize={30} fontWeight={800} fill={PALETTES.indigo[1]} fontFamily="Fraunces, Georgia, serif">
+            ?
+          </text>
         </>
       )}
     </Icon>
