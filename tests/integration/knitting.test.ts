@@ -1,7 +1,8 @@
+import { createAppClient } from '@/api/client'
 import { createKnittingApi, fileToBase64 } from '@/modules/tricot/api'
 import type { PatternStep, ReadPattern } from '@/modules/tricot/lib/pattern'
 import type { PatternFields, PatternFiles } from '@/modules/tricot/lib/library'
-import { ERIC, LUCILE, anonClient, resetData, signedInApi } from './helpers'
+import { ERIC, LOCAL_SERVICE_KEY, LOCAL_URL, LUCILE, anonClient, resetData, signedInApi } from './helpers'
 
 beforeEach(async () => {
   await resetData()
@@ -464,14 +465,44 @@ describe('stock de laine', () => {
 })
 
 describe('compte Ravelry', () => {
-  it('non relié par défaut ; délier sans compte ne casse rien ; jetons jamais lisibles', async () => {
+  const admin = () => createAppClient(LOCAL_URL, LOCAL_SERVICE_KEY, { persistSession: false })
+  // Un essai à la main a pu relier le compte de test : on repart de zéro (les jetons partent avec le compte).
+  beforeEach(async () => {
+    await admin().from('ravelry_accounts').delete().eq('profile_id', LUCILE.id)
+  })
+
+  it('non relié par défaut ; relié, son nom ; délier le retire ; jetons jamais lisibles', async () => {
     const { api, db } = await signedInApi()
     expect(await api.knitting.getRavelryAccount()).toBeNull()
     await api.knitting.disconnectRavelry()
     expect(await api.knitting.getRavelryAccount()).toBeNull()
+
+    // Relié par la fonction (clé de service), comme au retour de Ravelry
+    const { error } = await admin().from('ravelry_accounts').insert({ profile_id: LUCILE.id, username: 'Youcite' })
+    expect(error).toBeNull()
+    expect(await api.knitting.getRavelryAccount()).toEqual({ username: 'Youcite' })
+    const eric = await signedInApi(ERIC.email)
+    expect(await eric.api.knitting.getRavelryAccount()).toBeNull()
+    await api.knitting.disconnectRavelry()
+    expect(await api.knitting.getRavelryAccount()).toBeNull()
+
     const tokens = await db.from('ravelry_tokens' as never).select('*')
     expect(tokens.error).not.toBeNull()
     await expect(createKnittingApi(anonClient()).getRavelryAccount()).rejects.toThrow()
+    await expect(createKnittingApi(anonClient()).disconnectRavelry()).rejects.toThrow()
+  })
+
+  it('sans jeton Ravelry utilisable : recherche, import et connexion refusés avec un message lisible', async () => {
+    const { api } = await signedInApi()
+    await expect(api.knitting.searchRavelryYarns('drops merino')).rejects.toThrow()
+    await expect(api.knitting.getRavelryYarn(25852)).rejects.toThrow()
+    await expect(api.knitting.listRavelryImports()).rejects.toThrow()
+    await expect(api.knitting.importRavelryPattern({ patternId: 7548568, volumeId: null })).rejects.toThrow()
+    // Retour de Ravelry inconnu : refusé
+    await expect(api.knitting.finishRavelryConnect('code', 'etat-inconnu-de-plus-de-vingt-caracteres')).rejects.toThrow()
+    // Adresse de retour non déclarée : refusée (ou connexion non configurée)
+    await expect(api.knitting.startRavelryConnect('https://pirate.exemple/reglages/ravelry')).rejects.toThrow()
+    expect(await api.knitting.getRavelryAccount()).toBeNull()
   })
 })
 

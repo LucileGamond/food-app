@@ -6,6 +6,7 @@ import type { AppSupabaseClient } from '@/api/client'
 import { compressForReading } from '@/lib/image'
 import type { ProgressPhoto, ProjectProgress } from './lib/progress'
 import { ideasFromJson, ideasKey, ideaYarn, projectHues, yarnFromJson, yarnsFromJson, type FoundPattern, type Gauge, type RavelryYarnHit, type StashIdeas, type StashItem, type Yarn, type YarnIdea } from './lib/yarn'
+import { hasList, hasObject, hasText, isRavelryImport } from './lib/ravelry'
 import { MAX_INFO_PHOTOS, patternLinkFromResponse, type KnitPattern, type PatternInfo, type PatternFields, type PatternFiles, type PatternLink, type PatternLinkResponse, type RavelryImported, type RavelryImportItem } from './lib/library'
 import { readingFromJson, readingKey, readSizeIndex, type StoredReading } from './lib/readings'
 import { sanitizeHighlights } from './lib/sizes'
@@ -706,7 +707,8 @@ export function createKnittingApi(db: AppSupabaseClient) {
         // Recherche web comprise : jusqu'à 2 minutes côté modèle.
         READ_TIMEOUT_MS,
       )
-      return { ideas: ideasFromJson(ideas), weight: weight ?? null }
+      // La fonction renvoie toujours la grosseur (null si inconnue).
+      return { ideas: ideasFromJson(ideas), weight: weight as string | null }
     },
 
     /** Vrais patrons trouvés sur internet pour une idée choisie (2 recherches web au plus). */
@@ -729,31 +731,31 @@ export function createKnittingApi(db: AppSupabaseClient) {
 
     /** Début de la connexion à Ravelry : adresse d'autorisation où aller, retour sur `redirectUri`. */
     async startRavelryConnect(redirectUri: string): Promise<string> {
-      const { url } = await invokeKnit<{ url: string }>({ ravelry_start: { redirect_uri: redirectUri } }, 'Impossible de se connecter à Ravelry.', (d) => typeof d.url === 'string')
+      const { url } = await invokeKnit<{ url: string }>({ ravelry_start: { redirect_uri: redirectUri } }, 'Impossible de se connecter à Ravelry.', hasText('url'))
       return url
     },
 
     /** Retour de Ravelry : relie le compte ; renvoie son nom. */
     async finishRavelryConnect(code: string, state: string): Promise<string> {
-      const { username } = await invokeKnit<{ username: string }>({ ravelry_finish: { code, state } }, 'Impossible de relier le compte Ravelry.', (d) => typeof d.username === 'string')
+      const { username } = await invokeKnit<{ username: string }>({ ravelry_finish: { code, state } }, 'Impossible de relier le compte Ravelry.', hasText('username'))
       return username
     },
 
     /** Laines de Ravelry pour une recherche (« drops merino ») : compte Ravelry relié, gratuit. */
     async searchRavelryYarns(query: string): Promise<RavelryYarnHit[]> {
-      const { yarns } = await invokeKnit<{ yarns: RavelryYarnHit[] }>({ ravelry_yarns: { query } }, 'La recherche sur Ravelry a échoué.', (d) => Array.isArray(d.yarns))
+      const { yarns } = await invokeKnit<{ yarns: RavelryYarnHit[] }>({ ravelry_yarns: { query } }, 'La recherche sur Ravelry a échoué.', hasList('yarns'))
       return yarns
     },
 
     /** Laine de Ravelry dans les champs d'une laine (marque, nom, composition, poids, métrage, aiguilles). */
     async getRavelryYarn(id: number): Promise<Yarn> {
-      const { yarn } = await invokeKnit<{ yarn: Partial<Yarn> }>({ ravelry_yarn: { id } }, 'Impossible de lire cette laine sur Ravelry.', (d) => typeof d.yarn === 'object' && d.yarn !== null)
+      const { yarn } = await invokeKnit<{ yarn: Partial<Yarn> }>({ ravelry_yarn: { id } }, 'Impossible de lire cette laine sur Ravelry.', hasObject('yarn'))
       return yarnFromJson(yarn)
     },
 
     /** Patrons à importer de Ravelry : favoris et bibliothèque du compte relié (gratuit). */
     async listRavelryImports(): Promise<RavelryImportItem[]> {
-      const { patterns } = await invokeKnit<{ patterns: RavelryImportItem[] }>({ ravelry_imports: {} }, 'Impossible de lire tes patrons Ravelry.', (d) => Array.isArray(d.patterns))
+      const { patterns } = await invokeKnit<{ patterns: RavelryImportItem[] }>({ ravelry_imports: {} }, 'Impossible de lire tes patrons Ravelry.', hasList('patterns'))
       return patterns
     },
 
@@ -762,11 +764,12 @@ export function createKnittingApi(db: AppSupabaseClient) {
       const read = await invokeKnit<PatternLinkResponse & { author: string | null; ravelry: PatternInfo; pdfMissing: RavelryImported['pdfMissing'] }>(
         { ravelry_import: { pattern_id: item.patternId, volume_id: item.volumeId } },
         'Impossible d’importer ce patron de Ravelry.',
-        (d) => typeof d.url === 'string' && typeof d.title === 'string' && typeof d.ravelry === 'object',
+        isRavelryImport,
         READ_TIMEOUT_MS,
       )
       const link = patternLinkFromResponse(read)
-      return { url: read.url, title: read.title ?? '', author: read.author ?? null, info: read.ravelry, image: link.image, pdf: link.pdf, pdfMissing: read.pdfMissing ?? null }
+      // Champs garantis par la fonction (isRavelryImport, puis réponse toujours complète).
+      return { url: read.url, title: read.title as string, author: read.author, info: read.ravelry, image: link.image, pdf: link.pdf, pdfMissing: read.pdfMissing }
     },
 
     /** Délie le compte Ravelry (ses jetons sont supprimés avec lui). */
@@ -789,8 +792,8 @@ export function createKnittingApi(db: AppSupabaseClient) {
         .maybeSingle()
       if (error) throw toAppError(error, 'Impossible de charger les idées gardées.')
       if (!data) return null
-      const ideas = ideasFromJson(data.ideas)
-      return ideas.length ? { stashIds: data.stash_ids, wish: data.wish, ideas, weight: data.weight, updatedAt: data.updated_at } : null
+      // La base garantit au moins une idée par ligne.
+      return { stashIds: data.stash_ids, wish: data.wish, ideas: ideasFromJson(data.ideas), weight: data.weight, updatedAt: data.updated_at }
     },
 
     /** Garde (ou remplace) les idées d'un ensemble de laines du stock. */

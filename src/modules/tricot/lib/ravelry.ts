@@ -14,3 +14,28 @@ export const leaveFor = {
     window.location.assign(url)
   },
 }
+
+/** Réponse de la fonction : un champ texte (« url », « username »). */
+export const hasText =
+  (key: string) =>
+  (data: object): boolean =>
+    typeof (data as Record<string, unknown>)[key] === 'string'
+
+/** Réponse de la fonction : une liste (« yarns », « patterns »). */
+export const hasList =
+  (key: string) =>
+  (data: object): boolean =>
+    Array.isArray((data as Record<string, unknown>)[key])
+
+/** Réponse de la fonction : un objet (« yarn »). */
+export const hasObject =
+  (key: string) =>
+  (data: object): boolean => {
+    const value = (data as Record<string, unknown>)[key]
+    return typeof value === 'object' && value !== null
+  }
+
+/** Patron importé de Ravelry : adresse, nom et infos présents. */
+export function isRavelryImport(data: object): boolean {
+  return hasText('url')(data) && hasText('title')(data) && hasObject('ravelry')(data)
+}
