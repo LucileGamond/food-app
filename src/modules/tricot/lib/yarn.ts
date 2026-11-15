@@ -328,6 +328,23 @@ export interface StashIdeas {
   updatedAt: string
 }
 
+/** Laine trouvée sur Ravelry (aperçu de la recherche). */
+export interface RavelryYarnHit {
+  id: number
+  brand: string | null
+  name: string
+  weightG: number | null
+  lengthM: number | null
+  /** Grosseur selon Ravelry (« DK »). */
+  category: string | null
+}
+
+/** « Garnstudio · 50 g / 105 m · DK » : aperçu d'une laine trouvée sur Ravelry. */
+export function ravelryYarnDetails(hit: RavelryYarnHit): string {
+  const size = [hit.weightG !== null && `${decimal(hit.weightG)} g`, hit.lengthM !== null && `${hit.lengthM} m`].filter(Boolean).join(' / ')
+  return [hit.brand, size, hit.category].filter(Boolean).join(' · ')
+}
+
 /** Laines associées au plus pour des idées. */
 export const MAX_IDEA_YARNS = 4
 /** Longueur maximale de l'envie (« un pull pour bébé »). */

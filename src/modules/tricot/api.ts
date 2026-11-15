@@ -5,7 +5,7 @@ import type { Json } from '@/lib/database.types'
 import type { AppSupabaseClient } from '@/api/client'
 import { compressForReading } from '@/lib/image'
 import type { ProgressPhoto, ProjectProgress } from './lib/progress'
-import { ideasFromJson, ideasKey, ideaYarn, projectHues, yarnFromJson, yarnsFromJson, type FoundPattern, type Gauge, type StashIdeas, type StashItem, type Yarn, type YarnIdea } from './lib/yarn'
+import { ideasFromJson, ideasKey, ideaYarn, projectHues, yarnFromJson, yarnsFromJson, type FoundPattern, type Gauge, type RavelryYarnHit, type StashIdeas, type StashItem, type Yarn, type YarnIdea } from './lib/yarn'
 import { MAX_INFO_PHOTOS, patternLinkFromResponse, type KnitPattern, type PatternInfo, type PatternFields, type PatternFiles, type PatternLink, type PatternLinkResponse } from './lib/library'
 import { readingFromJson, readingKey, readSizeIndex, type StoredReading } from './lib/readings'
 import { sanitizeHighlights } from './lib/sizes'
@@ -737,6 +737,18 @@ export function createKnittingApi(db: AppSupabaseClient) {
     async finishRavelryConnect(code: string, state: string): Promise<string> {
       const { username } = await invokeKnit<{ username: string }>({ ravelry_finish: { code, state } }, 'Impossible de relier le compte Ravelry.', (d) => typeof d.username === 'string')
       return username
+    },
+
+    /** Laines de Ravelry pour une recherche (« drops merino ») : compte Ravelry relié, gratuit. */
+    async searchRavelryYarns(query: string): Promise<RavelryYarnHit[]> {
+      const { yarns } = await invokeKnit<{ yarns: RavelryYarnHit[] }>({ ravelry_yarns: { query } }, 'La recherche sur Ravelry a échoué.', (d) => Array.isArray(d.yarns))
+      return yarns
+    },
+
+    /** Laine de Ravelry dans les champs d'une laine (marque, nom, composition, poids, métrage, aiguilles). */
+    async getRavelryYarn(id: number): Promise<Yarn> {
+      const { yarn } = await invokeKnit<{ yarn: Partial<Yarn> }>({ ravelry_yarn: { id } }, 'Impossible de lire cette laine sur Ravelry.', (d) => typeof d.yarn === 'object' && d.yarn !== null)
+      return yarnFromJson(yarn)
     },
 
     /** Délie le compte Ravelry (ses jetons sont supprimés avec lui). */

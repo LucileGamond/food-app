@@ -19,6 +19,9 @@
 //   → 200 { title, sizes, meters, needleMm, yarn, kind }
 // POST { ravelry_start: { redirect_uri } } → 200 { url }   (connexion d'un compte Ravelry, voir ravelryAuth.ts)
 // POST { ravelry_finish: { code, state } } → 200 { username }
+// POST { ravelry_yarns: { query } } → 200 { yarns: [{ id, brand, name, weightG, lengthM, category }] }   (laines de Ravelry)
+// POST { ravelry_yarn: { id } } → 200 { yarn: { brand, name, composition, weight_g, length_m, needle_mm } }
+//   (compte Ravelry relié, sinon 409 ; sans le modèle)
 // POST { link: { url } }   (patron ajouté à la bibliothèque par un lien, sans le modèle)
 //   → 200 { url, title, image: { data, type } | null, pdf: { data, name } | null, ravelry: { title, sizes, meters, needleMm, yarn } | null }
 //   (ravelry : infos du patron par l'API de Ravelry, pour un lien de patron Ravelry et un compte relié)
@@ -34,7 +37,8 @@ import { findIdeaPatterns, parseIdeaPatternsInput, parseIdeasInput, suggestIdeas
 import { parseLabelInput, readYarnLabel, type LabelInput } from './yarn.ts'
 import { parseInfoInput, readPatternInfo, type InfoInput } from './info.ts'
 import { parseLinkInput, readLink, type LinkDeps, type LinkInput } from './link.ts'
-import { getRavelryPattern, ravelryPermalink, searchRavelry, type RavelryPatternInfo } from './ravelry.ts'
+import { asRecord } from '../_shared/sanitize.ts'
+import { getRavelryPattern, getRavelryYarn, RavelryError, ravelryPermalink, searchRavelry, searchRavelryYarns, type RavelryDeps, type RavelryPatternInfo } from './ravelry.ts'
 import { accessTokenFor, finishRavelry, parseRavelryFinish, parseRavelryStart, startRavelry, type RavelryOAuth } from './ravelryAuth.ts'
 
 /**
@@ -54,9 +58,25 @@ type Input =
   | { kind: 'link'; link: LinkInput }
   | { kind: 'ravelryStart'; ravelryStart: { redirectUri: string } }
   | { kind: 'ravelryFinish'; ravelryFinish: { code: string; state: string } }
+  | { kind: 'ravelryYarns'; query: string }
+  | { kind: 'ravelryYarn'; id: number }
   | { kind: 'info'; info: InfoInput }
 
+/** Demandes qui n'utilisent pas le modèle (ni budget ni clé vérifiés). */
+const WITHOUT_MODEL: Input['kind'][] = ['link', 'ravelryStart', 'ravelryFinish', 'ravelryYarns', 'ravelryYarn']
+
 function parse(body: unknown): Input {
+  const data = asRecord(body)
+  if ('ravelry_yarns' in data) {
+    const query = asRecord(data.ravelry_yarns).query
+    if (typeof query !== 'string' || !query.trim() || query.length > 100) throw new HttpError('Tape le nom de la laine.', 400)
+    return { kind: 'ravelryYarns', query: query.trim() }
+  }
+  if ('ravelry_yarn' in data) {
+    const id = asRecord(data.ravelry_yarn).id
+    if (typeof id !== 'number' || !Number.isInteger(id) || id <= 0) throw new HttpError('Laine inconnue.', 400)
+    return { kind: 'ravelryYarn', id }
+  }
   const ravelryStart = parseRavelryStart(body)
   if (ravelryStart) return { kind: 'ravelryStart', ravelryStart }
   const ravelryFinish = parseRavelryFinish(body)
@@ -110,6 +130,13 @@ async function withRavelryPatterns(ideas: YarnIdea[], weight: string | null, yar
   return { ideas: enriched, ravelry: error ? 'erreur' : 'ok' }
 }
 
+/** Accès à l'API de Ravelry au nom de la personne ; 409 si son compte n'est pas relié. */
+async function ravelryAccess(deps: Deps, userId: string | null): Promise<RavelryDeps> {
+  const accessToken = await accessTokenFor(userId, deps.ravelry)
+  if (!accessToken) throw new HttpError('Relie ton compte Ravelry dans les Réglages pour chercher une laine.', 409)
+  return { fetchRavelry: deps.ravelry!.fetch, accessToken }
+}
+
 /** Infos d'un patron Ravelry (lien de patron, compte relié) ; null sinon, ou si Ravelry ne répond pas. */
 async function ravelryInfo(url: string, deps: Deps, userId: string | null): Promise<RavelryPatternInfo | null> {
   const permalink = ravelryPermalink(url)
@@ -126,8 +153,21 @@ async function ravelryInfo(url: string, deps: Deps, userId: string | null): Prom
 export function createHandler(deps: Deps) {
   return createModelHandler(deps, {
     parse,
-    usesModel: (input) => input.kind !== 'link' && input.kind !== 'ravelryStart' && input.kind !== 'ravelryFinish',
+    usesModel: (input) => !WITHOUT_MODEL.includes(input.kind),
     async run(input, options, _deps, { userId }) {
+      if (input.kind === 'ravelryYarns' || input.kind === 'ravelryYarn') {
+        const ravelry = await ravelryAccess(deps, userId)
+        try {
+          if (input.kind === 'ravelryYarns') {
+            const yarns = await searchRavelryYarns(input.query, ravelry)
+            return { body: { yarns }, log: { ravelryYarns: yarns.length } }
+          }
+          return { body: { yarn: await getRavelryYarn(input.id, ravelry) }, log: { ravelryYarn: true } }
+        } catch (e) {
+          if (e instanceof RavelryError) throw new HttpError(e.message, 502)
+          throw e
+        }
+      }
       if (input.kind === 'ravelryStart' || input.kind === 'ravelryFinish') {
         if (!userId) throw new HttpError('Connexion requise.', 401)
         if (input.kind === 'ravelryStart') return { body: await startRavelry(input.ravelryStart, userId, deps.ravelry), log: { ravelryStart: true } }

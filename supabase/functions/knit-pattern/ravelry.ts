@@ -199,3 +199,111 @@ export async function getRavelryPattern(permalink: string, deps: RavelryDeps): P
   if (typeof body.pattern !== 'object' || body.pattern === null) throw new RavelryError('Patron introuvable sur Ravelry.')
   return toPatternInfo(body.pattern)
 }
+
+// ---------------------------------------------------------------------------
+// Laine trouvée sur Ravelry (ajout au stock) : marque, nom, métrage, poids, composition, aiguilles
+// ---------------------------------------------------------------------------
+
+/** Laine trouvée par la recherche (aperçu dans la liste). */
+export interface RavelryYarnHit {
+  id: number
+  brand: string | null
+  name: string
+  weightG: number | null
+  lengthM: number | null
+  /** Grosseur selon Ravelry (« DK »). */
+  category: string | null
+}
+
+/** Laine de Ravelry, dans les champs d'une laine de l'application. */
+export interface RavelryYarn {
+  brand: string | null
+  name: string | null
+  composition: string | null
+  weight_g: number | null
+  length_m: number | null
+  needle_mm: number | null
+}
+
+const MAX_YARN_HITS = 6
+
+/** Fibres de Ravelry en français (les autres restent telles quelles, en minuscules). */
+const FIBERS: Record<string, string> = {
+  merino: 'mérinos',
+  wool: 'laine',
+  alpaca: 'alpaga',
+  acrylic: 'acrylique',
+  cotton: 'coton',
+  silk: 'soie',
+  cashmere: 'cachemire',
+  linen: 'lin',
+  bamboo: 'bambou',
+  nylon: 'polyamide',
+  polyamide: 'polyamide',
+  polyester: 'polyester',
+  viscose: 'viscose',
+  mohair: 'mohair',
+  angora: 'angora',
+  yak: 'yack',
+  camel: 'chameau',
+  hemp: 'chanvre',
+}
+
+function cleanText(value: unknown, max: number): string | null {
+  return typeof value === 'string' && value.trim() ? value.trim().replace(/\s+/g, ' ').slice(0, max) : null
+}
+
+/** « 70 % mérinos, 30 % soie » ; null sans fibres. */
+export function compositionOf(fibers: unknown): string | null {
+  const parts = (Array.isArray(fibers) ? fibers : []).flatMap((f) => {
+    const fiber = record(f)
+    const name = cleanText(record(fiber.fiber_type).name, 40)
+    if (!name) return []
+    const french = FIBERS[name.toLowerCase()] ?? name.toLowerCase()
+    const percent = positive(fiber.percentage)
+    return [percent !== null ? `${Math.round(percent)} % ${french}` : french]
+  })
+  return parts.length ? parts.join(', ').slice(0, 80) : null
+}
+
+export function toYarnHit(raw: unknown): RavelryYarnHit | null {
+  const y = record(raw)
+  const name = cleanText(y.name, 80)
+  if (typeof y.id !== 'number' || !name) return null
+  return {
+    id: y.id,
+    brand: cleanText(y.yarn_company_name, 80),
+    name,
+    weightG: positive(y.grams),
+    lengthM: yardsToMeters(y.yardage),
+    category: cleanText(record(y.yarn_weight).name, 30),
+  }
+}
+
+/** Détails d'une laine → champs de l'application ; aiguilles : la plus grosse conseillée. */
+export function toRavelryYarn(raw: unknown): RavelryYarn {
+  const y = record(raw)
+  const needles = [record(y.min_needle_size).metric, record(y.max_needle_size).metric].map(positive).filter((n): n is number => n !== null && n <= 30)
+  return {
+    brand: cleanText(record(y.yarn_company).name, 80) ?? cleanText(y.yarn_company_name, 80),
+    name: cleanText(y.name, 80),
+    composition: compositionOf(y.yarn_fibers),
+    weight_g: positive(y.grams),
+    length_m: yardsToMeters(y.yardage),
+    needle_mm: needles.length ? Math.max(...needles) : null,
+  }
+}
+
+/** Laines de Ravelry pour une recherche (« drops merino extra fine »), les plus pertinentes d'abord. */
+export async function searchRavelryYarns(query: string, deps: RavelryDeps): Promise<RavelryYarnHit[]> {
+  const q = query.trim()
+  if (!q) return []
+  const body = await get('yarns/search.json', new URLSearchParams({ query: q, page_size: String(MAX_YARN_HITS), sort: 'best' }), deps)
+  return (Array.isArray(body.yarns) ? body.yarns : []).map(toYarnHit).filter((y): y is RavelryYarnHit => y !== null)
+}
+
+export async function getRavelryYarn(id: number, deps: RavelryDeps): Promise<RavelryYarn> {
+  const body = await get(`yarns/${id}.json`, new URLSearchParams(), deps)
+  if (typeof body.yarn !== 'object' || body.yarn === null) throw new RavelryError('Laine introuvable sur Ravelry.')
+  return toRavelryYarn(body.yarn)
+}

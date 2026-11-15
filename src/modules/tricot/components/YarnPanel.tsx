@@ -9,6 +9,7 @@ import { useState, type FormEvent } from 'react'
 import { toast } from 'sonner'
 import { errorMessage } from '@/api'
 import { HuesField } from './HuesField'
+import { RavelryYarnSearch } from './RavelryYarnSearch'
 import { YarnBand } from './YarnBand'
 import { useApi } from '@/app/ApiContext'
 import { ConfirmDialog } from '@/components/ConfirmDialog'
@@ -167,6 +168,18 @@ export function YarnDialog({
               {reading ? 'Lecture de l’étiquette…' : 'Photo de l’étiquette'}
             </Button>
           </div>
+
+          <RavelryYarnSearch
+            disabled={reading}
+            onPick={(found) => {
+              // Comme l'étiquette : les champs trouvés remplacent ceux saisis ; pelotes, coloris, bain et couleurs restent.
+              setDraft((current) => {
+                const filled = toYarnDraft(found)
+                return { ...current, ...Object.fromEntries(FIELDS.map(({ key }) => [key, filled[key] || current[key]])) }
+              })
+              toast.success('Laine trouvée sur Ravelry : vérifie les champs')
+            }}
+          />
 
           <HuesField hues={draft.hues} onChange={(hues) => setDraft((d) => ({ ...d, hues }))} />
 

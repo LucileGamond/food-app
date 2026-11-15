@@ -28,7 +28,7 @@ import type { Plant, PlantPhoto, WateringEvent } from '@/modules/plantes/lib/pla
 import type { KnitProject, KnitProjectSummary, ReadPattern } from '@/modules/tricot/lib/pattern'
 import type { ProjectProgress } from '@/modules/tricot/lib/progress'
 import type { AdaptedStep } from '@/modules/tricot/lib/adapt'
-import { EMPTY_YARN, type FoundPattern, type StashIdeas, type StashItem, type Yarn, type YarnIdea } from '@/modules/tricot/lib/yarn'
+import { EMPTY_YARN, type FoundPattern, type RavelryYarnHit, type StashIdeas, type StashItem, type Yarn, type YarnIdea } from '@/modules/tricot/lib/yarn'
 import type { KnitPattern, PatternInfo, PatternLink } from '@/modules/tricot/lib/library'
 import type { StoredReading } from '@/modules/tricot/lib/readings'
 import { DEFAULT_SETTINGS, type UserSettings } from '@/lib/settings'
@@ -219,6 +219,8 @@ export function fakeApi(): FakeApi {
       startRavelryConnect: vi.fn(async () => 'https://auth.ravelry.com/oauth2/auth?state=s'),
       finishRavelryConnect: vi.fn(async () => 'lucile_tricote'),
       disconnectRavelry: vi.fn(async () => undefined),
+      searchRavelryYarns: vi.fn(async (): Promise<RavelryYarnHit[]> => []),
+      getRavelryYarn: vi.fn(async (): Promise<Yarn> => EMPTY_YARN),
       downloadPdf: vi.fn(async (_path: string, name: string) => new File(['%PDF'], `${name}.pdf`, { type: 'application/pdf' })),
       addChart: vi.fn(async () => undefined),
       askAboutStep: vi.fn(async () => 'Réponse du modèle.'),
