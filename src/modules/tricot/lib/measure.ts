@@ -10,15 +10,34 @@ import type { Gauge } from './yarn'
 
 const CM_PER_INCH = 2.54
 
-/** « 5 cm », « tous les 2,5 cm », « 50 mm », « 2" », « 2 in » → centimètres ; null si ce n'est pas une longueur. */
+// Unités, de la plus sûre à la moins sûre : « 3,5 mm » est souvent la taille des aiguilles, « in » un mot anglais
+// (« 2 in » seulement en fin de phrase ou avant une ponctuation : « k2 in each st » n'est pas une longueur).
+const UNITS: { pattern: string; cm: number }[] = [
+  { pattern: String.raw`cm\b`, cm: 1 },
+  { pattern: String.raw`mm\b`, cm: 0.1 },
+  { pattern: String.raw`(?:inch(?:es)?\b|pouces?\b|"|″|in(?=\s*(?:[.,;:)]|$)))`, cm: CM_PER_INCH },
+]
+
+/** Nombre collé à un mot (« k2 »), ou dernier d'une liste de tailles (« 30/32/34 cm »). */
+const IN_WORD = /[\p{L}\d.,]$/u
+const IN_LIST = /\d\s*[/–-]\s*$/
+
+/**
+ * « 5 cm », « tous les 2,5 cm », « 50 mm », « 2" », « 2 in » → centimètres ; null si ce n'est pas une longueur, ou si
+ * c'en est une par taille (« 30/32/34 cm », « 30 (32-34) cm » : à régler, on ne sait pas laquelle prendre ici).
+ */
 export function parseMeasure(text: string | null): number | null {
   if (!text) return null
-  const match = /(\d+(?:[.,]\d+)?)\s*(cm|mm|in(?:ch(?:es)?)?\b|pouces?\b|"|″)/i.exec(text)
-  if (!match) return null
-  const value = Number(match[1]!.replace(',', '.'))
-  const unit = match[2]!.toLowerCase()
-  const cm = unit === 'cm' ? value : unit === 'mm' ? value / 10 : value * CM_PER_INCH
-  return cm > 0 && cm <= 500 ? cm : null
+  for (const unit of UNITS) {
+    for (const match of text.matchAll(new RegExp(String.raw`(\d+(?:[.,]\d+)?)\s*${unit.pattern}`, 'gi'))) {
+      const before = text.slice(0, match.index)
+      if (IN_WORD.test(before)) continue
+      if (IN_LIST.test(before)) return null
+      const cm = Number(match[1]!.replace(',', '.')) * unit.cm
+      return cm > 0 && cm <= 500 ? cm : null
+    }
+  }
+  return null
 }
 
 /** Rangs pour 10 cm : ceux de la tricoteuse, sinon ceux du patron ; null si aucun. */

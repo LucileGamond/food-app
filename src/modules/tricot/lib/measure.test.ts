@@ -17,6 +17,20 @@ describe('mesures du patron en rangs', () => {
     expect(parseMeasure(null)).toBeNull()
   })
 
+  it('ne se trompe pas de nombre : cm avant mm, ni liste de tailles, ni « in » anglais', () => {
+    // La taille des aiguilles n'est pas la longueur à tricoter
+    expect(parseMeasure('aiguilles 3,5 mm : 5 cm')).toBe(5)
+    // Une longueur par taille : impossible de choisir ici, elle reste à régler
+    expect(parseMeasure('30/32/34 cm')).toBeNull()
+    expect(parseMeasure('30 (32-34) cm')).toBeNull()
+    expect(parseMeasure('à 30-32-34 cm')).toBeNull()
+    // « in » d'une phrase anglaise, chiffre collé à une lettre
+    expect(parseMeasure('k2 in each st')).toBeNull()
+    expect(parseMeasure('k2 tog 5 times')).toBeNull()
+    expect(parseMeasure('work 2 in.')).toBeCloseTo(5.08)
+    expect(parseMeasure('2 in')).toBeCloseTo(5.08)
+  })
+
   it('échantillon : celui de la tricoteuse d’abord, sinon celui du patron', () => {
     expect(rowGauge({ mine: { stitches: 20, rows: 28 }, pattern: { stitches: 22, rows: 30 } })).toEqual({ rowsPer10: 28, source: 'mine' })
     expect(rowGauge({ mine: { stitches: 20, rows: null }, pattern: { stitches: 22, rows: 30 } })).toEqual({ rowsPer10: 30, source: 'pattern' })
