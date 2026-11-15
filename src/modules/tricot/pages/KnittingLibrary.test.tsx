@@ -64,6 +64,17 @@ describe('page Tricot : accès à la bibliothèque', () => {
     expect(await within(link).findByText('3 patrons · 1 tricoté')).toBeInTheDocument()
   })
 
+  it('bibliothèque, stock ou mesures qui ne se chargent pas : on le dit', async () => {
+    const api = fakeApi()
+    api.knitting.listPatterns.mockRejectedValue(new AppError('Impossible de charger les patrons.'))
+    api.knitting.listStash.mockRejectedValue(new AppError('Impossible de charger le stock de laine.'))
+    api.knitting.listMeasures.mockRejectedValue(new AppError('Impossible de charger les mesures.'))
+    renderWithApp(<KnittingPage />, { api })
+    expect(await screen.findByRole('link', { name: /Bibliothèque de patrons/ })).toHaveTextContent('non chargée')
+    expect(await screen.findByRole('link', { name: /Stock de laine/ })).toHaveTextContent('non chargé')
+    expect(await screen.findByRole('link', { name: /Fiches de mesures/ })).toHaveTextContent('non chargées')
+  })
+
   it('bibliothèque vide : « aucun patron »', async () => {
     renderWithApp(<KnittingPage />)
     expect(await screen.findByRole('link', { name: /Bibliothèque de patrons/ })).toHaveTextContent('aucun patron')
@@ -677,5 +688,12 @@ describe('bibliothèque : étiquettes, couverture, IA, doublons, ajout groupé',
     expect(api.knitting.savePattern.mock.calls[1]).toEqual([expect.objectContaining({ title: 'Pull Bergamote', tags: [] }), { pdfPath: null, newPdf: files[1], photos: [] }, null])
     await user.click(within(dialog).getByRole('button', { name: 'Fermer' }))
     await waitFor(() => expect(api.knitting.listPatterns).toHaveBeenCalledTimes(2))
+  })
+
+  it('ajout groupé : attend la bibliothèque (sans elle, les doublons ne se verraient pas)', async () => {
+    const api = fakeApi()
+    api.knitting.listPatterns.mockRejectedValue(new AppError('Impossible de charger les patrons.'))
+    renderWithApp(<KnittingLibraryPage />, { api, route: '/tricot/patrons', path: '/tricot/patrons' })
+    expect(await screen.findByRole('button', { name: 'Plusieurs PDF' })).toBeDisabled()
   })
 })

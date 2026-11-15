@@ -76,7 +76,7 @@ export function AdaptPanel({ project, size, onSaved }: Props) {
   }
 
   async function accept() {
-    if (!preview) return
+    if (!preview || saving) return
     if (await save({ request: request.trim(), active: true, at: new Date().toISOString(), size, steps: preview }, 'Tu suis maintenant le patron adapté')) {
       setPreview(null)
       setEditing(false)
@@ -180,7 +180,7 @@ export function AdaptPanel({ project, size, onSaved }: Props) {
             <Button variant="ghost" className="h-10" onClick={() => setPreview(null)}>
               <CloseIcon /> Annuler
             </Button>
-            <Button className="h-10" onClick={() => void accept()}>
+            <Button className="h-10" disabled={saving} onClick={() => void accept()}>
               <DoneIcon /> Suivre ce patron adapté
             </Button>
           </DialogFooter>

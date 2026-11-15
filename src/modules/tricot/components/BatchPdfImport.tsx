@@ -26,7 +26,8 @@ const STATUS_TEXT: Record<Exclude<Status, 'failed'>, string> = {
 }
 
 interface Props {
-  library: KnitPattern[]
+  /** null : pas (encore) chargée ; sans elle, les doublons ne se verraient pas : le bouton attend. */
+  library: KnitPattern[] | null
   /** Fin de l'ajout : la bibliothèque est rechargée. */
   onDone: () => void
 }
@@ -42,6 +43,7 @@ export function BatchPdfImport({ library, onDone }: Props) {
     const files = [...(list ?? [])]
     if (input.current) input.current.value = ''
     if (files.length === 0) return
+    if (!library) return
     const plan = planBatch(files, library, MAX_PDF_BYTES)
     const initial: Row[] = plan.map((item, i) => ({ key: `${i}-${files[i]!.name}`, title: item.title, status: item.skip ?? 'waiting' }))
     setRows(initial)
@@ -70,7 +72,7 @@ export function BatchPdfImport({ library, onDone }: Props) {
   const added = rows?.filter((r) => r.status === 'added').length ?? 0
   return (
     <>
-      <Button type="button" variant="outline" className="h-10" onClick={() => input.current?.click()}>
+      <Button type="button" variant="outline" className="h-10" disabled={!library} onClick={() => input.current?.click()}>
         <PdfIcon /> Plusieurs PDF
       </Button>
       <input ref={input} type="file" multiple accept="application/pdf,.pdf" className="sr-only" aria-label="Choisir plusieurs PDF" tabIndex={-1} onChange={(e) => void start(e.target.files)} />

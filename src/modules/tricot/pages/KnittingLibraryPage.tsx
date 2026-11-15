@@ -32,7 +32,7 @@ export function KnittingLibraryPage() {
   const actions = (
     <div className="flex flex-wrap gap-2">
       {addLink}
-      <BatchPdfImport library={list.data ?? []} onDone={list.reload} />
+      <BatchPdfImport library={list.data ?? null} onDone={list.reload} />
       <RavelryImport library={list.data ?? null} onDone={list.reload} />
     </div>
   )

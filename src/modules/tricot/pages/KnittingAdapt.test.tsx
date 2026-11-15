@@ -124,10 +124,16 @@ describe('patron adapté : écran', () => {
     expect(list).toHaveTextContent('16 rangs de plus pour 5 cm.')
 
     api.knitting.getProject.mockResolvedValue(project(ADAPTATION))
+    // Deux clics pendant l'enregistrement : un seul enregistrement
+    let saved!: () => void
+    api.knitting.saveAdaptation.mockImplementationOnce(() => new Promise<void>((resolve) => (saved = resolve)))
     await user.click(within(dialog).getByRole('button', { name: 'Suivre ce patron adapté' }))
+    await user.click(within(dialog).getByRole('button', { name: 'Suivre ce patron adapté' }))
+    saved()
     await waitFor(() =>
       expect(api.knitting.saveAdaptation).toHaveBeenCalledWith('p1', { request: '5 cm de plus aux manches', active: true, at: expect.any(String), size: 'M', steps: ADAPTATION.steps }),
     )
+    expect(api.knitting.saveAdaptation).toHaveBeenCalledTimes(1)
     // L'étape suit le patron adapté, l'origine reste visible
     await user.click(await screen.findByRole('tab', { name: /2. Préparer/ }))
     await user.click(await screen.findByRole('link', { name: /Manches/ }))

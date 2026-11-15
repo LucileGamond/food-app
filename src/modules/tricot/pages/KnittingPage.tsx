@@ -139,10 +139,10 @@ export function KnittingPage() {
             to="/tricot/patrons"
             icon={PatternsIcon}
             title="Bibliothèque de patrons"
-            summary={patterns.data === undefined ? null : patterns.data.length === 0 ? 'aucun patron' : librarySummary(patterns.data)}
+            summary={patterns.error ? 'non chargée' : patterns.data === undefined ? null : patterns.data.length === 0 ? 'aucun patron' : librarySummary(patterns.data)}
           />
-          <Entry to="/tricot/laine" icon={StashIcon} title="Stock de laine" summary={stash.data === undefined ? null : stash.data.length === 0 ? 'vide' : plural(stash.data.length, 'laine')} />
-          <Entry to="/tricot/mesures" icon={MeasuresIcon} title="Fiches de mesures" summary={measures.data === undefined ? null : measures.data.length === 0 ? 'aucune' : plural(measures.data.length, 'fiche')} />
+          <Entry to="/tricot/laine" icon={StashIcon} title="Stock de laine" summary={stash.error ? 'non chargé' : stash.data === undefined ? null : stash.data.length === 0 ? 'vide' : plural(stash.data.length, 'laine')} />
+          <Entry to="/tricot/mesures" icon={MeasuresIcon} title="Fiches de mesures" summary={measures.error ? 'non chargées' : measures.data === undefined ? null : measures.data.length === 0 ? 'aucune' : plural(measures.data.length, 'fiche')} />
         </ul>
       </nav>
     </>
