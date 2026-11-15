@@ -6,18 +6,19 @@
 //   3. { ravelry_finish: { code, state } }  → { username }  code échangé contre les jetons, gardés côté serveur
 //
 // Les jetons (table ravelry_tokens) ne sont jamais lisibles par l'application ; le jeton d'accès est renouvelé avec le
-// jeton de renouvellement (portée « offline ») quand il expire.
+// jeton de renouvellement (portée « offline_access ») quand il expire (jetons d'accès valables 1 heure).
 // Secrets : RAVELRY_CLIENT_ID, RAVELRY_CLIENT_SECRET (facultatif en OAuth 2.1), RAVELRY_REDIRECT_URIS (adresses de
 // retour autorisées, séparées par des virgules).
 
 import { HttpError } from '../_shared/anthropic.ts'
 import { asRecord } from '../_shared/sanitize.ts'
 
-export const RAVELRY_AUTHORIZE_URL = 'https://www.ravelry.com/oauth2/auth'
-export const RAVELRY_TOKEN_URL = 'https://www.ravelry.com/oauth2/token'
+// Adresses des apps OAuth 2.1 de Ravelry (les adresses www.ravelry.com/oauth2/… sont celles des anciennes apps OAuth 2.0).
+export const RAVELRY_AUTHORIZE_URL = 'https://auth.ravelry.com/oauth2/auth'
+export const RAVELRY_TOKEN_URL = 'https://auth.ravelry.com/oauth2/token'
 export const RAVELRY_CURRENT_USER_URL = 'https://api.ravelry.com/current_user.json'
-/** Portée : « offline » pour obtenir un jeton de renouvellement (la lecture des patrons n'en demande pas d'autre). */
-export const RAVELRY_SCOPE = 'offline'
+/** Portée : « offline_access » pour obtenir un jeton de renouvellement (la lecture des patrons n'en demande pas d'autre). */
+export const RAVELRY_SCOPE = 'offline_access'
 /** Délai pour revenir de Ravelry. */
 export const STATE_TTL_MS = 10 * 60_000
 /** Jeton renouvelé un peu avant son expiration. */

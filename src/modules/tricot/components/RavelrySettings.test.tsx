@@ -25,7 +25,7 @@ describe('Réglages : compte Ravelry', () => {
     renderWithApp(<RavelrySettings />, { api })
     await user.click(await screen.findByRole('button', { name: 'Relier mon compte Ravelry' }))
     expect(api.knitting.startRavelryConnect).toHaveBeenCalledWith(`${window.location.origin}/reglages/ravelry`)
-    await waitFor(() => expect(go).toHaveBeenCalledWith('https://www.ravelry.com/oauth2/auth?state=s'))
+    await waitFor(() => expect(go).toHaveBeenCalledWith('https://auth.ravelry.com/oauth2/auth?state=s'))
     // En partance : bouton occupé
     expect(screen.getByRole('button', { name: 'Relier mon compte Ravelry' })).toBeDisabled()
   })

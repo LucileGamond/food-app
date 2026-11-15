@@ -216,7 +216,7 @@ export function fakeApi(): FakeApi {
       getStashIdeas: vi.fn(async (): Promise<StashIdeas | null> => null),
       saveStashIdeas: vi.fn(async () => undefined),
       getRavelryAccount: vi.fn(async (): Promise<{ username: string } | null> => null),
-      startRavelryConnect: vi.fn(async () => 'https://www.ravelry.com/oauth2/auth?state=s'),
+      startRavelryConnect: vi.fn(async () => 'https://auth.ravelry.com/oauth2/auth?state=s'),
       finishRavelryConnect: vi.fn(async () => 'lucile_tricote'),
       disconnectRavelry: vi.fn(async () => undefined),
       downloadPdf: vi.fn(async (_path: string, name: string) => new File(['%PDF'], `${name}.pdf`, { type: 'application/pdf' })),
