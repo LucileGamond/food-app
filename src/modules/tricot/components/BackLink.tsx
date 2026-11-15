@@ -1,7 +1,7 @@
-import { ChevronLeft } from 'lucide-react'
 import { useState, type ReactNode } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { ConfirmDialog } from '@/components/ConfirmDialog'
+import { BackIcon } from './KnitIcons'
 
 interface Props {
   to: string
@@ -25,7 +25,7 @@ export function BackLink({ to, children, confirmLeave = false }: Props) {
           setAsking(true)
         }}
       >
-        <ChevronLeft className="size-4 shrink-0" aria-hidden /> <span className="truncate">{children}</span>
+        <BackIcon className="size-4 shrink-0" aria-hidden /> <span className="truncate">{children}</span>
       </Link>
       {confirmLeave && (
         <ConfirmDialog

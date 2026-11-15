@@ -329,6 +329,19 @@ export function OpenIcon(props: IconProps) {
   return <Icon name="open" {...props}>{() => <Strand s={CHEVRON} />}</Icon>
 }
 
+/** Revenir : le même chevron que « Ouvrir », retourné (étape précédente, retour). */
+export function BackIcon(props: IconProps) {
+  return (
+    <Icon name="back" {...props}>
+      {() => (
+        <g transform="matrix(-1 0 0 1 64 0)">
+          <Strand s={CHEVRON} />
+        </g>
+      )}
+    </Icon>
+  )
+}
+
 /** Lien : deux mailles enlacées. */
 export function LinkIcon(props: IconProps) {
   return (

@@ -46,11 +46,15 @@ export function ModeCounter({ rowCount, totalRows, onCount, substeps = [], onFin
         </Button>
         <p className="min-w-0 flex-1 text-center" aria-live="polite">
           <span className="knit-name text-3xl tabular-nums">{knitted}</span>
-          <span className="text-sm text-muted-foreground tabular-nums">{total === null ? ' rangs faits' : ` sur ${total} rangs`}</span>
+          <span className="text-sm text-muted-foreground tabular-nums">
+            {total !== null ? ` / ${total} rangs finis` : knitted > 1 ? ' rangs finis' : ' rang fini'}
+            {main ? ' dans la sous-étape' : ''}
+          </span>
         </p>
-        <Button className="h-14 px-6 text-base" disabled={rowCount >= MAX_ROW_COUNT} onClick={() => onCount(1)}>
+        {/* On compte à la fin du rang : le bouton dit lequel on vient de finir (celui de « Ce rang »). */}
+        <Button className="h-14 px-5 text-base" disabled={rowCount >= MAX_ROW_COUNT} onClick={() => onCount(1)}>
           <AddIcon />
-          <span className="sr-only">Ajouter</span> 1 rang
+          Rang {rowCount + 1} fini
         </Button>
       </div>
       {total !== null && <YarnGauge done={knitted} total={total} hues={hues} seed={seed} className="max-h-11" />}
@@ -59,7 +63,7 @@ export function ModeCounter({ rowCount, totalRows, onCount, substeps = [], onFin
           {stepDiffers && (
             <span>
               {rowCount}
-              {totalRows !== null && ` / ${totalRows}`} rangs tricotés dans l’étape entière
+              {totalRows !== null && ` / ${totalRows}`} rangs finis dans l’étape entière
             </span>
           )}
           {parallel.map((p) => (

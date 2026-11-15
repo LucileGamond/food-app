@@ -74,7 +74,7 @@ describe('diagrammes d’une étape', () => {
     expect(parseFloat(within(chart).getByTestId('chart-band').style.top)).toBeCloseTo(50)
     await user.click(within(chart).getByRole('button', { name: 'Plein écran : Torsade' }))
     const full = await screen.findByRole('dialog', { name: 'Torsade' })
-    expect(within(full).queryByRole('button', { name: 'Ajouter 1 rang' })).not.toBeInTheDocument()
+    expect(within(full).queryByRole('button', { name: /^Rang \d+ fini$/ })).not.toBeInTheDocument()
   })
 
   it('mode tricoter : le rang du diagramme suit le compteur, avec une bande de l’image', async () => {
@@ -83,7 +83,7 @@ describe('diagrammes d’une étape', () => {
     const line = await rowLine()
     expect(line).toHaveTextContent('Torsade : rang 3 sur 6 · 2e fois · Tour de droite à gauche')
     expect(within(line).getByRole('button', { name: 'Voir Torsade en grand' })).toBeInTheDocument()
-    await user.click(screen.getByRole('button', { name: 'Ajouter 1 rang' }))
+    await user.click(screen.getByRole('button', { name: /^Rang \d+ fini$/ }))
     expect(line).toHaveTextContent('Torsade : rang 4 sur 6 · 2e fois')
   })
 
@@ -251,7 +251,7 @@ describe('diagrammes d’une étape', () => {
     // Une ligne pour deux rangs : rang 9 sur 12
     expect(line).toHaveTextContent('Jacquard : rang 9 sur 12 · Endroit, de droite à gauche')
 
-    await userEvent.setup().click(screen.getByRole('button', { name: 'Ajouter 1 rang' }))
+    await userEvent.setup().click(screen.getByRole('button', { name: /^Rang \d+ fini$/ }))
     expect(line).toHaveTextContent('Torsade : rang 4 sur 6 · 2e fois · Envers, de gauche à droite')
     expect(line).toHaveTextContent('Jacquard : rang 10 sur 12 · Envers, non dessiné')
   })
@@ -263,9 +263,9 @@ describe('diagrammes d’une étape', () => {
     await user.click(await screen.findByRole('button', { name: 'Voir Torsade en grand' }))
     const full = await screen.findByRole('dialog', { name: 'Torsade' })
     expect(within(full).getByRole('status')).toHaveTextContent('Rang 3 sur 6 · 2e fois · Tour de droite à gauche')
-    expect(within(full).getByText('rangs faits')).toHaveTextContent('8 rangs faits')
+    expect(within(full).getByText('rangs finis')).toHaveTextContent('8 rangs finis')
 
-    await user.click(within(full).getByRole('button', { name: 'Ajouter 1 rang' }))
+    await user.click(within(full).getByRole('button', { name: /^Rang \d+ fini$/ }))
     expect(api.knitting.saveProgress).toHaveBeenCalledWith('s2', { rowCount: 9 })
     expect(within(full).getByRole('status')).toHaveTextContent('Rang 4 sur 6')
     await user.click(within(full).getByRole('button', { name: 'Retirer un rang' }))

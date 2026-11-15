@@ -162,7 +162,7 @@ describe('préparation d’une étape', () => {
     expect(screen.getByText('8 / 30 rangs')).toBeInTheDocument()
     expect(screen.getByText('Rangs 5 à 28 · prochaine fois : rang 10')).toBeInTheDocument()
     // On tricote dans le mode tricoter : pas de compteur ni d'écran allumé ici
-    expect(screen.queryByRole('button', { name: 'Ajouter 1 rang' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /^Rang \d+ fini$/ })).not.toBeInTheDocument()
     expect(screen.queryByRole('switch')).not.toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'Tricoter cette étape' })).toHaveAttribute('href', '/tricot/p1/tricoter?etape=s2')
 

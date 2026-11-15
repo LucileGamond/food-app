@@ -24,6 +24,9 @@ const REPLACED: Record<string, string> = {
   Save: 'DoneIcon',
   ExternalLink: 'LinkIcon',
   Download: 'LinkIcon',
+  // Précédent et suivant ont le même chevron (2026-11-15)
+  ChevronLeft: 'BackIcon',
+  ChevronRight: 'OpenIcon',
 }
 
 describe('icônes du module Tricot', () => {

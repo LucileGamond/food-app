@@ -207,6 +207,38 @@ describe('sous-étapes d’une étape', () => {
     expect(api.knitting.saveProgress).toHaveBeenLastCalledWith('s2', { startStitches: null })
   })
 
+  it('modifier une sous-étape : numérotée, reprise en entier en haut, les autres en retrait', async () => {
+    const user = userEvent.setup()
+    const project = structuredClone(PROJECT)
+    project.steps[1]!.sections[0]!.source = 'Tricoter 4 rangs de jersey.'
+    renderProject(fakeApi(), project, `${STEP}=s2`)
+    // Numérotées, dans l'ordre
+    const list = (await screen.findByRole('button', { name: 'Actions pour « 4 rangs : jersey »' })).closest('ol')!
+    expect([...list.querySelectorAll(':scope > li')].map((li) => li.textContent!.trim()[0])).toEqual(['1', '2'])
+    await user.click(screen.getByRole('button', { name: 'Actions pour « 4 rangs : jersey »' }))
+    await user.click(await screen.findByRole('menuitem', { name: 'Modifier' }))
+    // En haut : la sous-étape, son titre et le texte du patron
+    const editing = screen.getByRole('listitem', { name: '4 rangs : jersey' })
+    expect(editing).toHaveTextContent('Modifier la sous-étape 1')
+    expect(editing).toHaveTextContent('Tricoter 4 rangs de jersey.')
+    expect(within(editing).getByRole('form', { name: 'Sous-étape' })).toBeInTheDocument()
+    // Les autres : une ligne discrète, sans actions ni détail
+    const aside = screen.getAllByTestId('section-aside')
+    expect(aside).toHaveLength(1)
+    expect(aside[0]).toHaveTextContent('1 diminution de chaque côté — tous les 6 rangs (4 fois)')
+    expect(screen.queryByRole('button', { name: /^Actions pour/ })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Ajouter une sous-étape' })).not.toBeInTheDocument()
+    await user.click(within(editing).getByRole('button', { name: 'Annuler' }))
+    expect(screen.queryByTestId('section-aside')).not.toBeInTheDocument()
+  })
+
+  it('arrivée depuis le mode tricoter (?sous-etape=2) : la sous-étape à corriger s’ouvre', async () => {
+    renderProject(fakeApi(), structuredClone(PROJECT), `${STEP}=s2&sous-etape=2`)
+    const editing = await screen.findByRole('listitem', { name: '1 diminution de chaque côté — tous les 6 rangs (4 fois)' })
+    expect(editing).toHaveTextContent('Modifier la sous-étape 2')
+    expect(within(editing).getByRole('form', { name: 'Sous-étape' })).toBeInTheDocument()
+  })
+
   it('règle, ajoute, déplace et supprime des sections', async () => {
     const user = userEvent.setup()
     const { api } = renderProject()

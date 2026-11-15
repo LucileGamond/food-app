@@ -74,7 +74,7 @@ describe('sections « en même temps »', () => {
     const guide = stepGuide(toSet, [], 'Col')
     expect(guide.at(1).events.map(describeEvent)).toContain('À régler avant de continuer : En même temps, à 5 cm (à régler) : 20 m centrales en attente — à chaque rang (1 fois)')
     expect(guide.at(2).unknown).toBe(true)
-    expect(stitchTrack(toSet)(1)).toEqual({ kind: 'unknown', reason: 'Une sous-étape est à régler en rangs.' })
+    expect(stitchTrack(toSet)(1)).toEqual({ kind: 'unknown', reason: 'Une sous-étape est à régler en rangs.', section: 3 })
   })
 
   it('une section à régler sur la piste principale : les autres pistes restent annoncées jusque-là', () => {

@@ -10,8 +10,8 @@ import { actionEffect, isToSet, planSections, type RepeatAction, type StepSectio
 export type StitchCount =
   | { kind: 'sure'; stitches: number }
   /** Estimation : au moins un effet est deviné ; `reasons` dit lesquels. */
-  | { kind: 'estimate'; stitches: number; reasons: string[] }
-  | { kind: 'unknown'; reason: string }
+  | { kind: 'estimate'; stitches: number; reasons: string[]; section?: number }
+  | { kind: 'unknown'; reason: string; section?: number }
 
 /** Mailles en fin de rang, pour le rang `row` de l'étape. */
 export type StitchTrack = (row: number) => StitchCount
@@ -35,8 +35,9 @@ function effectOf(action: RepeatAction): { stitches: number; guessed: boolean } 
   return { stitches: guess ?? 0, guessed: true }
 }
 
-function unknown(reason: string): StitchTrack {
-  return () => ({ kind: 'unknown', reason })
+/** `section` : la sous-étape où corriger (son index), quand on la connaît. */
+function unknown(reason: string, section?: number): StitchTrack {
+  return () => ({ kind: 'unknown', reason, ...(section !== undefined ? { section } : {}) })
 }
 
 type CountedStep = { sections: StepSection[]; totalRows: number | null; stitches: number | null; startStitches?: number | null }
@@ -49,13 +50,14 @@ export function stitchTrack(step: CountedStep): StitchTrack {
   const startSet = step.startStitches ?? null
   if (step.stitches === null && startSet === null) return unknown('Le nombre de mailles à la fin de l’étape n’est pas indiqué.')
   const plan = planSections(step.sections, step.totalRows)
-  if (plan.some((p) => p.start === null || isToSet(p.section))) {
-    return unknown('Une sous-étape est à régler en rangs.')
+  const toSet = plan.find((p) => p.start === null || isToSet(p.section))
+  if (toSet) {
+    return unknown('Une sous-étape est à régler en rangs.', toSet.index)
   }
   if (step.totalRows === null && plan.some((p) => p.section.kind === 'repeat' && p.section.times === null)) {
     return unknown('Une répétition va jusqu’à la fin de l’étape, dont le nombre de rangs n’est pas connu.')
   }
-  const changes = plan.flatMap((p) => p.actions.map((a) => ({ row: a.row, text: a.action.text, ...effectOf(a.action) })))
+  const changes = plan.flatMap((p) => p.actions.map((a) => ({ row: a.row, text: a.action.text, index: p.index, ...effectOf(a.action) })))
   const start = startSet ?? step.stitches! - changes.reduce((sum, c) => sum + c.stitches, 0)
   const reasons = [...new Set(changes.filter((c) => c.guessed).map((c) => c.text))].map((text) => {
     const guess = guessStitches(text)
@@ -64,7 +66,9 @@ export function stitchTrack(step: CountedStep): StitchTrack {
   if (start <= 0) return unknown('Le nombre de mailles ne tombe pas juste : vérifie les sous-étapes et le nombre de mailles de l’étape.')
   return (row) => {
     const stitches = start + changes.filter((c) => c.row <= row).reduce((sum, c) => sum + c.stitches, 0)
-    return reasons.length ? { kind: 'estimate', stitches, reasons } : { kind: 'sure', stitches }
+    // La première sous-étape dont un effet est deviné : c'est là qu'on donne les mailles de ses actions.
+    const section = changes.find((c) => c.guessed)?.index
+    return reasons.length ? { kind: 'estimate', stitches, reasons, ...(section !== undefined ? { section } : {}) } : { kind: 'sure', stitches }
   }
 }
 

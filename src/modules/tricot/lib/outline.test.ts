@@ -54,7 +54,7 @@ describe('étape entière', () => {
 
   it('effet deviné : mailles en estimation', () => {
     const [section] = stepOutline({ sections: [repeat(2, 2, '1 dim.')], totalRows: 4, stitches: 10 }, null)
-    expect(section!.rows[0]!.stitches).toEqual({ kind: 'estimate', stitches: 11, reasons: ['Effet de « 1 dim. » deviné : -1 mailles.'] })
+    expect(section!.rows[0]!.stitches).toEqual({ kind: 'estimate', stitches: 11, reasons: ['Effet de « 1 dim. » deviné : -1 mailles.'], section: 0 })
   })
 
   it('section du rang en cours', () => {

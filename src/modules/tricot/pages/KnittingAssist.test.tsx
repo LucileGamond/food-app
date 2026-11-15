@@ -183,8 +183,8 @@ describe('hors ligne', () => {
     await screen.findByRole('heading', { name: 'Dos' })
     const online = vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(false)
     try {
-      await user.click(screen.getByRole('button', { name: 'Ajouter 1 rang' }))
-      await user.click(screen.getByRole('button', { name: 'Ajouter 1 rang' }))
+      await user.click(screen.getByRole('button', { name: /^Rang \d+ fini$/ }))
+      await user.click(screen.getByRole('button', { name: /^Rang \d+ fini$/ }))
       expect(api.knitting.saveProgress).not.toHaveBeenCalled()
       expect(screen.getByText(/Hors ligne : tu tricotes sur la version gardée sur ce téléphone/)).toBeInTheDocument()
 
@@ -223,7 +223,7 @@ describe('hors ligne', () => {
       throw new Error('réseau')
     })
     try {
-      await user.click(screen.getByRole('button', { name: 'Ajouter 1 rang' }))
+      await user.click(screen.getByRole('button', { name: /^Rang \d+ fini$/ }))
       expect(await screen.findByText(/Hors ligne/)).toBeInTheDocument()
       expect(JSON.parse(localStorage.getItem('life:tricot:en-attente')!)).toEqual({ s1: { projectId: 'p1', progress: { rowCount: 12 } } })
     } finally {

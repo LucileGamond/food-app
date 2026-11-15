@@ -100,7 +100,7 @@ export function RowLine({ line, stitches, glossary, setupTo, onOpenChart, subste
   // La prochaine chose à faire, quand elle tombe plus loin que le rang suivant.
   const later = upcoming && (!next || upcoming.row > next.row) ? upcoming : null
   return (
-    <section aria-labelledby="row-line" className="space-y-3 rounded-2xl border border-brand/40 bg-brand/5 p-4">
+    <section aria-labelledby="row-line" data-row={line.row} className="space-y-3 rounded-2xl border border-brand/40 bg-brand/5 p-4">
       {substeps.length > 0 && (
         <ul aria-label="Sous-étapes en cours" className="space-y-0.5 text-sm">
           {substeps.map((s, i) => (
@@ -117,8 +117,9 @@ export function RowLine({ line, stitches, glossary, setupTo, onOpenChart, subste
       )}
       {/* Annoncé au lecteur d'écran à chaque rang compté. */}
       <div role="status" aria-live="polite" className="space-y-2">
-        <h2 id="row-line" className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
-          Ce rang
+        {/* Le numéro du rang de l'étape à tricoter maintenant : rien tricoté, c'est le rang 1. */}
+        <h2 className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
+          <span id="row-line">Ce rang</span> <span className="knit-name text-sm text-foreground normal-case tabular-nums">· rang {line.row}</span>
         </h2>
         {line.unknown ? (
           <p className="flex items-start gap-2 text-sm">
@@ -136,12 +137,12 @@ export function RowLine({ line, stitches, glossary, setupTo, onOpenChart, subste
           </div>
         )}
       </div>
-      {!line.unknown && <StitchLine count={stitches} />}
+      {!line.unknown && <StitchLine count={stitches} setupTo={setupTo} />}
       {!line.unknown && strips.map((c) => <ChartStrip key={c.chart.id} chart={c.chart} position={c.position} onOpen={() => onOpenChart(c.chart.id)} />)}
       {!line.unknown && next && !next.unknown && (
         <section aria-labelledby="row-next" className="space-y-1.5 border-t border-brand/20 pt-3 text-sm">
-          <h3 id="row-next" className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
-            Rang suivant
+          <h3 className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
+            <span id="row-next">Rang suivant</span> <span className="knit-name text-sm text-foreground normal-case tabular-nums">· rang {next.row}</span>
           </h3>
           <Instructions line={next} glossary={glossary} setupTo={setupTo} point={nextPoint} />
         </section>

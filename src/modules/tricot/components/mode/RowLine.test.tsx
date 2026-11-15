@@ -28,10 +28,9 @@ describe('RowLine : aller préparer l’étape', () => {
     expect(within(region).getByRole('link', { name: 'Préparer l’étape' })).toHaveAttribute('href', SETUP)
   })
 
-  it('pas de numéro de rang dans la carte : les nombres sont au compteur (L5)', () => {
+  it('le numéro du rang de l’étape à tricoter, dans le titre (revient sur L5, demandé le 2026-11-15)', () => {
     const region = show({ row: 41, events: [], context: '10 rangs : jersey', charts: [], unknown: false })
-    expect(within(region).getByRole('heading')).toHaveTextContent(/^Ce rang$/)
-    expect(region).not.toHaveTextContent('41')
+    expect(within(region).getByRole('heading')).toHaveTextContent(/^Ce rang · rang 41$/)
   })
 
   it('nomme la sous-étape où l’on est, et celle « en même temps »', () => {
@@ -79,7 +78,7 @@ describe('RowLine : aller préparer l’étape', () => {
       </MemoryRouter>,
     )
     // Rien de particulier au rang suivant : son contexte ; la prochaine chose à faire a sa section « Ensuite »
-    expect(screen.getByRole('region', { name: 'Rang suivant' })).toHaveTextContent('Rang suivantjersey')
+    expect(screen.getByRole('region', { name: 'Rang suivant' })).toHaveTextContent('Rang suivant · rang 15jersey')
     expect(screen.getByRole('region', { name: 'Ensuite' })).toHaveTextContent('EnsuiteRang 18, dans 4 —')
     unmount2()
     render(

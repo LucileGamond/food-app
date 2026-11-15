@@ -1,5 +1,5 @@
-import { ChevronLeft, X } from 'lucide-react'
-import { StarIcon } from './KnitIcons'
+import { X } from 'lucide-react'
+import { BackIcon, StarIcon } from './KnitIcons'
 
 interface Thumb {
   key: string
@@ -46,7 +46,7 @@ export function PatternThumbs({ thumbs, label, onOpen, onRemove, onMove }: Props
                 </button>
               )}
               <button type="button" aria-label={`Avancer la photo ${i + 1}`} onClick={() => onMove(i, i - 1)} className={`${SMALL_BUTTON} bottom-0.5 left-0.5`}>
-                <ChevronLeft className="size-4" aria-hidden />
+                <BackIcon className="size-4" aria-hidden />
               </button>
             </>
           )}

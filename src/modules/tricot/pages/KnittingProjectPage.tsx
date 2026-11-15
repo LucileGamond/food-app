@@ -1,5 +1,5 @@
-import { Check, ChevronLeft, SearchX } from 'lucide-react'
-import { ChartIcon, DeleteIcon, KnitIcon, NotesIcon, OpenIcon, OrganizeIcon, PatternsIcon, PdfIcon, StepsIcon, UndoIcon } from '../components/KnitIcons'
+import { Check, SearchX } from 'lucide-react'
+import { BackIcon, ChartIcon, DeleteIcon, KnitIcon, NotesIcon, OpenIcon, OrganizeIcon, PatternsIcon, PdfIcon, StepsIcon, UndoIcon } from '../components/KnitIcons'
 import { useState } from 'react'
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { toast } from 'sonner'
@@ -67,6 +67,8 @@ export function KnittingProjectPage() {
   // Arrivée depuis une sous-étape à convertir : l'échantillon de cette aiguille s'ouvre (« defaut » : celui par défaut).
   const gaugeParam = params.get('echantillon')
   const [confirmDelete, setConfirmDelete] = useState(false)
+  // Sous-étape à ouvrir, demandée depuis le mode tricoter (?sous-etape=2, à partir de 1).
+  const sectionParam = Number(params.get('sous-etape')) || null
   // Sous-étape à ouvrir, demandée depuis « À préparer ».
   const [fixSection, setFixSection] = useState<number | null>(null)
   // Blocs de la préparation ouverts à la main, par étape (« s1:sections ») ; sinon repliés, sauf ce qui est à préparer.
@@ -298,7 +300,7 @@ export function KnittingProjectPage() {
           )}
           <div className="ml-auto flex gap-2">
             <Button variant="outline" size="icon-lg" aria-label="Étape précédente" disabled={index === 0} onClick={() => openStep(steps[index - 1]!.id, true)}>
-              <ChevronLeft />
+              <BackIcon />
             </Button>
             <Button variant="outline" size="icon-lg" aria-label="Étape suivante" disabled={index === steps.length - 1} onClick={() => openStep(steps[index + 1]!.id, true)}>
               <OpenIcon />
@@ -385,12 +387,16 @@ export function KnittingProjectPage() {
             summary={[plural(step.sections.length, 'sous-étape'), toFix > 0 && `${toFix} à régler`].filter(Boolean).join(' · ') || 'aucune'}
             action={<HelpTip label="sous-étapes">{SECTIONS_HELP}</HelpTip>}
             className={PART}
-            open={partOpen('sections', toFix > 0)}
+            open={partOpen('sections', toFix > 0 || sectionParam !== null)}
             onToggle={() => togglePart('sections', toFix > 0)}
           >
             {/* Ouvert d'office (à préparer) : un geste dedans le garde ouvert, même quand il n'y a plus rien à régler. */}
             <div onClickCapture={() => setUnfolded((o) => ({ ...o, [partKey('sections')]: true }))}>
-              <StepSections headless step={step} needles={needles} choices={needleChoices} text={{ sizes: project.sizes, sizeIndex: project.sizeIndex, abbreviations: project.abbreviations ?? [] }} charts={charts.filter((c) => c.stepId === step.id)} gauges={projectGauges} onCheckNeedle={checkNeedle} onSetTotalRows={step.adapted ? undefined : (rows) => setTotalRows(step, rows)} open={fixSection} onOpened={() => setFixSection(null)} organizeTo={adaptation || isStarted(step) ? undefined : `/tricot/${project.id}?onglet=preparer&vue=organiser`} onChange={(sections) => saveSections(step, sections)} />
+              <StepSections headless step={step} needles={needles} choices={needleChoices} text={{ sizes: project.sizes, sizeIndex: project.sizeIndex, abbreviations: project.abbreviations ?? [] }} charts={charts.filter((c) => c.stepId === step.id)} gauges={projectGauges} onCheckNeedle={checkNeedle} onSetTotalRows={step.adapted ? undefined : (rows) => setTotalRows(step, rows)} open={fixSection ?? (sectionParam !== null ? sectionParam - 1 : null)} onOpened={() => {
+                setFixSection(null)
+                // Ouverte une fois : l'adresse ne la rouvre plus
+                if (sectionParam !== null) setParams({ etape: step.id }, { replace: true })
+              }} organizeTo={adaptation || isStarted(step) ? undefined : `/tricot/${project.id}?onglet=preparer&vue=organiser`} onChange={(sections) => saveSections(step, sections)} />
             </div>
           </Fold>
           <Fold
@@ -443,7 +449,7 @@ export function KnittingProjectPage() {
           <nav aria-label="Étapes voisines" className="mt-3 grid grid-cols-2 gap-2">
             {index > 0 ? (
               <Button variant="outline" className="h-11 min-w-0 justify-start" onClick={() => openStep(steps[index - 1]!.id, true)}>
-                <ChevronLeft /> <span className="truncate">{steps[index - 1]!.title}</span>
+                <BackIcon /> <span className="truncate">{steps[index - 1]!.title}</span>
               </Button>
             ) : (
               <span />
@@ -558,7 +564,7 @@ export function KnittingProjectPage() {
                 className="h-10"
                 onClick={() => setParams(organizing ? { onglet: 'preparer' } : { onglet: 'preparer', vue: 'organiser' }, { replace: true })}
               >
-                {organizing ? <ChevronLeft /> : <OrganizeIcon />}
+                {organizing ? <BackIcon /> : <OrganizeIcon />}
                 {organizing ? 'Retour aux étapes' : 'Organiser'}
               </Button>
             </div>

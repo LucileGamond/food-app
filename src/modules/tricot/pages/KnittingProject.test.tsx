@@ -41,7 +41,7 @@ describe('KnittingProjectPage : navigation, onglets et en-tête', () => {
     expect(screen.getByRole('link', { name: 'Tricoter' })).toHaveAttribute('href', '/tricot/p1/tricoter')
     // Pas d'interrupteur d'écran ni de compteur ici ; le suivi est replié.
     expect(screen.queryByRole('switch')).not.toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: 'Ajouter 1 rang' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /^Rang \d+ fini$/ })).not.toBeInTheDocument()
     for (const title of ['Assez de laine pour finir ?', 'Notes et photos']) {
       expect(screen.getByRole('button', { name: title })).toHaveAttribute('aria-expanded', 'false')
     }

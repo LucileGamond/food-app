@@ -75,16 +75,17 @@ function ConversionCheck({ section, onValidate, onEdit, check }: { section: Step
     )
   }
   return (
-    <Note kind="todo" className="mt-2">
-      <span>
+    <Note kind="todo" title="Mesure à vérifier" className="mt-2">
+      <p>
         Converti depuis le patron : {calculation} (arrondi).{' '}
         {check ? `Vérifie-le : valider vaut pour toutes les sous-étapes ${check.needle !== null ? `à l’aiguille ${formatNeedle(check.needle)}` : 'du projet'}.` : 'Vérifie ce nombre, puis valide-le ; il suit l’échantillon tant qu’il n’est pas validé.'}
-      </span>
+      </p>
+      {/* Libellés longs (« Valider pour l’aiguille 6 mm ») : ils passent à la ligne plutôt que de déborder. */}
       <div className="mt-2 flex flex-wrap gap-2">
-        <Button type="button" className="h-10" onClick={onValidate}>
+        <Button type="button" className="h-auto min-h-10 max-w-full whitespace-normal text-left" onClick={onValidate}>
           <DoneIcon /> {check?.needle != null ? `Valider pour l’aiguille ${formatNeedle(check.needle)}` : 'Valider'}
         </Button>
-        <Button type="button" variant="outline" className="h-10" onClick={onEdit}>
+        <Button type="button" variant="outline" className="h-auto min-h-10" onClick={onEdit}>
           <EditIcon /> Modifier
         </Button>
       </div>
@@ -283,6 +284,15 @@ function SectionForm({ section, onSave, onCancel, needle }: { section: StepSecti
   )
 }
 
+/** Numéro de la sous-étape, en pastille : le même partout (liste, modification). */
+function SectionNumber({ n, className }: { n: number; className?: string }) {
+  return (
+    <span className={cn('inline-flex size-6 shrink-0 items-center justify-center rounded-full bg-muted text-xs font-medium tabular-nums text-foreground', className)} aria-hidden>
+      {n}
+    </span>
+  )
+}
+
 interface TextProps {
   /** Tailles du patron et celle mise en valeur, pour le paragraphe de chaque sous-étape. */
   sizes: string[]
@@ -400,9 +410,31 @@ export function StepSections({
         {plan.map((p) => {
           const { section, index } = p
           if (editing === index) {
+            // En haut : la sous-étape modifiée, en entier (titre et texte du patron), pour s'y retrouver.
             return (
-              <li key={index} id={`section-${step.id}-${index}`}>
+              <li key={index} id={`section-${step.id}-${index}`} className="space-y-2 rounded-xl border-2 border-brand bg-brand/5 p-2" aria-labelledby={`section-${step.id}-${index}-title`}>
+                <div className="flex items-start gap-2 px-1 pt-1">
+                  <SectionNumber n={index + 1} />
+                  <div className="min-w-0 flex-1">
+                    <p className="text-xs text-muted-foreground">Modifier la sous-étape {index + 1}</p>
+                    <p id={`section-${step.id}-${index}-title`} className="font-medium">
+                      {describeSection(section)}
+                    </p>
+                  </div>
+                </div>
+                {section.source && text && (
+                  <SizedText text={section.source} sizes={text.sizes} sizeIndex={text.sizeIndex} glossary={glossary} className="rounded-lg bg-background px-2 py-1.5 text-foreground" />
+                )}
                 <SectionForm section={section} needle={{ needles: offered, inherited: inheritedAt(index) }} onSave={(s) => void save(index, s)} onCancel={() => setEditing(null)} />
+              </li>
+            )
+          }
+          if (editing !== null) {
+            // Pendant une modification, les autres sous-étapes se font discrètes : une ligne, pour situer.
+            return (
+              <li key={index} id={`section-${step.id}-${index}`} className="flex items-center gap-2 px-3 py-1 text-muted-foreground" data-testid="section-aside">
+                <SectionNumber n={index + 1} className="bg-transparent text-muted-foreground" />
+                <span className="min-w-0 truncate">{describeSection(section)}</span>
               </li>
             )
           }
@@ -421,66 +453,15 @@ export function StepSections({
                 done && 'text-muted-foreground',
               )}
             >
+              {/* Le menu ne garde que la ligne du titre : texte, encadrés et boutons prennent toute la largeur. */}
               <div className="flex items-start gap-2">
-                <div className="min-w-0 flex-1">
-                  <p className={cn(!done && 'font-medium')}>
-                    {done && <Check className="mr-1 inline size-3.5" aria-label="Faite" />}
-                    {describeSection(section)}
-                  </p>
-                  {offered.length > 0 && (
-                    <button
-                      type="button"
-                      onClick={() => setEditing(index)}
-                      className={cn(
-                        'relative mt-1 inline-flex min-h-7 items-center gap-1 rounded-full px-2 text-xs focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none',
-                        TOUCH_AREA,
-                        own[index] === null ? 'bg-amber-500/15 font-medium' : 'bg-muted text-muted-foreground',
-                      )}
-                    >
-                      <NeedlesIcon className="size-4" />
-                      {own[index] === null ? 'Aiguille à choisir' : `Aiguille ${formatNeedle(own[index]!)}`}
-                    </button>
-                  )}
-                  <p className="text-xs text-muted-foreground">
-                    {toSet ? (
-                      hasMeasure(section) ? (
-                        <>
-                          Sans échantillon, les centimètres ne se convertissent pas en rangs.{' '}
-                          <Link
-                            to={`?onglet=demarrer&echantillon=${own[index] === null ? 'defaut' : own[index]}`}
-                            className="font-medium text-foreground underline underline-offset-4"
-                          >
-                            {own[index] === null ? 'Noter mon échantillon' : `Noter mon échantillon à l’aiguille ${formatNeedle(own[index]!)}`}
-                          </Link>
-                        </>
-                      ) : (
-                        'Indique le nombre de rangs pour que la suite se calcule.'
-                      )
-                    ) : (
-                      [range, current.includes(index) && next !== null && `prochaine fois : rang ${next}`].filter(Boolean).join(' · ')
-                    )}
-                  </p>
-                  {p.start !== null &&
-                    charts
-                      .filter((c) => c.startRow >= p.start! && (p.end === null || c.startRow <= p.end))
-                      .map((c) => (
-                        <p key={c.id} className="mt-1 flex items-center gap-1.5 text-xs text-muted-foreground">
-                          <ChartIcon className="size-3.5" aria-hidden /> Diagramme {c.title ? `« ${c.title} »` : ''} : rangs {c.startRow}
-                          {c.endRow ? ` à ${c.endRow}` : ' et suivants'}
-                        </p>
-                      ))}
-                  {section.source && text && (
-                    <SizedText text={section.source} sizes={text.sizes} sizeIndex={text.sizeIndex} glossary={glossary} className="mt-1.5 rounded-lg bg-muted/40 px-2 py-1.5 text-foreground" />
-                  )}
-                  <ConversionCheck
-                    section={section}
-                    check={onCheckNeedle ? { needle: own[index] ?? null, checked: isChecked(gauges, own[index] ?? null) } : undefined}
-                    onValidate={() => void (onCheckNeedle ? onCheckNeedle(own[index] ?? null) : save(index, validateSection(section)))}
-                    onEdit={() => setEditing(index)}
-                  />
-                </div>
+                <SectionNumber n={index + 1} className="mt-0.5" />
+                <p className={cn('min-w-0 flex-1 pt-0.5', !done && 'font-medium')}>
+                  {done && <Check className="mr-1 inline size-3.5" aria-label="Faite" />}
+                  {describeSection(section)}
+                </p>
                 <DropdownMenu>
-                  <DropdownMenuTrigger render={<Button variant="ghost" size="icon-touch" aria-label={`Actions pour « ${describeSection(section)} »`} />}>
+                  <DropdownMenuTrigger render={<Button variant="ghost" size="icon-touch" className="-my-1.5 -mr-1.5" aria-label={`Actions pour « ${describeSection(section)} »`} />}>
                     <MoreHorizontal />
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end" className="w-44">
@@ -508,11 +489,68 @@ export function StepSections({
                   </DropdownMenuContent>
                 </DropdownMenu>
               </div>
+              <div>
+                {offered.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => setEditing(index)}
+                    className={cn(
+                      'relative mt-1 inline-flex min-h-7 items-center gap-1 rounded-full px-2 text-xs focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none',
+                      TOUCH_AREA,
+                      own[index] === null ? 'bg-amber-500/15 font-medium' : 'bg-muted text-muted-foreground',
+                    )}
+                  >
+                    <NeedlesIcon className="size-4" />
+                    {own[index] === null ? 'Aiguille à choisir' : `Aiguille ${formatNeedle(own[index]!)}`}
+                  </button>
+                )}
+                <p className="text-xs text-muted-foreground">
+                  {toSet ? (
+                    hasMeasure(section) ? (
+                      <>
+                        Sans échantillon, les centimètres ne se convertissent pas en rangs.{' '}
+                        <Link
+                          to={`?onglet=demarrer&echantillon=${own[index] === null ? 'defaut' : own[index]}`}
+                          className="font-medium text-foreground underline underline-offset-4"
+                        >
+                          {own[index] === null ? 'Noter mon échantillon' : `Noter mon échantillon à l’aiguille ${formatNeedle(own[index]!)}`}
+                        </Link>
+                      </>
+                    ) : (
+                      'Indique le nombre de rangs pour que la suite se calcule.'
+                    )
+                  ) : (
+                    [range, current.includes(index) && next !== null && `prochaine fois : rang ${next}`].filter(Boolean).join(' · ')
+                  )}
+                </p>
+                {p.start !== null &&
+                  charts
+                    .filter((c) => c.startRow >= p.start! && (p.end === null || c.startRow <= p.end))
+                    .map((c) => (
+                      <p key={c.id} className="mt-1 flex items-center gap-1.5 text-xs text-muted-foreground">
+                        <ChartIcon className="size-3.5" aria-hidden /> Diagramme {c.title ? `« ${c.title} »` : ''} : rangs {c.startRow}
+                        {c.endRow ? ` à ${c.endRow}` : ' et suivants'}
+                      </p>
+                    ))}
+                {section.source && text && (
+                  <SizedText text={section.source} sizes={text.sizes} sizeIndex={text.sizeIndex} glossary={glossary} className="mt-1.5 rounded-lg bg-muted/40 px-2 py-1.5 text-foreground" />
+                )}
+                <ConversionCheck
+                  section={section}
+                  check={onCheckNeedle ? { needle: own[index] ?? null, checked: isChecked(gauges, own[index] ?? null) } : undefined}
+                  onValidate={() => void (onCheckNeedle ? onCheckNeedle(own[index] ?? null) : save(index, validateSection(section)))}
+                  onEdit={() => setEditing(index)}
+                />
+              </div>
             </li>
           )
         })}
         {editing === step.sections.length && (
-          <li>
+          <li id={`section-${step.id}-${step.sections.length}`} className="space-y-2 rounded-xl border-2 border-brand bg-brand/5 p-2">
+            <div className="flex items-center gap-2 px-1 pt-1">
+              <SectionNumber n={step.sections.length + 1} />
+              <p className="font-medium">Nouvelle sous-étape</p>
+            </div>
             <SectionForm section={EMPTY} needle={{ needles: offered, inherited: inheritedAt(step.sections.length) }} onSave={(s) => void save(step.sections.length, s)} onCancel={() => setEditing(null)} />
           </li>
         )}

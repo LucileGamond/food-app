@@ -170,11 +170,12 @@ export function ChartFullscreen({ chart, position, open, onOpenChange, counter }
               <RemoveIcon />
             </Button>
             <p className="min-w-0 flex-1 text-center text-sm text-muted-foreground">
-              <span className="knit-name text-2xl text-foreground tabular-nums">{counter.rowCount}</span> rangs faits
+              <span className="knit-name text-2xl text-foreground tabular-nums">{counter.rowCount}</span> {counter.rowCount > 1 ? 'rangs finis' : 'rang fini'}
             </p>
-            <Button className="h-12 px-6" onClick={() => counter.onCount(1)}>
+            {/* Même bouton que le compteur du mode tricoter : il dit quel rang on vient de finir. */}
+            <Button className="h-12 px-5" onClick={() => counter.onCount(1)}>
               <AddIcon />
-              <span className="sr-only">Ajouter</span> 1 rang
+              Rang {counter.rowCount + 1} fini
             </Button>
           </div>
         )}

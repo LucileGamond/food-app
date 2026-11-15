@@ -142,7 +142,7 @@ describe('patron adapté : écran', () => {
     const api = fakeApi()
     api.knitting.getProject.mockResolvedValue({ ...project(ADAPTATION), sizes: ['M', 'L'], sizeIndex: 1 })
     renderWithApp(<KnittingModePage />, { api, route: '/tricot/p1/tricoter', path: '/tricot/:id/tricoter' })
-    expect(await screen.findByText(/\d+ \/ 120 rangs tricotés dans l’étape entière/)).toBeInTheDocument()
+    expect(await screen.findByText(/\d+ \/ 120 rangs finis dans l’étape entière/)).toBeInTheDocument()
   })
 
   it('patron adapté suivi : les sections réglées vont dans l’adaptation, pas dans le patron d’origine', async () => {
