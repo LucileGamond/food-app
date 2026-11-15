@@ -83,6 +83,20 @@ describe('notes et photos d’avancement', () => {
     expect(api.knitting.saveProjectNotes).toHaveBeenCalledTimes(1)
   })
 
+  it('notes non enregistrées : le message d’erreur, jamais « Enregistré »', async () => {
+    const user = userEvent.setup()
+    const api = fakeApi()
+    api.knitting.saveProjectNotes.mockRejectedValue(new AppError('Impossible d’enregistrer les notes.'))
+    renderProject(api)
+    await openFold('Notes et photos')
+    const notes = await screen.findByLabelText('Notes du projet')
+    await user.type(notes, 'Manches')
+    await user.tab()
+    await waitFor(() => expect(api.knitting.saveProjectNotes).toHaveBeenCalled())
+    await waitFor(() => expect(screen.queryByText('Enregistrement…')).not.toBeInTheDocument())
+    expect(screen.queryByText('Enregistré')).not.toBeInTheDocument()
+  })
+
   it('garde ce qui est tapé pendant l’enregistrement des notes', async () => {
     const user = userEvent.setup()
     const api = fakeApi()

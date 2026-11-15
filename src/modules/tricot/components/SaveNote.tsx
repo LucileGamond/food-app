@@ -7,14 +7,16 @@ import { cn } from '@/lib/utils'
 
 export type SaveState = 'idle' | 'saving' | 'saved'
 
-/** Suit un enregistrement automatique : « Enregistrement… » puis « Enregistré » (rien si ça rate, le toast le dit). */
+/**
+ * Suit un enregistrement automatique : « Enregistrement… » puis « Enregistré ». Rien si ça rate (le toast le dit) :
+ * une erreur levée, ou `false` rendu par un enregistrement qui a déjà montré son erreur.
+ */
 export function useSaveNote() {
   const [state, setState] = useState<SaveState>('idle')
   const run = useCallback(async (save: () => Promise<unknown> | unknown) => {
     setState('saving')
     try {
-      await save()
-      setState('saved')
+      setState((await save()) === false ? 'idle' : 'saved')
     } catch (error) {
       setState('idle')
       throw error

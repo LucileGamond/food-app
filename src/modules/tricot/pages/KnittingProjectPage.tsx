@@ -430,7 +430,7 @@ export function KnittingProjectPage() {
             open={partOpen('notes')}
             onToggle={() => togglePart('notes')}
           >
-            <StepNotes key={step.id} hideLabel step={step} onSave={(notes) => void saveStep(step.id, { notes })} />
+            <StepNotes key={step.id} hideLabel step={step} onSave={(notes) => saveStep(step.id, { notes })} />
           </Fold>
           {step.done && (
             <Button variant="outline" className="h-10" onClick={() => void saveStep(step.id, { done: false })}>

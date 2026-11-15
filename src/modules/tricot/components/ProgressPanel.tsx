@@ -55,6 +55,7 @@ export function ProgressPanel({ projectId, currentStepId, stepTitle }: Props) {
       setNotes((typed) => (typed === notes ? null : typed))
     } catch (error) {
       toast.error(errorMessage(error))
+      return false
     }
   }
 
@@ -81,6 +82,7 @@ export function ProgressPanel({ projectId, currentStepId, stepTitle }: Props) {
       setViewing((v) => (v?.id === photo.id ? { ...v, caption: trimmed } : v))
     } catch (error) {
       toast.error(errorMessage(error))
+      return false
     }
   }
 

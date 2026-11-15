@@ -236,7 +236,7 @@ function Knitting({ project, knit, projectTo }: KnittingProps) {
             </>
           }
         >
-          <StepNotes key={step.id} hideLabel step={step} onSave={(notes) => void knit.saveStep(step.id, { notes })} />
+          <StepNotes key={step.id} hideLabel step={step} onSave={(notes) => knit.saveStep(step.id, { notes })} />
         </Fold>
         {!finished && ready && (
           <Button variant="outline" className="h-10" onClick={() => setFinishing(true)}>
