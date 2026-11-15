@@ -9,18 +9,19 @@ import type { ProgressPhoto, ProjectProgress } from './lib/progress'
 import { ideasFromJson, ideasKey, ideaYarn, projectHues, yarnFromJson, yarnsFromJson, type FoundPattern, type Gauge, type RavelryYarnHit, type StashIdeas, type StashItem, type Yarn, type YarnIdea } from './lib/yarn'
 import { hasList, hasObject, hasText, isRavelryImport } from './lib/ravelry'
 import { MAX_INFO_PHOTOS, patternLinkFromResponse, type KnitPattern, type PatternInfo, type PatternFields, type PatternFiles, type PatternLink, type PatternLinkResponse, type RavelryImported, type RavelryImportItem } from './lib/library'
-import { readingFromJson, readingKey, readSizeIndex, type StoredReading } from './lib/readings'
+import { readingFromJson, readingKey, readPatternFromResponse, type StoredReading } from './lib/readings'
 import { sanitizeHighlights } from './lib/sizes'
 import { readTimes } from './lib/passes'
-import { adaptationPaused, adaptationToJson, sanitizeAdaptation, type Adaptation, type AdaptedStep } from './lib/adapt'
+import { adaptationToJson, adaptedStepsFromResponse, sanitizeAdaptation, type Adaptation, type AdaptedStep } from './lib/adapt'
+import { projectSummary } from './lib/projectSummary'
 import { sanitizeAbbreviations, type Abbreviation, type BaseGlossary } from './lib/glossary'
 import { sanitizeYarnChecks, type YarnCheck } from './lib/yarnLeft'
-import { sanitizeSizeChart, type MeasureProfile } from './lib/sizing'
+import type { MeasureProfile } from './lib/sizing'
 import { sanitizeHints, sanitizeSetup, type ChartHint, type ChartSetup, type KnitChart } from './lib/chart'
 import type { SectionsChange, Split } from './lib/organize'
 import { sanitizeNeedles } from './lib/needles'
 import { sanitizeGauges, type ProjectGauge } from './lib/gauges'
-import { MAX_PDF_BYTES, PDF_TOO_LARGE, type KnitProject, type KnitProjectSummary, type KnitStep, type PatternStep, type ReadPattern, type StepProgress, type StepSection, readMissingParts, sanitizeSections } from './lib/pattern'
+import { MAX_PDF_BYTES, PDF_TOO_LARGE, type KnitProject, type KnitProjectSummary, type KnitStep, type PatternStep, type ReadPattern, type StepProgress, type StepSection, sanitizeSections } from './lib/pattern'
 
 const PATTERN_BUCKET = 'knit-patterns'
 const CHART_BUCKET = 'knit-charts'
@@ -177,13 +178,33 @@ export function createKnittingApi(db: AppSupabaseClient) {
     return data
   }
 
-  /** Envoie le PDF d'un patron dans le dossier de la personne connectée ; renvoie son chemin. */
-  async function uploadPdf(pdf: File): Promise<string> {
-    checkPdf(pdf)
+  /** Identifiant de la personne connectée (refus sinon, comme la base). */
+  async function requireUserId(): Promise<string> {
     const { data: session } = await db.auth.getSession()
     const userId = session.session?.user.id
     if (!userId) throw toAppError({ code: '42501' })
-    const path = `${userId}/${crypto.randomUUID()}.pdf`
+    return userId
+  }
+
+  /** Nouveau fichier dans le dossier de la personne connectée : « <uid>/<uuid>.<ext> ». */
+  const newUserPath = async (ext: string) => `${await requireUserId()}/${crypto.randomUUID()}.${ext}`
+
+  /** Envoie une image JPEG puis enregistre sa ligne ; si la ligne échoue, l'image envoyée est retirée. */
+  async function uploadWithRow(bucket: string, image: Blob, failures: { upload: string; insert: string }, insert: (path: string) => PromiseLike<{ error: unknown }>): Promise<void> {
+    const path = await newUserPath('jpg')
+    const { error: uploadError } = await db.storage.from(bucket).upload(path, image, { contentType: 'image/jpeg' })
+    if (uploadError) throw new AppError(failures.upload)
+    const { error } = await insert(path)
+    if (error) {
+      await db.storage.from(bucket).remove([path])
+      throw toAppError(error, failures.insert)
+    }
+  }
+
+  /** Envoie le PDF d'un patron dans le dossier de la personne connectée ; renvoie son chemin. */
+  async function uploadPdf(pdf: File): Promise<string> {
+    checkPdf(pdf)
+    const path = await newUserPath('pdf')
     const { error } = await db.storage.from(PATTERN_BUCKET).upload(path, pdf, { contentType: 'application/pdf' })
     if (error) throw new AppError('Impossible d’envoyer le PDF.')
     return path
@@ -198,9 +219,7 @@ export function createKnittingApi(db: AppSupabaseClient) {
   /** Envoie des photos de patron (déjà réduites, en JPEG) ; renvoie leurs chemins. Rien ne reste si l'une échoue. */
   async function uploadPatternPhotos(photos: Blob[]): Promise<string[]> {
     if (photos.length === 0) return []
-    const { data: session } = await db.auth.getSession()
-    const userId = session.session?.user.id
-    if (!userId) throw toAppError({ code: '42501' })
+    const userId = await requireUserId()
     const paths = photos.map(() => `${userId}/${crypto.randomUUID()}.jpg`)
     const results = await Promise.all(photos.map((photo, i) => db.storage.from(PROGRESS_BUCKET).upload(paths[i]!, photo, { contentType: 'image/jpeg' })))
     if (results.some((r) => r.error)) {
@@ -265,24 +284,19 @@ export function createKnittingApi(db: AppSupabaseClient) {
         .order('updated_at', { ascending: false })
         .order('position', { referencedTable: 'knit_steps' })
       if (error) throw toAppError(error, 'Impossible de charger les projets.')
-      return data.map((p) => {
-        const index = p.knit_steps.findIndex((s) => !s.done)
-        const step = index === -1 ? null : p.knit_steps[index]!
-        const size = (p.size_index !== null ? p.sizes[p.size_index] : undefined) ?? p.size
-        // Patron adapté suivi : les rangs de l'étape sont ceux de l'adaptation
-        const adaptation = sanitizeAdaptation(p.adaptation)
-        const adapted = adaptation?.active && !adaptationPaused(adaptation, size) && step ? adaptation.steps.find((a) => a.stepId === step.id) : undefined
-        return {
+      return data.map((p) =>
+        projectSummary({
           id: p.id,
           title: p.title,
-          size,
+          size: p.size,
+          sizes: p.sizes,
+          sizeIndex: p.size_index,
           updatedAt: p.updated_at,
-          stepsDone: p.knit_steps.filter((s) => s.done).length,
-          stepsTotal: p.knit_steps.length,
-          current: step && { number: index + 1, title: step.title, rowCount: step.row_count, totalRows: adapted ? adapted.totalRows : step.total_rows, times: step.times, pass: step.pass },
+          adaptation: sanitizeAdaptation(p.adaptation),
+          steps: p.knit_steps.map((s) => ({ id: s.id, title: s.title, totalRows: s.total_rows, rowCount: s.row_count, times: s.times, pass: s.pass, done: s.done })),
           hues: projectHues(yarnsFromJson(p.yarns)),
-        }
-      })
+        }),
+      )
     },
 
     /** Glossaire des abréviations classiques, par langue des patrons. */
@@ -331,14 +345,7 @@ export function createKnittingApi(db: AppSupabaseClient) {
     async readPattern(pdf: File, size: string): Promise<ReadPattern> {
       checkPdf(pdf)
       const read = await invokeKnit<ReadPattern>({ pdf: await fileToBase64(pdf), size }, 'La lecture du patron a échoué.', (d) => Array.isArray(d.steps), READ_TIMEOUT_MS)
-      return {
-        ...read,
-        sizeIndex: readSizeIndex(read, size),
-        steps: read.steps.map((s) => ({ ...s, times: readTimes(s.times) })),
-        sizeChart: sanitizeSizeChart(read.sizeChart, read.sizes.length),
-        missingParts: readMissingParts(read.missingParts),
-        needles: sanitizeNeedles(read.needles),
-      }
+      return readPatternFromResponse(read, size)
     },
 
     /**
@@ -515,10 +522,7 @@ export function createKnittingApi(db: AppSupabaseClient) {
         (d) => Array.isArray(d.steps),
         READ_TIMEOUT_MS,
       )
-      return steps.flatMap((a) => {
-        const step = input.steps[a.index]
-        return step ? [{ stepId: step.id, totalRows: a.totalRows, stitches: a.stitches, sections: sanitizeSections(a.sections), note: a.note }] : []
-      })
+      return adaptedStepsFromResponse(input.steps, steps)
     },
 
     /** Enregistre l'adaptation (null : la supprime, le patron d'origine reste). */
@@ -786,10 +790,7 @@ export function createKnittingApi(db: AppSupabaseClient) {
 
     /** Délie le compte Ravelry (ses jetons sont supprimés avec lui). */
     async disconnectRavelry(): Promise<void> {
-      const { data: session } = await db.auth.getSession()
-      const userId = session.session?.user.id
-      if (!userId) throw toAppError({ code: '42501' })
-      const { error } = await db.from('ravelry_accounts').delete().eq('profile_id', userId)
+      const { error } = await db.from('ravelry_accounts').delete().eq('profile_id', await requireUserId())
       if (error) throw toAppError(error, 'Impossible de délier le compte Ravelry.')
     },
 
@@ -847,17 +848,9 @@ export function createKnittingApi(db: AppSupabaseClient) {
 
     /** Photo d'avancement (déjà réduite, en JPEG), rattachée à l'étape en cours. */
     async addProgressPhoto(projectId: string, image: Blob, input: { stepId: string | null; caption: string }): Promise<void> {
-      const { data: session } = await db.auth.getSession()
-      const userId = session.session?.user.id
-      if (!userId) throw toAppError({ code: '42501' })
-      const path = `${userId}/${crypto.randomUUID()}.jpg`
-      const { error: uploadError } = await db.storage.from(PROGRESS_BUCKET).upload(path, image, { contentType: 'image/jpeg' })
-      if (uploadError) throw new AppError('Impossible d’envoyer la photo.')
-      const { error } = await db.from('knit_progress_photos').insert({ project_id: projectId, step_id: input.stepId, storage_path: path, caption: input.caption })
-      if (error) {
-        await db.storage.from(PROGRESS_BUCKET).remove([path])
-        throw toAppError(error, 'Impossible d’enregistrer la photo.')
-      }
+      await uploadWithRow(PROGRESS_BUCKET, image, { upload: 'Impossible d’envoyer la photo.', insert: 'Impossible d’enregistrer la photo.' }, (path) =>
+        db.from('knit_progress_photos').insert({ project_id: projectId, step_id: input.stepId, storage_path: path, caption: input.caption }),
+      )
     },
 
     async saveCaption(photoId: string, caption: string): Promise<void> {
@@ -888,17 +881,9 @@ export function createKnittingApi(db: AppSupabaseClient) {
 
     /** Ajoute un diagramme (image JPEG déjà préparée) au projet. */
     async addChart(projectId: string, image: Blob, setup: ChartSetup): Promise<void> {
-      const { data: session } = await db.auth.getSession()
-      const userId = session.session?.user.id
-      if (!userId) throw toAppError({ code: '42501' })
-      const path = `${userId}/${crypto.randomUUID()}.jpg`
-      const { error: uploadError } = await db.storage.from(CHART_BUCKET).upload(path, image, { contentType: 'image/jpeg' })
-      if (uploadError) throw new AppError('Impossible d’envoyer l’image du diagramme.')
-      const { error } = await db.from('knit_charts').insert({ project_id: projectId, image_path: path, ...chartColumns(setup) })
-      if (error) {
-        await db.storage.from(CHART_BUCKET).remove([path])
-        throw toAppError(error, 'Impossible d’enregistrer le diagramme.')
-      }
+      await uploadWithRow(CHART_BUCKET, image, { upload: 'Impossible d’envoyer l’image du diagramme.', insert: 'Impossible d’enregistrer le diagramme.' }, (path) =>
+        db.from('knit_charts').insert({ project_id: projectId, image_path: path, ...chartColumns(setup) }),
+      )
     },
 
     /** Calage, étape et titre d'un diagramme. */

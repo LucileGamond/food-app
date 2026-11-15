@@ -1,5 +1,5 @@
 import type { ReadPattern } from './pattern'
-import { findReading, readingFromJson, readingKey, readingSizeLabel, readSizeIndex, type StoredReading } from './readings'
+import { findReading, readingFromJson, readingKey, readingSizeLabel, readPatternFromResponse, readSizeIndex, type StoredReading } from './readings'
 
 const READ: ReadPattern = {
   title: 'Pull Bergamote',
@@ -102,5 +102,25 @@ describe('taille d’une lecture', () => {
     const read = { ...READ, sizeIndex: readSizeIndex({ ...READ, sizeIndex: undefined }, 'L') }
     const key = readingKey(read)!
     expect(findReading([{ ...key, readAt: '', reading: read }], 'L')?.sizeLabel).toBe('L')
+  })
+})
+
+describe('lecture renvoyée par l’IA', () => {
+  it('taille retrouvée, passages et aiguilles bornés, tableau et parties manquantes nettoyés', () => {
+    const raw = {
+      ...READ,
+      sizeIndex: undefined,
+      steps: [{ ...READ.steps[0]!, times: 40 }],
+      sizeChart: { kind: 'body', easeCm: null, rows: 'abîmé' },
+      missingParts: ['Col', '', 3],
+      needles: [3.5, 99],
+    } as unknown as ReadPattern
+    const read = readPatternFromResponse(raw, 'L')
+    expect(read.sizeIndex).toBe(2)
+    expect(read.steps[0]!.times).toBe(1)
+    expect(read.sizeChart).toBeNull()
+    expect(read.missingParts).toEqual(['Col'])
+    expect(read.needles).toEqual([3.5])
+    expect(read.title).toBe('Pull Bergamote')
   })
 })

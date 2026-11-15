@@ -4,7 +4,7 @@
 import { convertSection } from './measure'
 import { chainNeedles, effectiveNeedles } from './needles'
 import { rowGaugeFor } from './gauges'
-import { sanitizeSections, type KnitProject, type KnitStep, type StepSection } from './pattern'
+import { followedSize, sanitizeSections, type KnitProject, type KnitStep, type StepSection } from './pattern'
 
 export const ADAPT_REQUEST_MAX = 1000
 
@@ -64,10 +64,16 @@ export function adaptationPaused(adaptation: Adaptation | null | undefined, size
   return !!adaptation?.size && adaptation.size !== size
 }
 
+/** L'adaptation suivie : active et faite pour la taille suivie ; null : on suit le patron d'origine. */
+export function followedAdaptation(adaptation: Adaptation | null | undefined, size: string): Adaptation | null {
+  return adaptation?.active && !adaptationPaused(adaptation, size) ? adaptation : null
+}
+
 /** Étapes à suivre : adaptées si l'adaptation est active (et faite pour la taille suivie), sinon celles du patron d'origine. */
 export function applyAdaptation(steps: KnitStep[], adaptation: Adaptation | null | undefined, size: string): ShownStep[] {
-  if (!adaptation?.active || adaptationPaused(adaptation, size)) return steps
-  const byId = new Map(adaptation.steps.map((s) => [s.stepId, s]))
+  const followed = followedAdaptation(adaptation, size)
+  if (!followed) return steps
+  const byId = new Map(followed.steps.map((s) => [s.stepId, s]))
   return steps.map((step) => {
     const a = byId.get(step.id)
     if (!a) return step
@@ -78,6 +84,17 @@ export function applyAdaptation(steps: KnitStep[], adaptation: Adaptation | null
       sections: a.sections,
       adapted: { note: a.note, original: { totalRows: step.totalRows, stitches: step.stitches, sections: step.sections } },
     }
+  })
+}
+
+/** Réponse de la fonction knit-pattern (étapes changées, par position) → adaptation des étapes du projet. */
+export function adaptedStepsFromResponse(
+  steps: Pick<KnitStep, 'id'>[],
+  changed: { index: number; totalRows: number | null; stitches: number | null; sections: unknown; note: string }[],
+): AdaptedStep[] {
+  return changed.flatMap((a) => {
+    const step = steps[a.index]
+    return step ? [{ stepId: step.id, totalRows: a.totalRows, stitches: a.stitches, sections: sanitizeSections(a.sections), note: a.note }] : []
   })
 }
 
@@ -101,7 +118,7 @@ export function stepsToFollow(project: Pick<KnitProject, 'steps' | 'sizes' | 'si
   steps: ShownStep[]
   following: boolean
 } {
-  const size = (project.sizeIndex !== null ? project.sizes[project.sizeIndex] : undefined) ?? project.size
+  const size = followedSize(project)
   const adaptation = project.adaptation ?? null
   // Chaque sous-étape avec l'échantillon de son aiguille
   const gauges = { gauges: project.gauges ?? [], pattern: project.patternGauge }
@@ -111,7 +128,7 @@ export function stepsToFollow(project: Pick<KnitProject, 'steps' | 'sizes' | 'si
       const own = effectiveNeedles(s.sections, project.needles ?? [], s.needleFrom ?? null)
       return { ...s, sections: s.sections.map((x, i) => convertSection(x, rowGaugeFor(own[i] ?? null, gauges))) }
     }),
-    following: adaptation?.active === true && !adaptationPaused(adaptation, size),
+    following: followedAdaptation(adaptation, size) !== null,
   }
 }
 

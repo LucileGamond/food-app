@@ -1,4 +1,4 @@
-import { adaptationPaused, adaptationToJson, applyAdaptation, describeChange, sanitizeAdaptation, stepsToFollow, withAdaptedSections, type Adaptation } from './adapt'
+import { adaptationPaused, adaptationToJson, adaptedStepsFromResponse, applyAdaptation, describeChange, followedAdaptation, sanitizeAdaptation, stepsToFollow, withAdaptedSections, type Adaptation } from './adapt'
 import type { KnitStep, StepSection } from './pattern'
 
 const step = (overrides: Partial<KnitStep>): KnitStep => ({
@@ -83,6 +83,24 @@ describe('patron adapté', () => {
       size: null,
       steps: [{ stepId: 's1', totalRows: null, stitches: null, sections: [], note: '' }],
     })
+  })
+})
+
+describe('adaptation suivie', () => {
+  it('active et faite pour la taille suivie (ou sans taille notée) ; sinon le patron d’origine', () => {
+    expect(followedAdaptation(ADAPTATION, 'M')).toBe(ADAPTATION)
+    expect(followedAdaptation({ ...ADAPTATION, size: null }, 'L')).not.toBeNull()
+    expect(followedAdaptation(ADAPTATION, 'L')).toBeNull()
+    expect(followedAdaptation({ ...ADAPTATION, active: false }, 'M')).toBeNull()
+    expect(followedAdaptation(null, 'M')).toBeNull()
+  })
+
+  it('réponse de l’IA : étapes changées par position → étapes du projet ; position inconnue ignorée', () => {
+    const changed = [
+      { index: 1, totalRows: 50, stitches: 70, sections: [REPEAT, 'abîmée'], note: 'Plus long.' },
+      { index: 5, totalRows: 10, stitches: null, sections: [], note: '' },
+    ]
+    expect(adaptedStepsFromResponse(STEPS, changed)).toEqual([{ stepId: 's2', totalRows: 50, stitches: 70, sections: [REPEAT], note: 'Plus long.' }])
   })
 })
 

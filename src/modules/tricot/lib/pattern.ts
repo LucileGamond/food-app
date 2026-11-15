@@ -129,6 +129,11 @@ export interface KnitProjectSummary {
   hues: string[]
 }
 
+/** Taille suivie : celle choisie parmi les tailles du patron, sinon celle indiquée à l'import. */
+export function followedSize(project: Pick<KnitProject, 'sizes' | 'sizeIndex' | 'size'>): string {
+  return (project.sizeIndex !== null ? project.sizes[project.sizeIndex] : undefined) ?? project.size
+}
+
 export interface KnitProject {
   id: string
   title: string

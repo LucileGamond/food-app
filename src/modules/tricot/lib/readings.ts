@@ -111,3 +111,15 @@ export function readingFromJson(raw: unknown): ReadPattern | null {
     needles: sanitizeNeedles(r.needles),
   }
 }
+
+/** Réponse de la fonction knit-pattern → lecture utilisable : taille lue, passages, tableau des tailles, aiguilles bornés. */
+export function readPatternFromResponse(read: ReadPattern, size: string): ReadPattern {
+  return {
+    ...read,
+    sizeIndex: readSizeIndex(read, size),
+    steps: read.steps.map((s) => ({ ...s, times: readTimes(s.times) })),
+    sizeChart: sanitizeSizeChart(read.sizeChart, read.sizes.length),
+    missingParts: readMissingParts(read.missingParts),
+    needles: sanitizeNeedles(read.needles),
+  }
+}
