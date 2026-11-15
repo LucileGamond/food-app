@@ -5,9 +5,13 @@ import { MINUS_RED, PLUS_GREEN } from '../lib/knitIcons'
 const ALL = Object.entries(Icons).filter(([name]) => name.endsWith('Icon'))
 
 describe('icônes illustrées du Tricot', () => {
-  it('compte quinze icônes, chacune décorative, à 24 px par défaut, dans son cadre 64 × 64', () => {
+  it('compte vingt-neuf icônes, chacune décorative, à 24 px par défaut, dans son cadre 64 × 64', () => {
     expect(ALL.map(([name]) => name).sort()).toEqual(
-      ['AddIcon', 'ChartIcon', 'DeleteIcon', 'DoneIcon', 'EditIcon', 'KnitIcon', 'LinkIcon', 'MeasuresIcon', 'OpenIcon', 'PatternsIcon', 'PhotoIcon', 'RemoveIcon', 'RestartIcon', 'SearchIcon', 'UndoIcon'].sort(),
+      [
+        ...['AddIcon', 'ChartIcon', 'DeleteIcon', 'DoneIcon', 'EditIcon', 'KnitIcon', 'LinkIcon', 'MeasuresIcon', 'OpenIcon', 'PatternsIcon', 'PhotoIcon', 'RemoveIcon', 'RestartIcon', 'SearchIcon', 'UndoIcon'],
+        // Icônes des boutons, ajoutées le 2026-11-15
+        ...['CloseIcon', 'CropIcon', 'HighlightIcon', 'JoinIcon', 'NeedlesIcon', 'NotesIcon', 'OrganizeIcon', 'PdfIcon', 'QuestionIcon', 'ScaleIcon', 'SplitIcon', 'StarIcon', 'StepsIcon', 'TranslateIcon'],
+      ].sort(),
     )
     for (const [, Icon] of ALL) {
       const { container, unmount } = render(<Icon />)

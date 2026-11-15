@@ -1,4 +1,5 @@
-import { ChevronLeft, Star, X } from 'lucide-react'
+import { ChevronLeft, X } from 'lucide-react'
+import { StarIcon } from './KnitIcons'
 
 export interface Thumb {
   key: string
@@ -41,7 +42,7 @@ export function PatternThumbs({ thumbs, label, onOpen, onRemove, onMove }: Props
               {/* La 2e photo passe en couverture en avançant d'une place : un seul bouton suffit. */}
               {i > 1 && (
                 <button type="button" aria-label={`Mettre la photo ${i + 1} en couverture`} onClick={() => onMove(i, 0)} className={`${SMALL_BUTTON} top-0.5 left-0.5`}>
-                  <Star className="size-4" aria-hidden />
+                  <StarIcon className="size-4" aria-hidden />
                 </button>
               )}
               <button type="button" aria-label={`Avancer la photo ${i + 1}`} onClick={() => onMove(i, i - 1)} className={`${SMALL_BUTTON} bottom-0.5 left-0.5`}>

@@ -1,4 +1,4 @@
-import { Loader2, Scale } from 'lucide-react'
+import { Loader2 } from 'lucide-react'
 import { useId, useState, type FormEvent } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -9,6 +9,7 @@ import { projectRowsDone, yarnVerdict, type YarnCheck } from '../lib/yarnLeft'
 import { Link } from 'react-router-dom'
 import { Fold } from './Fold'
 import { Note } from './Note'
+import { ScaleIcon } from './KnitIcons'
 
 interface Props {
   /** Laines du projet : chaque coloris est une laine, pesée à part. */
@@ -39,7 +40,7 @@ export function YarnCheckCard({ yarns, steps, checks, onSave }: Props) {
       summary={checks.length ? `pesée le ${formatDay(checks)}` : yarns.length ? 'pas encore pesé' : 'laine du projet à noter'}
       title={
         <>
-          <Scale className="size-4 text-muted-foreground" aria-hidden /> Assez de laine pour finir ?
+          <ScaleIcon className="size-4 text-muted-foreground" aria-hidden /> Assez de laine pour finir ?
         </>
       }
     >

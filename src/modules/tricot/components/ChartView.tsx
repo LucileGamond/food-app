@@ -1,5 +1,5 @@
-import { Maximize2, Settings2 } from 'lucide-react'
-import { DeleteIcon } from './KnitIcons'
+import { Maximize2 } from 'lucide-react'
+import { DeleteIcon, EditIcon } from './KnitIcons'
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { chartPosition, chartStatus, type KnitChart } from '../lib/chart'
@@ -34,7 +34,7 @@ export function ChartView({ chart, rowCount, onEdit, onDelete }: Props) {
           <Maximize2 />
         </Button>
         <Button variant="ghost" size="icon-lg" aria-label={`Modifier ${name}`} onClick={onEdit}>
-          <Settings2 />
+          <EditIcon />
         </Button>
         <Button variant="ghost" size="icon-lg" aria-label={`Supprimer ${name}`} onClick={onDelete}>
           <DeleteIcon />

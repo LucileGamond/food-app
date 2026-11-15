@@ -1,5 +1,4 @@
-import { FileText } from 'lucide-react'
-import { AddIcon, ChartIcon, PhotoIcon } from './KnitIcons'
+import { AddIcon, ChartIcon, PdfIcon, PhotoIcon } from './KnitIcons'
 import { useEffect, useId, useState } from 'react'
 import { toast } from 'sonner'
 import { errorMessage } from '@/api'
@@ -154,7 +153,7 @@ export function StepCharts({ projectId, pdfPath, step, steps, charts, hints, onC
             </DropdownMenuTrigger>
             <DropdownMenuContent align="start" className="w-56">
               <DropdownMenuItem onClick={() => setPicking(true)}>
-                <FileText /> Depuis le PDF du patron
+                <PdfIcon /> Depuis le PDF du patron
               </DropdownMenuItem>
               <DropdownMenuItem onClick={() => document.getElementById(inputId)?.click()}>
                 <PhotoIcon /> Depuis une image

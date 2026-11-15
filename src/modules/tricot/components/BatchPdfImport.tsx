@@ -1,5 +1,5 @@
-import { Files, Loader2, TriangleAlert } from 'lucide-react'
-import { DoneIcon, RemoveIcon } from './KnitIcons'
+import { Loader2, TriangleAlert } from 'lucide-react'
+import { DoneIcon, PdfIcon, RemoveIcon } from './KnitIcons'
 import { useRef, useState } from 'react'
 import { errorMessage } from '@/api'
 import { useApi } from '@/app/ApiContext'
@@ -71,7 +71,7 @@ export function BatchPdfImport({ library, onDone }: Props) {
   return (
     <>
       <Button type="button" variant="outline" className="h-10" onClick={() => input.current?.click()}>
-        <Files /> Plusieurs PDF
+        <PdfIcon /> Plusieurs PDF
       </Button>
       <input ref={input} type="file" multiple accept="application/pdf,.pdf" className="sr-only" aria-label="Choisir plusieurs PDF" tabIndex={-1} onChange={(e) => void start(e.target.files)} />
       <Dialog open={rows !== null} onOpenChange={(open) => !open && close()}>

@@ -1,5 +1,5 @@
-import { Check, ChevronLeft, ListOrdered, NotebookPen, FileText, ListTree, SearchX } from 'lucide-react'
-import { ChartIcon, DeleteIcon, KnitIcon, OpenIcon, PatternsIcon, UndoIcon } from '../components/KnitIcons'
+import { Check, ChevronLeft, SearchX } from 'lucide-react'
+import { ChartIcon, DeleteIcon, KnitIcon, NotesIcon, OpenIcon, OrganizeIcon, PatternsIcon, PdfIcon, StepsIcon, UndoIcon } from '../components/KnitIcons'
 import { useState } from 'react'
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { toast } from 'sonner'
@@ -365,7 +365,7 @@ export function KnittingProjectPage() {
               id="step-text"
               title={
                 <>
-                  <FileText className="size-4" aria-hidden /> {step.sections.some((x) => x.source) ? 'Texte complet de l’étape' : 'Texte du patron'}
+                  <PdfIcon className="size-4" aria-hidden /> {step.sections.some((x) => x.source) ? 'Texte complet de l’étape' : 'Texte du patron'}
                 </>
               }
               className={PART}
@@ -379,7 +379,7 @@ export function KnittingProjectPage() {
             id={`sections-${step.id}`}
             title={
               <>
-                <ListOrdered className="size-4" aria-hidden /> Sous-étapes
+                <StepsIcon className="size-4" aria-hidden /> Sous-étapes
               </>
             }
             summary={[plural(step.sections.length, 'sous-étape'), toFix > 0 && `${toFix} à régler`].filter(Boolean).join(' · ') || 'aucune'}
@@ -422,7 +422,7 @@ export function KnittingProjectPage() {
             id={`notes-part-${step.id}`}
             title={
               <>
-                <NotebookPen className="size-4" aria-hidden /> Notes de l’étape
+                <NotesIcon className="size-4" aria-hidden /> Notes de l’étape
               </>
             }
             summary={step.notes.trim() ? 'notes' : 'rien de noté'}
@@ -490,7 +490,7 @@ export function KnittingProjectPage() {
             )}
             {project.pdfPath && (
               <Button variant="ghost" size="icon-touch" aria-label="Voir le PDF" onClick={() => void openPdf()}>
-                <FileText />
+                <PdfIcon />
               </Button>
             )}
             <Button variant="ghost" size="icon-touch" aria-label="Supprimer le projet" onClick={() => setConfirmDelete(true)}>
@@ -558,7 +558,7 @@ export function KnittingProjectPage() {
                 className="h-10"
                 onClick={() => setParams(organizing ? { onglet: 'preparer' } : { onglet: 'preparer', vue: 'organiser' }, { replace: true })}
               >
-                {organizing ? <ChevronLeft /> : <ListTree />}
+                {organizing ? <ChevronLeft /> : <OrganizeIcon />}
                 {organizing ? 'Retour aux étapes' : 'Organiser'}
               </Button>
             </div>

@@ -1,8 +1,8 @@
 // Formulaire d'un patron de la bibliothèque (ajout et modification) : ses formats (PDF, photos, lien), puis ce qui
 // aide à le retrouver (étiquettes, taille, besoins, laine envisagée, notes), à remplir à la main ou avec l'IA.
 
-import { FileText, Loader2, Sparkles, X } from 'lucide-react'
-import { PhotoIcon } from './KnitIcons'
+import { Loader2, Sparkles } from 'lucide-react'
+import { CloseIcon, PdfIcon, PhotoIcon } from './KnitIcons'
 import { Link } from 'react-router-dom'
 import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { errorMessage } from '@/api'
@@ -188,10 +188,10 @@ export function PatternForm({ existing, initialLink = null, onSaved, library = [
           <Label htmlFor="pattern-pdf">PDF</Label>
           {pdfName ? (
             <p className="flex items-center gap-2 text-sm">
-              <FileText className="size-4 shrink-0 text-muted-foreground" aria-hidden />
+              <PdfIcon className="size-4 shrink-0 text-muted-foreground" aria-hidden />
               <span className="min-w-0 flex-1 truncate">{pdfName}</span>
               <Button type="button" variant="ghost" size="icon-touch" aria-label="Retirer le PDF" onClick={removePdf}>
-                <X />
+                <CloseIcon />
               </Button>
             </p>
           ) : (

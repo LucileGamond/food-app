@@ -1,10 +1,11 @@
-import { Loader2, MessageCircleQuestion, Send } from 'lucide-react'
+import { Loader2 } from 'lucide-react'
 import { useId, useState, type FormEvent } from 'react'
 import { errorMessage } from '@/api'
 import { useApi } from '@/app/ApiContext'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 import type { Abbreviation } from '../lib/glossary'
+import { CloseIcon, QuestionIcon } from './KnitIcons'
 
 interface Props {
   stepTitle: string
@@ -44,7 +45,7 @@ export function StepQuestion({ stepTitle, text, row, size, abbreviations }: Prop
   if (!open) {
     return (
       <Button type="button" variant="ghost" className="h-10 text-muted-foreground" onClick={() => setOpen(true)}>
-        <MessageCircleQuestion /> Une question sur ce rang ?
+        <QuestionIcon /> Une question sur ce rang ?
       </Button>
     )
   }
@@ -68,11 +69,11 @@ export function StepQuestion({ stepTitle, text, row, size, abbreviations }: Prop
         )}
         <div className="flex flex-wrap gap-2">
           <Button type="submit" className="h-10" disabled={asking}>
-            {asking ? <Loader2 className="animate-spin" aria-hidden /> : <Send />}
+            {asking ? <Loader2 className="animate-spin" aria-hidden /> : <QuestionIcon />}
             {asking ? 'Réflexion…' : 'Demander'}
           </Button>
           <Button type="button" variant="ghost" className="h-10" onClick={() => setOpen(false)}>
-            Fermer
+            <CloseIcon /> Fermer
           </Button>
         </div>
       </form>

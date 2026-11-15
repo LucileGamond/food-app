@@ -3,7 +3,7 @@
 // entre le patron adapté et celui d'origine, qui n'est jamais modifié.
 
 import { Loader2, Sparkles, Wand2 } from 'lucide-react'
-import { DeleteIcon, RestartIcon } from './KnitIcons'
+import { CloseIcon, DeleteIcon, RestartIcon } from './KnitIcons'
 import { useState } from 'react'
 import { toast } from 'sonner'
 import { errorMessage } from '@/api'
@@ -154,7 +154,7 @@ export function AdaptPanel({ project, size, onSaved }: Props) {
             </Button>
             {editing && (
               <Button variant="ghost" className="h-10" onClick={() => setEditing(false)}>
-                Annuler
+                <CloseIcon /> Annuler
               </Button>
             )}
           </div>
@@ -177,7 +177,7 @@ export function AdaptPanel({ project, size, onSaved }: Props) {
           </ul>
           <DialogFooter>
             <Button variant="outline" className="h-10" onClick={() => setPreview(null)}>
-              Annuler
+              <CloseIcon /> Annuler
             </Button>
             <Button className="h-10" onClick={() => void accept()}>
               <Sparkles /> Suivre ce patron adapté

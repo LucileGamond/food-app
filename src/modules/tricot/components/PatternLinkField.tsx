@@ -1,4 +1,4 @@
-import { Download, Loader2 } from 'lucide-react'
+import { Loader2 } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { errorMessage } from '@/api'
 import { useApi } from '@/app/ApiContext'
@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { isReadableLink, type PatternLink } from '../lib/library'
+import { LinkIcon } from './KnitIcons'
 
 interface Props {
   value: string
@@ -54,7 +55,7 @@ export function PatternLinkField({ value, onChange, onRead, readOnMount = false,
       <div className="flex gap-2">
         <Input id="pattern-url" type="url" inputMode="url" className="h-10 min-w-0 flex-1" value={value} onChange={(e) => onChange(e.target.value)} placeholder="https://…" />
         <Button type="button" variant="outline" className="h-10 shrink-0" disabled={!readable || reading} onClick={() => void read()}>
-          {reading ? <Loader2 className="animate-spin" aria-hidden /> : <Download />} Récupérer
+          {reading ? <Loader2 className="animate-spin" aria-hidden /> : <LinkIcon />} Récupérer
         </Button>
       </div>
       <p aria-live="polite" className={message?.error ? 'text-xs text-destructive' : 'text-xs text-muted-foreground'}>

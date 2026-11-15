@@ -1,5 +1,4 @@
-import { FileText, Link2 } from 'lucide-react'
-import { OpenIcon } from './KnitIcons'
+import { LinkIcon, OpenIcon, PdfIcon } from './KnitIcons'
 import { Link } from 'react-router-dom'
 import { useApi } from '@/app/ApiContext'
 import { useSignedUrls } from '@/hooks/useSignedUrls'
@@ -17,7 +16,7 @@ export function PatternList({ items }: { items: KnitPattern[] }) {
     <ul aria-label="Patrons" className="space-y-2">
       {items.map((p) => {
         const cover = p.photos[0] ? urls[p.photos[0]] : undefined
-        const Icon = p.pdfPath ? FileText : Link2
+        const Icon = p.pdfPath ? PdfIcon : LinkIcon
         return (
           <li key={p.id} className="rounded-2xl border bg-background shadow-xs transition-colors hover:bg-muted/50">
             <Link to={`/tricot/patrons/${p.id}`} className="flex items-center gap-3 rounded-2xl p-3 focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none">

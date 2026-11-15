@@ -1,5 +1,5 @@
-import { Highlighter, Languages, Loader2 } from 'lucide-react'
-import { DoneIcon, UndoIcon } from './KnitIcons'
+import { Loader2 } from 'lucide-react'
+import { DoneIcon, HighlightIcon, TranslateIcon, UndoIcon } from './KnitIcons'
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { NativeSelect } from '@/components/ui/native-select'
@@ -137,12 +137,12 @@ export function StepText({ text, sizes, sizeIndex, highlights, onChange, abbrevi
       <div className="flex flex-wrap gap-2">
         {english && !translation && onTranslate && !editing && (
           <Button type="button" variant="outline" className="h-10" disabled={translating} onClick={() => void translate()}>
-            {translating ? <Loader2 className="animate-spin" aria-hidden /> : <Languages />}
+            {translating ? <Loader2 className="animate-spin" aria-hidden /> : <TranslateIcon />}
             {translating ? 'Traduction…' : 'Traduire en français'}
           </Button>
         )}
         <Button type="button" variant={editing ? 'default' : 'outline'} className="h-10" onClick={() => setEditing((e) => !e)}>
-          {editing ? <DoneIcon /> : <Highlighter />}
+          {editing ? <DoneIcon /> : <HighlightIcon />}
           {editing ? 'Terminé' : 'Corriger le surlignage'}
         </Button>
         {editing && fixed && (

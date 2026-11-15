@@ -1,4 +1,4 @@
-import { Check, ListTree } from 'lucide-react'
+import { Check } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { cn } from '@/lib/utils'
 import { Fold } from './Fold'
@@ -6,6 +6,7 @@ import { describeEvent } from '../lib/guide'
 import { outlineIndicesAt, stepOutline, type OutlineRow, type OutlineSection } from '../lib/outline'
 import type { StepSection } from '../lib/pattern'
 import type { StitchCount } from '../lib/stitches'
+import { StepsIcon } from './KnitIcons'
 
 interface Props {
   step: { sections: StepSection[]; totalRows: number | null; stitches: number | null; rowCount: number }
@@ -87,7 +88,7 @@ export function StepOutline({ step, nextTitle, showCurrent = true }: Props) {
         id="step-outline"
         title={
           <>
-            <ListTree className="size-4 shrink-0 text-muted-foreground" aria-hidden /> Étape entière
+            <StepsIcon className="size-4 shrink-0 text-muted-foreground" aria-hidden /> Étape entière
           </>
         }
         open={open}

@@ -1,5 +1,5 @@
-import { ArrowDown, ArrowUp, Check, ListOrdered, ListTree, MoreHorizontal, Ruler, X, Grid3x3 } from 'lucide-react'
-import { AddIcon, DeleteIcon, DoneIcon, EditIcon } from './KnitIcons'
+import { ArrowDown, ArrowUp, Check, MoreHorizontal, Ruler, X } from 'lucide-react'
+import { AddIcon, ChartIcon, CloseIcon, DeleteIcon, DoneIcon, EditIcon, OrganizeIcon, StepsIcon, NeedlesIcon } from './KnitIcons'
 import { useEffect, useId, useState, type FormEvent } from 'react'
 import { Link } from 'react-router-dom'
 import { ConfirmDialog } from '@/components/ConfirmDialog'
@@ -273,10 +273,10 @@ function SectionForm({ section, onSave, onCancel, needle }: { section: StepSecti
       )}
       <div className="flex flex-wrap gap-2">
         <Button type="button" variant="outline" className="h-10" onClick={onCancel}>
-          Annuler
+          <CloseIcon /> Annuler
         </Button>
         <Button type="submit" className="h-10">
-          Enregistrer
+          <DoneIcon /> Enregistrer
         </Button>
       </div>
     </form>
@@ -379,7 +379,7 @@ export function StepSections({
       {!headless && (
         <div className="flex items-center gap-1">
           <h3 id={`sections-${step.id}`} className="flex items-center gap-1.5 text-sm font-medium">
-            <ListOrdered className="size-4" aria-hidden /> Sous-étapes
+            <StepsIcon className="size-4" aria-hidden /> Sous-étapes
           </h3>
           <HelpTip label="sous-étapes">{SECTIONS_HELP}</HelpTip>
         </div>
@@ -437,7 +437,7 @@ export function StepSections({
                         own[index] === null ? 'bg-amber-500/15 font-medium' : 'bg-muted text-muted-foreground',
                       )}
                     >
-                      <Ruler className="size-3" aria-hidden />
+                      <NeedlesIcon className="size-4" />
                       {own[index] === null ? 'Aiguille à choisir' : `Aiguille ${formatNeedle(own[index]!)}`}
                     </button>
                   )}
@@ -465,7 +465,7 @@ export function StepSections({
                       .filter((c) => c.startRow >= p.start! && (p.end === null || c.startRow <= p.end))
                       .map((c) => (
                         <p key={c.id} className="mt-1 flex items-center gap-1.5 text-xs text-muted-foreground">
-                          <Grid3x3 className="size-3.5" aria-hidden /> Diagramme {c.title ? `« ${c.title} »` : ''} : rangs {c.startRow}
+                          <ChartIcon className="size-3.5" aria-hidden /> Diagramme {c.title ? `« ${c.title} »` : ''} : rangs {c.startRow}
                           {c.endRow ? ` à ${c.endRow}` : ' et suivants'}
                         </p>
                       ))}
@@ -489,7 +489,7 @@ export function StepSections({
                     </DropdownMenuItem>
                     {organizeTo ? (
                       <DropdownMenuItem render={<Link to={organizeTo} />}>
-                        <ListTree /> Déplacer…
+                        <OrganizeIcon /> Déplacer…
                       </DropdownMenuItem>
                     ) : null}
                     {!organizeTo && index > 0 && (

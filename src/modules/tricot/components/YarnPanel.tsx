@@ -4,7 +4,7 @@
 import { GaugesList } from './GaugesList'
 import type { ProjectGauge } from '../lib/gauges'
 import { CircleAlert, Loader2 } from 'lucide-react'
-import { AddIcon, DeleteIcon, EditIcon, PhotoIcon } from './KnitIcons'
+import { AddIcon, CloseIcon, DeleteIcon, EditIcon, PhotoIcon } from './KnitIcons'
 import { useState, type FormEvent } from 'react'
 import { toast } from 'sonner'
 import { errorMessage } from '@/api'
@@ -197,7 +197,7 @@ export function YarnDialog({
 
           <DialogFooter>
             <Button type="button" variant="outline" className="h-10" onClick={() => onOpenChange(false)} disabled={saving}>
-              Annuler
+              <CloseIcon /> Annuler
             </Button>
             <Button type="submit" className="h-10" disabled={saving || reading}>
               {saving && <Loader2 className="animate-spin" aria-hidden />}

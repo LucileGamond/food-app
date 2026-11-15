@@ -1,5 +1,5 @@
 import { Loader2 } from 'lucide-react'
-import { EditIcon } from './KnitIcons'
+import { CloseIcon, EditIcon } from './KnitIcons'
 import { useState, type FormEvent } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -44,7 +44,7 @@ export function ProjectNeedles({ needles, onSave }: Props) {
         <div className="flex gap-2">
           <Input id="knit-needles" className="h-10 max-w-48" value={text} onChange={(e) => setText(e.target.value)} placeholder="3 ; 3,5" aria-invalid={!!error} disabled={saving} />
           <Button type="button" variant="outline" className="h-10" onClick={() => setEditing(false)} disabled={saving}>
-            Annuler
+            <CloseIcon /> Annuler
           </Button>
           <Button type="submit" className="h-10" disabled={saving}>
             {saving && <Loader2 className="animate-spin" aria-hidden />}

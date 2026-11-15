@@ -1,8 +1,8 @@
 // « Quelle taille pour qui ? » (après la lecture d'un patron) : tableau des mesures du patron, fiche de mesures choisie
 // et aisance voulue → taille conseillée ; si ce n'est pas la taille lue, on relit le patron pour elle.
 
-import { Loader2, RefreshCw } from 'lucide-react'
-import { MeasuresIcon } from './KnitIcons'
+import { Loader2 } from 'lucide-react'
+import { MeasuresIcon, RestartIcon } from './KnitIcons'
 import { useId, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useApi } from '@/app/ApiContext'
@@ -165,7 +165,7 @@ export function SizeAdvice({ chart, sizes, readIndex, onReread, rereading }: Pro
         <div className="space-y-1">
           <p className="text-sm text-muted-foreground">Les rangs et mailles ont été comptés pour la taille {readIndex !== null ? sizes[readIndex] : 'lue'}.</p>
           <Button type="button" className="h-10" disabled={rereading} onClick={() => onReread(sizes[advised]!)}>
-            {rereading ? <Loader2 className="animate-spin" aria-hidden /> : <RefreshCw />}
+            {rereading ? <Loader2 className="animate-spin" aria-hidden /> : <RestartIcon />}
             {rereading ? 'Lecture…' : `Relire pour la taille ${sizes[advised]}`}
           </Button>
         </div>

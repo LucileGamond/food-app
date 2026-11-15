@@ -1,5 +1,5 @@
 import { Loader2 } from 'lucide-react'
-import { AddIcon, DeleteIcon, EditIcon } from './KnitIcons'
+import { AddIcon, CloseIcon, DeleteIcon, EditIcon } from './KnitIcons'
 import { useEffect, useState, type FormEvent } from 'react'
 import { ConfirmDialog } from '@/components/ConfirmDialog'
 import { Button } from '@/components/ui/button'
@@ -104,7 +104,7 @@ function GaugeForm({ gauge, taken, needles, onSave, onCancel }: { gauge: Project
       )}
       <div className="flex flex-wrap gap-2">
         <Button type="button" variant="outline" className="h-10" onClick={onCancel} disabled={saving}>
-          Annuler
+          <CloseIcon /> Annuler
         </Button>
         <Button type="submit" className="h-10" disabled={saving}>
           {saving && <Loader2 className="animate-spin" aria-hidden />}

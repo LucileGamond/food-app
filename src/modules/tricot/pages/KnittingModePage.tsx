@@ -1,5 +1,5 @@
-import { NotebookPen, SearchX, X } from 'lucide-react'
-import { DoneIcon } from '../components/KnitIcons'
+import { SearchX, X } from 'lucide-react'
+import { DoneIcon, NotesIcon } from '../components/KnitIcons'
 import { useState, type ReactNode } from 'react'
 import { Link, useParams, useSearchParams } from 'react-router-dom'
 import { toast } from 'sonner'
@@ -224,7 +224,7 @@ function Knitting({ project, knit, projectTo }: KnittingProps) {
           id="step-notes"
           title={
             <>
-              <NotebookPen className="size-4 shrink-0 text-muted-foreground" aria-hidden /> Notes de l’étape
+              <NotesIcon className="size-4 shrink-0 text-muted-foreground" aria-hidden /> Notes de l’étape
             </>
           }
         >

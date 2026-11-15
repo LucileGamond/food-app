@@ -1,5 +1,5 @@
-import { ExternalLink, FileText, SearchX } from 'lucide-react'
-import { DeleteIcon, EditIcon, KnitIcon, OpenIcon } from '../components/KnitIcons'
+import { SearchX } from 'lucide-react'
+import { DeleteIcon, EditIcon, KnitIcon, LinkIcon, OpenIcon, PdfIcon } from '../components/KnitIcons'
 import { useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { toast } from 'sonner'
@@ -97,12 +97,12 @@ function PatternSheet({ pattern }: { pattern: KnitPattern }) {
             <div className="flex flex-wrap gap-2">
               {pattern.pdfPath && (
                 <Button variant="outline" className="h-10" onClick={() => setReading(true)}>
-                  <FileText /> Ouvrir le PDF
+                  <PdfIcon /> Ouvrir le PDF
                 </Button>
               )}
               {pattern.url && (
                 <a href={pattern.url} target="_blank" rel="noreferrer" className={cn(buttonVariants({ variant: 'outline' }), 'h-10')}>
-                  <ExternalLink /> Ouvrir le lien
+                  <LinkIcon /> Ouvrir le lien
                 </a>
               )}
             </div>

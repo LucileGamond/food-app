@@ -1,4 +1,4 @@
-import { ArrowDown, ArrowUp, Combine, Lock, MoreHorizontal, MoveRight, Split as SplitIcon } from 'lucide-react'
+import { ArrowDown, ArrowUp, Lock, MoreHorizontal } from 'lucide-react'
 import { useState } from 'react'
 import { toast } from 'sonner'
 import { errorMessage } from '@/api'
@@ -16,6 +16,7 @@ import { anchoredSections, textOf } from '../lib/sources'
 import { endStitches } from '../lib/stitches'
 import { HelpTip } from './HelpTip'
 import { Note } from './Note'
+import { JoinIcon, OrganizeIcon, SplitIcon } from './KnitIcons'
 
 type Pending = { kind: 'merge'; index: number } | { kind: 'split'; index: number; section: number } | { kind: 'move'; index: number; section: number }
 
@@ -92,7 +93,7 @@ export function OrganizeSteps({ project, reload }: { project: KnitProject; reloa
                     onClick={() => setPending({ kind: 'merge', index })}
                     aria-label={`Regrouper avec « ${next.title} »`}
                   >
-                    <Combine /> <span className="truncate">Regrouper avec « {next.title} »</span>
+                    <JoinIcon /> <span className="truncate">Regrouper avec « {next.title} »</span>
                   </Button>
                   {mergeLock && <p className="mt-1 text-xs text-muted-foreground">{mergeLock}</p>}
                 </div>
@@ -130,7 +131,7 @@ export function OrganizeSteps({ project, reload }: { project: KnitProject; reloa
                               setPending({ kind: 'move', index, section: s })
                             }}
                           >
-                            <MoveRight /> Déplacer vers une autre étape
+                            <OrganizeIcon /> Déplacer vers une autre étape
                           </DropdownMenuItem>
                           <DropdownMenuItem disabled={s === 0} onClick={() => setPending({ kind: 'split', index, section: s })}>
                             <SplitIcon /> Nouvelle étape à partir d’ici

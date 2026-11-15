@@ -1,4 +1,4 @@
-import { EditIcon } from './KnitIcons'
+import { CloseIcon, DoneIcon, EditIcon } from './KnitIcons'
 import { useState, type FormEvent } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -71,10 +71,10 @@ export function StepStartStitches({ start, set, previous, fromPattern, onSave }:
         <div className="flex flex-wrap gap-2">
           <Input id="start-stitches" className="h-10 w-28" inputMode="numeric" value={value} onChange={(e) => setValue(e.target.value)} aria-invalid={!!error} />
           <Button type="button" variant="outline" className="h-10" onClick={() => setEditing(false)}>
-            Annuler
+            <CloseIcon /> Annuler
           </Button>
           <Button type="submit" className="h-10">
-            Enregistrer
+            <DoneIcon /> Enregistrer
           </Button>
         </div>
         {set && (

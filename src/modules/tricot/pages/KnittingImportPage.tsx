@@ -1,5 +1,5 @@
-import { FileText, Grid3x3, Loader2, Save, Sparkles } from 'lucide-react'
-import { ChartIcon, RestartIcon } from '../components/KnitIcons'
+import { Loader2, Sparkles } from 'lucide-react'
+import { ChartIcon, DoneIcon, PdfIcon, RestartIcon } from '../components/KnitIcons'
 import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { Navigate, useNavigate, useSearchParams } from 'react-router-dom'
 import { toast } from 'sonner'
@@ -208,7 +208,7 @@ export function KnittingImportPage() {
                 )}
                 {hints.some((h) => h.step === index) && (
                   <p className="mt-2 flex items-start gap-1.5 text-xs text-muted-foreground">
-                    <Grid3x3 className="mt-0.5 size-3.5 shrink-0" aria-hidden />
+                    <ChartIcon className="mt-0.5 size-3.5 shrink-0" aria-hidden />
                     Diagramme : {hints.filter((h) => h.step === index).map(describeHint).join(' ; ')}
                   </p>
                 )}
@@ -224,7 +224,7 @@ export function KnittingImportPage() {
           {/* Enregistrer d'abord : abandonner jette une lecture qui a pu prendre deux minutes, et se confirme. */}
           <div className="flex flex-wrap gap-2">
             <Button className="h-10" onClick={() => void save()} disabled={saving}>
-              {saving ? <Loader2 className="animate-spin" aria-hidden /> : <Save />}
+              {saving ? <Loader2 className="animate-spin" aria-hidden /> : <DoneIcon />}
               Enregistrer le projet
             </Button>
             <Button variant="outline" className="h-10" onClick={() => setDropping(true)} disabled={saving}>
@@ -265,7 +265,7 @@ export function KnittingImportPage() {
       />
       {pdf && (
         <p className="flex items-center gap-1.5 text-sm text-muted-foreground">
-          <FileText className="size-4" aria-hidden /> {pdf.name}
+          <PdfIcon className="size-4" aria-hidden /> {pdf.name}
         </p>
       )}
     </div>
@@ -276,7 +276,7 @@ export function KnittingImportPage() {
       {pdf ? (
         <p className="flex flex-wrap items-center gap-x-3 gap-y-1 text-muted-foreground">
           <span className="flex items-center gap-1.5">
-            <FileText className="size-4" aria-hidden /> {pdf.name}
+            <PdfIcon className="size-4" aria-hidden /> {pdf.name}
           </span>
           <button type="button" className="font-medium text-brand underline-offset-4 hover:underline" onClick={() => {
               setChangingPdf(true)

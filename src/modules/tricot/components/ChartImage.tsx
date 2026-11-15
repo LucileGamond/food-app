@@ -1,5 +1,5 @@
-import { ArrowLeft, ArrowRight, X, ZoomIn, ZoomOut } from 'lucide-react'
-import { AddIcon, RemoveIcon } from './KnitIcons'
+import { ArrowLeft, ArrowRight, ZoomIn, ZoomOut } from 'lucide-react'
+import { AddIcon, CloseIcon, RemoveIcon } from './KnitIcons'
 import { useEffect, useLayoutEffect, useRef, useState, type PointerEvent } from 'react'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog'
@@ -160,7 +160,7 @@ export function ChartFullscreen({ chart, position, open, onOpenChange, counter }
             <ZoomIn />
           </Button>
           <Button variant="ghost" size="icon-lg" aria-label="Fermer le plein écran" onClick={() => onOpenChange(false)}>
-            <X />
+            <CloseIcon />
           </Button>
         </div>
         <ChartImage chart={chart} position={position} zoom={zoom} onZoom={setZoom} className="min-h-0 flex-1 rounded-none" />

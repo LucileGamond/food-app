@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { openPdf, type OpenedPdf } from '@/lib/pdf'
 import { CHART_MAX_SIDE, type ChartHint } from '../lib/chart'
+import { CloseIcon } from './KnitIcons'
 
 /** Côté long des vignettes : assez pour reconnaître une grille. */
 const THUMB_SIDE = 360
@@ -140,7 +141,7 @@ export function PdfPagePicker({ load, hints, onCancel, onPick }: Props) {
 
         <DialogFooter>
           <Button type="button" variant="outline" className="h-10" onClick={onCancel} disabled={picking !== null}>
-            Annuler
+            <CloseIcon /> Annuler
           </Button>
         </DialogFooter>
       </DialogContent>

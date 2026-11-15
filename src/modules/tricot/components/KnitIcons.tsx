@@ -343,3 +343,257 @@ export function LinkIcon(props: IconProps) {
     </Icon>
   )
 }
+
+// --- Icônes des boutons (2026-11-15) : fermer, PDF, organiser, séparer, regrouper, question, traduire, surligner,
+// recadrer, couverture, aiguilles, sous-étapes, notes, pesée ----------------------------------------------------------
+
+const CLOSE_A = strand(line([14, 14], [50, 50]), 6.4, PALETTES.garance)
+const CLOSE_B = strand(line([50, 14], [14, 50]), 6.4, PALETTES.garance)
+const ORG_1 = strand(cubic([6, 14], [20, 10], [30, 18], [44, 14]), 5, PALETTES.indigo)
+const ORG_2 = strand(cubic([18, 32], [32, 28], [42, 36], [58, 32]), 5, PALETTES.gaude)
+const ORG_3 = strand(cubic([6, 50], [20, 46], [30, 54], [44, 50]), 5, PALETTES.garance)
+const JOIN_A = strand(cubic([4, 18], [16, 16], [22, 30], [30, 32]), 5.2, PALETTES.indigo)
+const JOIN_B = strand(cubic([60, 46], [48, 48], [42, 34], [34, 32]), 5.2, PALETTES.garance)
+const QUESTION = strand(join(cubic([24, 22], [24, 12], [42, 12], [41, 22]), cubic([41, 22], [40, 28], [32, 28], [32, 34])), 4.6, PALETTES.indigo)
+const starPoint = (k: number): Point => {
+  const a = ((k % 10) * Math.PI) / 5 - Math.PI / 2
+  const r = k % 2 ? 11 : 25
+  return [32 + r * Math.cos(a), 34 + r * Math.sin(a)]
+}
+const STAR = strand(join(...Array.from({ length: 10 }, (_, k) => line(starPoint(k), starPoint(k + 1)))), 3.6, PALETTES.gaude)
+
+/** Fermer, Annuler : deux brins croisés. */
+export function CloseIcon(props: IconProps) {
+  return (
+    <Icon name="close" {...props}>
+      {() => (
+        <>
+          <Strand s={CLOSE_A} />
+          <Strand s={CLOSE_B} />
+        </>
+      )}
+    </Icon>
+  )
+}
+
+/** PDF du patron : une feuille au coin plié, des mailles dessus. */
+export function PdfIcon(props: IconProps) {
+  return (
+    <Icon name="pdf" {...props}>
+      {() => (
+        <>
+          <path d="M14 6 H40 L52 18 V58 H14 Z" fill="#f4ead8" stroke={WOOD[2]} strokeWidth={2} strokeLinejoin="round" />
+          <path d="M40 6 V18 H52" fill="#e6d7bc" stroke={WOOD[2]} strokeWidth={2} strokeLinejoin="round" />
+          {[0, 1, 2].map((c) => (
+            <V key={c} cx={22 + c * 8} top={22} w={6.5} h={8} col={c % 2 ? '#de7a5c' : '#c4553a'} edge="#7a2a1c" />
+          ))}
+          {[38, 44, 50].map((y) => (
+            <path key={y} d={`M20 ${y} H${y === 50 ? 36 : 46}`} stroke="#a88a6a" strokeWidth={2} strokeLinecap="round" />
+          ))}
+        </>
+      )}
+    </Icon>
+  )
+}
+
+/** Organiser, Déplacer : trois rangs de fil, celui du milieu poussé d'un cran. */
+export function OrganizeIcon(props: IconProps) {
+  return (
+    <Icon name="organize" {...props}>
+      {() => (
+        <>
+          <Strand s={ORG_1} />
+          <Strand s={ORG_2} />
+          <Strand s={ORG_3} />
+          <path d="M6 26 L12 32 L6 38" stroke={PALETTES.gaude[4]} strokeWidth={3} strokeLinecap="round" strokeLinejoin="round" />
+        </>
+      )}
+    </Icon>
+  )
+}
+
+/** Nouvelle étape à partir d'ici : un tricot séparé en deux par un pointillé. */
+export function SplitIcon(props: IconProps) {
+  return (
+    <Icon name="split" {...props}>
+      {() => (
+        <>
+          <rect x={10} y={6} width={44} height={22} rx={3} fill={PALETTES.indigo[0]} />
+          <rect x={10} y={36} width={44} height={22} rx={3} fill={PALETTES.sauge[0]} />
+          {[0, 1].map((r) =>
+            [0, 1, 2, 3, 4].map((c) => <V key={`a${r}${c}`} cx={15 + c * 8.5} top={7 + r * 10} w={6.5} h={9} col={PALETTES.indigo[2 + ((r + c) % 2)]!} edge={PALETTES.indigo[4]} />),
+          )}
+          {[0, 1].map((r) =>
+            [0, 1, 2, 3, 4].map((c) => <V key={`b${r}${c}`} cx={15 + c * 8.5} top={37 + r * 10} w={6.5} h={9} col={PALETTES.sauge[2 + ((r + c) % 2)]!} edge={PALETTES.sauge[4]} />),
+          )}
+          <path d="M3 32 H61" stroke="#a33a26" strokeWidth={2.6} strokeDasharray="5 4" strokeLinecap="round" />
+        </>
+      )}
+    </Icon>
+  )
+}
+
+/** Regrouper : deux fils qui se nouent. */
+export function JoinIcon(props: IconProps) {
+  return (
+    <Icon name="join" {...props}>
+      {() => (
+        <>
+          <Strand s={JOIN_A} />
+          <Strand s={JOIN_B} />
+          <circle cx={32} cy={32} r={7.5} fill={PALETTES.gaude[2]} stroke={PALETTES.gaude[4]} strokeWidth={1.6} />
+          <path d="M27 29 Q32 37 37 29" stroke={PALETTES.gaude[4]} strokeWidth={1.6} strokeLinecap="round" />
+        </>
+      )}
+    </Icon>
+  )
+}
+
+/** Une question : une bulle et un « ? » en fil. */
+export function QuestionIcon(props: IconProps) {
+  return (
+    <Icon name="question" {...props}>
+      {() => (
+        <>
+          <path d="M8 8 H56 V44 H26 L14 56 V44 H8 Z" fill="#f4ead8" stroke={WOOD[2]} strokeWidth={2} strokeLinejoin="round" />
+          <Strand s={QUESTION} />
+          <circle cx={32} cy={39} r={2.6} fill={PALETTES.indigo[2]} stroke={PALETTES.indigo[4]} strokeWidth={1} />
+        </>
+      )}
+    </Icon>
+  )
+}
+
+/** Traduire : une bulle « FR » et une pastille « EN ». */
+export function TranslateIcon(props: IconProps) {
+  return (
+    <Icon name="translate" {...props}>
+      {() => (
+        <>
+          <path d="M6 8 H50 V40 H22 L12 50 V40 H6 Z" fill="#f4ead8" stroke={WOOD[2]} strokeWidth={2} strokeLinejoin="round" />
+          <text x={28} y={31} textAnchor="middle" fontSize={17} fontWeight={700} fill={PALETTES.indigo[1]} fontFamily="system-ui, sans-serif">
+            FR
+          </text>
+          <circle cx={50} cy={50} r={11} fill={PALETTES.garance[2]} stroke={PALETTES.garance[4]} strokeWidth={1.4} />
+          <text x={50} y={54} textAnchor="middle" fontSize={10} fontWeight={700} fill="#fff" fontFamily="system-ui, sans-serif">
+            EN
+          </text>
+        </>
+      )}
+    </Icon>
+  )
+}
+
+/** Corriger le surlignage : un surligneur jaune gaude et son trait. */
+export function HighlightIcon(props: IconProps) {
+  return (
+    <Icon name="highlight" {...props}>
+      {() => (
+        <>
+          <path d="M8 54 H40" stroke={PALETTES.gaude[2]} strokeWidth={9} strokeLinecap="round" opacity={0.75} />
+          <g transform="rotate(40 38 26)">
+            <rect x={30} y={2} width={16} height={34} rx={3} fill={PALETTES.gaude[1]} stroke={PALETTES.gaude[4]} strokeWidth={1.6} />
+            <rect x={30} y={2} width={16} height={10} rx={3} fill="#3a3530" />
+            <path d="M32 36 H44 L41 45 H35 Z" fill={PALETTES.gaude[3]} stroke={PALETTES.gaude[4]} strokeWidth={1.4} strokeLinejoin="round" />
+          </g>
+        </>
+      )}
+    </Icon>
+  )
+}
+
+/** Recadrer : deux équerres en bois autour d'une grille. */
+export function CropIcon(props: IconProps) {
+  return (
+    <Icon name="crop" {...props}>
+      {() => (
+        <>
+          {[0, 1, 2].map((r) =>
+            [0, 1, 2].map((c) => <rect key={`${r}${c}`} x={19 + c * 9} y={19 + r * 9} width={9} height={9} fill={(r + c) % 2 ? '#3f4fa0' : '#f4ead8'} stroke={WOOD[2]} strokeWidth={0.8} />),
+          )}
+          <path d="M14 4 V50 H60" stroke={WOOD[2]} strokeWidth={7} strokeLinecap="round" strokeLinejoin="round" />
+          <path d="M14 4 V50 H60" stroke={WOOD[0]} strokeWidth={4.6} strokeLinecap="round" strokeLinejoin="round" />
+          <path d="M4 14 H50 V60" stroke={WOOD[2]} strokeWidth={7} strokeLinecap="round" strokeLinejoin="round" />
+          <path d="M4 14 H50 V60" stroke={WOOD[1]} strokeWidth={4.6} strokeLinecap="round" strokeLinejoin="round" />
+        </>
+      )}
+    </Icon>
+  )
+}
+
+/** Mettre en couverture : une étoile en fil gaude. */
+export function StarIcon(props: IconProps) {
+  return <Icon name="star" {...props}>{() => <Strand s={STAR} />}</Icon>
+}
+
+/** Aiguille : deux aiguilles en bois croisées. */
+export function NeedlesIcon(props: IconProps) {
+  return (
+    <Icon name="needles" {...props}>
+      {() => (
+        <>
+          <Needle from={[8, 10]} to={[54, 56]} w={4.6} />
+          <Needle from={[56, 10]} to={[10, 56]} w={4.6} />
+        </>
+      )}
+    </Icon>
+  )
+}
+
+/** Sous-étapes : trois pelotes alignées, chacune sa ligne. */
+export function StepsIcon(props: IconProps) {
+  const pals = [PALETTES.indigo, PALETTES.gaude, PALETTES.garance]
+  return (
+    <Icon name="steps" {...props}>
+      {(id) => (
+        <>
+          {pals.map((pal, i) => (
+            <g key={i}>
+              <Ball id={`${id}${i}`} cx={12} cy={12 + i * 20} r={8} pal={pal} seed={3 + i} />
+              <path d={`M26 ${12 + i * 20} H${i === 2 ? 46 : 58}`} stroke="#a88a6a" strokeWidth={3} strokeLinecap="round" />
+            </g>
+          ))}
+        </>
+      )}
+    </Icon>
+  )
+}
+
+/** Notes : un carnet à spirale et son marque-page. */
+export function NotesIcon(props: IconProps) {
+  return (
+    <Icon name="notes" {...props}>
+      {() => (
+        <>
+          <rect x={12} y={6} width={40} height={52} rx={4} fill="#f4ead8" stroke={WOOD[2]} strokeWidth={2} />
+          {[14, 24, 34, 44].map((y) => (
+            <circle key={y} cx={12} cy={y} r={3} stroke="#6b6f78" strokeWidth={2} />
+          ))}
+          {[20, 28, 36, 44].map((y) => (
+            <path key={y} d={`M20 ${y} H${y === 44 ? 34 : 40}`} stroke="#a88a6a" strokeWidth={2} strokeLinecap="round" />
+          ))}
+          <path d="M42 6 V24 L46 20 L50 24 V6" fill={PALETTES.garance[2]} stroke={PALETTES.garance[4]} strokeWidth={1.2} strokeLinejoin="round" />
+        </>
+      )}
+    </Icon>
+  )
+}
+
+/** Assez de laine ? : une balance de cuisine, une pelote dessus. */
+export function ScaleIcon(props: IconProps) {
+  return (
+    <Icon name="scale" {...props}>
+      {(id) => (
+        <>
+          <Ball id={id} cx={32} cy={20} r={14} pal={PALETTES.sauge} seed={7} />
+          <path d="M10 36 H54" stroke="#6b6f78" strokeWidth={4} strokeLinecap="round" />
+          <path d="M14 40 H50 L46 58 H18 Z" fill="#d9d4cc" stroke="#6b6f78" strokeWidth={2} strokeLinejoin="round" />
+          <rect x={23} y={45} width={18} height={8} rx={1.5} fill="#2f412c" />
+          <text x={32} y={51.5} textAnchor="middle" fontSize={6.5} fill="#aac2a5" fontFamily="monospace">
+            50g
+          </text>
+        </>
+      )}
+    </Icon>
+  )
+}

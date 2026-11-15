@@ -1,5 +1,4 @@
 import { cn } from '@/lib/utils'
-import { Repeat } from 'lucide-react'
 import { useId } from 'react'
 import { Label } from '@/components/ui/label'
 import { NativeSelect } from '@/components/ui/native-select'
@@ -8,6 +7,7 @@ import type { StepProgress } from '../api'
 import type { KnitStep } from '../lib/pattern'
 import { MAX_STEP_TIMES, describePass, ordinal, withTimes } from '../lib/passes'
 import { TOUCH_AREA_INLINE } from '../lib/touch'
+import { RestartIcon } from './KnitIcons'
 
 const range = (n: number) => Array.from({ length: n }, (_, i) => i + 1)
 
@@ -29,7 +29,7 @@ export function StepTimes({ step, onChange }: { step: Pick<KnitStep, 'times' | '
           />
         }
       >
-        <Repeat className="size-3.5" aria-hidden /> {label}
+        <RestartIcon className="size-3.5" aria-hidden /> {label}
       </PopoverTrigger>
       <PopoverContent className="w-72 space-y-3">
         <div className="flex flex-wrap items-end gap-3">

@@ -1,4 +1,4 @@
-import { ChevronDown, ChevronUp, Crop, Loader2 } from 'lucide-react'
+import { ChevronDown, ChevronUp, Loader2 } from 'lucide-react'
 import { useId, useRef, useState, type PointerEvent } from 'react'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
@@ -10,6 +10,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { cn } from '@/lib/utils'
 import { formToSetup, MAX_CHART_TITLE, moveNearestLine, rowBand, type ChartForm, type ChartSetup } from '../lib/chart'
 import { describeSection, planSections, type KnitStep } from '../lib/pattern'
+import { CloseIcon, CropIcon } from './KnitIcons'
 
 interface Props {
   open: boolean
@@ -151,7 +152,7 @@ export function ChartSetupDialog({ open, imageUrl, initial, steps, onCrop, onCan
           <TabsContent value="grille" className="grid gap-3">
             {onCrop && (
               <Button type="button" variant="outline" className="h-10 justify-self-start" onClick={onCrop} disabled={saving}>
-                <Crop /> Recadrer l’image
+                <CropIcon /> Recadrer l’image
               </Button>
             )}
             <div className="grid gap-1.5">
@@ -259,7 +260,7 @@ export function ChartSetupDialog({ open, imageUrl, initial, steps, onCrop, onCan
 
         <DialogFooter className="sticky bottom-0 z-10">
           <Button type="button" variant="outline" className="h-10" onClick={onCancel} disabled={saving}>
-            Annuler
+            <CloseIcon /> Annuler
           </Button>
           <Button type="button" className="h-10" onClick={() => void save()} disabled={saving || !imageUrl}>
             {saving && <Loader2 className="animate-spin" aria-hidden />}
