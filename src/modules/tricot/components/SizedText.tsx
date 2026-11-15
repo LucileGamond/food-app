@@ -148,7 +148,7 @@ export function StepText({ text, sizes, sizeIndex, highlights, onChange, abbrevi
         {editing && fixed && (
           <Button
             type="button"
-            variant="ghost"
+            variant="outline"
             className="h-10"
             onClick={() => {
               const rest = { ...highlights }

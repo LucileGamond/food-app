@@ -9,8 +9,9 @@ const buttonVariants = cva(
       variant: {
         // btn-primary : repère du bouton principal, que le module Tricot habille d'écru (index.css).
         default: "btn-primary bg-primary text-primary-foreground hover:bg-primary/80",
+        // btn-outline : repère des boutons secondaires, que le module Tricot habille comme les principaux (index.css).
         outline:
-          "border-border bg-background hover:bg-muted hover:text-foreground aria-expanded:bg-muted aria-expanded:text-foreground dark:border-input dark:bg-input/30 dark:hover:bg-input/50",
+          "btn-outline border-border bg-background hover:bg-muted hover:text-foreground aria-expanded:bg-muted aria-expanded:text-foreground dark:border-input dark:bg-input/30 dark:hover:bg-input/50",
         secondary:
           "bg-secondary text-secondary-foreground hover:bg-[color-mix(in_oklch,var(--secondary),var(--foreground)_5%)] aria-expanded:bg-secondary aria-expanded:text-secondary-foreground",
         ghost:

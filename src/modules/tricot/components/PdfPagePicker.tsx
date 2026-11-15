@@ -140,7 +140,7 @@ export function PdfPagePicker({ load, hints, onCancel, onPick }: Props) {
         )}
 
         <DialogFooter>
-          <Button type="button" variant="outline" className="h-10" onClick={onCancel} disabled={picking !== null}>
+          <Button type="button" variant="ghost" className="h-10" onClick={onCancel} disabled={picking !== null}>
             <CloseIcon /> Annuler
           </Button>
         </DialogFooter>

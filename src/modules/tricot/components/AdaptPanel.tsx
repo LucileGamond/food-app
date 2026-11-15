@@ -176,7 +176,7 @@ export function AdaptPanel({ project, size, onSaved }: Props) {
             ))}
           </ul>
           <DialogFooter>
-            <Button variant="outline" className="h-10" onClick={() => setPreview(null)}>
+            <Button variant="ghost" className="h-10" onClick={() => setPreview(null)}>
               <CloseIcon /> Annuler
             </Button>
             <Button className="h-10" onClick={() => void accept()}>

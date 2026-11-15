@@ -196,7 +196,7 @@ export function YarnDialog({
           )}
 
           <DialogFooter>
-            <Button type="button" variant="outline" className="h-10" onClick={() => onOpenChange(false)} disabled={saving}>
+            <Button type="button" variant="ghost" className="h-10" onClick={() => onOpenChange(false)} disabled={saving}>
               <CloseIcon /> Annuler
             </Button>
             <Button type="submit" className="h-10" disabled={saving || reading}>

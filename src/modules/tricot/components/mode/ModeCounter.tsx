@@ -70,7 +70,7 @@ export function ModeCounter({ rowCount, totalRows, onCount, substeps = [], onFin
             </span>
           ))}
           {canFinish && (
-            <Button variant="ghost" className={cn('relative h-7 px-2 text-xs', TOUCH_AREA)} onClick={() => onFinishSubstep(main)}>
+            <Button variant="outline" className={cn("relative h-7 px-2 text-xs", TOUCH_AREA)} onClick={() => onFinishSubstep(main)}>
               <DoneIcon /> Terminer la sous-étape ({knitted} rang{knitted > 1 ? 's' : ''})
             </Button>
           )}

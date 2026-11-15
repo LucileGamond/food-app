@@ -44,7 +44,7 @@ export function StepQuestion({ stepTitle, text, row, size, abbreviations }: Prop
 
   if (!open) {
     return (
-      <Button type="button" variant="ghost" className="h-10 text-muted-foreground" onClick={() => setOpen(true)}>
+      <Button type="button" variant="outline" className="h-10" onClick={() => setOpen(true)}>
         <QuestionIcon /> Une question sur ce rang ?
       </Button>
     )

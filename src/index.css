@@ -278,19 +278,29 @@
     border-radius: 999px;
     background: var(--cord);
 }
-/* Boutons principaux du module Tricot (Tricoter, +1 rang…) : fond écru soutenu et texte encre, jamais la couleur du
-   projet ; les icônes illustrées y gardent leurs couleurs. */
-:root[data-module='tricot'] .btn-primary {
-    background-color: oklch(0.905 0.03 80);
+/* Boutons du module Tricot (Tricoter, +1 rang, Modifier, Organiser…) : tous le même beige foncé et texte encre, jamais
+   la couleur du projet ; les icônes illustrées y gardent leurs couleurs. « Annuler » et « Fermer » restent en simple
+   texte (ghost), pour ne pas peser autant que l'action d'à côté. */
+:root[data-module='tricot'] .btn-primary,
+:root[data-module='tricot'] .btn-outline {
+    background-color: oklch(0.865 0.04 76);
+    border-color: oklch(0.79 0.045 72);
     color: oklch(0.2 0.01 60);
 }
-:root[data-module='tricot'] .btn-primary:hover {
-    background-color: oklch(0.87 0.035 78);
+:root[data-module='tricot'] .btn-primary:hover,
+:root[data-module='tricot'] .btn-outline:hover,
+:root[data-module='tricot'] .btn-outline[aria-expanded='true'] {
+    background-color: oklch(0.82 0.045 74);
+    color: oklch(0.2 0.01 60);
 }
-:root[data-module='tricot'].dark .btn-primary {
+:root[data-module='tricot'].dark .btn-primary,
+:root[data-module='tricot'].dark .btn-outline {
     background-color: oklch(0.36 0.03 65);
+    border-color: oklch(0.42 0.03 65);
     color: oklch(0.95 0.01 70);
 }
-:root[data-module='tricot'].dark .btn-primary:hover {
+:root[data-module='tricot'].dark .btn-primary:hover,
+:root[data-module='tricot'].dark .btn-outline:hover,
+:root[data-module='tricot'].dark .btn-outline[aria-expanded='true'] {
     background-color: oklch(0.4 0.035 65);
 }

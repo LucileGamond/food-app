@@ -70,7 +70,7 @@ export function StepStartStitches({ start, set, previous, fromPattern, onSave }:
         <Label htmlFor="start-stitches">Mailles au début de l’étape</Label>
         <div className="flex flex-wrap gap-2">
           <Input id="start-stitches" className="h-10 w-28" inputMode="numeric" value={value} onChange={(e) => setValue(e.target.value)} aria-invalid={!!error} />
-          <Button type="button" variant="outline" className="h-10" onClick={() => setEditing(false)}>
+          <Button type="button" variant="ghost" className="h-10" onClick={() => setEditing(false)}>
             <CloseIcon /> Annuler
           </Button>
           <Button type="submit" className="h-10">
@@ -78,7 +78,7 @@ export function StepStartStitches({ start, set, previous, fromPattern, onSave }:
           </Button>
         </div>
         {set && (
-          <Button type="button" variant="ghost" className="h-10 px-2" onClick={() => void onSave(null).then((ok) => ok && setEditing(false))}>
+          <Button type="button" variant="outline" className="h-10" onClick={() => void onSave(null).then((ok) => ok && setEditing(false))}>
             Laisser le patron décider
           </Button>
         )}
@@ -99,8 +99,8 @@ export function StepStartStitches({ start, set, previous, fromPattern, onSave }:
         {start !== null && !set && <span className="text-muted-foreground"> (d’après la fin du patron)</span>}
       </span>
       <Button
-        variant="ghost"
-        className="h-10 px-2"
+        variant="outline"
+        className="h-10"
         onClick={() => {
           setValue(start === null ? '' : String(start))
           setError(null)

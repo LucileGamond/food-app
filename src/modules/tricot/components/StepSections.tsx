@@ -259,7 +259,7 @@ function SectionForm({ section, onSave, onCancel, needle }: { section: StepSecti
               </div>
             ))}
             {form.actions.length < MAX_ACTIONS && (
-              <Button type="button" variant="ghost" className="h-10" onClick={() => setForm((f) => ({ ...f, actions: [...f.actions, { text: '', rank: '1', stitches: '' }] }))}>
+              <Button type="button" variant="outline" className="h-10" onClick={() => setForm((f) => ({ ...f, actions: [...f.actions, { text: '', rank: '1', stitches: '' }] }))}>
                 <AddIcon /> Ajouter une action
               </Button>
             )}
@@ -272,7 +272,7 @@ function SectionForm({ section, onSave, onCancel, needle }: { section: StepSecti
         </p>
       )}
       <div className="flex flex-wrap gap-2">
-        <Button type="button" variant="outline" className="h-10" onClick={onCancel}>
+        <Button type="button" variant="ghost" className="h-10" onClick={onCancel}>
           <CloseIcon /> Annuler
         </Button>
         <Button type="submit" className="h-10">

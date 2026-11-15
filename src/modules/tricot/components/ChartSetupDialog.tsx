@@ -259,7 +259,7 @@ export function ChartSetupDialog({ open, imageUrl, initial, steps, onCrop, onCan
         )}
 
         <DialogFooter className="sticky bottom-0 z-10">
-          <Button type="button" variant="outline" className="h-10" onClick={onCancel} disabled={saving}>
+          <Button type="button" variant="ghost" className="h-10" onClick={onCancel} disabled={saving}>
             <CloseIcon /> Annuler
           </Button>
           <Button type="button" className="h-10" onClick={() => void save()} disabled={saving || !imageUrl}>
