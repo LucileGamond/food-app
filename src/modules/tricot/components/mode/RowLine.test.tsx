@@ -11,7 +11,7 @@ function show(line: RowGuide) {
       <RowLine line={line} stitches={{ kind: 'sure', stitches: 80 }} glossary={[]} setupTo={SETUP} onOpenChart={() => {}} />
     </MemoryRouter>,
   )
-  return screen.getByRole('region', { name: 'À tricoter' })
+  return screen.getByRole('region', { name: 'Ce rang' })
 }
 
 /** Le mode tricoter renvoie à la préparation avec un seul libellé, partout (C3). */
@@ -30,8 +30,71 @@ describe('RowLine : aller préparer l’étape', () => {
 
   it('pas de numéro de rang dans la carte : les nombres sont au compteur (L5)', () => {
     const region = show({ row: 41, events: [], context: '10 rangs : jersey', charts: [], unknown: false })
-    expect(within(region).getByRole('heading')).toHaveTextContent(/^À tricoter$/)
+    expect(within(region).getByRole('heading')).toHaveTextContent(/^Ce rang$/)
     expect(region).not.toHaveTextContent('41')
+  })
+
+  it('nomme la sous-étape où l’on est, et celle « en même temps »', () => {
+    render(
+      <MemoryRouter>
+        <RowLine
+          line={{ row: 14, events: [], context: null, charts: [], unknown: false }}
+          stitches={{ kind: 'sure', stitches: 48 }}
+          glossary={[]}
+          setupTo={SETUP}
+          onOpenChart={() => {}}
+          sectionCount={4}
+          substeps={[
+            { index: 1, title: '1 diminution côté emmanchure — tous les 4 rangs (6 fois)', row: 10, rows: 24, finishable: false },
+            { index: 2, title: 'En même temps, dès le rang 12 : 1 diminution côté encolure — tous les 2 rangs (5 fois)', row: 3, rows: 10, finishable: false },
+          ]}
+        />
+      </MemoryRouter>,
+    )
+    expect(Array.from(screen.getByRole('list', { name: 'Sous-étapes en cours' }).children, (li) => li.textContent)).toEqual([
+      'Sous-étape 2 sur 4 :1 diminution côté emmanchure — tous les 4 rangs (6 fois)',
+      'En même temps · Sous-étape 3 sur 4 :1 diminution côté encolure — tous les 2 rangs (5 fois)',
+    ])
+  })
+
+  it('rang suivant : ses consignes ; sans rien de particulier, quand arrive la suite ; rien après le dernier rang', () => {
+    const base = { stitches: { kind: 'sure' as const, stitches: 48 }, glossary: [], setupTo: SETUP, onOpenChart: () => {} }
+    const { unmount } = render(
+      <MemoryRouter>
+        <RowLine {...base} line={{ row: 14, events: [], context: 'jersey', charts: [], unknown: false }} next={{ row: 15, events: [{ kind: 'action', text: '1 diminution', count: 2, times: 5 }], context: null, charts: [], unknown: false }} upcoming={{ row: 15, inRows: 1, events: [] }} />
+      </MemoryRouter>,
+    )
+    const next = screen.getByRole('region', { name: 'Rang suivant' })
+    expect(next).toHaveTextContent('Rang suivant')
+    expect(next).not.toHaveTextContent('Ensuite')
+    unmount()
+    const { unmount: unmount2 } = render(
+      <MemoryRouter>
+        <RowLine
+          {...base}
+          line={{ row: 14, events: [], context: 'jersey', charts: [], unknown: false }}
+          next={{ row: 15, events: [], context: 'jersey', charts: [], unknown: false }}
+          upcoming={{ row: 18, inRows: 4, events: [{ kind: 'action', text: '1 diminution', count: 3, times: 5 }] }}
+        />
+      </MemoryRouter>,
+    )
+    expect(screen.getByRole('region', { name: 'Rang suivant' })).toHaveTextContent('Rien de particulier. Ensuite : rang 18, dans 4 —')
+    unmount2()
+    render(
+      <MemoryRouter>
+        <RowLine {...base} line={{ row: 30, events: [{ kind: 'step-end', next: 'Col' }], context: null, charts: [], unknown: false }} next={null} />
+      </MemoryRouter>,
+    )
+    expect(screen.queryByRole('region', { name: 'Rang suivant' })).not.toBeInTheDocument()
+  })
+
+  it('la question se pose au niveau du rang', () => {
+    render(
+      <MemoryRouter>
+        <RowLine line={{ row: 2, events: [], context: null, charts: [], unknown: false }} stitches={{ kind: 'sure', stitches: 80 }} glossary={[]} setupTo={SETUP} onOpenChart={() => {}} question={<button type="button">Une question sur ce rang ?</button>} />
+      </MemoryRouter>,
+    )
+    expect(within(screen.getByRole('region', { name: 'Ce rang' })).getByRole('button', { name: 'Une question sur ce rang ?' })).toBeInTheDocument()
   })
 
   it('rang ordinaire : pas de lien vers la préparation', () => {

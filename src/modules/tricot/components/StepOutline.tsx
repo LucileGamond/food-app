@@ -2,7 +2,7 @@ import { Check, ListTree } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { cn } from '@/lib/utils'
 import { Fold } from './Fold'
-import { describeEvent, type Upcoming } from '../lib/guide'
+import { describeEvent } from '../lib/guide'
 import { outlineIndicesAt, stepOutline, type OutlineRow, type OutlineSection } from '../lib/outline'
 import type { StepSection } from '../lib/pattern'
 import type { StitchCount } from '../lib/stitches'
@@ -13,8 +13,6 @@ interface Props {
   nextTitle: string | null
   /** Repère du rang en cours (faux : étape finie, ou préparation sans rang en cours). */
   showCurrent?: boolean
-  /** Mode tricoter : le prochain rang qui demande quelque chose, rappelé même replié. */
-  upcoming?: Upcoming | null
 }
 
 const plural = (n: number, word: string) => `${n} ${word}${n > 1 ? 's' : ''}`
@@ -70,7 +68,7 @@ function Section({ section, current, isCurrent }: { section: OutlineSection; cur
 }
 
 /** L'étape entière, section par section, avec les rangs où il y a quelque chose à faire ; repliée. */
-export function StepOutline({ step, nextTitle, showCurrent = true, upcoming }: Props) {
+export function StepOutline({ step, nextTitle, showCurrent = true }: Props) {
   const ref = useRef<HTMLDivElement>(null)
   const [open, setOpen] = useState(false)
   const outline = stepOutline(step, nextTitle)
@@ -89,13 +87,8 @@ export function StepOutline({ step, nextTitle, showCurrent = true, upcoming }: P
         id="step-outline"
         title={
           <>
-            <ListTree className="size-4 shrink-0 text-muted-foreground" aria-hidden /> Toute l’étape
+            <ListTree className="size-4 shrink-0 text-muted-foreground" aria-hidden /> Étape entière
           </>
-        }
-        summary={
-          upcoming
-            ? `Prochain : rang ${upcoming.row}, dans ${upcoming.inRows} — ${upcoming.events.map(describeEvent).join(' · ')}`
-            : 'sous-étapes et rangs'
         }
         open={open}
         onToggle={() => setOpen((o) => !o)}
@@ -103,7 +96,7 @@ export function StepOutline({ step, nextTitle, showCurrent = true, upcoming }: P
         {outline.length === 0 ? (
           <p className="text-sm text-muted-foreground">Rien de prévu : ajoute des sous-étapes ou le nombre de rangs de l’étape dans la préparation.</p>
         ) : (
-          <ol className="space-y-2 text-sm" aria-label="Toute l’étape">
+          <ol className="space-y-2 text-sm" aria-label="Étape entière">
             {outline.map((section, i) => (
               <Section key={i} section={section} current={current} isCurrent={currentIndices.includes(i)} />
             ))}

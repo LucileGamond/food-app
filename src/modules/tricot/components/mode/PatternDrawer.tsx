@@ -7,24 +7,20 @@ import { useBaseGlossary } from '../../hooks/useBaseGlossary'
 import { looksEnglish, mergeGlossary } from '../../lib/glossary'
 import { planSections, sectionIndicesAt } from '../../lib/pattern'
 import { Fold } from '../Fold'
-import { StepNotes } from '../StepNotes'
-import { StepQuestion } from '../StepQuestion'
 
 interface Props {
   step: KnitStep
   /** Rang à tricoter (null : étape finie). */
   row: number | null
-  size: string
   sizes: string[]
   sizeIndex: number | null
   abbreviations: Abbreviation[]
   onHighlights: (highlights: Highlights) => void
   onTranslate: () => Promise<void>
-  onNotes: (notes: string) => void
 }
 
-/** Volet « Patron », replié : le texte de l'étape, ses abréviations, une question sur le rang, les notes. */
-export function PatternDrawer({ step, row, size, sizes, sizeIndex, abbreviations, onHighlights, onTranslate, onNotes }: Props) {
+/** Volet « Patron », replié : le texte de l'étape et ses abréviations (la question est au rang, les notes à part). */
+export function PatternDrawer({ step, row, sizes, sizeIndex, abbreviations, onHighlights, onTranslate }: Props) {
   const base = useBaseGlossary()
   // Paragraphe(s) des sous-étapes en cours : d'abord, le texte complet ensuite
   const current = row === null ? [] : sectionIndicesAt(planSections(step.sections, step.totalRows), row).flatMap((i) => (step.sections[i]?.source ? [step.sections[i]!.source!] : []))
@@ -37,7 +33,6 @@ export function PatternDrawer({ step, row, size, sizes, sizeIndex, abbreviations
           <PatternsIcon className="size-4 shrink-0 text-muted-foreground" aria-hidden /> Patron
         </>
       }
-      summary="texte de l’étape, question, notes"
     >
       <div className="space-y-4">
         {current.length > 0 && (
@@ -60,12 +55,10 @@ export function PatternDrawer({ step, row, size, sizes, sizeIndex, abbreviations
               translation={step.translation ?? null}
               onTranslate={onTranslate}
             />
-            <StepQuestion key={step.id} stepTitle={step.title} text={step.translation || step.instructions} row={row} size={size} abbreviations={abbreviations} />
           </>
         ) : (
           <p className="text-sm text-muted-foreground">Pas de texte pour cette étape.</p>
         )}
-        <StepNotes key={step.id} step={step} onSave={onNotes} />
       </div>
     </Fold>
   )

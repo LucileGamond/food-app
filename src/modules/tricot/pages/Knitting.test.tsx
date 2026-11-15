@@ -1090,11 +1090,11 @@ describe('KnittingProjectPage', () => {
     expect(screen.queryByLabelText('En cours')).not.toBeInTheDocument()
   })
 
-  it('préparation : pas de « Toute l’étape » en double des sous-étapes (elle reste dans le mode tricoter)', async () => {
+  it('préparation : pas de « Étape entière » en double des sous-étapes (elle reste dans le mode tricoter)', async () => {
     renderProject()
     await screen.findByRole('heading', { name: 'Emmanchures' })
     expect(screen.getByRole('region', { name: 'Sous-étapes' })).toBeInTheDocument()
-    expect(screen.queryByText('Toute l’étape')).not.toBeInTheDocument()
+    expect(screen.queryByText('Étape entière')).not.toBeInTheDocument()
   })
 
   it('liste des étapes : la fois en cours d’une étape tricotée plusieurs fois', async () => {

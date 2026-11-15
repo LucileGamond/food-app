@@ -62,9 +62,10 @@ function renderMode(project: KnitProject = PROJECT, api = fakeApi(), route = '/t
   }
 }
 
-const line = () => screen.findByRole('region', { name: 'À tricoter' })
+const line = () => screen.findByRole('region', { name: 'Ce rang' })
 // Le prochain rang qui demande quelque chose, rappelé en tête de « Toute l'étape »
-const next = () => screen.queryByText(/^Prochain :/)
+// Le rang suivant, sous le rang en cours (absent au dernier rang d'une étape au nombre de rangs connu)
+const next = () => screen.queryByRole('region', { name: 'Rang suivant' })
 
 beforeEach(() => localStorage.clear())
 
@@ -81,12 +82,16 @@ describe('mode tricoter', () => {
     expect(screen.queryByText(/Pull Bergamote ·/)).not.toBeInTheDocument()
     // 8 rangs faits : rang 9, rien de particulier, la répétition est en cours
     const row = await line()
-    expect(within(row).getByRole('heading')).toHaveTextContent('À tricoter')
-    expect(row).toHaveTextContent('1 dim. de chaque côté — tous les 6 rangs (4 fois)')
-    expect(next()).toHaveTextContent('Prochain : rang 10, dans 1 — 1 dim. de chaque côté (1/4)')
+    expect(within(row).getByRole('heading', { level: 2 })).toHaveTextContent('Ce rang')
+    // La sous-étape où l'on est, nommée en tête de la carte
+    expect(within(row).getByRole('list', { name: 'Sous-étapes en cours' })).toHaveTextContent('Sous-étape 2 sur 2 :1 dim. de chaque côté — tous les 6 rangs (4 fois)')
+    // Puis ce rang, puis le rang suivant
+    expect(next()).toHaveTextContent('Rang suivant1 dim. de chaque côté (1/4)')
+    // La question se pose au niveau du rang
+    expect(within(row).getByRole('button', { name: 'Une question sur ce rang ?' })).toBeInTheDocument()
     // Toute l'étape : chaque rang à venir, avec dans combien de rangs
-    await user.click(screen.getByRole('button', { name: 'Toute l’étape' }))
-    const outline = screen.getByRole('list', { name: 'Toute l’étape' })
+    await user.click(screen.getByRole('button', { name: 'Étape entière' }))
+    const outline = screen.getByRole('list', { name: 'Étape entière' })
     expect(within(outline).getAllByRole('listitem', { current: false }).map((li) => li.textContent).filter((t) => t?.startsWith('Rang'))).toEqual([
       'Rang 101 dim. de chaque côté (1/4)dans 1',
       'Rang 161 dim. de chaque côté (2/4)dans 7',
@@ -94,16 +99,17 @@ describe('mode tricoter', () => {
       'Rang 281 dim. de chaque côté (4/4, dernière fois)dans 19',
       'Rang 30Dernier rang de l’étape, ensuite : Encoluredans 21',
     ])
-    // Replié, le prochain rang qui demande quelque chose est rappelé en tête
-    await user.click(screen.getByRole('button', { name: 'Toute l’étape' }))
+    // Replié, sans sous-titre : le rang suivant est déjà dans la carte du rang
+    await user.click(screen.getByRole('button', { name: 'Étape entière' }))
+    expect(screen.queryByText(/^Prochain :|sous-étapes et rangs/)).not.toBeInTheDocument()
 
     await user.click(screen.getByRole('button', { name: 'Ajouter 1 rang' }))
     expect(api.knitting.saveProgress).toHaveBeenCalledWith('s2', { rowCount: 9 })
-    expect(row).toHaveTextContent('À tricoter1 dim. de chaque côté (1/4)')
-    expect(next()).toHaveTextContent('Prochain : rang 16, dans 6')
+    expect(row).toHaveTextContent('Ce rang1 dim. de chaque côté (1/4)')
+    expect(next()).toHaveTextContent('Rien de particulier. Ensuite : rang 16, dans 6')
     await user.click(screen.getByRole('button', { name: 'Retirer un rang' }))
     expect(api.knitting.saveProgress).toHaveBeenLastCalledWith('s2', { rowCount: 8 })
-    expect(row).toHaveTextContent('À tricoter')
+    expect(row).toHaveTextContent('Ce rang')
   })
 
   it('mailles en fin de rang : sûres, estimées « (?) » avec la raison, ou inconnues', async () => {
@@ -175,7 +181,7 @@ describe('mode tricoter', () => {
     renderMode(project)
     const alert = await screen.findByRole('alert')
     expect(alert).toHaveTextContent('Sous-étape 2 (Jersey sur 5 cm (à régler) : jersey) : nombre de rangs à régler.')
-    expect(screen.queryByRole('region', { name: 'À tricoter' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('region', { name: 'Ce rang' })).not.toBeInTheDocument()
     expect(next()).not.toBeInTheDocument()
     await user.click(within(alert).getByRole('link', { name: 'Préparer l’étape' }))
     expect(await screen.findByText('Page du projet')).toBeInTheDocument()
@@ -191,7 +197,7 @@ describe('mode tricoter', () => {
     renderMode(PROJECT, api)
     const add = await screen.findByRole('button', { name: 'Ajouter 1 rang' })
     for (let i = 0; i < 5; i++) add.click()
-    expect(await screen.findByText('À tricoter')).toBeInTheDocument()
+    expect(await screen.findByText('Ce rang')).toBeInTheDocument()
     await vi.waitFor(() => expect(saved).toEqual([9, 10, 11, 12, 13]))
   })
 
@@ -201,7 +207,7 @@ describe('mode tricoter', () => {
     api.knitting.saveProgress.mockRejectedValueOnce(new Error('refusé'))
     renderMode(PROJECT, api)
     await user.click(await screen.findByRole('button', { name: 'Ajouter 1 rang' }))
-    expect(await screen.findByText('À tricoter')).toBeInTheDocument()
+    expect(await screen.findByText('Ce rang')).toBeInTheDocument()
   })
 
   it('dernier rang fait : l’étape se termine après confirmation et la suivante s’ouvre', async () => {
@@ -222,7 +228,7 @@ describe('mode tricoter', () => {
     await user.click(within(await screen.findByRole('alertdialog')).getByRole('button', { name: 'Terminer l’étape' }))
     expect(api.knitting.saveProgress).toHaveBeenCalledWith('s2', { done: true })
     expect(await screen.findByRole('heading', { level: 1, name: 'Encolure' })).toBeInTheDocument()
-    expect(await screen.findByText('À tricoter')).toBeInTheDocument()
+    expect(await screen.findByText('Ce rang')).toBeInTheDocument()
   })
 
   it('étape tricotée 2 fois : la 1re finie, la 2e repart au rang 1, puis l’étape se termine', async () => {
@@ -240,7 +246,7 @@ describe('mode tricoter', () => {
     expect(api.knitting.saveProgress).toHaveBeenLastCalledWith('s2', { pass: 2, rowCount: 0 })
     // Même étape, 2e fois : le déroulé recommence (rang 1), l'étape n'est pas terminée.
     expect(await screen.findByRole('heading', { level: 1, name: 'Manche' })).toBeInTheDocument()
-    expect(await screen.findByText('À tricoter')).toBeInTheDocument()
+    expect(await screen.findByText('Ce rang')).toBeInTheDocument()
     expect(screen.getByText(/2e fois sur 2/)).toBeInTheDocument()
     expect(api.knitting.saveProgress).not.toHaveBeenCalledWith('s2', expect.objectContaining({ done: true }))
 
@@ -258,12 +264,12 @@ describe('mode tricoter', () => {
     project.steps[2] = { ...project.steps[2]!, times: 2, pass: 1, rowCount: 12 }
     project.steps[1]!.done = true
     const { api } = renderMode(project)
-    await user.click(await screen.findByText('texte de l’étape, question, notes'))
+    await screen.findByRole('button', { name: 'Patron' })
     expect(screen.queryByRole('button', { name: 'Terminer l’étape' })).not.toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: 'Terminer la 1re fois' }))
     await user.click(within(await screen.findByRole('alertdialog', { name: 'Commencer la 2e fois ?' })).getByRole('button', { name: 'Commencer la 2e fois' }))
     expect(api.knitting.saveProgress).toHaveBeenLastCalledWith('s3', { pass: 2, rowCount: 0 })
-    expect(await screen.findByText('À tricoter')).toBeInTheDocument()
+    expect(await screen.findByText('Ce rang')).toBeInTheDocument()
   })
 
   it('dernière étape : le projet se termine', async () => {
@@ -281,15 +287,22 @@ describe('mode tricoter', () => {
     expect(await screen.findByText('Page du projet')).toBeInTheDocument()
   })
 
-  it('volet « Patron » : texte de l’étape, notes, fin d’étape anticipée', async () => {
+  it('volet « Patron » : le texte seul ; les notes dans leur propre bloc ; fin d’étape anticipée', async () => {
     const user = userEvent.setup()
     const { api } = renderMode(PROJECT, fakeApi(), '/tricot/p1/tricoter?etape=s3')
     expect(await screen.findByRole('heading', { level: 1, name: 'Encolure' })).toBeInTheDocument()
-    // Étape sans nombre de rangs : pas de fin annoncée
-    expect(next()).not.toBeInTheDocument()
+    // Étape sans nombre de rangs : un rang suivant, mais pas de fin annoncée
+    expect(next()).toHaveTextContent('Rang suivantRien de particulier.')
+    expect(next()).not.toHaveTextContent('Ensuite :')
     await user.click(screen.getByRole('button', { name: 'Patron' }))
-    expect(screen.getByText('Pas de texte pour cette étape.')).toBeInTheDocument()
-    await user.type(screen.getByLabelText('Notes de l’étape'), 'Aiguilles 4,5')
+    const pattern = screen.getByRole('region', { name: 'Patron' })
+    expect(within(pattern).getByText('Pas de texte pour cette étape.')).toBeInTheDocument()
+    expect(within(pattern).queryByRole('textbox')).not.toBeInTheDocument()
+    // Les notes : leur bloc à elles, replié sans sous-titre
+    const notes = screen.getByRole('region', { name: 'Notes de l’étape' })
+    expect(screen.queryByText(/question, notes/)).not.toBeInTheDocument()
+    await user.click(within(notes).getByRole('button', { name: 'Notes de l’étape' }))
+    await user.type(within(notes).getByRole('textbox', { name: 'Notes de l’étape' }), 'Aiguilles 4,5')
     await user.tab()
     expect(api.knitting.saveProgress).toHaveBeenCalledWith('s3', { notes: 'Aiguilles 4,5' })
     await user.click(screen.getByRole('button', { name: 'Terminer l’étape' }))
@@ -360,7 +373,7 @@ describe('mode tricoter', () => {
     renderMode()
     const row = await line()
     await user.click(screen.getByRole('button', { name: 'Ajouter 1 rang' }))
-    expect(row).toHaveTextContent('À tricoter1 dim. de chaque côté (1/4)')
+    expect(row).toHaveTextContent('Ce rang1 dim. de chaque côté (1/4)')
   })
 
   it('garde l’écran allumé et ramène à la page du projet', async () => {

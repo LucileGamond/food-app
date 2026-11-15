@@ -58,9 +58,11 @@ test('charge un patron PDF pour une taille, compte les rangs et retrouve son ava
   await expectNoA11yViolations(page)
   await page.getByRole('link', { name: 'Tricoter', exact: true }).click()
   await expect(page.getByRole('heading', { level: 1, name: 'Dos – côtes' })).toBeVisible()
-  const row = page.getByRole('region', { name: 'À tricoter' })
-  await expect(row.getByRole('heading')).toHaveText('À tricoter')
-  await expect(page.getByText(/^Prochain :/)).toContainText('Dernier rang de l’étape, ensuite : Emmanchures')
+  const row = page.getByRole('region', { name: 'Ce rang' })
+  await expect(row.getByRole('heading', { level: 2 })).toHaveText('Ce rang')
+  // Le rang suivant, sous ce rang : rien de particulier, et quand arrive la suite
+  const nextRow = page.getByRole('region', { name: 'Rang suivant' })
+  await expect(nextRow).toContainText('Dernier rang de l’étape, ensuite : Emmanchures')
   await expectNoA11yViolations(page)
   // Fin d'étape anticipée, confirmée : l'étape suivante s'ouvre
   await page.getByRole('button', { name: 'Terminer l’étape' }).click()
@@ -90,25 +92,27 @@ test('charge un patron PDF pour une taille, compte les rangs et retrouve son ava
   // Retour au mode tricoter : 5 rangs terminés, le 6e est à tricoter, avec la diminution
   await page.getByRole('link', { name: 'Tricoter cette étape' }).click()
   for (let i = 0; i < 5; i++) await page.getByRole('button', { name: 'Ajouter 1 rang' }).click()
-  await expect(row).toContainText('À tricoter1 diminution de chaque côté (1/4)')
-  await expect(page.getByText(/^Prochain :/)).toHaveText('Prochain : rang 12, dans 6 — 1 diminution de chaque côté (2/4)')
+  await expect(row).toContainText('Ce rang1 diminution de chaque côté (1/4)')
+  await expect(nextRow).toContainText('Rien de particulier. Ensuite : rang 12, dans 6 — 1 diminution de chaque côté (2/4)')
   // 56 mailles à la fin, 4 diminutions de chaque côté devinées d'après le texte : 64 au départ, 62 après ce rang (estimé)
   await expect(row).toContainText('En fin de rang : 62 (?) mailles')
-  await page.getByRole('button', { name: 'Patron' }).click()
-  await page.getByLabel('Notes de l’étape', { exact: true }).fill('Aiguilles 4,5')
+  // Les notes : leur propre bloc, hors du patron
+  await page.getByRole('button', { name: 'Notes de l’étape', exact: true }).click()
+  const notes = page.getByRole('textbox', { name: 'Notes de l’étape' })
+  await notes.fill('Aiguilles 4,5')
   // Recharger avant la fin de l'enregistrement des notes (parti au blur) l'annulerait : on attend la réponse.
   const notesSaved = page.waitForResponse(
     (r) => r.request().method() === 'PATCH' && r.url().includes('/rest/v1/knit_steps') && (r.request().postData() ?? '').includes('Aiguilles 4,5'),
   )
-  await page.getByLabel('Notes de l’étape', { exact: true }).blur()
+  await notes.blur()
   expect((await notesSaved).ok()).toBe(true)
   await expectNoA11yViolations(page)
 
   // Avancée enregistrée
   await page.reload()
-  await expect(row).toContainText('À tricoter')
-  await page.getByRole('button', { name: 'Patron' }).click()
-  await expect(page.getByLabel('Notes de l’étape', { exact: true })).toHaveValue('Aiguilles 4,5')
+  await expect(row).toContainText('Ce rang')
+  await page.getByRole('button', { name: 'Notes de l’étape', exact: true }).click()
+  await expect(notes).toHaveValue('Aiguilles 4,5')
   await page.getByRole('link', { name: 'Quitter le mode tricoter' }).click()
   // Plusieurs tailles : la taille suivie se lit dans le choix, pas en double dans l'en-tête
   await expect(page.getByText('Taille M', { exact: true })).toBeVisible()
@@ -424,7 +428,7 @@ test('suit un diagramme ajouté depuis une image, rang par rang', async ({ page 
   expect(await chart.getByRole('img', { name: 'Torsade du patron' }).evaluate((img: HTMLImageElement) => img.naturalWidth)).toBe(1)
   // Mode tricoter : le rang du diagramme est dans la ligne du rang, avec une bande de l'image
   await page.getByRole('link', { name: 'Tricoter cette étape' }).click()
-  const row = page.getByRole('region', { name: 'À tricoter' })
+  const row = page.getByRole('region', { name: 'Ce rang' })
   await expect(row).toContainText('Torsade : rang 1 sur 6 · Endroit, de droite à gauche')
   await page.getByRole('button', { name: 'Ajouter 1 rang' }).click()
   await expect(row).toContainText('Torsade : rang 2 sur 6 · Envers, de gauche à droite')
@@ -559,5 +563,5 @@ test('organise les étapes : regroupe, sépare et déplace une sous-étape, puis
   // 5 rangs faits : 4 de côtes, puis le 1er du jersey
   const counter = page.getByRole('contentinfo')
   await expect(counter).toContainText('4 rangs : jersey1 sur 4 rangs')
-  await expect(counter).toContainText('5 / 8 rangs dans l’étape')
+  await expect(counter).toContainText('5 / 8 rangs tricotés dans l’étape entière')
 })

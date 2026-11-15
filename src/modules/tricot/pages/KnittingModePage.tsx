@@ -1,4 +1,4 @@
-import { SearchX, X } from 'lucide-react'
+import { NotebookPen, SearchX, X } from 'lucide-react'
 import { DoneIcon } from '../components/KnitIcons'
 import { useState, type ReactNode } from 'react'
 import { Link, useParams, useSearchParams } from 'react-router-dom'
@@ -36,6 +36,9 @@ import { describePass, finishPass, hasNextPass, ordinal } from '../lib/passes'
 import { currentStepIndex, type KnitProject } from '../lib/pattern'
 import { finishSubstep, substepCounts, type SubstepCount } from '../lib/substeps'
 import { Loading } from '../components/Loading'
+import { Fold } from '../components/Fold'
+import { StepNotes } from '../components/StepNotes'
+import { StepQuestion } from '../components/StepQuestion'
 import { projectHues } from '../lib/yarn'
 import { seedOf } from '../lib/yarnGauge'
 import { useYarnHue } from '../components/TricotTheme'
@@ -188,21 +191,45 @@ function Knitting({ project, knit, projectTo }: KnittingProps) {
                 Change pour l’aiguille {formatNeedle(needles[needleChange.index]!)}
               </Note>
             )}
-            <RowLine line={line} stitches={stitchTrack(step)(row)} glossary={glossary} setupTo={setupTo} onOpenChart={setChartOpen} />
+            <RowLine
+              line={line}
+              stitches={stitchTrack(step)(row)}
+              glossary={glossary}
+              setupTo={setupTo}
+              onOpenChart={setChartOpen}
+              substeps={substeps}
+              sectionCount={step.sections.length}
+              next={step.totalRows === null || row < step.totalRows ? guide.at(row + 1) : null}
+              upcoming={guide.upcoming(row, 1)[0] ?? null}
+              question={
+                step.instructions ? (
+                  <StepQuestion key={step.id} stepTitle={step.title} text={step.translation || step.instructions} row={row} size={size} abbreviations={project.abbreviations ?? []} />
+                ) : undefined
+              }
+            />
           </>
         )}
-        <StepOutline step={step} nextTitle={next?.title ?? null} showCurrent={!finished} upcoming={finished || !ready || line.unknown ? null : (guide.upcoming(row, 1)[0] ?? null)} />
+        <StepOutline step={step} nextTitle={next?.title ?? null} showCurrent={!finished} />
         <PatternDrawer
           step={step}
           row={finished ? null : row}
-          size={size}
           sizes={project.sizes}
           sizeIndex={project.sizeIndex}
           abbreviations={project.abbreviations ?? []}
           onHighlights={(highlights) => void knit.saveStep(step.id, { highlights })}
           onTranslate={translate}
-          onNotes={(notes) => void knit.saveStep(step.id, { notes })}
         />
+        {/* Les notes de l'étape, dans leur propre bloc. */}
+        <Fold
+          id="step-notes"
+          title={
+            <>
+              <NotebookPen className="size-4 shrink-0 text-muted-foreground" aria-hidden /> Notes de l’étape
+            </>
+          }
+        >
+          <StepNotes key={step.id} hideLabel step={step} onSave={(notes) => void knit.saveStep(step.id, { notes })} />
+        </Fold>
         {!finished && ready && (
           <Button variant="outline" className="h-10" onClick={() => setFinishing(true)}>
             <DoneIcon /> {anotherPass ? `Terminer la ${ordinal(step.pass)} fois` : 'Terminer l’étape'}
