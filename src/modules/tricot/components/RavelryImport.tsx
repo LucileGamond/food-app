@@ -11,10 +11,10 @@ import { Checkbox } from '@/components/ui/checkbox'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { useAsync } from '@/hooks/useAsync'
 import { compressImage } from '@/lib/image'
-import { findDuplicates, importSourceText, pdfMissingText, ravelryImportFields, type KnitPattern, type RavelryImportItem } from '../lib/library'
+import { importSourceText, importTarget, pdfMissingText, ravelryImportFields, savedFields, type KnitPattern, type RavelryImportItem } from '../lib/library'
 import { CloseIcon, DoneIcon, LinkIcon } from './KnitIcons'
 
-type Status = { kind: 'waiting' } | { kind: 'saving' } | { kind: 'added'; note: string | null } | { kind: 'failed'; error: string }
+type Status = { kind: 'waiting' } | { kind: 'saving' } | { kind: 'added'; text: string; note: string | null } | { kind: 'failed'; error: string }
 
 interface Props {
   library: KnitPattern[]
@@ -35,7 +35,7 @@ export function RavelryImport({ library, onDone }: Props) {
 
   if (!account.data) return null
 
-  const isKnown = (item: RavelryImportItem) => findDuplicates(library, { title: item.title, url: null }).length > 0
+  const isKnown = (item: RavelryImportItem) => importTarget(item, library).kind === 'known'
 
   async function show() {
     setOpen(true)
@@ -45,7 +45,7 @@ export function RavelryImport({ library, onDone }: Props) {
     try {
       const list = await api.knitting.listRavelryImports()
       setItems(list)
-      // Tout ce qui n'est pas déjà dans la bibliothèque est coché d'office.
+      // Tout ce qui n'est pas déjà dans la bibliothèque (ou y est sans son PDF) est coché d'office.
       setChosen(list.filter((item) => !isKnown(item)).map((item) => item.patternId))
     } catch (e) {
       setLoadError(errorMessage(e))
@@ -63,6 +63,17 @@ export function RavelryImport({ library, onDone }: Props) {
       update(item.patternId, { kind: 'saving' })
       try {
         const found = await api.knitting.importRavelryPattern(item)
+        const target = importTarget(item, library)
+        if (target.kind === 'add-pdf') {
+          // Déjà dans la bibliothèque sans PDF : seul le PDF est ajouté, le reste de la fiche ne change pas.
+          if (found.pdf) {
+            await api.knitting.savePattern(savedFields(target.pattern), { pdfPath: null, newPdf: found.pdf, photos: target.pattern.photos }, target.pattern)
+            update(item.patternId, { kind: 'added', note: null, text: 'PDF ajouté' })
+          } else {
+            update(item.patternId, { kind: 'failed', error: `PDF toujours manquant${pdfMissingText(found.pdfMissing, true)?.replace(/^sans le PDF/, '') ?? ''}` })
+          }
+          continue
+        }
         let photo: Blob | null = null
         try {
           photo = found.image ? await compressImage(found.image) : null
@@ -70,7 +81,7 @@ export function RavelryImport({ library, onDone }: Props) {
           // Photo illisible : le patron est ajouté sans.
         }
         await api.knitting.savePattern(ravelryImportFields(found), { pdfPath: null, newPdf: found.pdf, photos: photo ? [photo] : [] }, null)
-        update(item.patternId, { kind: 'added', note: pdfMissingText(found.pdfMissing, item.volumeId !== null) })
+        update(item.patternId, { kind: 'added', note: pdfMissingText(found.pdfMissing, item.volumeId !== null), text: 'ajouté' })
       } catch (e) {
         update(item.patternId, { kind: 'failed', error: errorMessage(e) })
       }
@@ -88,7 +99,7 @@ export function RavelryImport({ library, onDone }: Props) {
 
   const done = Object.keys(status).length > 0 && !running
   const added = Object.values(status).filter((s) => s.kind === 'added').length
-  const permissionMissing = Object.values(status).some((s) => s.kind === 'added' && s.note?.includes('permission'))
+  const permissionMissing = Object.values(status).some((s) => (s.kind === 'added' && s.note?.includes('permission')) || (s.kind === 'failed' && s.error.includes('permission')))
 
   return (
     <>
@@ -119,7 +130,8 @@ export function RavelryImport({ library, onDone }: Props) {
           ) : (
             <ul aria-label="Patrons Ravelry" className="space-y-2">
               {items.map((item) => {
-                const known = isKnown(item)
+                const target = importTarget(item, library)
+                const known = target.kind === 'known'
                 const s = status[item.patternId]
                 const id = `ravelry-import-${item.patternId}`
                 return (
@@ -138,7 +150,7 @@ export function RavelryImport({ library, onDone }: Props) {
                     <label htmlFor={id} className="min-w-0 flex-1 text-sm">
                       <span className="knit-name block truncate">{item.title}</span>
                       <span className="block text-xs text-muted-foreground">
-                        {[item.author, importSourceText(item), known && 'déjà dans ta bibliothèque'].filter(Boolean).join(' · ')}
+                        {[item.author, importSourceText(item), known && 'déjà dans ta bibliothèque', target.kind === 'add-pdf' && 'déjà dans ta bibliothèque, sans PDF : on ajoute le PDF'].filter(Boolean).join(' · ')}
                       </span>
                       {s && <StatusLine status={s} />}
                     </label>
@@ -193,7 +205,7 @@ function StatusLine({ status }: { status: Status }) {
     )
   return (
     <span className="flex items-center gap-1 text-xs text-muted-foreground">
-      <DoneIcon className="size-3" aria-hidden /> {['ajouté', status.note].filter(Boolean).join(' ')}
+      <DoneIcon className="size-3" aria-hidden /> {[status.text, status.note].filter(Boolean).join(' ')}
     </span>
   )
 }

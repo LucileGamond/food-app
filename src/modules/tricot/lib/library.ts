@@ -469,6 +469,21 @@ export function ravelryImportFields(found: Pick<RavelryImported, 'url' | 'title'
   }
 }
 
+/** Champs enregistrés d'un patron, tels quels (pour lui ajouter un fichier sans rien changer d'autre). */
+export function savedFields(p: KnitPattern): PatternFields {
+  return { title: p.title, url: p.url, size: p.size, yarnIdea: p.yarnIdea, notes: p.notes, metersNeeded: p.metersNeeded, needleMm: p.needleMm, tags: p.tags }
+}
+
+/**
+ * Patron de Ravelry face à la bibliothèque : nouveau, déjà là (sauté), ou déjà là sans PDF alors que Ravelry en a un
+ * (on lui ajoute le PDF).
+ */
+export function importTarget(item: Pick<RavelryImportItem, 'title' | 'hasPdf'>, library: KnitPattern[]): { kind: 'new' } | { kind: 'known' } | { kind: 'add-pdf'; pattern: KnitPattern } {
+  const pattern = findDuplicates(library, { title: item.title, url: null })[0]
+  if (!pattern) return { kind: 'new' }
+  return item.hasPdf && pattern.pdfPath === null ? { kind: 'add-pdf', pattern } : { kind: 'known' }
+}
+
 /** « ajouté sans le PDF (…) » : ce qu'on dit d'un patron importé sans son PDF de la bibliothèque. */
 export function pdfMissingText(missing: RavelryImported['pdfMissing'], fromLibrary: boolean): string | null {
   if (!fromLibrary || missing === null || missing === 'aucun') return null
