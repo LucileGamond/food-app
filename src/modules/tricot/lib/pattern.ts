@@ -245,6 +245,9 @@ export function sanitizeSections(raw: unknown): StepSection[] {
 }
 
 export const MAX_PDF_BYTES = 20 * 1024 * 1024
+/** « 20 Mo » : la limite des PDF, telle qu'on la dit. */
+export const MAX_PDF_MB = MAX_PDF_BYTES / 1024 / 1024
+export const PDF_TOO_LARGE = `PDF trop lourd (${MAX_PDF_MB} Mo au plus).`
 /** Répétition sans nombre de fois ni fin d'étape connue : répétitions prévues au plus. */
 const OPEN_LIMIT = 2000
 export const MAX_ACTIONS = 10

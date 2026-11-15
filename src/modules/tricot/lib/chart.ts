@@ -13,6 +13,7 @@ export const MAX_CHART_TITLE = 100
 /** Image du diagramme : côté long au plus (assez pour zoomer sur une grille), et poids accepté avant réduction. */
 export const CHART_MAX_SIDE = 2400
 export const MAX_CHART_IMAGE_BYTES = 20 * 1024 * 1024
+export const CHART_IMAGE_TOO_LARGE = `Image trop lourde (${MAX_CHART_IMAGE_BYTES / 1024 / 1024} Mo au plus).`
 
 /** Calage du diagramme, réglé par la tricoteuse. */
 export interface ChartSetup {

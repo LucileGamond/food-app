@@ -32,7 +32,7 @@ import {
   type PatternLink,
 } from '../lib/library'
 import type { NavState } from '@/lib/navState'
-import { MAX_PDF_BYTES } from '../lib/pattern'
+import { MAX_PDF_BYTES, PDF_TOO_LARGE } from '../lib/pattern'
 import { decimal } from '../lib/yarn'
 import { PatternLinkField } from './PatternLinkField'
 import { Note } from './Note'
@@ -51,7 +51,6 @@ interface Props {
   onChangedChange?: (changed: boolean) => void
 }
 
-const PDF_TOO_LARGE = 'PDF trop lourd (20 Mo au plus).'
 
 export function PatternForm({ existing, initialLink = null, onSaved, library = [], onChangedChange }: Props) {
   const api = useApi()

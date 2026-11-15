@@ -6,7 +6,7 @@ import { useApi } from '@/app/ApiContext'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { batchFields, planBatch, type KnitPattern } from '../lib/library'
-import { MAX_PDF_BYTES } from '../lib/pattern'
+import { MAX_PDF_BYTES, MAX_PDF_MB } from '../lib/pattern'
 
 type Status = 'waiting' | 'saving' | 'added' | 'too-large' | 'duplicate' | 'failed'
 
@@ -21,7 +21,7 @@ const STATUS_TEXT: Record<Exclude<Status, 'failed'>, string> = {
   waiting: 'en attente',
   saving: 'ajout…',
   added: 'ajouté',
-  'too-large': 'trop lourd (20 Mo au plus), sauté',
+  'too-large': `trop lourd (${MAX_PDF_MB} Mo au plus), sauté`,
   duplicate: 'déjà dans la bibliothèque, sauté',
 }
 

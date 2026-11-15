@@ -8,7 +8,7 @@ import { PhotoEditor } from '@/components/recipes/PhotoEditor'
 import { Button } from '@/components/ui/button'
 import { ACCEPTED_IMAGE_TYPES, editImage } from '@/lib/image'
 import { FULL_CROP } from '@/lib/photoEdit'
-import { CHART_MAX_SIDE, MAX_CHART_IMAGE_BYTES, newChartForm, setupToForm, type ChartHint, type ChartSetup, type KnitChart } from '../lib/chart'
+import { CHART_IMAGE_TOO_LARGE, CHART_MAX_SIDE, MAX_CHART_IMAGE_BYTES, newChartForm, setupToForm, type ChartHint, type ChartSetup, type KnitChart } from '../lib/chart'
 import type { KnitStep } from '../lib/pattern'
 import { ChartSetupDialog } from './ChartSetupDialog'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
@@ -63,7 +63,7 @@ export function StepCharts({ projectId, pdfPath, step, steps, charts, hints, onC
   function choose(file: File | undefined) {
     if (!file) return
     if (!ACCEPTED_IMAGE_TYPES.includes(file.type)) toast.error('Choisis une image (capture d’écran ou photo).')
-    else if (file.size > MAX_CHART_IMAGE_BYTES) toast.error('Image trop lourde (20 Mo au plus).')
+    else if (file.size > MAX_CHART_IMAGE_BYTES) toast.error(CHART_IMAGE_TOO_LARGE)
     else setDraft({ file, url: URL.createObjectURL(file), hint: null })
   }
 

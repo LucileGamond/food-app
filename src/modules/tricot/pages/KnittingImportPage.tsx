@@ -19,7 +19,7 @@ import { describeHint } from '../lib/chart'
 import { useBaseGlossary } from '../hooks/useBaseGlossary'
 import { looksEnglish, mergeGlossary } from '../lib/glossary'
 import { sizeIndexOf } from '../lib/sizes'
-import { describeSection, MAX_PDF_BYTES, stepFacts, type ReadPattern } from '../lib/pattern'
+import { describeSection, MAX_PDF_BYTES, PDF_TOO_LARGE, stepFacts, type ReadPattern } from '../lib/pattern'
 import { formatGauge } from '../lib/yarn'
 import type { KnitPattern } from '../lib/library'
 import { findReading, type StoredReading } from '../lib/readings'
@@ -96,7 +96,7 @@ export function KnittingImportPage() {
     event.preventDefault()
     if (storedFor(size.trim())) return void readFor(pdf, size.trim())
     if (!pdf) return setError('Choisis le PDF du patron.')
-    if (pdf.size > MAX_PDF_BYTES) return setError('PDF trop lourd (20 Mo au plus).')
+    if (pdf.size > MAX_PDF_BYTES) return setError(PDF_TOO_LARGE)
     await readFor(pdf, size.trim())
   }
 

@@ -20,7 +20,7 @@ import { sanitizeHints, sanitizeSetup, type ChartHint, type ChartSetup, type Kni
 import type { SectionsChange, Split } from './lib/organize'
 import { sanitizeNeedles } from './lib/needles'
 import { sanitizeGauges, type ProjectGauge } from './lib/gauges'
-import { MAX_PDF_BYTES, type KnitProject, type KnitProjectSummary, type KnitStep, type PatternStep, type ReadPattern, type StepProgress, type StepSection, readMissingParts, sanitizeSections } from './lib/pattern'
+import { MAX_PDF_BYTES, PDF_TOO_LARGE, type KnitProject, type KnitProjectSummary, type KnitStep, type PatternStep, type ReadPattern, type StepProgress, type StepSection, readMissingParts, sanitizeSections } from './lib/pattern'
 
 const PATTERN_BUCKET = 'knit-patterns'
 const CHART_BUCKET = 'knit-charts'
@@ -75,7 +75,7 @@ function chartColumns(setup: ChartSetup) {
 
 function checkPdf(file: File): void {
   if (file.type !== 'application/pdf' && !file.name.toLowerCase().endsWith('.pdf')) throw new AppError('Choisis un fichier PDF.')
-  if (file.size > MAX_PDF_BYTES) throw new AppError('PDF trop lourd (20 Mo au plus).')
+  if (file.size > MAX_PDF_BYTES) throw new AppError(PDF_TOO_LARGE)
 }
 
 interface StepRow {
