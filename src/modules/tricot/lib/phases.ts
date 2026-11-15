@@ -6,7 +6,7 @@
 // Ce sont des onglets, pas un assistant : on revient à tout moment à l'un ou l'autre. Le projet s'ouvre sur le premier
 // qui demande quelque chose.
 
-import { parseMeasure } from './measure'
+import { hasMeasure } from './measure'
 import type { ProjectGauge } from './gauges'
 import { currentStepIndex, type KnitStep } from './pattern'
 import { isReady } from './ready'
@@ -34,7 +34,7 @@ interface StartInput {
 export function startIssues(project: StartInput): string[] {
   const { sizes, sizeIndex, size, needles, patternGauge, gauges, steps } = project
   // Une hauteur en cm se convertit en rangs avec un échantillon (le sien, celui d'une aiguille ou celui du patron)
-  const measured = steps.some((s) => s.sections.some((x) => parseMeasure(x.pattern) !== null || parseMeasure(x.at?.pattern ?? null) !== null))
+  const measured = steps.some((s) => s.sections.some(hasMeasure))
   const gauge = patternGauge.rows !== null || gauges.some((g) => g.rows !== null)
   return [
     sizes.length > 1 && sizeIndex === null && !sizes.includes(size) && 'Taille à choisir',

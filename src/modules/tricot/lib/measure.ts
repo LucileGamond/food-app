@@ -112,3 +112,6 @@ export function describeConversion(section: StepSection): string | null {
   }
   return parts.length ? parts.join(' ; ') : null
 }
+
+/** La sous-étape a une hauteur du patron en cm (« 5 cm », ou un début « à 15 cm ») : elle se convertit avec un échantillon. */
+export const hasMeasure = (section: Pick<StepSection, 'pattern' | 'at'>): boolean => parseMeasure(section.pattern) !== null || parseMeasure(section.at?.pattern ?? null) !== null

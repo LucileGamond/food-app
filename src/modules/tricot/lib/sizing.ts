@@ -151,7 +151,7 @@ export function sanitizeSizeChart(raw: unknown, sizeCount: number): SizeChart | 
 }
 
 /** Mesure saisie (« 92,5 ») : un nombre de cm plausible, null si vide ; undefined si invalide. */
-export function parseMeasure(text: string): number | null | undefined {
+export function parseMeasureInput(text: string): number | null | undefined {
   const t = text.trim().replace(',', '.')
   if (!t) return null
   if (!/^\d+(?:\.\d+)?$/.test(t)) return undefined

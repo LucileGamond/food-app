@@ -15,7 +15,7 @@ import { Label } from '@/components/ui/label'
 import { PageHeader } from '@/components/PageHeader'
 import { Loading } from './Loading'
 import { useAsync } from '@/hooks/useAsync'
-import { describeProfile, MEASURE_KEYS, MEASURE_LABELS, parseMeasure, type MeasureKey, type MeasureProfile } from '../lib/sizing'
+import { describeProfile, MEASURE_KEYS, MEASURE_LABELS, parseMeasureInput, type MeasureKey, type MeasureProfile } from '../lib/sizing'
 import { decimal } from '@/lib/text'
 
 type Fields = Record<MeasureKey, string>
@@ -45,7 +45,7 @@ function MeasuresDialog({ profile, open, onOpenChange, onSave }: { profile: Meas
     if (!name.trim()) return setError('Indique le nom de la personne.')
     const measures = {} as MeasureProfile['measures']
     for (const key of MEASURE_KEYS) {
-      const value = parseMeasure(fields[key])
+      const value = parseMeasureInput(fields[key])
       if (value === undefined) return setError(`${MEASURE_LABELS[key]} : un nombre de cm entre 10 et 300.`)
       measures[key] = value
     }

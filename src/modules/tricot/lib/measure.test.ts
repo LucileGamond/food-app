@@ -1,4 +1,4 @@
-import { convertSection, describeConversion, parseMeasure, rowGauge, rowsFor, validateSection } from './measure'
+import { convertSection, describeConversion, hasMeasure, parseMeasure, rowGauge, rowsFor, validateSection } from './measure'
 import { describeSection, sanitizeSections, type StepSection } from './pattern'
 
 const NONE = { stitches: null, rows: null }
@@ -81,5 +81,14 @@ describe('mesures du patron en rangs', () => {
     expect(sanitizeSections([{ ...toSet('5 cm'), rows: 15, measured }])[0]!.measured).toEqual(measured)
     expect(sanitizeSections([{ ...toSet('5 cm'), rows: 15, measured: { rowsPer10: 0, source: 'mine' } }])[0]!.measured).toBeUndefined()
     expect(sanitizeSections([{ ...toSet('5 cm'), rows: 15, measured: { rowsPer10: 30, source: 'autre' } }])[0]!.measured).toBeUndefined()
+  })
+})
+
+describe('hauteur du patron', () => {
+  it('une longueur en cm ou un début « à 15 cm » ; pas un nombre de rangs', () => {
+    expect(hasMeasure(toSet('5 cm'))).toBe(true)
+    expect(hasMeasure({ ...toSet('tous les 6 rangs'), at: { row: null, pattern: 'à 15 cm' } })).toBe(true)
+    expect(hasMeasure(toSet('tous les 6 rangs'))).toBe(false)
+    expect(hasMeasure({ pattern: null })).toBe(false)
   })
 })

@@ -10,7 +10,7 @@ import { Label } from '@/components/ui/label'
 import { NativeSelect } from '@/components/ui/native-select'
 import { cn } from '@/lib/utils'
 import { guessStitches } from '../lib/stitches'
-import { describeConversion, parseMeasure, validateSection } from '../lib/measure'
+import { describeConversion, hasMeasure, validateSection } from '../lib/measure'
 import { withoutSection } from '../lib/sources'
 import { effectiveNeedles, formatNeedle } from '../lib/needles'
 import { looksEnglish, mergeGlossary, type Abbreviation } from '../lib/glossary'
@@ -443,7 +443,7 @@ export function StepSections({
                   )}
                   <p className="text-xs text-muted-foreground">
                     {toSet ? (
-                      (parseMeasure(section.pattern) ?? parseMeasure(section.at?.pattern ?? null)) !== null ? (
+                      hasMeasure(section) ? (
                         <>
                           Sans échantillon, les centimètres ne se convertissent pas en rangs.{' '}
                           <Link

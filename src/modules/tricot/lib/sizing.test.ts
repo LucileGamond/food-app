@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { adviseSize, defaultEase, describeAdvice, describeProfile, parseMeasure, sanitizeSizeChart, styleOf, type MeasureProfile, type SizeChart } from './sizing'
+import { adviseSize, defaultEase, describeAdvice, describeProfile, parseMeasureInput, sanitizeSizeChart, styleOf, type MeasureProfile, type SizeChart } from './sizing'
 
 const SIZES = ['S', 'M', 'L']
 const FINISHED: SizeChart = {
@@ -72,12 +72,12 @@ describe('taille selon les mesures', () => {
     expect(sanitizeSizeChart({ kind: 'autre', rows: [] }, 2)).toBeNull()
     expect(sanitizeSizeChart(null, 2)).toBeNull()
     expect(sanitizeSizeChart(FINISHED, 0)).toBeNull()
-    expect(parseMeasure(' 92,5 ')).toBe(92.5)
-    expect(parseMeasure('')).toBeNull()
-    expect(parseMeasure('5')).toBeUndefined()
-    expect(parseMeasure('beaucoup')).toBeUndefined()
-    expect(parseMeasure('0x50')).toBeUndefined()
-    expect(parseMeasure('9e1')).toBeUndefined()
+    expect(parseMeasureInput(' 92,5 ')).toBe(92.5)
+    expect(parseMeasureInput('')).toBeNull()
+    expect(parseMeasureInput('5')).toBeUndefined()
+    expect(parseMeasureInput('beaucoup')).toBeUndefined()
+    expect(parseMeasureInput('0x50')).toBeUndefined()
+    expect(parseMeasureInput('9e1')).toBeUndefined()
     expect(describeProfile(LEA)).toBe('poitrine 92 · hanches 98 · tête 55 cm')
     expect(describeProfile({ ...LEA, measures: { chest: null, waist: null, hip: null, arm: null, head: null } })).toBe('Aucune mesure notée')
   })
