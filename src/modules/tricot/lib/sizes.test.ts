@@ -26,6 +26,12 @@ describe('sizedParts', () => {
     expect(render(sizedParts('rangs 1 à 4, puis 5-8', 4, 1))).toBe('rangs 1 à 4, puis 5-8')
   })
 
+  it('ne prend pas un chiffre collé à une lettre pour une taille (« k2 », « C4F »)', () => {
+    expect(render(sizedParts('tricoter k2 (3-4) fois', 3, 0))).toBe('tricoter k2 (3-4) fois')
+    expect(render(sizedParts('torsade C4 (6) F', 2, 1))).toBe('torsade C4 (6) F')
+    expect(render(sizedParts('rangs R2/4/6', 3, 0))).toBe('rangs R2/4/6')
+  })
+
   it('traite plusieurs groupes et laisse le texte tel quel', () => {
     const text = 'Monter 60 (64-68) m.\nTricoter 10 (12-14) cm puis rabattre 4 (4-6) m.'
     expect(render(sizedParts(text, 3, 2))).toBe('Monter {60} ({64}-[68]) m.\nTricoter {10} ({12}-[14]) cm puis rabattre {4} ({4}-[6]) m.')

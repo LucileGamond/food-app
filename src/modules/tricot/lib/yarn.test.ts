@@ -41,6 +41,10 @@ describe('laine', () => {
     expect(parseYarn({ ...empty, skeins: '2,3' })).toEqual({ error: 'Pelotes : un nombre, par demi (0 à 200).' })
     expect(parseYarn({ ...empty, needle_mm: '40' })).toEqual({ error: 'Aiguilles : entre 1 et 30 mm.' })
     expect(parseYarn({ ...empty, brand: 'x'.repeat(81) })).toEqual({ error: '80 caractères au plus par champ.' })
+    // Number() lit l'hexadécimal et la notation exponentielle : refusés à la saisie
+    expect(parseYarn({ ...empty, weight_g: '0x32' })).toEqual({ error: 'Poids : un nombre entier de grammes (1 à 1000).' })
+    expect(parseYarn({ ...empty, needle_mm: '1e1' })).toEqual({ error: 'Aiguilles : entre 1 et 30 mm.' })
+    expect(parseYarn({ ...empty, length_m: 'Infinity' })).toEqual({ error: 'Métrage : un nombre entier de mètres (1 à 5000).' })
   })
 
   it('lit les laines de la base sans planter sur une valeur inattendue', () => {

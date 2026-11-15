@@ -18,9 +18,10 @@ const LIST = String.raw`${NUMBER}(?:${SEPARATOR}${NUMBER})*`
 // alt : alternance « 43(43)44(45)46 » (un seul nombre par parenthèse) ;
 // first, gap, open, list, close : « 60 (64-68) » ; bare : liste sans parenthèses (« 60/64/68 », « 60-64-68 »).
 const ALTERNATING = String.raw`${NUMBER}(?:\s*[(\[]\s*${NUMBER}\s*[)\]](?:[ \t]*${NUMBER})?)+`
+// Un nombre collé derrière une lettre (« k2 », « C4F », « R2/4/6 ») fait partie d'un mot : jamais un groupe de tailles.
 const GROUP = new RegExp(
-  String.raw`(?<![\d.,])(?<alt>${ALTERNATING})|(?<![\d.,])(?<first>${NUMBER})(?<gap>\s*)(?<open>[(\[])\s*(?<list>${LIST})\s*(?<close>[)\]])|(?<![\d.,/-])(?<bare>${NUMBER}(?:\s*[/–-]\s*${NUMBER})+)(?![\d/–-])`,
-  'g',
+  String.raw`(?<![\p{L}\d.,])(?<alt>${ALTERNATING})|(?<![\p{L}\d.,])(?<first>${NUMBER})(?<gap>\s*)(?<open>[(\[])\s*(?<list>${LIST})\s*(?<close>[)\]])|(?<![\p{L}\d.,/-])(?<bare>${NUMBER}(?:\s*[/–-]\s*${NUMBER})+)(?![\d/–-])`,
+  'gu',
 )
 
 /** Nombres d'une liste, avec ce qui les sépare (gardé tel quel à l'affichage). */

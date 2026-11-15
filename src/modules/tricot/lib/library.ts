@@ -92,7 +92,8 @@ export function toPatternDraft(p: KnitPattern): PatternDraft {
 
 /** Étiquette saisie → étiquette gardée : espaces resserrés, minuscules, 30 caractères (« Pull  Homme » → « pull homme »). */
 export function normalizeTag(tag: string): string {
-  return tag.trim().replace(/\s+/g, ' ').toLowerCase().slice(0, MAX_TAG_LENGTH).trim()
+  // Coupé par caractère entier (un emoji compte pour un, comme char_length en SQL), jamais au milieu d'un emoji.
+  return Array.from(tag.trim().replace(/\s+/g, ' ').toLowerCase()).slice(0, MAX_TAG_LENGTH).join('').trim()
 }
 
 /** Ajoute une étiquette à la liste, sans doublon ni vide ; la liste est rendue telle quelle si elle est pleine. */

@@ -152,6 +152,7 @@ export function sanitizeSizeChart(raw: unknown, sizeCount: number): SizeChart | 
 export function parseMeasure(text: string): number | null | undefined {
   const t = text.trim().replace(',', '.')
   if (!t) return null
+  if (!/^\d+(?:\.\d+)?$/.test(t)) return undefined
   const n = Number(t)
   return Number.isFinite(n) && n >= 10 && n <= 300 ? round(n) : undefined
 }

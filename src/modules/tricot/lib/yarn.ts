@@ -74,10 +74,11 @@ export function toYarnDraft(yarn: Yarn): YarnDraft {
   }
 }
 
-/** « 3,5 » → 3.5 ; '' → null ; NaN si ce n'est pas un nombre. */
+/** « 3,5 » → 3.5 ; '' → null ; NaN si ce n'est pas un nombre décimal écrit simplement (« 0x32 », « 1e1 » : NaN). */
 export function parseDecimal(value: string): number | null {
   const trimmed = value.trim().replace(',', '.')
-  return trimmed === '' ? null : Number(trimmed)
+  if (trimmed === '') return null
+  return /^-?\d+(?:\.\d+)?$|^-?\.\d+$/.test(trimmed) ? Number(trimmed) : NaN
 }
 
 /** Laine saisie → laine enregistrable, ou le premier problème. */

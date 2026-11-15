@@ -250,6 +250,12 @@ describe('étiquettes', () => {
     expect(normalizeTag('x'.repeat(40))).toHaveLength(30)
   })
 
+  it('coupe à 30 caractères entiers, sans casser un emoji', () => {
+    const tag = normalizeTag(`${'a'.repeat(29)}🧶🧶`)
+    expect(tag).toBe(`${'a'.repeat(29)}🧶`)
+    expect(encodeURIComponent(tag)).toBeTruthy() // lève une URIError sur un demi-emoji orphelin
+  })
+
   it('ajoute sans doublon ni vide, 10 au plus', () => {
     expect(addTag(['pull'], ' Bébé ')).toEqual(['pull', 'bébé'])
     const tags = ['pull']

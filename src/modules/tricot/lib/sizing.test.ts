@@ -76,6 +76,8 @@ describe('taille selon les mesures', () => {
     expect(parseMeasure('')).toBeNull()
     expect(parseMeasure('5')).toBeUndefined()
     expect(parseMeasure('beaucoup')).toBeUndefined()
+    expect(parseMeasure('0x50')).toBeUndefined()
+    expect(parseMeasure('9e1')).toBeUndefined()
     expect(describeProfile(LEA)).toBe('poitrine 92 · hanches 98 · tête 55 cm')
     expect(describeProfile({ ...LEA, measures: { chest: null, waist: null, hip: null, arm: null, head: null } })).toBe('Aucune mesure notée')
   })
