@@ -5,6 +5,7 @@
 import { callTool, HttpError, type ModelOptions, type ModelUsage, type Tool } from '../_shared/anthropic.ts'
 import { asRecord } from '../_shared/sanitize.ts'
 import { MAX_INSTRUCTIONS, MAX_STEPS, sanitizeSection, TOOL as PATTERN_TOOL, type Gauge, type PatternSection } from './pattern.ts'
+import { trimmedText } from './sanitize.ts'
 
 export const MAX_REQUEST = 1000
 
@@ -35,7 +36,6 @@ export interface AdaptedStep {
   note: string
 }
 
-const str = (value: unknown, max: number) => (typeof value === 'string' ? value.trim().slice(0, max) : '')
 const int = (value: unknown, min: number, max: number) => (typeof value === 'number' && Number.isInteger(value) && value >= min && value <= max ? value : null)
 const gauge = (value: unknown): Gauge => {
   const g = asRecord(value)
@@ -51,15 +51,15 @@ export function parseAdaptInput(body: unknown): AdaptInput | null {
   const steps = (Array.isArray(a.steps) ? a.steps : []).slice(0, MAX_STEPS).map((value) => {
     const s = asRecord(value)
     return {
-      title: str(s.title, 200),
-      instructions: str(s.instructions, MAX_INSTRUCTIONS),
+      title: trimmedText(s.title, 200),
+      instructions: trimmedText(s.instructions, MAX_INSTRUCTIONS),
       totalRows: int(s.total_rows, 1, 5000),
       stitches: int(s.stitches, 1, 5000),
       sections: (Array.isArray(s.sections) ? s.sections : []).map(sanitizeSection).filter((r): r is PatternSection => r !== null).slice(0, 30),
     }
   })
   if (steps.length === 0) throw new HttpError('Aucune étape à adapter.', 400)
-  const input = { request: str(a.request, MAX_REQUEST), size: str(a.size, 40), patternGauge: gauge(a.pattern_gauge), myGauge: gauge(a.my_gauge), steps }
+  const input = { request: trimmedText(a.request, MAX_REQUEST), size: trimmedText(a.size, 40), patternGauge: gauge(a.pattern_gauge), myGauge: gauge(a.my_gauge), steps }
   const gaugeGiven = (input.patternGauge.stitches !== null && input.myGauge.stitches !== null) || (input.patternGauge.rows !== null && input.myGauge.rows !== null)
   if (!input.request && !gaugeGiven) throw new HttpError('Indique ton échantillon ou ce que tu veux changer.', 400)
   return input
@@ -130,7 +130,7 @@ export function sanitizeAdapted(raw: unknown, stepCount: number): AdaptedStep[] 
         totalRows: int(s.total_rows, 1, 5000),
         stitches: int(s.stitches, 1, 5000),
         sections: (Array.isArray(s.sections) ? s.sections : []).map(sanitizeSection).filter((r): r is PatternSection => r !== null).slice(0, 30),
-        note: str(s.note, 300),
+        note: trimmedText(s.note, 300),
       },
     ]
   })

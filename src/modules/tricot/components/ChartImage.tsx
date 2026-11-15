@@ -11,7 +11,7 @@ const ZOOMS = [1, 1.5, 2, 3, 4]
 const MIN_ZOOM = ZOOMS[0]!
 const MAX_ZOOM = ZOOMS[ZOOMS.length - 1]!
 
-export interface ImageProps {
+interface ImageProps {
   chart: KnitChart
   position: ChartPosition
   zoom: number

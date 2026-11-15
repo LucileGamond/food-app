@@ -14,7 +14,7 @@ import type { Gauge } from './yarn'
 
 export type ProjectTab = 'demarrer' | 'preparer' | 'tricoter'
 
-export const PROJECT_TABS: ProjectTab[] = ['demarrer', 'preparer', 'tricoter']
+const PROJECT_TABS: ProjectTab[] = ['demarrer', 'preparer', 'tricoter']
 
 export const isProjectTab = (value: string | null): value is ProjectTab => PROJECT_TABS.includes(value as ProjectTab)
 

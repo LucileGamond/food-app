@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { toast } from 'sonner'
 import { AppError, errorMessage, type Api } from '@/api'
-import type { StepProgress } from '../api'
+import type { StepProgress } from '../lib/pattern'
 import { clearProgress, forgetProject, isOffline, loadProjectCopy, pendingFor, queueProgress, saveProjectCopy, settleProgress, withPending } from '../lib/offline'
 import { MAX_ROW_COUNT, type KnitProject } from '../lib/pattern'
 

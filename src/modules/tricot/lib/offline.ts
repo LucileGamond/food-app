@@ -2,7 +2,7 @@
 // mise en attente sans réseau, envoyée au retour du réseau. Rien de bloquant : un stockage indisponible (navigation
 // privée, quota) fait seulement perdre le confort hors ligne.
 
-import type { StepProgress } from '../api'
+import type { StepProgress } from './pattern'
 import type { KnitProject } from './pattern'
 
 const PROJECT_KEY = (id: string) => `life:tricot:projet:${id}`

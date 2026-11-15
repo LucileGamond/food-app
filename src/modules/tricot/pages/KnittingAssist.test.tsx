@@ -94,7 +94,7 @@ describe('patron en anglais', () => {
     expect(screen.queryByRole('button', { name: 'Traduire en français' })).not.toBeInTheDocument()
   })
 
-  it('prévient si la traduction a changé des nombres ; pas de traduction proposée en français', async () => {
+  it('prévient si la traduction a changé des nombres', async () => {
     const user = userEvent.setup()
     const { api } = renderProject(ENGLISH)
     api.knitting.translateText.mockResolvedValue({ text: 'Rang 1 : tricoter 64 m.', numbersKept: false })

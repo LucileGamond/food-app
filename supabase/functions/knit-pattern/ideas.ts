@@ -10,6 +10,7 @@
 import { callTool, HttpError, runConversation, type ContentBlock, type ModelOptions, type ModelUsage, type Tool } from '../_shared/anthropic.ts'
 import { asRecord } from '../_shared/sanitize.ts'
 import { searchResultUrls } from '../_shared/search.ts'
+import { trimmedText } from './sanitize.ts'
 
 /** Une laine du stock : description, métrage disponible, aiguilles conseillées. */
 export interface IdeaYarn {
@@ -69,9 +70,6 @@ const MAX_PATTERNS = 3
 const TIMEOUT_MS = 110_000
 const NO_SEARCH_TIMEOUT_MS = 45_000
 
-function text(value: unknown, max: number): string {
-  return typeof value === 'string' ? value.trim().slice(0, max) : ''
-}
 
 function positive(value: unknown, max: number): number | null {
   return typeof value === 'number' && Number.isFinite(value) && value > 0 && value <= max ? value : null
@@ -79,7 +77,7 @@ function positive(value: unknown, max: number): number | null {
 
 function parseYarn(value: unknown): IdeaYarn | null {
   const y = asRecord(value)
-  const yarn = text(y.yarn, 400)
+  const yarn = trimmedText(y.yarn, 400)
   return yarn ? { yarn, meters: positive(y.meters, 100_000), needleMm: positive(y.needle_mm, 30) } : null
 }
 
@@ -98,7 +96,7 @@ export function parseIdeasInput(body: unknown): IdeasInput | null {
   if (!('ideas' in data)) return null
   const ideas = asRecord(data.ideas)
   // Sans précision : avec recherche web, comme avant le mode sans recherche.
-  return { yarns: parseYarns(ideas), wish: text(ideas.wish, MAX_WISH), search: ideas.search !== false }
+  return { yarns: parseYarns(ideas), wish: trimmedText(ideas.wish, MAX_WISH), search: ideas.search !== false }
 }
 
 /** Corps { idea_patterns: { idea: { title, search, size, meters, needle_mm }, yarns, weight } } ; null sinon. */
@@ -107,10 +105,10 @@ export function parseIdeaPatternsInput(body: unknown): IdeaPatternsInput | null 
   if (!('idea_patterns' in data)) return null
   const request = asRecord(data.idea_patterns)
   const idea = asRecord(request.idea)
-  const title = text(idea.title, 120)
+  const title = trimmedText(idea.title, 120)
   if (!title) throw new HttpError('Choisis une idée.', 400)
   return {
-    idea: { title, search: text(idea.search, 100), size: text(idea.size, 40), meters: positive(idea.meters, 100_000), needleMm: positive(idea.needle_mm, 30) },
+    idea: { title, search: trimmedText(idea.search, 100), size: trimmedText(idea.size, 40), meters: positive(idea.meters, 100_000), needleMm: positive(idea.needle_mm, 30) },
     yarns: parseYarns(request),
     weight: RAVELRY_WEIGHTS.find((w) => w === request.weight) ?? null,
   }
@@ -228,14 +226,14 @@ function foundPages(blocks: readonly ContentBlock[]): Map<string, { url: string;
     for (const result of block.content as Record<string, unknown>[]) {
       const url = typeof result?.url === 'string' ? result.url : ''
       const key = patternKey(url)
-      if (key && !pages.has(key)) pages.set(key, { url, title: text(result.title, 150) })
+      if (key && !pages.has(key)) pages.set(key, { url, title: trimmedText(result.title, 150) })
     }
   }
   return pages
 }
 
 function language(value: unknown): string | null {
-  const code = text(value, 5).toLowerCase()
+  const code = trimmedText(value, 5).toLowerCase()
   return /^[a-z]{2}$/.test(code) ? code : null
 }
 
@@ -244,13 +242,13 @@ function keepFound(list: unknown, found: Map<string, { url: string; title: strin
   return (Array.isArray(list) ? list : [])
     .flatMap((p): FoundPattern[] => {
       const pattern = asRecord(p)
-      const key = patternKey(text(pattern.url, 2000))
+      const key = patternKey(trimmedText(pattern.url, 2000))
       const result = key ? found.get(key) : undefined
       if (!key || !result || seen.has(key)) return []
       seen.add(key)
       return [
         {
-          title: text(pattern.title, 150) || result.title || result.url,
+          title: trimmedText(pattern.title, 150) || result.title || result.url,
           url: result.url,
           free: typeof pattern.free === 'boolean' ? pattern.free : null,
           language: language(pattern.language),
@@ -275,12 +273,12 @@ export function sanitizeIdeas(input: unknown, blocks: readonly ContentBlock[] = 
       const i = asRecord(value)
       const meters = positive(i.meters, 100_000)
       return {
-        title: text(i.title, 120),
-        why: text(i.why, 300),
-        size: text(i.size, 40),
+        title: trimmedText(i.title, 120),
+        why: trimmedText(i.why, 300),
+        size: trimmedText(i.size, 40),
         meters: meters === null ? null : Math.round(meters),
         needleMm: positive(i.needle_mm, 30),
-        search: text(i.search, 100),
+        search: trimmedText(i.search, 100),
         patterns: keepFound(i.patterns, found, seen),
       }
     })

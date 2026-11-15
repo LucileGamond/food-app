@@ -3,7 +3,7 @@
 // Le compteur de rangs est celui de la fois en cours. À la fin d'une fois, la suivante commence à 0 ; l'étape est
 // terminée quand la dernière fois est finie.
 
-import type { StepProgress } from '../api'
+import type { StepProgress } from './pattern'
 import type { KnitStep } from './pattern'
 
 /** Fois au plus pour une étape (comme en base). */

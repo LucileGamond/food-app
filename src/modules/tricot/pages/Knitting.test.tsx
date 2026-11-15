@@ -1744,6 +1744,7 @@ describe('texte du patron et taille mise en valeur', () => {
     expect(within(article).queryByLabelText('Taille')).not.toBeInTheDocument()
     cleanup()
     renderWithApp(<KnittingProjectPage />, { api, route: START, path: '/tricot/:id' })
+    // Premier chargement déjà lancé (taille M) ; le rechargement après le choix renverra la taille S
     api.knitting.getProject.mockResolvedValue({ ...project, sizeIndex: 0 })
     await user.selectOptions(await screen.findByLabelText('Taille'), 'S')
     expect(api.knitting.setSizeIndex).toHaveBeenCalledWith('p1', 0)

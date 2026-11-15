@@ -3,13 +3,11 @@
 
 import { callTool, HttpError, type ModelOptions, type ModelUsage, type Tool } from '../_shared/anthropic.ts'
 import { asRecord } from '../_shared/sanitize.ts'
+import { trimmedText } from './sanitize.ts'
 
 export const MAX_STEP_TEXT = 20_000
 const MAX_QUESTION = 500
 
-function text(value: unknown, max: number): string {
-  return typeof value === 'string' ? value.trim().slice(0, max) : ''
-}
 
 // ---------------------------------------------------------------------------
 // Question sur le rang
@@ -31,16 +29,16 @@ export function parseQuestionInput(body: unknown): QuestionInput | null {
   const data = asRecord(body)
   if (!('question' in data)) return null
   const q = asRecord(data.question)
-  const question = text(q.question, MAX_QUESTION)
+  const question = trimmedText(q.question, MAX_QUESTION)
   if (!question) throw new HttpError('Pose ta question.', 400)
   const row = typeof q.row === 'number' && Number.isInteger(q.row) && q.row >= 1 && q.row <= 100_000 ? q.row : null
   return {
     question,
-    stepTitle: text(q.step_title, 200),
-    text: text(q.text, MAX_STEP_TEXT),
+    stepTitle: trimmedText(q.step_title, 200),
+    text: trimmedText(q.text, MAX_STEP_TEXT),
     row,
-    size: text(q.size, 40),
-    abbreviations: text(q.abbreviations, 5000),
+    size: trimmedText(q.size, 40),
+    abbreviations: trimmedText(q.abbreviations, 5000),
   }
 }
 
@@ -83,7 +81,7 @@ export async function answerQuestion(input: QuestionInput, options: ModelOptions
     },
     options,
   )
-  const answer = text(asRecord(raw).answer, 2000)
+  const answer = trimmedText(asRecord(raw).answer, 2000)
   if (!answer) throw new HttpError('Pas de réponse : reformule ta question.', 422)
   return { answer, usage }
 }
@@ -100,7 +98,7 @@ export interface TranslateInput {
 export function parseTranslateInput(body: unknown): TranslateInput | null {
   const data = asRecord(body)
   if (!('translate' in data)) return null
-  const t = text(asRecord(data.translate).text, MAX_STEP_TEXT)
+  const t = trimmedText(asRecord(data.translate).text, MAX_STEP_TEXT)
   if (!t) throw new HttpError('Texte à traduire manquant.', 400)
   return { text: t }
 }
@@ -144,7 +142,7 @@ export async function translateStep(
     },
     options,
   )
-  const translated = text(asRecord(raw).text, MAX_STEP_TEXT + 5_000)
+  const translated = trimmedText(asRecord(raw).text, MAX_STEP_TEXT + 5_000)
   if (!translated) throw new HttpError('La traduction a échoué.', 502)
   // Les nombres des tailles doivent rester ceux du patron : sinon, l'application prévient.
   const numbersKept = numbersOf(translated).join(' ') === numbersOf(input.text).join(' ')

@@ -111,6 +111,9 @@ export interface KnitStep {
   translation?: string | null
 }
 
+/** Ce qui change quand on tricote une étape (rang, passages, notes…), enregistré tel quel. */
+export type StepProgress = Partial<Pick<KnitStep, 'rowCount' | 'times' | 'pass' | 'notes' | 'done' | 'sections' | 'highlights' | 'translation' | 'startStitches'>>
+
 export interface KnitProjectSummary {
   id: string
   title: string
@@ -312,11 +315,6 @@ export function planSections(sections: StepSection[], totalRows: number | null):
 /** Sections en cours au rang `row` (plusieurs avec « en même temps »), dans l'ordre. */
 export function sectionIndicesAt(plan: PlannedSection[], row: number): number[] {
   return plan.filter((p) => p.start !== null && p.start <= row && (p.end === null || p.end >= row)).map((p) => p.index)
-}
-
-/** Première section du rang `row` (null si toutes sont faites ou si la suite est à régler). */
-export function sectionIndexAt(plan: PlannedSection[], row: number): number | null {
-  return sectionIndicesAt(plan, row)[0] ?? null
 }
 
 /** Prochain rang (à partir de `row`, le rang à tricoter) où une action de la répétition est à faire. */

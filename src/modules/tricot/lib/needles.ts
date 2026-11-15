@@ -5,7 +5,7 @@
 
 import type { StepSection } from './pattern'
 
-export const MAX_NEEDLES = 10
+const MAX_NEEDLES = 10
 
 const valid = (v: unknown): v is number => typeof v === 'number' && Number.isFinite(v) && v >= 0.5 && v <= 30
 
@@ -45,9 +45,6 @@ export function effectiveNeedles(sections: Pick<StepSection, 'needle'>[], projec
     return current
   })
 }
-
-/** Aiguilles lues en base sur une sous-étape (null : héritée). */
-export const readNeedle = (value: unknown): number | null => (valid(value) ? Math.round(value * 100) / 100 : null)
 
 /** Aiguille héritée par chaque étape : celle où finit l'étape d'avant (null pour la première, ou sans aiguille). */
 export function chainNeedles(steps: Pick<StepSection, 'needle'>[][], projectNeedles: number[]): (number | null)[] {

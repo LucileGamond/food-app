@@ -1,4 +1,4 @@
-import { convertSection, convertSections, describeConversion, parseMeasure, rowGauge, rowsFor, validateSection } from './measure'
+import { convertSection, describeConversion, parseMeasure, rowGauge, rowsFor, validateSection } from './measure'
 import { describeSection, sanitizeSections, type StepSection } from './pattern'
 
 const NONE = { stitches: null, rows: null }
@@ -62,7 +62,7 @@ describe('mesures du patron en rangs', () => {
     expect(convertSection(validated, { rowsPer10: 24, source: 'mine' })).toBe(validated)
     // Sections sans mesure : jamais touchées
     const plain: StepSection = { kind: 'rows', rows: 10, every: null, times: null, text: 'côtes', pattern: null }
-    expect(convertSections([plain], { rowsPer10: 24, source: 'mine' })).toEqual([plain])
+    expect(convertSection(plain, { rowsPer10: 24, source: 'mine' })).toBe(plain)
   })
 
   it('explique le calcul et le rappelle dans la description', () => {

@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { movePhoto as moved, type KnitPattern, type PatternFiles, type PatternPhoto } from '../lib/library'
 
 /** Photo affichée dans le formulaire : enregistrée (chemin) ou nouvelle (déjà réduite, avec son aperçu local). */
-export interface FormPhoto {
+interface FormPhoto {
   key: string
   photo: PatternPhoto
   /** Aperçu local d'une nouvelle photo. */

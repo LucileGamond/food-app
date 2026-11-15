@@ -3,6 +3,7 @@
 
 import { callTool, HttpError, type ModelOptions, type ModelUsage, type Tool } from '../_shared/anthropic.ts'
 import { asRecord } from '../_shared/sanitize.ts'
+import { trimmedText } from './sanitize.ts'
 
 /** PDF de 20 Mo au plus (≈ 27 millions de caractères en base64). */
 export const MAX_PDF_BASE64 = 28_000_000
@@ -110,9 +111,6 @@ export interface ReadPattern {
   needles: number[]
 }
 
-function str(value: unknown, max: number): string {
-  return typeof value === 'string' ? value.trim().slice(0, max) : ''
-}
 
 function int(value: unknown, min: number, max: number): number | null {
   return typeof value === 'number' && Number.isInteger(value) && value >= min && value <= max ? value : null
@@ -121,7 +119,7 @@ function int(value: unknown, min: number, max: number): number | null {
 export function parseInput(body: unknown): PatternInput {
   const data = asRecord(body)
   const pdf = typeof data.pdf === 'string' ? data.pdf : ''
-  const size = str(data.size, 40)
+  const size = trimmedText(data.size, 40)
   if (!pdf) throw new HttpError('PDF manquant.', 400)
   if (pdf.length > MAX_PDF_BASE64) throw new HttpError('PDF trop lourd (20 Mo au plus).', 413)
   if (!/^[A-Za-z0-9+/]+=*$/.test(pdf.slice(0, 1000)) || !pdf.startsWith('JVBER')) throw new HttpError('Ce fichier n’est pas un PDF.', 400)
@@ -339,10 +337,10 @@ export function sanitizeSection(value: unknown): PatternSection | null {
   const r = asRecord(value)
   const at = asRecord(r.at)
   // « rang 46 » → rang ; « 15 cm » → hauteur à convertir
-  const from = str(r.same_time_from, 100)
+  const from = trimmedText(r.same_time_from, 100)
   const fromRow = /^rang\s+(\d+)$/i.exec(from)?.[1]
   const row = int(fromRow !== undefined ? Number(fromRow) : at.row, 1, 5000)
-  const pattern = (from && fromRow === undefined ? from : str(at.pattern, 100)) || null
+  const pattern = (from && fromRow === undefined ? from : trimmedText(at.pattern, 100)) || null
   const needle = typeof r.needle === 'number' && r.needle >= 0.5 && r.needle <= 30 ? Math.round(r.needle * 100) / 100 : null
   const started = row !== null || pattern !== null ? { ...section, at: { row, pattern } } : section
   return needle !== null ? { ...started, needle } : started
@@ -350,8 +348,8 @@ export function sanitizeSection(value: unknown): PatternSection | null {
 
 function sanitizeBody(value: unknown): PatternSection | null {
   const r = asRecord(value)
-  const text = str(r.text, 200)
-  const pattern = str(r.pattern, 100) || null
+  const text = trimmedText(r.text, 200)
+  const pattern = trimmedText(r.pattern, 100) || null
   if (r.kind === 'rows') {
     const rows = int(r.rows, 1, 2000)
     if (!rows && !pattern) return null
@@ -366,7 +364,7 @@ function sanitizeBody(value: unknown): PatternSection | null {
       const rank = int(a.rank, 1, 500)
       // Rang au-delà de la répétition, ou égal au dernier : « dernier rang ».
       const stitches = int(a.stitches, -200, 200)
-      return { text: str(a.text, 200), rank: rank !== null && every !== null && rank >= every ? null : rank, ...(stitches !== null ? { stitches } : {}) }
+      return { text: trimmedText(a.text, 200), rank: rank !== null && every !== null && rank >= every ? null : rank, ...(stitches !== null ? { stitches } : {}) }
     })
     .filter((a) => a.text)
     .slice(0, 10)
@@ -388,7 +386,7 @@ export function sanitizeCharts(value: unknown, stepCount: number): ChartHint[] {
       const step = int(c.step, 1, stepCount)
       return {
         page,
-        title: str(c.title, 100),
+        title: trimmedText(c.title, 100),
         rows: lastRow === null ? null : Math.min(oddOnly ? Math.ceil(lastRow / 2) : lastRow, 500),
         step: step === null ? null : step - 1,
         flat,
@@ -403,7 +401,7 @@ export function sanitizeCharts(value: unknown, stepCount: number): ChartHint[] {
 export function missingParts(titles: unknown, phases: PhaseStep[]): string[] {
   const read = phases.map((p) => p.piece)
   return (Array.isArray(titles) ? titles : [])
-    .map((t) => str(t, 200))
+    .map((t) => trimmedText(t, 200))
     .filter((t) => t && !read.some((piece) => samePiece(piece, t)))
     .map(pieceTitle)
     .slice(0, 20)
@@ -530,8 +528,8 @@ export function sanitizeAbbreviations(value: unknown): Abbreviation[] {
   return (Array.isArray(value) ? value : [])
     .flatMap((v): Abbreviation[] => {
       const a = asRecord(v)
-      const abbr = str(a.abbr, 40)
-      const meaning = str(a.meaning, 300)
+      const abbr = trimmedText(a.abbr, 40)
+      const meaning = trimmedText(a.meaning, 300)
       if (!abbr || !meaning || seen.has(abbr)) return []
       seen.add(abbr)
       return [{ abbr, meaning }]
@@ -550,7 +548,7 @@ export function sanitizeSizeChart(value: unknown, sizeCount: number): SizeChart 
   const rows = (Array.isArray(c.rows) ? c.rows : [])
     .flatMap((v): SizeChart['rows'] => {
       const r = asRecord(v)
-      const label = str(r.label, 80)
+      const label = trimmedText(r.label, 80)
       const measure = typeof r.measure === 'string' && CHART_MEASURES.has(r.measure) ? (r.measure as ChartMeasure) : 'other'
       const values = Array.from({ length: sizeCount }, (_, i) => cm(Array.isArray(r.values_cm) ? r.values_cm[i] : null, 400))
       return label && values.some((x) => x !== null) ? [{ label, measure, values }] : []
@@ -575,7 +573,7 @@ function sizeIndex(value: unknown, sizes: string[], size: string): number | null
 /** Valide et borne ce que le modèle a renvoyé. */
 export function sanitizePattern(input: unknown, size: string): ReadPattern {
   const data = asRecord(input)
-  const sizes = (Array.isArray(data.sizes) ? data.sizes : []).map((s) => str(s, 40)).filter(Boolean).slice(0, 30)
+  const sizes = (Array.isArray(data.sizes) ? data.sizes : []).map((s) => trimmedText(s, 40)).filter(Boolean).slice(0, 30)
   // Sans taille choisie, la première taille est prise : rien d'introuvable.
   if (size && data.size_found === false) {
     throw new HttpError(
@@ -588,13 +586,13 @@ export function sanitizePattern(input: unknown, size: string): ReadPattern {
     .map((value): PhaseStep => {
       const s = asRecord(value)
       return {
-        title: str(s.title, 200),
-        instructions: str(s.instructions, MAX_INSTRUCTIONS),
+        title: trimmedText(s.title, 200),
+        instructions: trimmedText(s.instructions, MAX_INSTRUCTIONS),
         totalRows: int(s.total_rows, 1, 2000),
         stitches: int(s.stitches, 1, 5000),
         times: int(s.times, 1, 10) ?? 1,
         sections: (Array.isArray(s.sections) ? s.sections : []).map(sanitizeSection).filter((r): r is PatternSection => r !== null).slice(0, 30),
-        piece: str(s.piece, 200),
+        piece: trimmedText(s.piece, 200),
       }
     })
     .filter((s) => s.title)
@@ -607,7 +605,7 @@ export function sanitizePattern(input: unknown, size: string): ReadPattern {
   const steps = withNeedles(grouped.steps, needles).map((step) => (step.times > 1 ? step : { ...step, times: timesIn(`${step.title}\n${step.instructions}`) ?? step.times }))
   const charts = grouped.charts
   return {
-    title: str(data.title, 200) || 'Patron sans titre',
+    title: trimmedText(data.title, 200) || 'Patron sans titre',
     sizes,
     sizeIndex: sizeIndex(data.size_number, sizes, size),
     steps,

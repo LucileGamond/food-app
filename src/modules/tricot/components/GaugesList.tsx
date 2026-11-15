@@ -26,7 +26,7 @@ interface Props {
 const text = (value: number | null) => (value === null ? '' : String(value).replace('.', ','))
 
 /** « Aiguille 3,5 mm », « Toutes aiguilles » pour celui qui vaut par défaut. */
-export const gaugeName = (needle: number | null): string => (needle === null ? 'Toutes aiguilles' : `Aiguille ${formatNeedle(needle)}`)
+const gaugeName = (needle: number | null): string => (needle === null ? 'Toutes aiguilles' : `Aiguille ${formatNeedle(needle)}`)
 
 /** Saisie d'un échantillon : son aiguille (du patron ou une autre), ses mailles et ses rangs pour 10 cm. */
 function GaugeForm({ gauge, taken, needles, onSave, onCancel }: { gauge: ProjectGauge | null; taken: (number | null)[]; needles: number[]; onSave: (g: ProjectGauge) => Promise<boolean>; onCancel: () => void }) {

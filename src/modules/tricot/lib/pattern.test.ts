@@ -5,8 +5,8 @@ import {
   formToSection,
   nextActionRow,
   planSections,
-  sectionIndexAt,
   sanitizeSections,
+  sectionIndicesAt,
   sectionToForm,
   actionEffect,
   type SectionForm,
@@ -91,10 +91,10 @@ describe('sections d’une étape', () => {
 
   it('situe le rang à tricoter et la prochaine action', () => {
     const plan = planSections(SECTIONS, 60)
-    expect(sectionIndexAt(plan, 1)).toBe(0)
-    expect(sectionIndexAt(plan, 5)).toBe(1)
-    expect(sectionIndexAt(plan, 38)).toBe(2)
-    expect(sectionIndexAt(plan, 61)).toBeNull()
+    expect(sectionIndicesAt(plan, 1)[0]).toBe(0)
+    expect(sectionIndicesAt(plan, 5)[0]).toBe(1)
+    expect(sectionIndicesAt(plan, 38)[0]).toBe(2)
+    expect(sectionIndicesAt(plan, 61)).toEqual([])
     expect(nextActionRow(plan[1]!, 10)).toBe(10)
     expect(nextActionRow(plan[1]!, 11)).toBe(16)
     expect(nextActionRow(plan[1]!, 29)).toBeNull()

@@ -3,7 +3,7 @@ import { useId, type ReactNode } from 'react'
 import { cn } from '@/lib/utils'
 
 /** Les trois seuls encadrés du module : une explication, quelque chose à faire, un problème. */
-export type NoteKind = 'info' | 'todo' | 'problem'
+type NoteKind = 'info' | 'todo' | 'problem'
 
 const STYLES: Record<NoteKind, { box: string; icon: typeof Info; tone: string }> = {
   info: { box: 'bg-muted/50', icon: Info, tone: 'text-muted-foreground' },

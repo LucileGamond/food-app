@@ -1,4 +1,5 @@
-// Module Tricot : projets (patron + taille), étapes et avancée. Chacun ne voit que ses projets.
+// Module Tricot : projets, étapes et avancée, bibliothèque de patrons, stock de laine, mesures, glossaire, Ravelry et
+// appels à la fonction knit-pattern (IA). Chacun ne voit que ses données.
 
 import { AppError, functionError, rpcError, toAppError } from '@/api/errors'
 import type { Json } from '@/lib/database.types'
@@ -19,7 +20,7 @@ import { sanitizeHints, sanitizeSetup, type ChartHint, type ChartSetup, type Kni
 import type { SectionsChange, Split } from './lib/organize'
 import { sanitizeNeedles } from './lib/needles'
 import { sanitizeGauges, type ProjectGauge } from './lib/gauges'
-import { MAX_PDF_BYTES, type KnitProject, type KnitProjectSummary, type KnitStep, type PatternStep, type ReadPattern, type StepSection, readMissingParts, sanitizeSections } from './lib/pattern'
+import { MAX_PDF_BYTES, type KnitProject, type KnitProjectSummary, type KnitStep, type PatternStep, type ReadPattern, type StepProgress, type StepSection, readMissingParts, sanitizeSections } from './lib/pattern'
 
 const PATTERN_BUCKET = 'knit-patterns'
 const CHART_BUCKET = 'knit-charts'
@@ -28,8 +29,6 @@ const READ_TIMEOUT_MS = 150_000
 const SIGNED_URL_TTL_SECONDS = 60 * 60
 /** Photos d'avancement et photos des patrons : dossier par personne (<uid>/<uuid>.jpg). */
 const PROGRESS_BUCKET = 'knit-photos'
-
-export type StepProgress = Partial<Pick<KnitStep, 'rowCount' | 'times' | 'pass' | 'notes' | 'done' | 'sections' | 'highlights' | 'translation' | 'startStitches'>>
 
 /** Contenu du fichier en base64. */
 export async function fileToBase64(file: Blob): Promise<string> {
@@ -190,13 +189,13 @@ export function createKnittingApi(db: AppSupabaseClient) {
     return path
   }
 
-  /** Envoie des photos de patron (déjà réduites, en JPEG) ; renvoie leurs chemins. Rien ne reste si l'une échoue. */
   async function downloadFrom(bucket: string, path: string, failure: string): Promise<Blob> {
     const { data, error } = await db.storage.from(bucket).download(path)
     if (error) throw new AppError(failure)
     return data
   }
 
+  /** Envoie des photos de patron (déjà réduites, en JPEG) ; renvoie leurs chemins. Rien ne reste si l'une échoue. */
   async function uploadPatternPhotos(photos: Blob[]): Promise<string[]> {
     if (photos.length === 0) return []
     const { data: session } = await db.auth.getSession()
@@ -464,7 +463,6 @@ export function createKnittingApi(db: AppSupabaseClient) {
       if (error) throw rpcError(error, 'Impossible de séparer l’étape.')
     },
 
-    /** Taille dont les nombres sont mis en valeur dans le texte des étapes (null : aucune). */
     /** Échantillon par aiguille et conversions vérifiées par aiguille. */
     async saveGauges(id: string, gauges: ProjectGauge[]): Promise<void> {
       const { error } = await db.from('knit_projects').update({ needle_gauges: gauges as unknown as Json[] }).eq('id', id)
@@ -477,6 +475,7 @@ export function createKnittingApi(db: AppSupabaseClient) {
       if (error) throw toAppError(error, 'Impossible d’enregistrer les aiguilles.')
     },
 
+    /** Taille dont les nombres sont mis en valeur dans le texte des étapes (null : aucune). */
     async setSizeIndex(id: string, sizeIndex: number | null): Promise<void> {
       const { error } = await db.from('knit_projects').update({ size_index: sizeIndex }).eq('id', id)
       if (error) throw toAppError(error, 'Impossible de changer la taille mise en valeur.')
@@ -822,10 +821,9 @@ export function createKnittingApi(db: AppSupabaseClient) {
       if (error) throw toAppError(error, 'Impossible de garder les idées.')
     },
 
-    /** PDF d'un patron en attente, pour le lire au moment de commencer. */
+    /** PDF d'un patron de la bibliothèque (lecture par l'IA, diagrammes, lecteur). */
     async downloadPdf(path: string, name: string): Promise<File> {
-      const { data, error } = await db.storage.from(PATTERN_BUCKET).download(path)
-      if (error) throw new AppError('Impossible de récupérer le PDF du patron.')
+      const data = await downloadFrom(PATTERN_BUCKET, path, 'Impossible de récupérer le PDF du patron.')
       return new File([data], `${name}.pdf`, { type: 'application/pdf' })
     },
 

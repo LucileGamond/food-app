@@ -5,7 +5,7 @@
 export const DEFAULT_HUE = '#3f4fa0'
 
 /** Brins du fil. */
-export const PLIES = 3
+const PLIES = 3
 
 /** Couleurs de la jauge : celles de la laine (1 à 3), sinon l'indigo du module. */
 export function gaugeHues(hues: string[]): string[] {

@@ -52,7 +52,6 @@ function NumberField({ id, label, ...props }: { id: string; label: string } & Re
   )
 }
 
-/** Rangs calculés depuis une mesure du patron : le calcul, à vérifier puis valider (ou régler). */
 interface NeedleCheck {
   /** Aiguille de la sous-étape (null : aucune choisie). */
   needle: number | null
@@ -60,6 +59,7 @@ interface NeedleCheck {
   checked: boolean
 }
 
+/** Rangs calculés depuis une mesure du patron : le calcul, à vérifier puis valider (ou régler). */
 function ConversionCheck({ section, onValidate, onEdit, check }: { section: StepSection; onValidate: () => void; onEdit: () => void; check?: NeedleCheck }) {
   const calculation = describeConversion(section)
   if (!calculation) return null
@@ -283,7 +283,6 @@ function SectionForm({ section, onSave, onCancel, needle }: { section: StepSecti
   )
 }
 
-/** Sections de l'étape (préparation), dans l'ordre : rangs sans répétition et répétitions, réglables en rangs selon sa laine. */
 interface TextProps {
   /** Tailles du patron et celle mise en valeur, pour le paragraphe de chaque sous-étape. */
   sizes: string[]
@@ -291,6 +290,7 @@ interface TextProps {
   abbreviations: Abbreviation[]
 }
 
+/** Sections de l'étape (préparation), dans l'ordre : rangs sans répétition et répétitions, réglables en rangs selon sa laine. */
 export function StepSections({
   step,
   onChange,

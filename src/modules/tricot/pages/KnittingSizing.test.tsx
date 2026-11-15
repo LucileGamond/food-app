@@ -105,7 +105,7 @@ describe('taille selon les mesures, après la lecture', () => {
     await user.click(within(card).getByRole('button', { name: 'Ajusté 0 à 5 cm' }))
     expect(status).toHaveTextContent('Taille conseillée : S')
     expect(within(card).queryByRole('button', { name: /Relire/ })).not.toBeInTheDocument()
-    // Aisance à soi : 18 cm pour moi → L
+    // Aisance à soi : 9 cm pour Moi (100 + 9 = 109 cm de vêtement) → L
     await user.selectOptions(within(card).getByLabelText('Pour qui'), 'm2')
     await user.clear(within(card).getByLabelText('Aisance en cm'))
     await user.type(within(card).getByLabelText('Aisance en cm'), '9')
@@ -135,7 +135,7 @@ describe('taille selon les mesures, après la lecture', () => {
     expect(screen.getByRole('list', { name: 'Étapes lues' })).toBeInTheDocument()
   })
 
-  it('aisance du patron par défaut ; fiche sans mesure utile ; sans fiche, renvoie vers les fiches', async () => {
+  it('aisance du patron par défaut ; fiche sans mesure utile', async () => {
     const api = fakeApi()
     api.knitting.listMeasures.mockResolvedValue([{ ...LEA, measures: { chest: null, waist: 70, hip: null, arm: null, head: null } }])
     api.knitting.readPattern.mockResolvedValue({ ...PATTERN, sizeChart: { ...PATTERN.sizeChart!, easeCm: 12 } })

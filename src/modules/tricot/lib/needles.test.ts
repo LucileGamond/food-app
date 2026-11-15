@@ -1,4 +1,4 @@
-import { chainNeedles, effectiveNeedles, formatNeedle, parseNeedles, readNeedle, sanitizeNeedles } from './needles'
+import { chainNeedles, effectiveNeedles, formatNeedle, parseNeedles, sanitizeNeedles } from './needles'
 import { readyIssues } from './ready'
 import type { StepSection } from './pattern'
 
@@ -18,7 +18,6 @@ describe('aiguilles', () => {
     expect(parseNeedles('')).toEqual([])
     expect(parseNeedles('trois')).toBeNull()
     expect(formatNeedle(3.5)).toBe('3,5 mm')
-    expect([readNeedle(3.5), readNeedle('3'), readNeedle(0)]).toEqual([3.5, null, null])
   })
 
   it('aiguille de chaque sous-étape : la sienne, sinon celle d’avant ; la seule du projet par défaut', () => {

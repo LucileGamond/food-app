@@ -1,7 +1,7 @@
 import { ChevronLeft, X } from 'lucide-react'
 import { StarIcon } from './KnitIcons'
 
-export interface Thumb {
+interface Thumb {
   key: string
   /** Adresse de l'image (absente tant qu'elle se charge). */
   url: string | undefined

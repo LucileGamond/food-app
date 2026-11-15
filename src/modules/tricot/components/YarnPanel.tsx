@@ -287,8 +287,10 @@ function GaugeForm({ info, onSave }: { info: ProjectInfo; onSave: (patternGauge:
   )
 }
 
-/** Laine et échantillon du projet, enregistrés ensemble. */
-/** `removedYarn` : position de la laine retirée (ses pesées partent avec elle). */
+/**
+ * Laine et échantillon du projet, enregistrés ensemble. `onSave` reçoit `removedYarn` : position de la laine retirée (ses
+ * pesées partent avec elle).
+ */
 export function YarnPanel({
   info,
   onSave,

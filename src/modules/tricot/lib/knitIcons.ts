@@ -71,7 +71,7 @@ function resample(points: Point[], step: number): { p: Point; n: Point; s: numbe
   return out
 }
 
-export interface PlyPiece {
+interface PlyPiece {
   ply: number
   front: boolean
   points: string

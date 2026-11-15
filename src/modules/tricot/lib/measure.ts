@@ -78,10 +78,6 @@ export function convertSection(section: StepSection, gauge: MeasuredRows | null)
   return gauge === null ? section : convertStart(convertLength(section, gauge), gauge)
 }
 
-export function convertSections(sections: StepSection[], gauge: MeasuredRows | null): StepSection[] {
-  return sections.map((s) => convertSection(s, gauge))
-}
-
 /** Calcul validé : la section devient un nombre de rangs (et un rang de début) comme un autre. */
 export function validateSection(section: StepSection): StepSection {
   const { measured: _measured, ...rest } = section
