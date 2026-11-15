@@ -1,22 +1,8 @@
 import { adaptationPaused, adaptationToJson, adaptedStepsFromResponse, applyAdaptation, describeChange, followedAdaptation, sanitizeAdaptation, stepsToFollow, withAdaptedSections, type Adaptation } from './adapt'
+import { knitStep } from '@/test/knitFactories'
 import type { KnitStep, StepSection } from './pattern'
 
-const step = (overrides: Partial<KnitStep>): KnitStep => ({
-  id: 's1',
-  position: 0,
-  title: 'Dos',
-  instructions: '',
-  totalRows: 100,
-  stitches: 88,
-  sections: [],
-  rowCount: 0,
-  times: 1,
-  pass: 1,
-  notes: '',
-  done: false,
-  highlights: {},
-  ...overrides,
-})
+const step = (overrides: Partial<KnitStep>): KnitStep => knitStep({ totalRows: 100, stitches: 88, ...overrides })
 
 const REPEAT: StepSection = { kind: 'repeat', rows: null, every: 8, times: 6, actions: [{ text: '1 augmentation', rank: null }], text: '', pattern: null }
 const ADAPTED_REPEAT: StepSection = { ...REPEAT, every: 7, times: 7 }
