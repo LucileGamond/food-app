@@ -141,7 +141,7 @@ export function KnittingImportPage() {
     if (!pattern) return
     setSaving(true)
     try {
-      const id = await api.knitting.createProject({ title: title.trim() || pattern.title, size: readSize(pattern), pdf, steps: pattern.steps, gauge: pattern.gauge ?? null, pattern: source && { id: source.id, pdfPath: changingPdf ? null : source.pdfPath }, chartHints: pattern.charts ?? [], sizes: pattern.sizes, sizeIndex, abbreviations: pattern.abbreviations ?? [], needles: pattern.needles ?? [], reading: reusedAt ? null : pattern })
+      const id = await api.knitting.createProject({ title: title.trim() || pattern.title, size: readSize(pattern), pdf, steps: pattern.steps, gauge: pattern.gauge ?? null, pattern: source && { id: source.id, pdfPath: changingPdf ? null : source.pdfPath }, chartHints: pattern.charts ?? [], sizes: pattern.sizes, sizeIndex, abbreviations: pattern.abbreviations ?? [], needles: pattern.needles ?? [], reading: reusedAt || replacingPdf ? null : pattern })
       toast.success('Projet enregistré')
       navigate(`/tricot/${id}`)
     } catch (e) {

@@ -1340,18 +1340,22 @@ describe('laine et échantillon du projet', () => {
     const panel = await screen.findByRole('region', { name: 'Laine et échantillon' })
     await user.click(within(panel).getByRole('button', { name: 'Supprimer DROPS Merino' }))
     await user.click(within(await screen.findByRole('alertdialog', { name: 'Supprimer cette laine ?' })).getByRole('button', { name: 'Supprimer' }))
+    // La laine et ses pesées décalées partent dans la même écriture : jamais l'une sans l'autre
     await waitFor(() =>
-      expect(api.knitting.saveYarnChecks).toHaveBeenCalledWith('p1', [
+      expect(api.knitting.saveProjectInfo).toHaveBeenCalledWith('p1', expect.objectContaining({ yarns: [alpaca, kid] }), [
         { yarn: 0, grams: 50, rowsDone: 10, at: '' },
         { yarn: 1, grams: 20, rowsDone: 10, at: '' },
       ]),
     )
-    // La dernière laine retirée sans pesée derrière elle : rien à décaler
-    api.knitting.saveYarnChecks.mockClear()
     await user.click(within(panel).getByRole('button', { name: 'Supprimer DROPS Kid-Silk' }))
     await user.click(within(await screen.findByRole('alertdialog', { name: 'Supprimer cette laine ?' })).getByRole('button', { name: 'Supprimer' }))
-    await waitFor(() => expect(api.knitting.saveProjectInfo).toHaveBeenLastCalledWith('p1', expect.objectContaining({ yarns: [alpaca, merino] })))
-    expect(api.knitting.saveYarnChecks).toHaveBeenCalledWith('p1', [{ yarn: 0, grams: 50, rowsDone: 10, at: '' }, { yarn: 1, grams: 40, rowsDone: 10, at: '' }])
+    await waitFor(() =>
+      expect(api.knitting.saveProjectInfo).toHaveBeenLastCalledWith('p1', expect.objectContaining({ yarns: [alpaca, merino] }), [
+        { yarn: 0, grams: 50, rowsDone: 10, at: '' },
+        { yarn: 1, grams: 40, rowsDone: 10, at: '' },
+      ]),
+    )
+    expect(api.knitting.saveYarnChecks).not.toHaveBeenCalled()
   })
 
   it('recalcule mailles et rangs avec l’échantillon de la tricoteuse', async () => {
@@ -1465,6 +1469,8 @@ describe('projet d’après un patron de la bibliothèque', () => {
     expect(api.knitting.readPattern).toHaveBeenCalledWith(other, 'M')
     await user.click(await screen.findByRole('button', { name: 'Enregistrer le projet' }))
     await waitFor(() => expect(api.knitting.createProject).toHaveBeenCalledWith(expect.objectContaining({ pdf: other, pattern: { id: 'q1', pdfPath: null } })))
+    // Le patron garde son PDF : la lecture de l'autre PDF n'est pas rangée sous lui
+    expect(api.knitting.createProject).toHaveBeenCalledWith(expect.objectContaining({ reading: null }))
   })
 
   it('patron sans PDF (photos ou lien) : le PDF est demandé', async () => {

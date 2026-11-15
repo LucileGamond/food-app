@@ -226,6 +226,17 @@ export function createKnittingApi(db: AppSupabaseClient) {
     )
   }
 
+  /**
+   * Un PDF de patron peut-il être supprimé ? Relu en base au moment de supprimer : un projet a pu être commencé d'après
+   * ce patron depuis l'ouverture de la fiche (autre onglet, autre appareil). Dans le doute, il est gardé (ménage de nuit).
+   */
+  async function pdfUnused(path: string): Promise<boolean> {
+    const { count, error } = await db.from('knit_projects').select('id', { count: 'exact', head: true }).eq('pdf_path', path)
+    return !error && count === 0
+  }
+
+  const yarnChecksToJson = (checks: YarnCheck[]) => checks.map((c) => ({ yarn: c.yarn, grams: c.grams, rows_done: c.rowsDone, at: c.at }))
+
   /** Diagrammes lus en base, avec l'adresse temporaire de leur image (null si elle n'a pas pu être obtenue). */
   async function signCharts(rows: ChartRow[]): Promise<KnitChart[]> {
     if (rows.length === 0) return []
@@ -472,13 +483,15 @@ export function createKnittingApi(db: AppSupabaseClient) {
     },
 
     /** Laines et échantillons du projet. */
-    async saveProjectInfo(id: string, info: { yarns: Yarn[]; patternGauge: Gauge }): Promise<void> {
+    /** Laine et échantillon ; `yarnChecks` (laine retirée) : les pesées décalées, enregistrées dans la même écriture. */
+    async saveProjectInfo(id: string, info: { yarns: Yarn[]; patternGauge: Gauge }, yarnChecks?: YarnCheck[]): Promise<void> {
       const { error } = await db
         .from('knit_projects')
         .update({
           yarns: info.yarns as unknown as Json[],
           pattern_gauge_stitches: info.patternGauge.stitches,
           pattern_gauge_rows: info.patternGauge.rows,
+          ...(yarnChecks ? { yarn_checks: yarnChecksToJson(yarnChecks) } : {}),
         })
         .eq('id', id)
       if (error) throw toAppError(error, 'Impossible d’enregistrer la laine et l’échantillon.')
@@ -585,7 +598,7 @@ export function createKnittingApi(db: AppSupabaseClient) {
     async saveYarnChecks(projectId: string, checks: YarnCheck[]): Promise<void> {
       const { error } = await db
         .from('knit_projects')
-        .update({ yarn_checks: checks.map((c) => ({ yarn: c.yarn, grams: c.grams, rows_done: c.rowsDone, at: c.at })) })
+        .update({ yarn_checks: yarnChecksToJson(checks) })
         .eq('id', projectId)
       if (error) throw toAppError(error, 'Impossible d’enregistrer la pesée.')
     },
@@ -599,7 +612,7 @@ export function createKnittingApi(db: AppSupabaseClient) {
 
     /** Lectures gardées d'un patron (une par taille) ; les lectures abîmées sont écartées. */
     async listReadings(patternId: string): Promise<StoredReading[]> {
-      const { data, error } = await db.from('knit_pattern_readings').select('size_index, size_label, reading, read_at').eq('pattern_id', patternId)
+      const { data, error } = await db.from('knit_pattern_readings').select('size_index, size_label, reading, read_at').eq('pattern_id', patternId).order('read_at', { ascending: false })
       if (error) throw toAppError(error, 'Impossible de charger les lectures du patron.')
       return data.flatMap((r) => {
         const reading = readingFromJson(r.reading)
@@ -641,7 +654,7 @@ export function createKnittingApi(db: AppSupabaseClient) {
       if (existing) {
         const removedPhotos = existing.photos.filter((p) => !row.photos.includes(p))
         if (removedPhotos.length) await db.storage.from(PROGRESS_BUCKET).remove(removedPhotos)
-        if (existing.pdfPath && existing.pdfPath !== row.pdf_path && existing.projects.length === 0) await db.storage.from(PATTERN_BUCKET).remove([existing.pdfPath])
+        if (existing.pdfPath && existing.pdfPath !== row.pdf_path && existing.projects.length === 0 && (await pdfUnused(existing.pdfPath))) await db.storage.from(PATTERN_BUCKET).remove([existing.pdfPath])
       }
       return data.id
     },
@@ -651,7 +664,7 @@ export function createKnittingApi(db: AppSupabaseClient) {
       const { error } = await db.from('knit_patterns').delete().eq('id', pattern.id)
       if (error) throw toAppError(error, 'Impossible de supprimer le patron.')
       if (pattern.photos.length) await db.storage.from(PROGRESS_BUCKET).remove(pattern.photos)
-      if (pattern.pdfPath && pattern.projects.length === 0) await db.storage.from(PATTERN_BUCKET).remove([pattern.pdfPath])
+      if (pattern.pdfPath && pattern.projects.length === 0 && (await pdfUnused(pattern.pdfPath))) await db.storage.from(PATTERN_BUCKET).remove([pattern.pdfPath])
     },
 
     async listStash(): Promise<StashItem[]> {

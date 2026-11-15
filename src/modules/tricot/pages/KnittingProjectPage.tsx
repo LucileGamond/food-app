@@ -143,10 +143,10 @@ export function KnittingProjectPage() {
 
   async function saveInfo(info: ProjectInfo, removedYarn?: number): Promise<boolean> {
     try {
-      await api.knitting.saveProjectInfo(project!.id, info)
-      // Laine retirée : les pesées restent liées à la bonne laine.
+      // Laine retirée : les pesées restent liées à la bonne laine, dans la même écriture (jamais l'une sans l'autre).
       const checks = project!.yarnChecks ?? []
-      if (removedYarn !== undefined && checks.some((c) => c.yarn >= removedYarn)) await api.knitting.saveYarnChecks(project!.id, withoutYarn(checks, removedYarn))
+      const shifted = removedYarn !== undefined && checks.some((c) => c.yarn >= removedYarn) ? withoutYarn(checks, removedYarn) : undefined
+      await (shifted ? api.knitting.saveProjectInfo(project!.id, info, shifted) : api.knitting.saveProjectInfo(project!.id, info))
       await reload()
       return true
     } catch (error) {

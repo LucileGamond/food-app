@@ -60,6 +60,16 @@ describe('lectures gardées', () => {
     expect(findReading([stored(READ), stored({ ...READ, sizeIndex: 0 })], '')?.sizeLabel).toBe('S')
   })
 
+  it('lecture sans tailles d’un patron en plusieurs tailles : elle ne vaut pas pour une autre taille', () => {
+    // Première lecture où le modèle n'a pas relevé les tailles, puis une lecture en M
+    const unsized = stored({ ...READ, sizes: [], sizeIndex: null })
+    const medium = stored(READ)
+    for (const readings of [[unsized, medium], [medium, unsized]]) {
+      expect(findReading(readings, 'M')).toBe(medium)
+      expect(findReading(readings, 'L')).toBeNull()
+    }
+  })
+
   it('patron en taille unique : sa lecture vaut pour toute taille demandée', () => {
     const single = stored({ ...READ, sizes: [], sizeIndex: null })
     expect(findReading([single], '')).toBe(single)

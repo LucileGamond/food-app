@@ -39,17 +39,21 @@ export function readingKey(read: Pick<ReadPattern, 'sizes' | 'sizeIndex'>): { si
 
 /**
  * Lecture gardée qui vaut pour la taille demandée : même taille parmi celles du patron (« m » = « M »), la première si
- * aucune taille n'est demandée (comme le modèle), n'importe laquelle pour un patron en taille unique.
+ * aucune taille n'est demandée (comme le modèle), n'importe laquelle pour un patron en taille unique. Une lecture sans
+ * tailles ne vaut pas pour un patron dont une autre lecture a relevé plusieurs tailles (elle a été faite pour une seule).
  */
 export function findReading(readings: StoredReading[], size: string): StoredReading | null {
   const wanted = size.trim()
-  return (
-    readings.find((r) => {
-      if (r.reading.sizes.length <= 1) return true
-      const index = wanted ? sizeIndexOf(r.reading.sizes, wanted) : 0
-      return index !== null && index === r.sizeIndex
-    }) ?? null
-  )
+  const sized = readings.filter((r) => r.reading.sizes.length > 1)
+  if (sized.length) {
+    return (
+      sized.find((r) => {
+        const index = wanted ? sizeIndexOf(r.reading.sizes, wanted) : 0
+        return index !== null && index === r.sizeIndex
+      }) ?? null
+    )
+  }
+  return readings[0] ?? null
 }
 
 function str(value: unknown, max: number): string {
