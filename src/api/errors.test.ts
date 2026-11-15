@@ -1,4 +1,4 @@
-import { AppError, RecipeInUseError, errorMessage, functionError, toAppError } from './errors'
+import { AppError, RecipeInUseError, errorMessage, functionError, rpcError, toAppError } from './errors'
 
 describe('toAppError', () => {
   it('traduit les codes connus', () => {
@@ -46,5 +46,16 @@ describe('functionError', () => {
     expect(await functionError(failed(413, null), 'Échec.', 'import')).toMatchObject({ code: 'import-413' })
     expect(await functionError(failed(504, null), 'Échec.', 'ideas')).toMatchObject({ message: 'Le service d’analyse ne répond pas. Réessaie dans un instant.' })
     expect(await functionError(failed(400, null), 'Échec.', 'ideas')).toMatchObject({ message: 'Échec.', code: 'ideas-400' })
+  })
+})
+
+describe('rpcError', () => {
+  it('garde le message écrit dans nos fonctions SQL (22023, P0001, P0002), pas celui de Postgres', () => {
+    expect(rpcError({ code: '22023', message: 'L’étape suivante est commencée : impossible de la regrouper' }).message).toBe('L’étape suivante est commencée : impossible de la regrouper')
+    expect(rpcError({ code: 'P0001', message: 'Titre requis' }, 'Oups').message).toBe('Titre requis')
+    expect(rpcError({ code: 'P0002', message: 'Étape introuvable' }).message).toBe('Étape introuvable')
+    expect(rpcError({ code: '22023', message: 'cannot get array length of a scalar' }).message).toBe('Certaines valeurs sont invalides.')
+    expect(rpcError({ code: 'P0001', message: 'boom' }, 'Oups').message).toBe('Oups')
+    expect(rpcError({ code: '42501', message: 'Connexion requise' }).message).toMatch(/accès/)
   })
 })

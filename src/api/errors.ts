@@ -58,6 +58,19 @@ export function toAppError(error: PostgrestLikeError | null | undefined, fallbac
   return new AppError(fallback, code)
 }
 
+/** Codes levés par nos fonctions SQL avec un message écrit pour l'utilisateur (raise exception '…'). */
+const OWN_MESSAGE_CODES = new Set(['22023', 'P0001', 'P0002'])
+
+/**
+ * Erreur d'une fonction SQL dont les refus sont expliqués (« L’étape suivante est commencée… ») : leur message est gardé.
+ * Ceux de Postgres lui-même (en anglais, en minuscule) restent traduits comme par `toAppError`.
+ */
+export function rpcError(error: PostgrestLikeError | null | undefined, fallback?: string): AppError {
+  const message = error?.message
+  if (error?.code && OWN_MESSAGE_CODES.has(error.code) && message && /^\p{Lu}/u.test(message) && message.length <= 300) return new AppError(message, error.code)
+  return toAppError(error, fallback)
+}
+
 export function errorMessage(error: unknown): string {
   if (error instanceof AppError) return error.message
   return 'Une erreur est survenue.'

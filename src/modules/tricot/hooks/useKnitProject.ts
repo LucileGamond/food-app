@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { toast } from 'sonner'
 import { AppError, errorMessage, type Api } from '@/api'
 import type { StepProgress } from '../api'
-import { clearProgress, isOffline, loadProjectCopy, pendingFor, queueProgress, saveProjectCopy, settleProgress, withPending } from '../lib/offline'
+import { clearProgress, forgetProject, isOffline, loadProjectCopy, pendingFor, queueProgress, saveProjectCopy, settleProgress, withPending } from '../lib/offline'
 import { MAX_ROW_COUNT, type KnitProject } from '../lib/pattern'
 
 interface KnitProjectState {
@@ -29,6 +29,9 @@ interface Edit {
 
 /** Erreur de connexion (réseau faible alors que le navigateur se croit en ligne), et non refus de la base. */
 const isNetworkError = (error: unknown) => error instanceof AppError && error.code === 'network'
+
+/** Refus de lecture (session expirée, droits) : ce n'est pas une coupure, la copie du téléphone ne doit pas le masquer. */
+const isRefusal = (error: unknown) => error instanceof AppError && !!error.code && (['42501', 'PGRST301'].includes(error.code) || /401$/.test(error.code))
 
 /** Applique au projet relu les avancées modifiées depuis le lancement de la relecture. */
 function withEdits(project: KnitProject, edits: Edit[], since: number): KnitProject {
@@ -99,13 +102,16 @@ export function useKnitProject(api: Api, id: string): KnitProjectState {
         await flush()
         const fresh = await api.knitting.getProject(id)
         if (stale()) return
+        // Supprimé (ailleurs) : sa copie et son avancée en attente ne doivent pas revenir hors ligne
+        if (!fresh) forgetProject(id)
         apply(fresh && withEdits(withPending(fresh), edits.current, since))
         setOffline(false)
         setLoadError(null)
       } catch (error) {
         if (stale()) return
-        // Sans réseau : la dernière version gardée sur le téléphone, avec ce qui a été compté depuis.
-        const copy = loadProjectCopy(id)
+        // Sans réseau : la dernière version gardée sur le téléphone, avec ce qui a été compté depuis. Un refus (session
+        // expirée, droits) n'est pas une coupure : son message s'affiche.
+        const copy = isRefusal(error) ? null : loadProjectCopy(id)
         if (copy) {
           apply(withEdits(withPending(copy), edits.current, since))
           setOffline(true)
@@ -130,18 +136,23 @@ export function useKnitProject(api: Api, id: string): KnitProjectState {
     latest.current = null
     edits.current = []
     void reload()
-    // Retour du réseau : l'avancée en attente part, puis le projet est relu.
+    // Retour du réseau : l'avancée en attente part, puis le projet est relu. Retour sur l'onglet aussi : un autre
+    // onglet ou appareil a pu compter entre-temps, et le réseau a pu revenir sans événement « online ».
     const online = () => void reload()
+    const visible = () => document.visibilityState === 'visible' && void reload()
     window.addEventListener('online', online)
-    return () => window.removeEventListener('online', online)
+    document.addEventListener('visibilitychange', visible)
+    return () => {
+      window.removeEventListener('online', online)
+      document.removeEventListener('visibilitychange', visible)
+    }
   }, [id, reload])
 
   const saveStep = useCallback(
     async (stepId: string, progress: StepProgress) => {
       const before = latest.current
       if (!before) return false
-      const previous = before.steps.find((s) => s.id === stepId)
-      if (!previous) return false
+      if (!before.steps.some((s) => s.id === stepId)) return false
       edit(stepId, progress)
       apply({ ...before, steps: before.steps.map((s) => (s.id === stepId ? { ...s, ...progress } : s)) })
       // Sans réseau : gardé sur le téléphone, envoyé au retour du réseau.
@@ -165,23 +176,23 @@ export function useKnitProject(api: Api, id: string): KnitProjectState {
         return true
       } catch (error) {
         if (isOffline() || isNetworkError(error)) return keep()
-        // Rétablit seulement les champs envoyés (une autre modification a pu suivre).
-        const restored = Object.fromEntries(Object.keys(progress).map((key) => [key, previous[key as keyof StepProgress]])) as StepProgress
-        edit(stepId, restored)
-        const current = latest.current
-        if (current) apply({ ...current, steps: current.steps.map((s) => (s.id === stepId ? { ...s, ...restored } : s)) })
+        // Refus de la base : le projet est relu après les écritures déjà parties (un instantané d'avant ne vaut plus
+        // rien si un autre rang a été compté entre-temps et enregistré).
         toast.error(errorMessage(error))
+        void reload()
         return false
       }
     },
-    [api],
+    [api, reload],
   )
 
   const countRows = useCallback(
     (stepId: string, delta: number) => {
       const step = latest.current?.steps.find((s) => s.id === stepId)
       if (!step) return Promise.resolve(false)
-      const rowCount = Math.min(MAX_ROW_COUNT, Math.max(0, step.rowCount + delta))
+      // Pas plus loin que le dernier rang de l'étape (un double tap à la fin) ; redescendre reste toujours possible.
+      const last = Math.max(step.totalRows ?? MAX_ROW_COUNT, step.rowCount)
+      const rowCount = Math.min(MAX_ROW_COUNT, last, Math.max(0, step.rowCount + delta))
       if (rowCount === step.rowCount) return Promise.resolve(false)
       return saveStep(stepId, { rowCount })
     },

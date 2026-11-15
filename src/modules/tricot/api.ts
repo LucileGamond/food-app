@@ -1,6 +1,6 @@
 // Module Tricot : projets (patron + taille), étapes et avancée. Chacun ne voit que ses projets.
 
-import { AppError, functionError, toAppError } from '@/api/errors'
+import { AppError, functionError, rpcError, toAppError } from '@/api/errors'
 import type { Json } from '@/lib/database.types'
 import type { AppSupabaseClient } from '@/api/client'
 import { compressForReading } from '@/lib/image'
@@ -427,7 +427,7 @@ export function createKnittingApi(db: AppSupabaseClient) {
         p_sections: merged.sections as unknown as Json,
         p_total_rows: merged.totalRows as number,
       })
-      if (error) throw toAppError(error, 'Impossible de regrouper les étapes.')
+      if (error) throw rpcError(error, 'Impossible de regrouper les étapes.')
     },
 
     /** Sous-étapes de plusieurs étapes enregistrées d'un coup (sous-étape déplacée d'une étape à une autre). */
@@ -435,7 +435,7 @@ export function createKnittingApi(db: AppSupabaseClient) {
       const { error } = await db.rpc('set_knit_sections', {
         p_steps: changes.map((c) => ({ id: c.id, sections: c.sections, total_rows: c.totalRows, instructions: c.instructions })) as unknown as Json,
       })
-      if (error) throw toAppError(error, 'Impossible de déplacer la sous-étape.')
+      if (error) throw rpcError(error, 'Impossible de déplacer la sous-étape.')
     },
 
     /** Sépare une étape : la suite devient une nouvelle étape juste après. */
@@ -450,7 +450,7 @@ export function createKnittingApi(db: AppSupabaseClient) {
         p_new_total_rows: split.second.totalRows as number,
         p_new_instructions: split.second.instructions,
       })
-      if (error) throw toAppError(error, 'Impossible de séparer l’étape.')
+      if (error) throw rpcError(error, 'Impossible de séparer l’étape.')
     },
 
     /** Taille dont les nombres sont mis en valeur dans le texte des étapes (null : aucune). */

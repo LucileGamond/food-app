@@ -174,4 +174,83 @@ describe('useKnitProject : avancée et file d’attente', () => {
     await act(async () => p3.resolve(project('p3', 1)))
     expect(result.current.project?.id).toBe('p3')
   })
+
+  it('deux rangs comptés vite, le premier refusé par la base : l’écran finit sur la valeur de la base', async () => {
+    const api = fakeApi()
+    let saved = 5
+    api.knitting.getProject.mockImplementation(() => Promise.resolve(project('p1', saved)))
+    const { result } = renderHook(() => useKnitProject(api, 'p1'))
+    await waitFor(() => expect(rows(result)).toBe(5))
+    api.knitting.saveProgress
+      .mockRejectedValueOnce(new AppError('Impossible d’enregistrer l’avancée.', '42501'))
+      .mockImplementationOnce((_id: string, p: { rowCount?: number }) => {
+        saved = p.rowCount!
+        return Promise.resolve()
+      })
+    await act(async () => {
+      await Promise.all([result.current.countRows('p1-s1', 1), result.current.countRows('p1-s1', 1)])
+    })
+    // La base a gardé 7 : l'écran aussi (avant : 5 affiché, 7 en base)
+    await waitFor(() => expect(rows(result)).toBe(saved))
+    expect(saved).toBe(7)
+  })
+
+  it('le compteur s’arrête au dernier rang de l’étape ; il redescend toujours', async () => {
+    const api = fakeApi()
+    api.knitting.getProject.mockResolvedValue(project('p1', 100))
+    const { result } = renderHook(() => useKnitProject(api, 'p1'))
+    await waitFor(() => expect(rows(result)).toBe(100))
+    await act(async () => expect(await result.current.countRows('p1-s1', 1)).toBe(false))
+    expect(rows(result)).toBe(100)
+    expect(api.knitting.saveProgress).not.toHaveBeenCalled()
+    await act(async () => expect(await result.current.countRows('p1-s1', -1)).toBe(true))
+    expect(rows(result)).toBe(99)
+  })
+
+  it('projet supprimé ailleurs : sa copie et son attente sont oubliées', async () => {
+    const api = fakeApi()
+    api.knitting.getProject.mockResolvedValue(project('p1', 5))
+    const { result, unmount } = renderHook(() => useKnitProject(api, 'p1'))
+    await waitFor(() => expect(rows(result)).toBe(5))
+    unmount()
+    queueProgress('p1', 'p1-s1', { rowCount: 9 })
+    api.knitting.saveProgress.mockRejectedValue(new AppError('Étape introuvable', 'P0002'))
+    api.knitting.getProject.mockResolvedValue(null)
+    const again = renderHook(() => useKnitProject(api, 'p1'))
+    await waitFor(() => expect(again.result.current.loading).toBe(false))
+    expect(again.result.current.project).toBeNull()
+    expect(pendingFor('p1')).toEqual([])
+    // Hors ligne ensuite : plus de copie à montrer
+    api.knitting.getProject.mockRejectedValue(new AppError('Connexion impossible.', 'network'))
+    const offline = renderHook(() => useKnitProject(api, 'p1'))
+    await waitFor(() => expect(offline.result.current.loading).toBe(false))
+    expect(offline.result.current.project).toBeNull()
+  })
+
+  it('refus de lecture (session expirée) : un message, pas « hors ligne » avec la copie', async () => {
+    const api = fakeApi()
+    api.knitting.getProject.mockResolvedValue(project('p1', 5))
+    const first = renderHook(() => useKnitProject(api, 'p1'))
+    await waitFor(() => expect(rows(first.result)).toBe(5))
+    first.unmount()
+    api.knitting.getProject.mockRejectedValue(new AppError('Reconnecte-toi.', '401'))
+    const { result } = renderHook(() => useKnitProject(api, 'p1'))
+    await waitFor(() => expect(result.current.loading).toBe(false))
+    expect(result.current.offline).toBe(false)
+    expect(result.current.loadError).toBe('Reconnecte-toi.')
+  })
+
+  it('retour sur l’onglet : le projet est relu et l’attente renvoyée (autre onglet, réseau revenu sans événement)', async () => {
+    const api = fakeApi()
+    api.knitting.getProject.mockResolvedValue(project('p1', 5))
+    const { result } = renderHook(() => useKnitProject(api, 'p1'))
+    await waitFor(() => expect(rows(result)).toBe(5))
+    // Un autre onglet a compté jusqu'à 30, et un rang attend d'ici
+    queueProgress('p1', 'p1-s1', { notes: 'à garder' })
+    api.knitting.getProject.mockResolvedValue(project('p1', 30))
+    await act(async () => document.dispatchEvent(new Event('visibilitychange')))
+    await waitFor(() => expect(rows(result)).toBe(30))
+    expect(api.knitting.saveProgress).toHaveBeenCalledWith('p1-s1', { notes: 'à garder' })
+    expect(pendingFor('p1')).toEqual([])
+  })
 })
