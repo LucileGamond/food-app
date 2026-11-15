@@ -122,12 +122,17 @@ export function PatternForm({ existing, initialLink = null, onSaved, library = [
       }
     }
     // Saisie du moment (un PDF a pu être choisi pendant la lecture), pas celle du clic sur « Récupérer ».
-    const added = linkAdditions({ ...link, image }, latest.current, { imageFailed })
+    // Patron Ravelry : son nom propre plutôt que le titre de la page (« Ravelry: … »).
+    const added = linkAdditions({ ...link, title: link.info?.title ?? link.title, image }, latest.current, { imageFailed })
     const title = added.title
     if (title) setDraft((d) => (d.title.trim() ? d : { ...d, title }))
     if (added.pdf) choosePdf(added.pdf)
     if (added.image) addPhotos([added.image])
-    return added.message
+    if (!link.info) return added.message
+    // Patron Ravelry : ses infos complètent les champs vides, comme « Remplir avec l'IA » (gratuit).
+    const fromRavelry = infoAdditions({ ...link.info, title: null }, latestDraft.current)
+    setDraft((d) => ({ ...d, ...fromRavelry.patch }))
+    return `${added.message} Ravelry — ${fromRavelry.message}`
   }
 
   /** « Remplir avec l'IA » : complète les champs vides d'après le PDF ou les photos. */

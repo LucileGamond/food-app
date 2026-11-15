@@ -240,6 +240,8 @@ export interface PatternLink {
   /** Image de la page (le modèle tricoté). */
   image: File | null
   pdf: File | null
+  /** Infos du patron par l'API de Ravelry (lien de patron Ravelry, compte relié), sinon null. */
+  info?: PatternInfo | null
 }
 
 /** Réponse de la fonction qui lit un lien (fichiers en base64). */
@@ -248,6 +250,7 @@ export interface PatternLinkResponse {
   title: string | null
   image: { data: string; type: string } | null
   pdf: { data: string; name: string } | null
+  ravelry?: PatternInfo | null
 }
 
 /** Fichier en base64 → fichier, comme s'il avait été choisi sur le téléphone. */
@@ -263,6 +266,7 @@ export function patternLinkFromResponse(read: PatternLinkResponse): PatternLink 
     title: read.title,
     image: read.image ? base64ToFile(read.image.data, `photo-du-modele.${IMAGE_EXTENSIONS[read.image.type] ?? 'jpg'}`, read.image.type) : null,
     pdf: read.pdf ? base64ToFile(read.pdf.data, read.pdf.name, 'application/pdf') : null,
+    info: read.ravelry ?? null,
   }
 }
 

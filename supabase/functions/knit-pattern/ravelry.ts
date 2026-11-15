@@ -116,3 +116,86 @@ export async function searchRavelry(query: RavelryQuery, deps: RavelryDeps, limi
     .slice(0, limit)
     .map(({ p }) => p)
 }
+
+// ---------------------------------------------------------------------------
+// Patron gardé depuis un lien Ravelry : ses infos (tailles, métrage, aiguilles, laine), comme « Remplir avec l'IA »
+// ---------------------------------------------------------------------------
+
+/** « https://www.ravelry.com/patterns/library/ladder-rib-beanie » → « ladder-rib-beanie » ; null pour un autre lien. */
+export function ravelryPermalink(url: string): string | null {
+  try {
+    const parsed = new URL(url)
+    if (!/(^|\.)ravelry\.com$/i.test(parsed.hostname)) return null
+    const match = parsed.pathname.match(/^\/patterns\/library\/([\w-]+)\/?$/)
+    return match ? match[1]! : null
+  } catch {
+    return null
+  }
+}
+
+/** Infos d'un patron (même forme que la lecture du PDF par le modèle). */
+export interface RavelryPatternInfo {
+  title: string | null
+  sizes: string[]
+  meters: (number | null)[]
+  needleMm: number | null
+  yarn: string | null
+  kind: null
+}
+
+/**
+ * « 2 sizes: Adult (S-M), Adult (M-L) » → ['Adult (S-M)', 'Adult (M-L)'] : virgules hors parenthèses ; une seule
+ * taille (ou texte libre sans liste) → [].
+ */
+export function parseRavelrySizes(value: unknown): string[] {
+  if (typeof value !== 'string') return []
+  const text = value.replace(/^\s*\d+\s+sizes?\s*:\s*/i, '').trim()
+  const sizes: string[] = []
+  let depth = 0
+  let current = ''
+  for (const char of text) {
+    if (char === '(') depth += 1
+    if (char === ')') depth = Math.max(0, depth - 1)
+    if (char === ',' && depth === 0) {
+      sizes.push(current)
+      current = ''
+    } else current += char
+  }
+  sizes.push(current)
+  const clean = sizes.map((s) => s.trim().slice(0, 40)).filter(Boolean)
+  return clean.length > 1 ? clean.slice(0, 12) : []
+}
+
+/**
+ * Patron de Ravelry → infos : métrage de la plus petite et de la plus grande taille (Ravelry ne donne pas les autres),
+ * aiguilles du corps (la plus grosse), laines conseillées ou grosseur.
+ */
+export function toPatternInfo(raw: unknown): RavelryPatternInfo {
+  const p = record(raw)
+  const sizes = parseRavelrySizes(p.sizes_available)
+  const min = yardsToMeters(p.yardage)
+  const max = yardsToMeters(p.yardage_max)
+  const meters = sizes.length === 0 ? [max ?? min] : sizes.map((_, i) => (i === 0 ? min : i === sizes.length - 1 ? (max ?? min) : null))
+  const needles = (Array.isArray(p.pattern_needle_sizes) ? p.pattern_needle_sizes : []).map((n) => positive(record(n).metric)).filter((n): n is number => n !== null && n <= 30)
+  const yarns = (Array.isArray(p.packs) ? p.packs : [])
+    .map((k) => record(k).yarn_name)
+    .filter((n): n is string => typeof n === 'string' && !!n.trim())
+    .map((n) => n.trim())
+  const weight = record(p.yarn_weight).name
+  const yarn = [...new Set(yarns)].join(', ') || (typeof weight === 'string' && weight.trim() ? weight.trim() : '')
+  return {
+    title: typeof p.name === 'string' && p.name.trim() ? p.name.trim().slice(0, 200) : null,
+    sizes,
+    meters,
+    needleMm: needles.length ? Math.max(...needles) : null,
+    yarn: yarn ? yarn.slice(0, 200) : null,
+    kind: null,
+  }
+}
+
+/** Infos d'un patron de Ravelry par son adresse (permalink). */
+export async function getRavelryPattern(permalink: string, deps: RavelryDeps): Promise<RavelryPatternInfo> {
+  const body = await get(`patterns/${permalink}.json`, new URLSearchParams(), deps)
+  if (typeof body.pattern !== 'object' || body.pattern === null) throw new RavelryError('Patron introuvable sur Ravelry.')
+  return toPatternInfo(body.pattern)
+}

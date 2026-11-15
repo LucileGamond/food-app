@@ -362,6 +362,38 @@ describe('ajout et modification d’un patron', () => {
     expect(screen.getByLabelText('Laine envisagée')).toHaveValue('')
   })
 
+  it('lien de patron Ravelry (compte relié) : taille, métrage, aiguilles et laine remplis gratuitement, sans rien écraser', async () => {
+    const user = userEvent.setup()
+    const api = fakeApi()
+    const info = { title: 'Ladder Rib Beanie', sizes: ['Adult S-M', 'Adult M-L'], meters: [115, 132], needleMm: 4.5, yarn: 'Hamanaka Amerry', kind: null }
+    api.knitting.readPatternLink.mockResolvedValue({ url: 'https://www.ravelry.com/patterns/library/ladder-rib-beanie', title: 'Ravelry: Ladder Rib Beanie', image: null, pdf: null, info })
+    renderWithApp(<KnittingPatternEditPage />, { api, route: '/tricot/patrons/nouveau', path: '/tricot/patrons/nouveau', extraRoutes })
+    await user.type(await screen.findByLabelText('Taille visée'), 'Adult M-L')
+    await user.type(screen.getByLabelText('Laine envisagée'), 'Ma laine')
+    await user.type(screen.getByLabelText('Lien'), 'https://www.ravelry.com/patterns/library/ladder-rib-beanie')
+    await user.click(screen.getByRole('button', { name: 'Récupérer' }))
+    expect(await screen.findByText(/nom repris de la page\. Ravelry — Rempli : métrage, aiguilles · tailles du patron : Adult S-M, Adult M-L\./)).toBeInTheDocument()
+    expect(screen.getByLabelText('Nom du patron')).toHaveValue('Ladder Rib Beanie')
+    expect(screen.getByLabelText('Métrage nécessaire (m)')).toHaveValue('132')
+    expect(screen.getByLabelText('Aiguilles (mm)')).toHaveValue('4,5')
+    // Déjà saisie : gardée
+    expect(screen.getByLabelText('Laine envisagée')).toHaveValue('Ma laine')
+    expect(api.knitting.readPatternInfo).not.toHaveBeenCalled()
+  })
+
+  it('lien Ravelry sans taille visée : tailles du patron rappelées, métrage à compléter', async () => {
+    const user = userEvent.setup()
+    const api = fakeApi()
+    const info = { title: null, sizes: ['S', 'L'], meters: [115, 132], needleMm: null, yarn: null, kind: null }
+    api.knitting.readPatternLink.mockResolvedValue({ url: 'https://www.ravelry.com/patterns/library/x', title: 'X', image: null, pdf: null, info })
+    renderWithApp(<KnittingPatternEditPage />, { api, route: '/tricot/patrons/nouveau', path: '/tricot/patrons/nouveau', extraRoutes })
+    await user.type(await screen.findByLabelText('Lien'), 'https://www.ravelry.com/patterns/library/x')
+    await user.click(screen.getByRole('button', { name: 'Récupérer' }))
+    expect(await screen.findByText(/tailles du patron : S, L · métrage selon la taille/)).toBeInTheDocument()
+    expect(screen.getByLabelText('Métrage nécessaire (m)')).toHaveValue('')
+    expect(screen.getByLabelText('Nom du patron')).toHaveValue('X')
+  })
+
   it('lecture du lien en cours : « Enregistrer » attend, et un PDF choisi entre-temps est gardé', async () => {
     const user = userEvent.setup()
     const api = fakeApi()

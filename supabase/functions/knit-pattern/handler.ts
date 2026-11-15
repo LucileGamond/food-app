@@ -20,7 +20,8 @@
 // POST { ravelry_start: { redirect_uri } } → 200 { url }   (connexion d'un compte Ravelry, voir ravelryAuth.ts)
 // POST { ravelry_finish: { code, state } } → 200 { username }
 // POST { link: { url } }   (patron ajouté à la bibliothèque par un lien, sans le modèle)
-//   → 200 { url, title, image: { data, type } | null, pdf: { data, name } | null }
+//   → 200 { url, title, image: { data, type } | null, pdf: { data, name } | null, ravelry: { title, sizes, meters, needleMm, yarn } | null }
+//   (ravelry : infos du patron par l'API de Ravelry, pour un lien de patron Ravelry et un compte relié)
 //   → 4xx/5xx { error: message lisible }
 // Comme estimate-nutrition : verify_jwt, plus `isSignedIn` pour refuser la clé publique anonyme.
 
@@ -33,7 +34,7 @@ import { findIdeaPatterns, parseIdeaPatternsInput, parseIdeasInput, suggestIdeas
 import { parseLabelInput, readYarnLabel, type LabelInput } from './yarn.ts'
 import { parseInfoInput, readPatternInfo, type InfoInput } from './info.ts'
 import { parseLinkInput, readLink, type LinkDeps, type LinkInput } from './link.ts'
-import { searchRavelry } from './ravelry.ts'
+import { getRavelryPattern, ravelryPermalink, searchRavelry, type RavelryPatternInfo } from './ravelry.ts'
 import { accessTokenFor, finishRavelry, parseRavelryFinish, parseRavelryStart, startRavelry, type RavelryOAuth } from './ravelryAuth.ts'
 
 /**
@@ -109,6 +110,19 @@ async function withRavelryPatterns(ideas: YarnIdea[], weight: string | null, yar
   return { ideas: enriched, ravelry: error ? 'erreur' : 'ok' }
 }
 
+/** Infos d'un patron Ravelry (lien de patron, compte relié) ; null sinon, ou si Ravelry ne répond pas. */
+async function ravelryInfo(url: string, deps: Deps, userId: string | null): Promise<RavelryPatternInfo | null> {
+  const permalink = ravelryPermalink(url)
+  if (!permalink) return null
+  try {
+    const accessToken = await accessTokenFor(userId, deps.ravelry)
+    return accessToken ? await getRavelryPattern(permalink, { fetchRavelry: deps.ravelry!.fetch, accessToken }) : null
+  } catch (e) {
+    deps.log?.('ravelry en erreur', { error: e instanceof Error ? e.message : String(e) })
+    return null
+  }
+}
+
 export function createHandler(deps: Deps) {
   return createModelHandler(deps, {
     parse,
@@ -121,8 +135,14 @@ export function createHandler(deps: Deps) {
         return { body: { username }, log: { ravelryFinish: true } }
       }
       if (input.kind === 'link') {
-        const result = await readLink(input.link, { fetchPage: deps.fetchPage ?? fetch, resolveDns: deps.resolveDns })
-        return { body: result, log: { link: true, pdf: result.pdf !== null, image: result.image !== null } }
+        const [page, ravelry] = await Promise.all([
+          readLink(input.link, { fetchPage: deps.fetchPage ?? fetch, resolveDns: deps.resolveDns }).catch((e: unknown) => e),
+          ravelryInfo(input.link.url, deps, userId),
+        ])
+        // Page illisible : avec les infos de Ravelry, le lien est gardé quand même.
+        if (page instanceof Error && !ravelry) throw page
+        const result = page instanceof Error ? { url: input.link.url, title: ravelry!.title, image: null, pdf: null } : (page as Awaited<ReturnType<typeof readLink>>)
+        return { body: { ...result, ravelry }, log: { link: true, pdf: result.pdf !== null, image: result.image !== null, ravelry: ravelry !== null } }
       }
       if (input.kind === 'info') {
         const { info, usage } = await readPatternInfo(input.info, options)

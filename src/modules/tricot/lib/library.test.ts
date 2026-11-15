@@ -209,7 +209,10 @@ describe('patron ajouté par un lien', () => {
     expect([link.pdf!.name, link.pdf!.type, await link.pdf!.text()]).toEqual(['gilet.pdf', 'application/pdf', '%PDF-1.4'])
     expect(patternLinkFromResponse({ url: 'u', title: null, image: { data: '', type: 'image/webp' }, pdf: null }).image!.name).toBe('photo-du-modele.webp')
     expect(patternLinkFromResponse({ url: 'u', title: null, image: { data: '', type: 'image/jpeg' }, pdf: null }).image!.name).toBe('photo-du-modele.jpg')
-    expect(patternLinkFromResponse({ url: 'u', title: null, image: null, pdf: null })).toEqual({ url: 'u', title: null, image: null, pdf: null })
+    expect(patternLinkFromResponse({ url: 'u', title: null, image: null, pdf: null })).toEqual({ url: 'u', title: null, image: null, pdf: null, info: null })
+    // Infos de Ravelry transmises telles quelles
+    const info = { title: 'Bonnet', sizes: [], meters: [132], needleMm: 4.5, yarn: 'Worsted', kind: null }
+    expect(patternLinkFromResponse({ url: 'u', title: null, image: null, pdf: null, ravelry: info }).info).toEqual(info)
   })
 
   it('ne lit que les liens http(s) complets', () => {
