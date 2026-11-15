@@ -2,8 +2,7 @@
 // rangs, mailles et déroulé en sections (rangs sans répétition, « 2 diminutions tous les 6 rangs »).
 
 import { callTool, HttpError, type ModelOptions, type ModelUsage, type Tool } from '../_shared/anthropic.ts'
-import { asRecord } from '../_shared/sanitize.ts'
-import { trimmedText } from './sanitize.ts'
+import { asRecord, trimmedText } from '../_shared/sanitize.ts'
 
 /** PDF de 20 Mo au plus (≈ 27 millions de caractères en base64). */
 export const MAX_PDF_BASE64 = 28_000_000

@@ -33,7 +33,7 @@
 // Comme estimate-nutrition : verify_jwt, plus `isSignedIn` pour refuser la clé publique anonyme.
 
 import { adaptPattern, parseAdaptInput, type AdaptInput } from './adapt.ts'
-import { HttpError } from '../_shared/anthropic.ts'
+import { HttpError, type ModelOptions } from '../_shared/anthropic.ts'
 import { createModelHandler, type ModelDeps } from '../_shared/handler.ts'
 import { answerQuestion, parseQuestionInput, parseTranslateInput, translateStep, type QuestionInput, type TranslateInput } from './assist.ts'
 import { parseInput, readPattern, type PatternInput } from './pattern.ts'
@@ -194,87 +194,108 @@ async function ravelryInfo(url: string, deps: Deps, userId: string | null): Prom
   }
 }
 
+type Run = { body: unknown; log: Record<string, unknown> }
+type Runner<K extends Input['kind']> = (input: Extract<Input, { kind: K }>, options: ModelOptions, deps: Deps, userId: string | null) => Promise<Run>
+
+/** Connexion Ravelry : réservée à une personne connectée (le compte est rangé sous son identifiant). */
+function signedIn(userId: string | null): string {
+  if (!userId) throw new HttpError('Connexion requise.', 401)
+  return userId
+}
+
+/** Appel à l'API de Ravelry avec le compte relié ; une erreur de Ravelry devient un 502 lisible. */
+async function withRavelry(deps: Deps, userId: string | null, call: (ravelry: RavelryDeps) => Promise<Run>): Promise<Run> {
+  const ravelry = await ravelryAccess(deps, userId)
+  try {
+    return await call(ravelry)
+  } catch (e) {
+    if (e instanceof RavelryError) throw new HttpError(e.message, 502)
+    throw e
+  }
+}
+
+/** Traitement de chaque genre de requête : réponse et données du journal. */
+const RUNNERS: { [K in Input['kind']]: Runner<K> } = {
+  ravelryImports: (_input, _options, deps, userId) =>
+    withRavelry(deps, userId, async (ravelry) => {
+      const patterns = await listRavelryImports(ravelry)
+      return { body: { patterns }, log: { ravelryImports: patterns.length } }
+    }),
+  ravelryImport: ({ patternId, volumeId }, _options, deps, userId) =>
+    withRavelry(deps, userId, async (ravelry) => {
+      const found = await importRavelryPattern(patternId, volumeId, ravelry)
+      const [image, pdf] = await Promise.all([
+        fetchFile(found.photoUrl, IMAGE_TYPES, MAX_IMPORT_IMAGE_BYTES, deps),
+        found.pdf ? fetchFile(found.pdf.url, ['application/pdf'], MAX_IMPORT_PDF_BYTES, deps) : Promise.resolve(null),
+      ])
+      const pdfMissing = found.pdf && !pdf ? 'erreur' : found.pdfMissing
+      const body = { url: found.url, title: found.title, author: found.author, ravelry: found.info, image, pdf: pdf && found.pdf ? { data: pdf.data, name: found.pdf.name } : null, pdfMissing }
+      return { body, log: { ravelryImport: true, image: image !== null, pdf: pdf !== null, pdfMissing } }
+    }),
+  ravelryYarns: ({ query }, _options, deps, userId) =>
+    withRavelry(deps, userId, async (ravelry) => {
+      const yarns = await searchRavelryYarns(query, ravelry)
+      return { body: { yarns }, log: { ravelryYarns: yarns.length } }
+    }),
+  ravelryYarn: ({ id }, _options, deps, userId) => withRavelry(deps, userId, async (ravelry) => ({ body: { yarn: await getRavelryYarn(id, ravelry) }, log: { ravelryYarn: true } })),
+  async ravelryStart({ ravelryStart }, _options, deps, userId) {
+    return { body: await startRavelry(ravelryStart, signedIn(userId), deps.ravelry), log: { ravelryStart: true } }
+  },
+  async ravelryFinish({ ravelryFinish }, _options, deps, userId) {
+    const { username } = await finishRavelry(ravelryFinish, signedIn(userId), deps.ravelry)
+    return { body: { username }, log: { ravelryFinish: true } }
+  },
+  async link({ link }, _options, deps, userId) {
+    const [page, ravelry] = await Promise.all([
+      readLink(link, { fetchPage: deps.fetchPage ?? fetch, resolveDns: deps.resolveDns }).catch((e: unknown) => e),
+      ravelryInfo(link.url, deps, userId),
+    ])
+    // Page illisible : avec les infos de Ravelry, le lien est gardé quand même.
+    if (page instanceof Error && !ravelry) throw page
+    const result = page instanceof Error ? { url: link.url, title: ravelry!.title, image: null, pdf: null } : (page as Awaited<ReturnType<typeof readLink>>)
+    return { body: { ...result, ravelry }, log: { link: true, pdf: result.pdf !== null, image: result.image !== null, ravelry: ravelry !== null } }
+  },
+  async info({ info: input }, options) {
+    const { info, usage } = await readPatternInfo(input, options)
+    return { body: info, log: { info: true, pdf: input.pdf !== null, photos: input.photos.length, ...usage } }
+  },
+  async question({ question }, options) {
+    const { answer, usage } = await answerQuestion(question, options)
+    return { body: { answer }, log: { question: true, ...usage } }
+  },
+  async translate({ translate }, options) {
+    const { text, numbersKept, usage } = await translateStep(translate, options)
+    return { body: { text, numbersKept }, log: { translate: true, chars: translate.text.length, numbersKept, ...usage } }
+  },
+  async adapt({ adapt }, options) {
+    const { steps, usage } = await adaptPattern(adapt, options)
+    return { body: { steps }, log: { adapt: true, steps: adapt.steps.length, changed: steps.length, ...usage } }
+  },
+  async ideas({ ideas: input }, options, deps, userId) {
+    const { ideas: suggested, weight, searches, usage } = await suggestIdeas(input, options)
+    const { ideas, ravelry } = await withRavelryPatterns(suggested, weight, input.yarns, deps, userId)
+    const log = { ideas: ideas.length, yarns: input.yarns.length, wish: input.wish !== '', patterns: ideas.reduce((n, i) => n + i.patterns.length, 0), searches, ravelry }
+    return { body: { ideas, weight }, log: { ...log, ...usage } }
+  },
+  async ideaPatterns({ ideaPatterns }, options) {
+    const { patterns, searches, usage } = await findIdeaPatterns(ideaPatterns, options)
+    return { body: { patterns }, log: { ideaPatterns: true, patterns: patterns.length, searches, ...usage } }
+  },
+  async label({ label }, options) {
+    const { yarn, usage } = await readYarnLabel(label, options)
+    return { body: yarn, log: { label: true, kb: Math.round(label.label.length / 1365), ...usage } }
+  },
+  async pattern({ pattern: input }, options) {
+    const { pattern, usage } = await readPattern(input, options)
+    return { body: pattern, log: { steps: pattern.steps.length, kb: Math.round(input.pdf.length / 1365), ...usage } }
+  },
+}
+
 export function createHandler(deps: Deps) {
   return createModelHandler(deps, {
     parse,
     usesModel: (input) => !WITHOUT_MODEL.includes(input.kind),
-    async run(input, options, _deps, { userId }) {
-      if (input.kind === 'ravelryYarns' || input.kind === 'ravelryYarn' || input.kind === 'ravelryImports' || input.kind === 'ravelryImport') {
-        const ravelry = await ravelryAccess(deps, userId)
-        try {
-          if (input.kind === 'ravelryImports') {
-            const patterns = await listRavelryImports(ravelry)
-            return { body: { patterns }, log: { ravelryImports: patterns.length } }
-          }
-          if (input.kind === 'ravelryImport') {
-            const found = await importRavelryPattern(input.patternId, input.volumeId, ravelry)
-            const [image, pdf] = await Promise.all([
-              fetchFile(found.photoUrl, IMAGE_TYPES, MAX_IMPORT_IMAGE_BYTES, deps),
-              found.pdf ? fetchFile(found.pdf.url, ['application/pdf'], MAX_IMPORT_PDF_BYTES, deps) : Promise.resolve(null),
-            ])
-            const pdfMissing = found.pdf && !pdf ? 'erreur' : found.pdfMissing
-            const body = { url: found.url, title: found.title, author: found.author, ravelry: found.info, image, pdf: pdf && found.pdf ? { data: pdf.data, name: found.pdf.name } : null, pdfMissing }
-            return { body, log: { ravelryImport: true, image: image !== null, pdf: pdf !== null, pdfMissing } }
-          }
-          if (input.kind === 'ravelryYarns') {
-            const yarns = await searchRavelryYarns(input.query, ravelry)
-            return { body: { yarns }, log: { ravelryYarns: yarns.length } }
-          }
-          return { body: { yarn: await getRavelryYarn(input.id, ravelry) }, log: { ravelryYarn: true } }
-        } catch (e) {
-          if (e instanceof RavelryError) throw new HttpError(e.message, 502)
-          throw e
-        }
-      }
-      if (input.kind === 'ravelryStart' || input.kind === 'ravelryFinish') {
-        if (!userId) throw new HttpError('Connexion requise.', 401)
-        if (input.kind === 'ravelryStart') return { body: await startRavelry(input.ravelryStart, userId, deps.ravelry), log: { ravelryStart: true } }
-        const { username } = await finishRavelry(input.ravelryFinish, userId, deps.ravelry)
-        return { body: { username }, log: { ravelryFinish: true } }
-      }
-      if (input.kind === 'link') {
-        const [page, ravelry] = await Promise.all([
-          readLink(input.link, { fetchPage: deps.fetchPage ?? fetch, resolveDns: deps.resolveDns }).catch((e: unknown) => e),
-          ravelryInfo(input.link.url, deps, userId),
-        ])
-        // Page illisible : avec les infos de Ravelry, le lien est gardé quand même.
-        if (page instanceof Error && !ravelry) throw page
-        const result = page instanceof Error ? { url: input.link.url, title: ravelry!.title, image: null, pdf: null } : (page as Awaited<ReturnType<typeof readLink>>)
-        return { body: { ...result, ravelry }, log: { link: true, pdf: result.pdf !== null, image: result.image !== null, ravelry: ravelry !== null } }
-      }
-      if (input.kind === 'info') {
-        const { info, usage } = await readPatternInfo(input.info, options)
-        return { body: info, log: { info: true, pdf: input.info.pdf !== null, photos: input.info.photos.length, ...usage } }
-      }
-      if (input.kind === 'question') {
-        const { answer, usage } = await answerQuestion(input.question, options)
-        return { body: { answer }, log: { question: true, ...usage } }
-      }
-      if (input.kind === 'translate') {
-        const { text, numbersKept, usage } = await translateStep(input.translate, options)
-        return { body: { text, numbersKept }, log: { translate: true, chars: input.translate.text.length, numbersKept, ...usage } }
-      }
-      if (input.kind === 'adapt') {
-        const { steps, usage } = await adaptPattern(input.adapt, options)
-        return { body: { steps }, log: { adapt: true, steps: input.adapt.steps.length, changed: steps.length, ...usage } }
-      }
-      if (input.kind === 'ideas') {
-        const { ideas: suggested, weight, searches, usage } = await suggestIdeas(input.ideas, options)
-        const { ideas, ravelry } = await withRavelryPatterns(suggested, weight, input.ideas.yarns, deps, userId)
-        const log = { ideas: ideas.length, yarns: input.ideas.yarns.length, wish: input.ideas.wish !== '', patterns: ideas.reduce((n, i) => n + i.patterns.length, 0), searches, ravelry }
-        return { body: { ideas, weight }, log: { ...log, ...usage } }
-      }
-      if (input.kind === 'ideaPatterns') {
-        const { patterns, searches, usage } = await findIdeaPatterns(input.ideaPatterns, options)
-        return { body: { patterns }, log: { ideaPatterns: true, patterns: patterns.length, searches, ...usage } }
-      }
-      if (input.kind === 'label') {
-        const { yarn, usage } = await readYarnLabel(input.label, options)
-        return { body: yarn, log: { label: true, kb: Math.round(input.label.label.length / 1365), ...usage } }
-      }
-      const { pattern, usage } = await readPattern(input.pattern, options)
-      return { body: pattern, log: { steps: pattern.steps.length, kb: Math.round(input.pattern.pdf.length / 1365), ...usage } }
-    },
+    run: (input, options, _deps, { userId }) => (RUNNERS[input.kind] as Runner<Input['kind']>)(input, options, deps, userId),
     logs: { done: 'patron lu', refused: 'patron refusé', failed: 'patron en erreur' },
     failure: 'La lecture a échoué.',
   })

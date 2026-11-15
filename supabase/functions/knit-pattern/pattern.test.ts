@@ -1,10 +1,8 @@
 import { createHandler, type Deps } from './handler.ts'
-import { groupPieces, missingParts, needleIn, pieceTitle, timesIn, MAX_PDF_BASE64, parseInput, readPattern, sanitizePattern, sanitizeSection, systemPrompt, TOOL, type PhaseStep } from './pattern.ts'
+import { PDF, toolReply } from './testHelpers.ts'
+import { groupPieces, missingParts, needleIn, pieceTitle, timesIn, MAX_PDF_BASE64, parseInput, readPattern, sanitizeGauge, sanitizePattern, sanitizeSection, systemPrompt, TOOL, type PhaseStep } from './pattern.ts'
 
-const PDF = 'JVBERi0xLjQK' // « %PDF-1.4 »
-
-const reply = (input: unknown) =>
-  new Response(JSON.stringify({ content: [{ type: 'tool_use', name: 'enregistrer_patron', input }], usage: { input_tokens: 5000, output_tokens: 800 } }), { status: 200 })
+const reply = (input: unknown) => toolReply('enregistrer_patron', input, { input_tokens: 5000, output_tokens: 800 })
 
 const DECREASE = { kind: 'repeat', rows: null, every: 6, times: 4, actions: [{ text: '1 diminution de chaque côté', rank: null }], text: '', pattern: 'tous les 6 rangs' }
 
@@ -393,5 +391,17 @@ describe('handler', () => {
     const crashed = await crash.handle(post({ pdf: PDF, size: 'M' }))
     expect(crashed.status).toBe(500)
     expect(await crashed.json()).toEqual({ error: 'La lecture a échoué.' })
+  })
+})
+
+describe('échantillon du patron', () => {
+  it('ramène l’échantillon lu, arrondi au dixième, ou null', () => {
+    expect(sanitizeGauge({ stitches: 22, rows: 30.04 })).toEqual({ stitches: 22, rows: 30 })
+    expect(sanitizeGauge({ stitches: 22, rows: null })).toEqual({ stitches: 22, rows: null })
+    expect(sanitizeGauge({ stitches: 0, rows: 500 })).toBeNull()
+    expect(sanitizeGauge(null)).toBeNull()
+    const steps = [{ title: 'Dos', instructions: '', total_rows: 10, stitches: 64, sections: [] }]
+    expect(sanitizePattern({ title: 'Pull', sizes: ['M'], size_found: true, steps, gauge: { stitches: 22, rows: 30 } }, 'M').gauge).toEqual({ stitches: 22, rows: 30 })
+    expect(sanitizePattern({ title: 'Pull', sizes: ['M'], size_found: true, steps }, 'M').gauge).toBeNull()
   })
 })

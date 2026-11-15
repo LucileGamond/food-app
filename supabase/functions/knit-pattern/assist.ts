@@ -2,8 +2,7 @@
 // étape (patron en anglais) sans toucher aux nombres des tailles.
 
 import { callTool, HttpError, type ModelOptions, type ModelUsage, type Tool } from '../_shared/anthropic.ts'
-import { asRecord } from '../_shared/sanitize.ts'
-import { trimmedText } from './sanitize.ts'
+import { asRecord, trimmedText } from '../_shared/sanitize.ts'
 
 export const MAX_STEP_TEXT = 20_000
 const MAX_QUESTION = 500

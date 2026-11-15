@@ -1,17 +1,7 @@
-import { createHandler } from './handler.ts'
+import { handlerReplying, post, toolReply } from './testHelpers.ts'
 import { numbersOf, parseQuestionInput, parseTranslateInput } from './assist.ts'
 import { sanitizeAbbreviations } from './pattern.ts'
 
-const reply = (name: string, input: unknown) =>
-  new Response(JSON.stringify({ content: [{ type: 'tool_use', name, input }], stop_reason: 'tool_use', usage: { input_tokens: 200, output_tokens: 80 } }), { status: 200 })
-
-function handler(response: Response) {
-  const fetchModel = vi.fn<typeof fetch>(async () => response)
-  const log = vi.fn()
-  return { handle: createHandler({ apiKey: 'cle', fetchModel, log, isSignedIn: async () => true }), fetchModel, log }
-}
-
-const post = (body: unknown) => new Request('https://fn.local/knit-pattern', { method: 'POST', body: JSON.stringify(body) })
 
 describe('question sur le rang', () => {
   it('lit la demande', () => {
@@ -29,7 +19,7 @@ describe('question sur le rang', () => {
   })
 
   it('répond avec le texte de l’étape, la taille et le rang en contexte', async () => {
-    const { handle, fetchModel, log } = handler(reply('repondre', { answer: 'Glisse 2 mailles une à une, puis tricote-les ensemble par le brin arrière.' }))
+    const { handle, fetchModel, log } = handlerReplying(toolReply('repondre', { answer: 'Glisse 2 mailles une à une, puis tricote-les ensemble par le brin arrière.' }))
     const response = await handle(post({ question: { question: 'ssk ?', step_title: 'Dos', text: 'Rang 3 : 1 m., ssk', row: 3, size: 'M', abbreviations: 'ssk : surjet simple' } }))
     expect(response.status).toBe(200)
     expect(await response.json()).toEqual({ answer: 'Glisse 2 mailles une à une, puis tricote-les ensemble par le brin arrière.' })
@@ -41,7 +31,7 @@ describe('question sur le rang', () => {
   })
 
   it('refuse une réponse vide', async () => {
-    const { handle } = handler(reply('repondre', { answer: ' ' }))
+    const { handle } = handlerReplying(toolReply('repondre', { answer: ' ' }))
     const response = await handle(post({ question: { question: 'ssk ?' } }))
     expect(response.status).toBe(422)
     expect((await response.json()).error).toBe('Pas de réponse : reformule ta question.')
@@ -61,17 +51,17 @@ describe('traduction', () => {
   })
 
   it('traduit en gardant les nombres, et prévient s’ils ont changé', async () => {
-    const ok = handler(reply('enregistrer_traduction', { text: 'Monter 60 (64-68) m.' }))
+    const ok = handlerReplying(toolReply('enregistrer_traduction', { text: 'Monter 60 (64-68) m.' }))
     const response = await ok.handle(post({ translate: { text: 'Cast on 60 (64-68) sts.' } }))
     expect(await response.json()).toEqual({ text: 'Monter 60 (64-68) m.', numbersKept: true })
     const sent = JSON.parse(ok.fetchModel.mock.calls[0]![1]!.body as string)
     expect(sent.system).toContain('Garde exactement tous les nombres')
     expect(ok.log).toHaveBeenCalledWith('patron lu', expect.objectContaining({ translate: true, numbersKept: true }))
 
-    const changed = handler(reply('enregistrer_traduction', { text: 'Monter 64 m.' }))
+    const changed = handlerReplying(toolReply('enregistrer_traduction', { text: 'Monter 64 m.' }))
     expect(await (await changed.handle(post({ translate: { text: 'Cast on 60 (64-68) sts.' } }))).json()).toEqual({ text: 'Monter 64 m.', numbersKept: false })
 
-    const empty = handler(reply('enregistrer_traduction', { text: '' }))
+    const empty = handlerReplying(toolReply('enregistrer_traduction', { text: '' }))
     expect((await empty.handle(post({ translate: { text: 'Knit' } }))).status).toBe(502)
   })
 })

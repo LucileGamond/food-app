@@ -8,9 +8,8 @@
 // par la recherche sont gardées ; des mots-clés et la grosseur de laine donnent une recherche Ravelry filtrée.
 
 import { callTool, HttpError, runConversation, type ContentBlock, type ModelOptions, type ModelUsage, type Tool } from '../_shared/anthropic.ts'
-import { asRecord } from '../_shared/sanitize.ts'
+import { asRecord, trimmedText } from '../_shared/sanitize.ts'
 import { searchResultUrls } from '../_shared/search.ts'
-import { trimmedText } from './sanitize.ts'
 
 /** Une laine du stock : description, métrage disponible, aiguilles conseillées. */
 export interface IdeaYarn {

@@ -1,8 +1,5 @@
-import { createHandler } from './handler.ts'
-import { sanitizeGauge, sanitizePattern } from './pattern.ts'
+import { handlerReplying, PHOTO, post, toolReply } from './testHelpers.ts'
 import { MAX_LABEL_BASE64, parseLabelInput, sanitizeHues, sanitizeYarn, YARN_TOOL } from './yarn.ts'
-
-const PHOTO = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII='
 
 const LABEL = {
   is_label: true,
@@ -15,9 +12,6 @@ const LABEL = {
   length_m: 125.4,
   needle_mm: 3.5,
 }
-
-const reply = (name: string, input: unknown) =>
-  new Response(JSON.stringify({ content: [{ type: 'tool_use', name, input }], usage: { input_tokens: 1500, output_tokens: 120 } }), { status: 200 })
 
 describe('étiquette de laine', () => {
   it('exige une photo JPEG, PNG ou WebP', () => {
@@ -73,26 +67,12 @@ describe('étiquette de laine', () => {
   })
 
   it('le handler lit l’étiquette envoyée en photo', async () => {
-    const fetchModel = vi.fn<typeof fetch>(async () => reply('enregistrer_laine', LABEL))
-    const log = vi.fn()
-    const handle = createHandler({ apiKey: 'cle', fetchModel, log, isSignedIn: async () => true })
-    const response = await handle(new Request('https://fn.local/knit-pattern', { method: 'POST', body: JSON.stringify({ label: PHOTO, media_type: 'image/png' }) }))
+    const { handle, fetchModel, log } = handlerReplying(toolReply('enregistrer_laine', LABEL))
+    const response = await handle(post({ label: PHOTO, media_type: 'image/png' }))
     expect(response.status).toBe(200)
     expect(await response.json()).toMatchObject({ brand: 'Phildar', length_m: 125 })
     const sent = JSON.parse(fetchModel.mock.calls[0]![1]!.body as string)
     expect(sent.messages[0].content[0]).toEqual({ type: 'image', source: { type: 'base64', media_type: 'image/png', data: PHOTO } })
     expect(log).toHaveBeenCalledWith('patron lu', expect.objectContaining({ label: true }))
-  })
-})
-
-describe('échantillon du patron', () => {
-  it('ramène l’échantillon lu, arrondi au dixième, ou null', () => {
-    expect(sanitizeGauge({ stitches: 22, rows: 30.04 })).toEqual({ stitches: 22, rows: 30 })
-    expect(sanitizeGauge({ stitches: 22, rows: null })).toEqual({ stitches: 22, rows: null })
-    expect(sanitizeGauge({ stitches: 0, rows: 500 })).toBeNull()
-    expect(sanitizeGauge(null)).toBeNull()
-    const steps = [{ title: 'Dos', instructions: '', total_rows: 10, stitches: 64, sections: [] }]
-    expect(sanitizePattern({ title: 'Pull', sizes: ['M'], size_found: true, steps, gauge: { stitches: 22, rows: 30 } }, 'M').gauge).toEqual({ stitches: 22, rows: 30 })
-    expect(sanitizePattern({ title: 'Pull', sizes: ['M'], size_found: true, steps }, 'M').gauge).toBeNull()
   })
 })

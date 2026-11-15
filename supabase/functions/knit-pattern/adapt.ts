@@ -3,9 +3,8 @@
 // l'avant / après, et garde le patron d'origine.
 
 import { callTool, HttpError, type ModelOptions, type ModelUsage, type Tool } from '../_shared/anthropic.ts'
-import { asRecord } from '../_shared/sanitize.ts'
+import { asRecord, trimmedText } from '../_shared/sanitize.ts'
 import { MAX_INSTRUCTIONS, MAX_STEPS, sanitizeSection, TOOL as PATTERN_TOOL, type Gauge, type PatternSection } from './pattern.ts'
-import { trimmedText } from './sanitize.ts'
 
 export const MAX_REQUEST = 1000
 

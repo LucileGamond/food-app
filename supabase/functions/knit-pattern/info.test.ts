@@ -1,8 +1,5 @@
-import { createHandler } from './handler.ts'
+import { handlerReplying, PDF, PHOTO, post, toolReply } from './testHelpers.ts'
 import { MAX_INFO_PHOTOS, parseInfoInput, sanitizeInfo } from './info.ts'
-
-const PDF = 'JVBERi0xLjQKJWdpbGV0'
-const PHOTO = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII='
 
 const INFO = {
   is_pattern: true,
@@ -13,9 +10,6 @@ const INFO = {
   yarn: 'DROPS Alpaca',
   kind: 'Pull',
 }
-
-const reply = (input: unknown) =>
-  new Response(JSON.stringify({ content: [{ type: 'tool_use', name: 'enregistrer_infos', input }], usage: { input_tokens: 9000, output_tokens: 150 } }), { status: 200 })
 
 describe('infos d’un patron', () => {
   it('demande un PDF, ou quelques photos JPEG, PNG ou WebP', () => {
@@ -50,10 +44,8 @@ describe('infos d’un patron', () => {
   })
 
   it('le handler envoie le PDF au modèle et note la consommation', async () => {
-    const fetchModel = vi.fn<typeof fetch>(async () => reply(INFO))
-    const log = vi.fn()
-    const handle = createHandler({ apiKey: 'cle', fetchModel, log, isSignedIn: async () => true })
-    const response = await handle(new Request('https://fn.local/knit-pattern', { method: 'POST', body: JSON.stringify({ info: { pdf: PDF } }) }))
+    const { handle, fetchModel, log } = handlerReplying(toolReply('enregistrer_infos', INFO))
+    const response = await handle(post({ info: { pdf: PDF } }))
     expect(response.status).toBe(200)
     expect(await response.json()).toMatchObject({ title: 'Pull Bergamote', meters: [900, 1000, null] })
     const sent = JSON.parse(fetchModel.mock.calls[0]![1]!.body as string)
@@ -62,10 +54,8 @@ describe('infos d’un patron', () => {
   })
 
   it('le handler envoie les photos des pages', async () => {
-    const fetchModel = vi.fn<typeof fetch>(async () => reply(INFO))
-    const handle = createHandler({ apiKey: 'cle', fetchModel, log: vi.fn(), isSignedIn: async () => true })
-    const body = { info: { photos: [{ data: PHOTO, media_type: 'image/png' }, { data: PHOTO, media_type: 'image/jpeg' }] } }
-    const response = await handle(new Request('https://fn.local/knit-pattern', { method: 'POST', body: JSON.stringify(body) }))
+    const { handle, fetchModel } = handlerReplying(toolReply('enregistrer_infos', INFO))
+    const response = await handle(post({ info: { photos: [{ data: PHOTO, media_type: 'image/png' }, { data: PHOTO, media_type: 'image/jpeg' }] } }))
     expect(response.status).toBe(200)
     const sent = JSON.parse(fetchModel.mock.calls[0]![1]!.body as string)
     expect(sent.messages[0].content.map((b: { type: string }) => b.type)).toEqual(['image', 'image', 'text'])

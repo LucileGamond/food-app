@@ -1,4 +1,4 @@
-import { createHandler } from './handler.ts'
+import { knitHandler, modelReply, post } from './testHelpers.ts'
 import { describeRequest, IDEAS_NO_SEARCH_TOOL, IDEAS_TOOL, parseIdeaPatternsInput, parseIdeasInput, sanitizeIdeas, sanitizePatterns } from './ideas.ts'
 
 const BEANIE = 'https://www.ravelry.com/patterns/library/ribbed-beanie'
@@ -44,18 +44,6 @@ const SEARCH = [
 const MERINO = { yarn: 'Mérinos', meters: 750, needle_mm: 3.5 }
 const ALPACA = { yarn: 'Alpaga gris', meters: 200, needle_mm: 4 }
 
-function reply(content: unknown[], usage = { input_tokens: 300, output_tokens: 200 }) {
-  return new Response(JSON.stringify({ content, stop_reason: 'tool_use', usage }))
-}
-
-function handlerWith(fetchModel: typeof fetch) {
-  const log = vi.fn()
-  return { handle: createHandler({ apiKey: 'cle', fetchModel, log, isSignedIn: async () => true }), log }
-}
-
-function post(body: unknown) {
-  return new Request('https://fn.local/knit-pattern', { method: 'POST', body: JSON.stringify(body) })
-}
 
 describe('idées pour une laine', () => {
   it('lit la demande : une laine (ancienne forme) ou plusieurs, envie, recherche', () => {
@@ -158,8 +146,8 @@ describe('idées pour une laine', () => {
   })
 
   it('le handler propose des idées avec recherche web (ancienne forme de demande)', async () => {
-    const fetchModel = vi.fn<typeof fetch>(async () => reply([...SEARCH, { type: 'tool_use', name: 'proposer_modeles', input: IDEAS }]))
-    const { handle, log } = handlerWith(fetchModel)
+    const fetchModel = vi.fn<typeof fetch>(async () => modelReply([...SEARCH, { type: 'tool_use', name: 'proposer_modeles', input: IDEAS }]))
+    const { handle, log } = knitHandler(fetchModel)
     const response = await handle(post({ ideas: { yarn: 'Mérinos', meters: 750, needle_mm: 3.5 } }))
     expect(response.status).toBe(200)
     const body = await response.json()
@@ -176,8 +164,8 @@ describe('idées pour une laine', () => {
   })
 
   it('le handler propose des idées sans recherche web, pour plusieurs laines et une envie', async () => {
-    const fetchModel = vi.fn<typeof fetch>(async () => reply([{ type: 'tool_use', name: 'proposer_modeles', input: IDEAS }]))
-    const { handle, log } = handlerWith(fetchModel)
+    const fetchModel = vi.fn<typeof fetch>(async () => modelReply([{ type: 'tool_use', name: 'proposer_modeles', input: IDEAS }]))
+    const { handle, log } = knitHandler(fetchModel)
     const response = await handle(post({ ideas: { yarns: [MERINO, ALPACA], wish: 'un snood', search: false } }))
     expect(response.status).toBe(200)
     const body = await response.json()
@@ -197,9 +185,9 @@ describe('idées pour une laine', () => {
 
   it('le handler cherche des patrons pour une idée choisie', async () => {
     const fetchModel = vi.fn<typeof fetch>(async () =>
-      reply([...SEARCH, { type: 'tool_use', name: 'donner_patrons', input: { patterns: [{ title: 'Ribbed Beanie', url: BEANIE, free: true, language: 'en', meters: null, metersMax: null }, { title: 'Faux', url: 'https://faux.exemple' }] } }]),
+      modelReply([...SEARCH, { type: 'tool_use', name: 'donner_patrons', input: { patterns: [{ title: 'Ribbed Beanie', url: BEANIE, free: true, language: 'en', meters: null, metersMax: null }, { title: 'Faux', url: 'https://faux.exemple' }] } }]),
     )
-    const { handle, log } = handlerWith(fetchModel)
+    const { handle, log } = knitHandler(fetchModel)
     const response = await handle(post({ idea_patterns: { idea: { title: 'Bonnet', search: 'ribbed beanie', size: 'adulte', meters: 150, needle_mm: 4 }, yarns: [MERINO], weight: 'worsted' } }))
     expect(response.status).toBe(200)
     expect(await response.json()).toEqual({ patterns: [{ title: 'Ribbed Beanie', url: BEANIE, free: true, language: 'en', meters: null, metersMax: null }] })
@@ -215,8 +203,8 @@ describe('idées pour une laine', () => {
     const fetchModel = vi
       .fn<typeof fetch>()
       .mockResolvedValueOnce(new Response(JSON.stringify({ content: SEARCH, stop_reason: 'max_tokens', usage: { input_tokens: 10, output_tokens: 10 } })))
-      .mockResolvedValueOnce(reply([{ type: 'tool_use', name: 'proposer_modeles', input: IDEAS }]))
-    const { handle } = handlerWith(fetchModel)
+      .mockResolvedValueOnce(modelReply([{ type: 'tool_use', name: 'proposer_modeles', input: IDEAS }]))
+    const { handle } = knitHandler(fetchModel)
     const response = await handle(post({ ideas: { yarns: [MERINO] } }))
     expect(response.status).toBe(200)
     const retry = JSON.parse(fetchModel.mock.calls[1]![1]!.body as string)
@@ -226,7 +214,7 @@ describe('idées pour une laine', () => {
   })
 
   it('demande invalide : 400', async () => {
-    const { handle } = handlerWith(vi.fn<typeof fetch>())
+    const { handle } = knitHandler(vi.fn<typeof fetch>())
     const response = await handle(post({ ideas: { yarns: [] } }))
     expect(response.status).toBe(400)
     expect(await response.json()).toEqual({ error: 'Décris la laine.' })
