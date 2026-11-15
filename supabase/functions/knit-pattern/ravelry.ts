@@ -29,19 +29,23 @@ export interface RavelryQuery {
 
 export class RavelryError extends Error {}
 
-async function get(path: string, params: URLSearchParams, deps: RavelryDeps): Promise<Record<string, unknown>> {
+/** Accès refusé par Ravelry (jeton expiré, ou permission non accordée à l'application). */
+export class RavelryForbidden extends RavelryError {}
+
+async function get(path: string, params: URLSearchParams, deps: RavelryDeps, method: 'GET' | 'POST' = 'GET'): Promise<Record<string, unknown>> {
   // Les identifiants multiples s'écrivent « 1+2+3 » (le « + » ne doit pas être encodé).
   const url = `${RAVELRY_API}/${path}?${params.toString().replace(/%2B/g, '+')}`
   let response: Response
   try {
     response = await deps.fetchRavelry(url, {
+      method,
       headers: { authorization: `Bearer ${deps.accessToken}`, accept: 'application/json' },
       signal: AbortSignal.timeout(TIMEOUT_MS),
     })
   } catch {
     throw new RavelryError('Ravelry ne répond pas.')
   }
-  if (response.status === 401 || response.status === 403) throw new RavelryError('Accès à Ravelry refusé.')
+  if (response.status === 401 || response.status === 403) throw new RavelryForbidden('Accès à Ravelry refusé.')
   if (!response.ok) throw new RavelryError(`Ravelry a répondu par une erreur (${response.status}).`)
   const body = (await response.json().catch(() => null)) as unknown
   if (typeof body !== 'object' || body === null) throw new RavelryError('Réponse de Ravelry illisible.')
@@ -306,4 +310,144 @@ export async function getRavelryYarn(id: number, deps: RavelryDeps): Promise<Rav
   const body = await get(`yarns/${id}.json`, new URLSearchParams(), deps)
   if (typeof body.yarn !== 'object' || body.yarn === null) throw new RavelryError('Laine introuvable sur Ravelry.')
   return toRavelryYarn(body.yarn)
+}
+
+// ---------------------------------------------------------------------------
+// Import depuis Ravelry : patrons en favoris et patrons achetés (bibliothèque Ravelry)
+// ---------------------------------------------------------------------------
+
+/** Patron de Ravelry proposé à l'import. */
+export interface RavelryImportItem {
+  patternId: number
+  title: string
+  author: string | null
+  /** Petite photo (aperçu dans la liste). */
+  photoUrl: string | null
+  /** D'où il vient : favori, bibliothèque (acheté ou gratuit téléchargé), ou les deux. */
+  sources: ('favori' | 'bibliothèque')[]
+  /** Volume de la bibliothèque (PDF), s'il y en a un. */
+  volumeId: number | null
+  hasPdf: boolean
+}
+
+/** Liste lue d'un coup : au-delà, les plus récents seulement. */
+const MAX_LIST = 100
+
+function httpsUrl(value: unknown): string | null {
+  return typeof value === 'string' && /^https?:\/\//.test(value) ? value.replace(/^http:/, 'https:') : null
+}
+
+/** Nom du compte Ravelry relié (pour lire ses listes). */
+export async function ravelryUsername(deps: RavelryDeps): Promise<string> {
+  const body = await get('current_user.json', new URLSearchParams(), deps)
+  const username = record(body.user).username
+  if (typeof username !== 'string' || !/^[\w-]+$/.test(username)) throw new RavelryError('Compte Ravelry illisible.')
+  return username
+}
+
+/** Favoris (patrons) et bibliothèque, réunis par patron ; favoris d'abord, puis bibliothèque. */
+export function mergeImportItems(favorites: unknown, volumes: unknown): RavelryImportItem[] {
+  const items = new Map<number, RavelryImportItem>()
+  for (const raw of Array.isArray(favorites) ? favorites : []) {
+    const favorite = record(raw)
+    if (favorite.type !== 'pattern') continue
+    const p = record(favorite.favorited)
+    const title = cleanText(p.name, 150)
+    if (typeof p.id !== 'number' || !title || items.has(p.id)) continue
+    const photo = record(p.first_photo)
+    items.set(p.id, {
+      patternId: p.id,
+      title,
+      author: cleanText(record(p.pattern_author).name, 80) ?? cleanText(record(p.designer).name, 80),
+      photoUrl: httpsUrl(photo.square_url ?? photo.small_url),
+      sources: ['favori'],
+      volumeId: null,
+      hasPdf: false,
+    })
+  }
+  for (const raw of Array.isArray(volumes) ? volumes : []) {
+    const v = record(raw)
+    const title = cleanText(v.title, 150)
+    if (typeof v.pattern_id !== 'number' || typeof v.id !== 'number' || !title) continue
+    const volume = { volumeId: v.id, hasPdf: v.has_downloads === true }
+    const known = items.get(v.pattern_id)
+    if (known) {
+      items.set(v.pattern_id, { ...known, ...volume, sources: [...known.sources, 'bibliothèque'] })
+      continue
+    }
+    items.set(v.pattern_id, {
+      patternId: v.pattern_id,
+      title,
+      author: cleanText(v.author_name, 80),
+      photoUrl: httpsUrl(v.square_image_url ?? v.small_image_url),
+      sources: ['bibliothèque'],
+      ...volume,
+    })
+  }
+  return [...items.values()]
+}
+
+/** Patrons à importer : favoris et bibliothèque de la personne. */
+export async function listRavelryImports(deps: RavelryDeps): Promise<RavelryImportItem[]> {
+  const username = await ravelryUsername(deps)
+  const [favorites, library] = await Promise.all([
+    get(`people/${username}/favorites/list.json`, new URLSearchParams({ types: 'pattern', page_size: String(MAX_LIST) }), deps),
+    get(`people/${username}/library/search.json`, new URLSearchParams({ page_size: String(MAX_LIST) }), deps),
+  ])
+  return mergeImportItems(favorites.favorites, library.volumes)
+}
+
+/** Patron importé : sa page, son nom (et sa créatrice), ses infos, sa photo, et le PDF de la bibliothèque si possible. */
+export interface RavelryImport {
+  url: string
+  title: string
+  author: string | null
+  info: RavelryPatternInfo
+  photoUrl: string | null
+  /** PDF à télécharger (lien temporaire de Ravelry) ; null sans PDF ou sans permission. */
+  pdf: { url: string; name: string } | null
+  /** Pourquoi il n'y a pas de PDF : aucun dans la bibliothèque, ou permission Ravelry manquante. */
+  pdfMissing: 'aucun' | 'permission' | null
+}
+
+/** Fichier du volume : le français s'il existe, sinon l'anglais, sinon le premier PDF. */
+export function pickAttachment(attachments: unknown): { id: number; name: string } | null {
+  const pdfs = (Array.isArray(attachments) ? attachments : [])
+    .map(record)
+    .filter((a) => typeof a.product_attachment_id === 'number' && (a.content_type === 'application/pdf' || /\.pdf$/i.test(String(a.filename ?? ''))))
+  const pick = pdfs.find((a) => a.language_code === 'fr') ?? pdfs.find((a) => a.language_code === 'en') ?? pdfs[0]
+  if (!pick) return null
+  return { id: pick.product_attachment_id as number, name: cleanText(pick.filename, 150) ?? 'patron.pdf' }
+}
+
+async function libraryPdf(volumeId: number, deps: RavelryDeps): Promise<Pick<RavelryImport, 'pdf' | 'pdfMissing'>> {
+  const volume = record((await get(`volumes/${volumeId}.json`, new URLSearchParams(), deps)).volume)
+  const attachment = pickAttachment(volume.volume_attachments)
+  if (!attachment) return { pdf: null, pdfMissing: 'aucun' }
+  try {
+    const link = await get(`product_attachments/${attachment.id}/generate_download_link.json`, new URLSearchParams(), deps, 'POST')
+    const url = httpsUrl(link.url ?? link.download_url)
+    return url ? { pdf: { url, name: attachment.name }, pdfMissing: null } : { pdf: null, pdfMissing: 'aucun' }
+  } catch (e) {
+    if (e instanceof RavelryForbidden) return { pdf: null, pdfMissing: 'permission' }
+    throw e
+  }
+}
+
+export async function importRavelryPattern(patternId: number, volumeId: number | null, deps: RavelryDeps): Promise<RavelryImport> {
+  const body = await get(`patterns/${patternId}.json`, new URLSearchParams(), deps)
+  const p = record(body.pattern)
+  const permalink = typeof p.permalink === 'string' && /^[\w-]+$/.test(p.permalink) ? p.permalink : null
+  const title = cleanText(p.name, 150)
+  if (!permalink || !title) throw new RavelryError('Patron introuvable sur Ravelry.')
+  const photos = Array.isArray(p.photos) ? p.photos.map(record) : []
+  const pdf = volumeId === null ? { pdf: null, pdfMissing: 'aucun' as const } : await libraryPdf(volumeId, deps)
+  return {
+    url: `https://www.ravelry.com/patterns/library/${permalink}`,
+    title,
+    author: cleanText(record(p.pattern_author).name, 80),
+    info: toPatternInfo(p),
+    photoUrl: httpsUrl(photos[0]?.medium_url ?? photos[0]?.small_url),
+    ...pdf,
+  }
 }

@@ -29,7 +29,7 @@ import type { KnitProject, KnitProjectSummary, ReadPattern } from '@/modules/tri
 import type { ProjectProgress } from '@/modules/tricot/lib/progress'
 import type { AdaptedStep } from '@/modules/tricot/lib/adapt'
 import { EMPTY_YARN, type FoundPattern, type RavelryYarnHit, type StashIdeas, type StashItem, type Yarn, type YarnIdea } from '@/modules/tricot/lib/yarn'
-import type { KnitPattern, PatternInfo, PatternLink } from '@/modules/tricot/lib/library'
+import type { KnitPattern, PatternInfo, PatternLink, RavelryImported, RavelryImportItem } from '@/modules/tricot/lib/library'
 import type { StoredReading } from '@/modules/tricot/lib/readings'
 import { DEFAULT_SETTINGS, type UserSettings } from '@/lib/settings'
 import type { AgendaEvent, CalendarSource } from '@/modules/agenda/lib/agenda'
@@ -221,6 +221,18 @@ export function fakeApi(): FakeApi {
       disconnectRavelry: vi.fn(async () => undefined),
       searchRavelryYarns: vi.fn(async (): Promise<RavelryYarnHit[]> => []),
       getRavelryYarn: vi.fn(async (): Promise<Yarn> => EMPTY_YARN),
+      listRavelryImports: vi.fn(async (): Promise<RavelryImportItem[]> => []),
+      importRavelryPattern: vi.fn(
+        async (item: { patternId: number }): Promise<RavelryImported> => ({
+          url: `https://www.ravelry.com/patterns/library/p${item.patternId}`,
+          title: `Patron ${item.patternId}`,
+          author: null,
+          info: { title: null, sizes: [], meters: [null], needleMm: null, yarn: null, kind: null },
+          image: null,
+          pdf: null,
+          pdfMissing: null,
+        }),
+      ),
       downloadPdf: vi.fn(async (_path: string, name: string) => new File(['%PDF'], `${name}.pdf`, { type: 'application/pdf' })),
       addChart: vi.fn(async () => undefined),
       askAboutStep: vi.fn(async () => 'Réponse du modèle.'),

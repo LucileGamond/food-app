@@ -109,7 +109,7 @@ describe('laines de Ravelry : fonction', () => {
     const unlinked = createHandler({ apiKey: 'cle', fetchModel: vi.fn(), isSignedIn: async () => 'u1', ravelry: oauth(vi.fn(), false) })
     const response = await unlinked(post({ ravelry_yarns: { query: 'merino' } }))
     expect(response.status).toBe(409)
-    expect(await response.json()).toEqual({ error: 'Relie ton compte Ravelry dans les Réglages pour chercher une laine.' })
+    expect(await response.json()).toEqual({ error: 'Relie d’abord ton compte Ravelry dans les Réglages.' })
 
     const down = createHandler({ apiKey: 'cle', fetchModel: vi.fn(), isSignedIn: async () => 'u1', ravelry: oauth(vi.fn<typeof fetch>(async () => new Response('', { status: 500 }))) })
     const failed = await down(post({ ravelry_yarn: { id: 1 } }))

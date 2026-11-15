@@ -21,6 +21,10 @@
 // POST { ravelry_finish: { code, state } } → 200 { username }
 // POST { ravelry_yarns: { query } } → 200 { yarns: [{ id, brand, name, weightG, lengthM, category }] }   (laines de Ravelry)
 // POST { ravelry_yarn: { id } } → 200 { yarn: { brand, name, composition, weight_g, length_m, needle_mm } }
+// POST { ravelry_imports: {} } → 200 { patterns: [{ patternId, title, author, photoUrl, sources, volumeId, hasPdf }] }
+//   (favoris et bibliothèque Ravelry de la personne)
+// POST { ravelry_import: { pattern_id, volume_id } }
+//   → 200 { url, title, author, ravelry: infos, image: { data, type } | null, pdf: { data, name } | null, pdfMissing }
 //   (compte Ravelry relié, sinon 409 ; sans le modèle)
 // POST { link: { url } }   (patron ajouté à la bibliothèque par un lien, sans le modèle)
 //   → 200 { url, title, image: { data, type } | null, pdf: { data, name } | null, ravelry: { title, sizes, meters, needleMm, yarn } | null }
@@ -38,7 +42,19 @@ import { parseLabelInput, readYarnLabel, type LabelInput } from './yarn.ts'
 import { parseInfoInput, readPatternInfo, type InfoInput } from './info.ts'
 import { parseLinkInput, readLink, type LinkDeps, type LinkInput } from './link.ts'
 import { asRecord } from '../_shared/sanitize.ts'
-import { getRavelryPattern, getRavelryYarn, RavelryError, ravelryPermalink, searchRavelry, searchRavelryYarns, type RavelryDeps, type RavelryPatternInfo } from './ravelry.ts'
+import { download, toBase64 } from '../_shared/download.ts'
+import {
+  getRavelryPattern,
+  getRavelryYarn,
+  importRavelryPattern,
+  listRavelryImports,
+  RavelryError,
+  ravelryPermalink,
+  searchRavelry,
+  searchRavelryYarns,
+  type RavelryDeps,
+  type RavelryPatternInfo,
+} from './ravelry.ts'
 import { accessTokenFor, finishRavelry, parseRavelryFinish, parseRavelryStart, startRavelry, type RavelryOAuth } from './ravelryAuth.ts'
 
 /**
@@ -60,10 +76,32 @@ type Input =
   | { kind: 'ravelryFinish'; ravelryFinish: { code: string; state: string } }
   | { kind: 'ravelryYarns'; query: string }
   | { kind: 'ravelryYarn'; id: number }
+  | { kind: 'ravelryImports' }
+  | { kind: 'ravelryImport'; patternId: number; volumeId: number | null }
   | { kind: 'info'; info: InfoInput }
 
 /** Demandes qui n'utilisent pas le modèle (ni budget ni clé vérifiés). */
-const WITHOUT_MODEL: Input['kind'][] = ['link', 'ravelryStart', 'ravelryFinish', 'ravelryYarns', 'ravelryYarn']
+const WITHOUT_MODEL: Input['kind'][] = ['link', 'ravelryStart', 'ravelryFinish', 'ravelryYarns', 'ravelryYarn', 'ravelryImports', 'ravelryImport']
+
+const isId = (value: unknown): value is number => typeof value === 'number' && Number.isInteger(value) && value > 0
+
+/** PDF importé de Ravelry : 20 Mo au plus, comme ceux envoyés depuis le téléphone. */
+const MAX_IMPORT_PDF_BYTES = 20 * 1024 * 1024
+const MAX_IMPORT_IMAGE_BYTES = 3_000_000
+const IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp']
+
+/** Fichier de Ravelry (photo, PDF) ; null s'il ne se télécharge pas ou n'est pas du bon type. */
+async function fetchFile(url: string | null, accept: string[], maxBytes: number, deps: Deps): Promise<{ data: string; type: string } | null> {
+  if (!url) return null
+  try {
+    const file = await download(url, accept.join(','), maxBytes, deps.fetchPage ?? fetch, deps.resolveDns)
+    const type = file.type.split(';')[0]!.trim().toLowerCase()
+    const isPdf = accept.includes('application/pdf') && new TextDecoder('latin1').decode(file.bytes.subarray(0, 5)) === '%PDF-'
+    return file.bytes.length > 0 && (isPdf || accept.includes(type)) ? { data: toBase64(file.bytes), type: isPdf ? 'application/pdf' : type } : null
+  } catch {
+    return null
+  }
+}
 
 function parse(body: unknown): Input {
   const data = asRecord(body)
@@ -71,6 +109,12 @@ function parse(body: unknown): Input {
     const query = asRecord(data.ravelry_yarns).query
     if (typeof query !== 'string' || !query.trim() || query.length > 100) throw new HttpError('Tape le nom de la laine.', 400)
     return { kind: 'ravelryYarns', query: query.trim() }
+  }
+  if ('ravelry_imports' in data) return { kind: 'ravelryImports' }
+  if ('ravelry_import' in data) {
+    const request = asRecord(data.ravelry_import)
+    if (!isId(request.pattern_id) || (request.volume_id != null && !isId(request.volume_id))) throw new HttpError('Patron inconnu.', 400)
+    return { kind: 'ravelryImport', patternId: request.pattern_id, volumeId: isId(request.volume_id) ? request.volume_id : null }
   }
   if ('ravelry_yarn' in data) {
     const id = asRecord(data.ravelry_yarn).id
@@ -133,7 +177,7 @@ async function withRavelryPatterns(ideas: YarnIdea[], weight: string | null, yar
 /** Accès à l'API de Ravelry au nom de la personne ; 409 si son compte n'est pas relié. */
 async function ravelryAccess(deps: Deps, userId: string | null): Promise<RavelryDeps> {
   const accessToken = await accessTokenFor(userId, deps.ravelry)
-  if (!accessToken) throw new HttpError('Relie ton compte Ravelry dans les Réglages pour chercher une laine.', 409)
+  if (!accessToken) throw new HttpError('Relie d’abord ton compte Ravelry dans les Réglages.', 409)
   return { fetchRavelry: deps.ravelry!.fetch, accessToken }
 }
 
@@ -155,9 +199,23 @@ export function createHandler(deps: Deps) {
     parse,
     usesModel: (input) => !WITHOUT_MODEL.includes(input.kind),
     async run(input, options, _deps, { userId }) {
-      if (input.kind === 'ravelryYarns' || input.kind === 'ravelryYarn') {
+      if (input.kind === 'ravelryYarns' || input.kind === 'ravelryYarn' || input.kind === 'ravelryImports' || input.kind === 'ravelryImport') {
         const ravelry = await ravelryAccess(deps, userId)
         try {
+          if (input.kind === 'ravelryImports') {
+            const patterns = await listRavelryImports(ravelry)
+            return { body: { patterns }, log: { ravelryImports: patterns.length } }
+          }
+          if (input.kind === 'ravelryImport') {
+            const found = await importRavelryPattern(input.patternId, input.volumeId, ravelry)
+            const [image, pdf] = await Promise.all([
+              fetchFile(found.photoUrl, IMAGE_TYPES, MAX_IMPORT_IMAGE_BYTES, deps),
+              found.pdf ? fetchFile(found.pdf.url, ['application/pdf'], MAX_IMPORT_PDF_BYTES, deps) : Promise.resolve(null),
+            ])
+            const pdfMissing = found.pdf && !pdf ? 'erreur' : found.pdfMissing
+            const body = { url: found.url, title: found.title, author: found.author, ravelry: found.info, image, pdf: pdf && found.pdf ? { data: pdf.data, name: found.pdf.name } : null, pdfMissing }
+            return { body, log: { ravelryImport: true, image: image !== null, pdf: pdf !== null, pdfMissing } }
+          }
           if (input.kind === 'ravelryYarns') {
             const yarns = await searchRavelryYarns(input.query, ravelry)
             return { body: { yarns }, log: { ravelryYarns: yarns.length } }

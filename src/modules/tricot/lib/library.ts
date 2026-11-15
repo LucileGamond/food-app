@@ -412,6 +412,70 @@ export function infoAdditions(info: PatternInfo, draft: PatternDraft): { patch: 
 }
 
 // ---------------------------------------------------------------------------
+// Import depuis Ravelry : favoris et bibliothèque Ravelry
+// ---------------------------------------------------------------------------
+
+/** Patron de Ravelry proposé à l'import (favori, bibliothèque, ou les deux). */
+export interface RavelryImportItem {
+  patternId: number
+  title: string
+  author: string | null
+  photoUrl: string | null
+  sources: ('favori' | 'bibliothèque')[]
+  volumeId: number | null
+  hasPdf: boolean
+}
+
+/** Patron importé : infos de Ravelry, photo et PDF (si Ravelry l'a permis). */
+export interface RavelryImported {
+  url: string
+  title: string
+  author: string | null
+  info: PatternInfo
+  image: File | null
+  pdf: File | null
+  /** Pas de PDF : aucun sur Ravelry, permission Ravelry manquante, ou téléchargement raté. */
+  pdfMissing: 'aucun' | 'permission' | 'erreur' | null
+}
+
+/** « Favori · bibliothèque (PDF) » : d'où vient un patron proposé à l'import. */
+export function importSourceText(item: Pick<RavelryImportItem, 'sources' | 'hasPdf'>): string {
+  return item.sources.map((s) => (s === 'favori' ? 'favori' : item.hasPdf ? 'bibliothèque (PDF)' : 'bibliothèque')).join(' · ')
+}
+
+/**
+ * Fiche de la bibliothèque pour un patron importé : métrage seulement s'il ne dépend pas de la taille, tailles, métrage
+ * selon la taille et créatrice dans les notes.
+ */
+export function ravelryImportFields(found: Pick<RavelryImported, 'url' | 'title' | 'author' | 'info'>): PatternFields {
+  const meters = [...new Set(found.info.meters.filter((m): m is number => m !== null))].sort((a, b) => a - b)
+  const notes = [
+    found.author && `Par ${found.author}.`,
+    found.info.sizes.length > 1 && `Tailles : ${found.info.sizes.join(', ')}.`,
+    meters.length > 1 && `Métrage : ${meters[0]} à ${meters.at(-1)} m selon la taille.`,
+  ]
+    .filter(Boolean)
+    .join(' ')
+    .slice(0, 2000)
+  return {
+    title: found.title.slice(0, 200),
+    url: found.url,
+    size: null,
+    yarnIdea: (found.info.yarn ?? '').slice(0, 200),
+    notes,
+    metersNeeded: meters.length === 1 ? meters[0]! : null,
+    needleMm: found.info.needleMm,
+    tags: [],
+  }
+}
+
+/** « ajouté sans le PDF (…) » : ce qu'on dit d'un patron importé sans son PDF de la bibliothèque. */
+export function pdfMissingText(missing: RavelryImported['pdfMissing'], fromLibrary: boolean): string | null {
+  if (!fromLibrary || missing === null || missing === 'aucun') return null
+  return missing === 'permission' ? 'sans le PDF : permission Ravelry à accorder' : 'sans le PDF : téléchargement raté'
+}
+
+// ---------------------------------------------------------------------------
 // Ajout groupé : un patron par PDF
 // ---------------------------------------------------------------------------
 

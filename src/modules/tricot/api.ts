@@ -6,7 +6,7 @@ import type { AppSupabaseClient } from '@/api/client'
 import { compressForReading } from '@/lib/image'
 import type { ProgressPhoto, ProjectProgress } from './lib/progress'
 import { ideasFromJson, ideasKey, ideaYarn, projectHues, yarnFromJson, yarnsFromJson, type FoundPattern, type Gauge, type RavelryYarnHit, type StashIdeas, type StashItem, type Yarn, type YarnIdea } from './lib/yarn'
-import { MAX_INFO_PHOTOS, patternLinkFromResponse, type KnitPattern, type PatternInfo, type PatternFields, type PatternFiles, type PatternLink, type PatternLinkResponse } from './lib/library'
+import { MAX_INFO_PHOTOS, patternLinkFromResponse, type KnitPattern, type PatternInfo, type PatternFields, type PatternFiles, type PatternLink, type PatternLinkResponse, type RavelryImported, type RavelryImportItem } from './lib/library'
 import { readingFromJson, readingKey, readSizeIndex, type StoredReading } from './lib/readings'
 import { sanitizeHighlights } from './lib/sizes'
 import { readTimes } from './lib/passes'
@@ -749,6 +749,24 @@ export function createKnittingApi(db: AppSupabaseClient) {
     async getRavelryYarn(id: number): Promise<Yarn> {
       const { yarn } = await invokeKnit<{ yarn: Partial<Yarn> }>({ ravelry_yarn: { id } }, 'Impossible de lire cette laine sur Ravelry.', (d) => typeof d.yarn === 'object' && d.yarn !== null)
       return yarnFromJson(yarn)
+    },
+
+    /** Patrons à importer de Ravelry : favoris et bibliothèque du compte relié (gratuit). */
+    async listRavelryImports(): Promise<RavelryImportItem[]> {
+      const { patterns } = await invokeKnit<{ patterns: RavelryImportItem[] }>({ ravelry_imports: {} }, 'Impossible de lire tes patrons Ravelry.', (d) => Array.isArray(d.patterns))
+      return patterns
+    },
+
+    /** Un patron de Ravelry : infos, photo et PDF de la bibliothèque (si Ravelry le permet). */
+    async importRavelryPattern(item: Pick<RavelryImportItem, 'patternId' | 'volumeId'>): Promise<RavelryImported> {
+      const read = await invokeKnit<PatternLinkResponse & { author: string | null; ravelry: PatternInfo; pdfMissing: RavelryImported['pdfMissing'] }>(
+        { ravelry_import: { pattern_id: item.patternId, volume_id: item.volumeId } },
+        'Impossible d’importer ce patron de Ravelry.',
+        (d) => typeof d.url === 'string' && typeof d.title === 'string' && typeof d.ravelry === 'object',
+        READ_TIMEOUT_MS,
+      )
+      const link = patternLinkFromResponse(read)
+      return { url: read.url, title: read.title ?? '', author: read.author ?? null, info: read.ravelry, image: link.image, pdf: link.pdf, pdfMissing: read.pdfMissing ?? null }
     },
 
     /** Délie le compte Ravelry (ses jetons sont supprimés avec lui). */

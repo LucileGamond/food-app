@@ -13,6 +13,7 @@ import { cn } from '@/lib/utils'
 import { BackLink } from '../components/BackLink'
 import { PatternList } from '../components/PatternList'
 import { BatchPdfImport } from '../components/BatchPdfImport'
+import { RavelryImport } from '../components/RavelryImport'
 import { Loading } from '../components/Loading'
 import { filterPatterns, libraryTags } from '../lib/library'
 
@@ -32,6 +33,7 @@ export function KnittingLibraryPage() {
     <div className="flex flex-wrap gap-2">
       {addLink}
       <BatchPdfImport library={list.data ?? []} onDone={list.reload} />
+      <RavelryImport library={list.data ?? []} onDone={list.reload} />
     </div>
   )
   const tags = list.data ? libraryTags(list.data) : []
