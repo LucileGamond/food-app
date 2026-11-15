@@ -97,7 +97,7 @@ test('charge un patron PDF pour une taille, compte les rangs et retrouve son ava
   await expect(row).toContainText('1 diminution de chaque côté (1/4)')
   await expect(page.getByRole('region', { name: 'Ensuite' })).toContainText('Rang 12, dans 6 — 1 diminution de chaque côté (2/4)')
   // 56 mailles à la fin, 4 diminutions de chaque côté devinées d'après le texte : 64 au départ, 62 après ce rang (estimé)
-  await expect(row).toContainText('En fin de rang : 62 (?) mailles')
+  await expect(row).toContainText('En fin de rang : ≈ 62 mailles')
   // Les notes : leur propre bloc, hors du patron
   await page.getByRole('button', { name: 'Notes de l’étape', exact: true }).click()
   const notes = page.getByRole('textbox', { name: 'Notes de l’étape' })
