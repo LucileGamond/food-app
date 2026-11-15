@@ -6,22 +6,25 @@ import { useApi } from '@/app/ApiContext'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 import type { Abbreviation } from '../lib/glossary'
-import { CloseIcon, QuestionIcon } from './KnitIcons'
+import { CloseIcon } from './KnitIcons'
 
 interface Props {
   stepTitle: string
   text: string
-  /** Rang de l'étape à tricoter, et taille suivie. */
+  /** Rang de l'étape sur lequel porte la question, et taille suivie. */
   row: number | null
   size: string
   abbreviations: Abbreviation[]
+  onClose: () => void
 }
 
-/** « Je ne comprends pas ce rang » : question au modèle, avec le texte de l'étape, la taille et le rang en contexte. */
-export function StepQuestion({ stepTitle, text, row, size, abbreviations }: Props) {
+/**
+ * « Je ne comprends pas ce rang » : question au modèle, avec le texte de l'étape, la taille et le rang en contexte. Ouvert
+ * par le petit bouton du titre de chaque rang (ce rang, le suivant, ensuite) : la question porte sur ce rang-là.
+ */
+export function StepQuestion({ stepTitle, text, row, size, abbreviations, onClose }: Props) {
   const api = useApi()
   const id = useId()
-  const [open, setOpen] = useState(false)
   const [question, setQuestion] = useState('')
   const [asking, setAsking] = useState(false)
   const [answer, setAnswer] = useState<{ question: string; text: string } | null>(null)
@@ -43,15 +46,8 @@ export function StepQuestion({ stepTitle, text, row, size, abbreviations }: Prop
     }
   }
 
-  if (!open) {
-    return (
-      <Button type="button" variant="outline" className="h-10" onClick={() => setOpen(true)}>
-        <QuestionIcon /> Une question sur ce rang ?
-      </Button>
-    )
-  }
   return (
-    <section aria-label="Question sur ce rang" className="space-y-2 rounded-xl border p-3">
+    <section aria-label="Question sur ce rang" className="space-y-2 rounded-xl border bg-background p-3">
       {answer && (
         <div role="status" className="space-y-1 rounded-xl bg-muted/50 p-3 text-sm">
           <p className="font-medium">{answer.question}</p>
@@ -62,7 +58,7 @@ export function StepQuestion({ stepTitle, text, row, size, abbreviations }: Prop
         <label htmlFor={id} className="text-sm font-medium">
           {row !== null ? `Ta question sur le rang ${row}` : 'Ta question sur cette étape'}
         </label>
-        <Textarea id={id} value={question} maxLength={500} placeholder="Que veut dire « ssk » ? Combien de mailles à la fin du rang ?" onChange={(e) => setQuestion(e.target.value)} />
+        <Textarea id={id} autoFocus value={question} maxLength={500} placeholder="Que veut dire « ssk » ? Combien de mailles à la fin du rang ?" onChange={(e) => setQuestion(e.target.value)} />
         {error && (
           <p role="alert" className="text-sm text-destructive">
             {error}
@@ -73,7 +69,7 @@ export function StepQuestion({ stepTitle, text, row, size, abbreviations }: Prop
             {asking ? <Loader2 className="animate-spin" aria-hidden /> : <AiIcon />}
             {asking ? 'Réflexion…' : 'Demander'}
           </Button>
-          <Button type="button" variant="ghost" className="h-10" onClick={() => setOpen(false)}>
+          <Button type="button" variant="ghost" className="h-10" onClick={onClose}>
             <CloseIcon /> Fermer
           </Button>
         </div>

@@ -401,7 +401,7 @@ export function StepSections({
           </p>
           {onSetTotalRows && (
             <Button variant="outline" className="mt-2 h-10" onClick={() => void onSetTotalRows(over.end)}>
-              Compter {over.end} rangs pour l’étape
+              <DoneIcon /> Compter {over.end} rangs pour l’étape
             </Button>
           )}
         </Note>

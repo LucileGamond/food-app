@@ -98,6 +98,8 @@ function Knitting({ project, knit, projectTo }: KnittingProps) {
   const base = useBaseGlossary()
   const [finishing, setFinishing] = useState(false)
   const [chartOpen, setChartOpen] = useState<string | null>(null)
+  // Question ouverte : sur quel rang de quelle étape (une autre étape la referme)
+  const [asking, setAsking] = useState<{ stepId: string; row: number } | null>(null)
 
   const { size, steps } = stepsToFollow(project)
   const step: ShownStep = steps.find((s) => s.id === params.get('etape')) ?? steps[currentStepIndex(steps)]!
@@ -209,9 +211,18 @@ function Knitting({ project, knit, projectTo }: KnittingProps) {
               point={pointAt(step, row)}
               nextPoint={pointAt(step, row + 1)}
               upcoming={guide.upcoming(row, 1)[0] ?? null}
+              onAsk={step.instructions ? (r) => setAsking({ stepId: step.id, row: r }) : undefined}
               question={
-                step.instructions ? (
-                  <StepQuestion key={step.id} stepTitle={step.title} text={step.translation || step.instructions} row={row} size={size} abbreviations={project.abbreviations ?? []} />
+                step.instructions && asking?.stepId === step.id ? (
+                  <StepQuestion
+                    key={`${step.id}-${asking.row}`}
+                    stepTitle={step.title}
+                    text={step.translation || step.instructions}
+                    row={asking.row}
+                    size={size}
+                    abbreviations={project.abbreviations ?? []}
+                    onClose={() => setAsking(null)}
+                  />
                 ) : undefined
               }
             />

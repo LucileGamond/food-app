@@ -1,7 +1,7 @@
 import { Maximize2 } from 'lucide-react'
 import { DeleteIcon, EditIcon } from './KnitIcons'
 import { useState } from 'react'
-import { Button } from '@/components/ui/button'
+import { ItemAction } from './ItemAction'
 import { chartPosition, chartStatus, type KnitChart } from '../lib/chart'
 import { ChartFullscreen, ChartImage } from './ChartImage'
 
@@ -30,15 +30,15 @@ export function ChartView({ chart, rowCount, onEdit, onDelete }: Props) {
             {status.reading && <span className="block">{status.reading}</span>}
           </p>
         </div>
-        <Button variant="ghost" size="icon-lg" aria-label={`Plein écran : ${name}`} onClick={() => setFull(true)} disabled={!chart.imageUrl}>
+        <ItemAction label={`Plein écran : ${name}`} onClick={() => setFull(true)} disabled={!chart.imageUrl}>
           <Maximize2 />
-        </Button>
-        <Button variant="ghost" size="icon-lg" aria-label={`Modifier ${name}`} onClick={onEdit}>
+        </ItemAction>
+        <ItemAction label={`Modifier ${name}`} onClick={onEdit}>
           <EditIcon />
-        </Button>
-        <Button variant="ghost" size="icon-lg" aria-label={`Supprimer ${name}`} onClick={onDelete}>
+        </ItemAction>
+        <ItemAction label={`Supprimer ${name}`} onClick={onDelete}>
           <DeleteIcon />
-        </Button>
+        </ItemAction>
       </div>
       {!full && <ChartImage chart={chart} position={position} zoom={1} className="max-h-[60svh]" />}
       <ChartFullscreen chart={chart} position={position} open={full} onOpenChange={setFull} />

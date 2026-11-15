@@ -9,6 +9,7 @@ import { useApi } from '@/app/ApiContext'
 import { ConfirmDialog } from '@/components/ConfirmDialog'
 import { LoadError } from '@/components/LoadError'
 import { Button } from '@/components/ui/button'
+import { ItemAction } from './ItemAction'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -145,12 +146,12 @@ export function MeasuresSection() {
                   <span className="block knit-name">{profile.name}</span>
                   <span className="text-muted-foreground">{describeProfile(profile)}</span>
                 </p>
-                <Button variant="ghost" size="icon-touch" aria-label={`Modifier la fiche de ${profile.name}`} onClick={() => setEditing(profile)}>
+                <ItemAction label={`Modifier la fiche de ${profile.name}`} onClick={() => setEditing(profile)}>
                   <EditIcon />
-                </Button>
-                <Button variant="ghost" size="icon-touch" aria-label={`Supprimer la fiche de ${profile.name}`} onClick={() => setRemoving(profile)}>
+                </ItemAction>
+                <ItemAction label={`Supprimer la fiche de ${profile.name}`} onClick={() => setRemoving(profile)}>
                   <DeleteIcon />
-                </Button>
+                </ItemAction>
               </li>
             ))}
           </ul>

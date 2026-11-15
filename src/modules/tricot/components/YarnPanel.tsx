@@ -12,8 +12,7 @@ import { errorMessage } from '@/api'
 import { HuesField } from './HuesField'
 import { RavelryYarnSearch } from './RavelryYarnSearch'
 import { YarnBand } from './YarnBand'
-import { cn } from '@/lib/utils'
-import { TOUCH_AREA } from '../lib/touch'
+import { ItemAction } from './ItemAction'
 import { useApi } from '@/app/ApiContext'
 import { ConfirmDialog } from '@/components/ConfirmDialog'
 import { Button } from '@/components/ui/button'
@@ -346,12 +345,12 @@ export function YarnPanel({
                 yarn={yarn}
                 actions={
                   <>
-                    <Button variant="ghost" size="icon-sm" className={cn('relative', TOUCH_AREA)} aria-label={`Modifier ${yarnTitle(yarn)}`} onClick={() => setEditing(index)}>
-                      <EditIcon className="size-5" />
-                    </Button>
-                    <Button variant="ghost" size="icon-sm" className={cn('relative', TOUCH_AREA)} aria-label={`Supprimer ${yarnTitle(yarn)}`} onClick={() => setRemoving(index)}>
-                      <DeleteIcon className="size-5" />
-                    </Button>
+                    <ItemAction label={`Modifier ${yarnTitle(yarn)}`} onClick={() => setEditing(index)}>
+                      <EditIcon />
+                    </ItemAction>
+                    <ItemAction label={`Supprimer ${yarnTitle(yarn)}`} onClick={() => setRemoving(index)}>
+                      <DeleteIcon />
+                    </ItemAction>
                   </>
                 }
               />

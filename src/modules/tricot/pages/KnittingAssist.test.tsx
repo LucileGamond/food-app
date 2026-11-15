@@ -109,6 +109,17 @@ describe('question sur le rang', () => {
     expect(screen.getByRole('button', { name: 'Une question sur ce rang ?' })).toBeInTheDocument()
   })
 
+  it('question sur le rang suivant : elle porte sur ce rang-là', async () => {
+    const user = userEvent.setup()
+    const { api } = renderMode()
+    api.knitting.askAboutStep.mockResolvedValue('Oui.')
+    await openPattern(user)
+    await user.click(await screen.findByRole('button', { name: 'Une question sur le rang suivant ?' }))
+    await user.type(screen.getByLabelText('Ta question sur le rang 13'), 'Même point ?')
+    await user.click(screen.getByRole('button', { name: 'Demander' }))
+    expect(api.knitting.askAboutStep).toHaveBeenCalledWith(expect.objectContaining({ row: 13, question: 'Même point ?' }))
+  })
+
   it('montre l’erreur de la réponse', async () => {
     const user = userEvent.setup()
     const { api } = renderMode()

@@ -79,7 +79,7 @@ describe('mode tricoter', () => {
     await user.click(screen.getByRole('button', { name: /^Rang \d+ fini$/ }))
     expect(api.knitting.saveProgress).toHaveBeenCalledWith('s2', { rowCount: 9 })
     expect(row).toHaveTextContent('1 dim. de chaque côté (1/4)')
-    expect(screen.getByRole('region', { name: 'Ensuite' })).toHaveTextContent('EnsuiteRang 16, dans 6')
+    expect(screen.getByRole('region', { name: 'Ensuite' })).toHaveTextContent('Rang 16, dans 6')
     await user.click(screen.getByRole('button', { name: 'Retirer un rang' }))
     expect(api.knitting.saveProgress).toHaveBeenLastCalledWith('s2', { rowCount: 8 })
     expect(row).toHaveTextContent('Ce rang')

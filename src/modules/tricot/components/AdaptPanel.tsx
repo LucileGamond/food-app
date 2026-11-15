@@ -11,6 +11,7 @@ import { errorMessage } from '@/api'
 import { useApi } from '@/app/ApiContext'
 import { ConfirmDialog } from '@/components/ConfirmDialog'
 import { Button } from '@/components/ui/button'
+import { ItemAction } from './ItemAction'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogTitle } from '@/components/ui/dialog'
 import { Label } from '@/components/ui/label'
@@ -120,13 +121,13 @@ export function AdaptPanel({ project, size, onSaved }: Props) {
             </span>
             <SaveNote state={saved.state} />
           </div>
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <Button variant="outline" className="h-10" onClick={() => setEditing(true)}>
               <RestartIcon /> Refaire l’adaptation
             </Button>
-            <Button variant="outline" className="h-10 text-destructive" onClick={() => setRemoving(true)}>
-              <DeleteIcon /> Supprimer l’adaptation
-            </Button>
+            <ItemAction label="Supprimer l’adaptation" className="ml-auto" onClick={() => setRemoving(true)}>
+              <DeleteIcon />
+            </ItemAction>
           </div>
         </div>
       )}

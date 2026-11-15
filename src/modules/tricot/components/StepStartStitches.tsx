@@ -1,4 +1,4 @@
-import { CloseIcon, DoneIcon, EditIcon } from './KnitIcons'
+import { CloseIcon, DoneIcon, EditIcon, UndoIcon } from './KnitIcons'
 import { useState, type FormEvent } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -80,7 +80,7 @@ export function StepStartStitches({ start, set, previous, fromPattern, onSave }:
         </div>
         {set && (
           <Button type="button" variant="outline" className="h-10" onClick={() => void onSave(null).then((ok) => ok && setEditing(false))}>
-            Laisser le patron décider
+            <UndoIcon /> Laisser le patron décider
           </Button>
         )}
         <p className="text-xs text-muted-foreground">Les mailles de chaque rang et de la fin se recalculent : les augmentations et diminutions s’ajoutent à ce nombre.</p>

@@ -16,8 +16,7 @@ import { Loading } from './Loading'
 import { LoadError } from '@/components/LoadError'
 import { useAsync } from '@/hooks/useAsync'
 import { YarnBand } from './YarnBand'
-import { cn } from '@/lib/utils'
-import { TOUCH_AREA } from '../lib/touch'
+import { ItemAction } from './ItemAction'
 import { yarnMeters, yarnTitle, type StashItem, type Yarn } from '../lib/yarn'
 import { matchPatterns, type KnitPattern } from '../lib/library'
 import { YarnDialog } from './YarnPanel'
@@ -133,12 +132,12 @@ export function StashSection({ patterns }: { patterns: KnitPattern[] }) {
                   yarn={item.yarn}
                   actions={
                     <>
-                      <Button variant="ghost" size="icon-sm" className={cn('relative', TOUCH_AREA)} aria-label={`Modifier ${yarnTitle(item.yarn)}`} onClick={() => setEditing(item)}>
-                        <EditIcon className="size-5" />
-                      </Button>
-                      <Button variant="ghost" size="icon-sm" className={cn('relative', TOUCH_AREA)} aria-label={`Supprimer ${yarnTitle(item.yarn)} du stock`} onClick={() => setRemoving(item)}>
-                        <DeleteIcon className="size-5" />
-                      </Button>
+                      <ItemAction label={`Modifier ${yarnTitle(item.yarn)}`} onClick={() => setEditing(item)}>
+                        <EditIcon />
+                      </ItemAction>
+                      <ItemAction label={`Supprimer ${yarnTitle(item.yarn)} du stock`} onClick={() => setRemoving(item)}>
+                        <DeleteIcon />
+                      </ItemAction>
                     </>
                   }
                 />

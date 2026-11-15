@@ -1,3 +1,4 @@
+import userEvent from '@testing-library/user-event'
 import { render, screen, within } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import type { RowGuide } from '../../lib/guide'
@@ -89,13 +90,30 @@ describe('RowLine : aller préparer l’étape', () => {
     expect(screen.queryByRole('region', { name: 'Rang suivant' })).not.toBeInTheDocument()
   })
 
-  it('la question se pose au niveau du rang', () => {
+  it('une question sur chaque rang : un petit bouton dans le titre de ce rang, du suivant et de « Ensuite »', async () => {
+    const onAsk = vi.fn()
     render(
       <MemoryRouter>
-        <RowLine line={{ row: 2, events: [], context: null, charts: [], unknown: false }} stitches={{ kind: 'sure', stitches: 80 }} glossary={[]} setupTo={SETUP} onOpenChart={() => {}} question={<button type="button">Une question sur ce rang ?</button>} />
+        <RowLine
+          line={{ row: 2, events: [], context: null, charts: [], unknown: false }}
+          next={{ row: 3, events: [], context: null, charts: [], unknown: false }}
+          upcoming={{ row: 8, inRows: 6, events: [{ kind: 'action', text: '1 aug.', count: 1, times: 2 }] }}
+          stitches={{ kind: 'sure', stitches: 80 }}
+          glossary={[]}
+          setupTo={SETUP}
+          onOpenChart={() => {}}
+          onAsk={onAsk}
+          question={<p>Panneau de la question</p>}
+        />
       </MemoryRouter>,
     )
-    expect(within(screen.getByRole('region', { name: 'Ce rang' })).getByRole('button', { name: 'Une question sur ce rang ?' })).toBeInTheDocument()
+    const user = userEvent.setup()
+    await user.click(within(screen.getByRole('region', { name: 'Ce rang' })).getAllByRole('button', { name: 'Une question sur ce rang ?' })[0]!)
+    await user.click(within(screen.getByRole('region', { name: 'Rang suivant' })).getByRole('button', { name: 'Une question sur le rang suivant ?' }))
+    await user.click(within(screen.getByRole('region', { name: 'Ensuite' })).getByRole('button', { name: 'Une question sur le rang 8 ?' }))
+    expect(onAsk.mock.calls).toEqual([[2], [3], [8]])
+    // Le panneau, en bas de la carte
+    expect(screen.getByText('Panneau de la question')).toBeInTheDocument()
   })
 
   it('rang ordinaire : pas de lien vers la préparation', () => {

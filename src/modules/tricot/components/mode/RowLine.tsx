@@ -11,6 +11,8 @@ import { Glossed } from '../Glossed'
 import type { StitchCount } from '../../lib/stitches'
 import { ChartStrip } from './ChartStrip'
 import { StitchLine } from './StitchLine'
+import { ItemAction } from '../ItemAction'
+import { QuestionIcon } from '../KnitIcons'
 
 interface Props {
   line: RowGuide
@@ -29,8 +31,10 @@ interface Props {
   /** Le point à tricoter (« jersey », « côtes 1/1 ») sur ce rang et sur le suivant, quand ils n'ont rien de particulier. */
   point?: string | null
   nextPoint?: string | null
-  /** « Une question sur ce rang ? », au niveau du rang. */
+  /** Panneau de la question posée (ouvert par le petit bouton d'un titre). */
   question?: ReactNode
+  /** Poser une question sur un rang : un petit bouton dans le titre de « Ce rang », « Rang suivant » et « Ensuite ». */
+  onAsk?: (row: number) => void
 }
 
 const ICONS: Record<GuideEvent['kind'], typeof BellRing> = { action: BellRing, section: ArrowRight, 'to-set': CircleAlert, 'step-end': Flag }
@@ -95,7 +99,13 @@ function Instructions({ line, glossary, setupTo, point }: { line: RowGuide; glos
  * Le rang à tricoter, d'un coup d'œil : la sous-étape où l'on est, ce rang (consignes, diagramme, mailles en fin de
  * rang), puis le rang suivant. Les nombres de rangs sont au compteur, sous le pouce.
  */
-export function RowLine({ line, stitches, glossary, setupTo, onOpenChart, substeps = [], sectionCount = 0, next = null, upcoming = null, point = null, nextPoint = null, question }: Props) {
+export function RowLine({ line, stitches, glossary, setupTo, onOpenChart, substeps = [], sectionCount = 0, next = null, upcoming = null, point = null, nextPoint = null, question, onAsk }: Props) {
+  const ask = (row: number, label: string) =>
+    onAsk && (
+      <ItemAction label={label} className="-my-1.5 ml-auto" onClick={() => onAsk(row)}>
+        <QuestionIcon />
+      </ItemAction>
+    )
   const strips = line.charts.filter((c): c is ChartAt & { position: { kind: 'row' } } => c.position.kind === 'row')
   // La prochaine chose à faire, quand elle tombe plus loin que le rang suivant.
   const later = upcoming && (!next || upcoming.row > next.row) ? upcoming : null
@@ -118,9 +128,12 @@ export function RowLine({ line, stitches, glossary, setupTo, onOpenChart, subste
       {/* Annoncé au lecteur d'écran à chaque rang compté. */}
       <div role="status" aria-live="polite" className="space-y-2">
         {/* Le numéro du rang de l'étape à tricoter maintenant : rien tricoté, c'est le rang 1. */}
-        <h2 className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
-          <span id="row-line">Ce rang</span> <span className="knit-name text-sm text-foreground normal-case tabular-nums">· rang {line.row}</span>
-        </h2>
+        <div className="flex items-center gap-2">
+          <h2 className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
+            <span id="row-line">Ce rang</span> <span className="knit-name text-sm text-foreground normal-case tabular-nums">· rang {line.row}</span>
+          </h2>
+          {ask(line.row, 'Une question sur ce rang ?')}
+        </div>
         {line.unknown ? (
           <p className="flex items-start gap-2 text-sm">
             <CircleAlert className="mt-0.5 size-4 shrink-0 text-muted-foreground" aria-hidden />
@@ -141,17 +154,23 @@ export function RowLine({ line, stitches, glossary, setupTo, onOpenChart, subste
       {!line.unknown && strips.map((c) => <ChartStrip key={c.chart.id} chart={c.chart} position={c.position} onOpen={() => onOpenChart(c.chart.id)} />)}
       {!line.unknown && next && !next.unknown && (
         <section aria-labelledby="row-next" className="space-y-1.5 border-t border-brand/20 pt-3 text-sm">
-          <h3 className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
-            <span id="row-next">Rang suivant</span> <span className="knit-name text-sm text-foreground normal-case tabular-nums">· rang {next.row}</span>
-          </h3>
+          <div className="flex items-center gap-2">
+            <h3 className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
+              <span id="row-next">Rang suivant</span> <span className="knit-name text-sm text-foreground normal-case tabular-nums">· rang {next.row}</span>
+            </h3>
+            {ask(next.row, 'Une question sur le rang suivant ?')}
+          </div>
           <Instructions line={next} glossary={glossary} setupTo={setupTo} point={nextPoint} />
         </section>
       )}
       {!line.unknown && later && (
         <section aria-labelledby="row-later" className="space-y-1.5 border-t border-brand/20 pt-3 text-sm">
-          <h3 id="row-later" className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
-            Ensuite
-          </h3>
+          <div className="flex items-center gap-2">
+            <h3 id="row-later" className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
+              Ensuite
+            </h3>
+            {ask(later.row, `Une question sur le rang ${later.row} ?`)}
+          </div>
           <p className="flex items-start gap-2">
             <BellRing className="mt-0.5 size-4 shrink-0 text-muted-foreground" aria-hidden />
             <span>

@@ -9,6 +9,7 @@ import { ConfirmDialog } from '@/components/ConfirmDialog'
 import { EmptyState } from '@/components/EmptyState'
 import { LoadError } from '@/components/LoadError'
 import { Button, buttonVariants } from '@/components/ui/button'
+import { ItemAction } from '../components/ItemAction'
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog'
 import { useAsync } from '@/hooks/useAsync'
 import { useSignedUrls } from '@/hooks/useSignedUrls'
@@ -86,9 +87,9 @@ function PatternSheet({ pattern }: { pattern: KnitPattern }) {
         <Link to={`/tricot/patrons/${pattern.id}/modifier`} className={cn(buttonVariants({ variant: 'outline' }), 'h-10')}>
           <EditIcon /> Modifier
         </Link>
-        <Button variant="outline" size="icon-lg" className="size-10 text-destructive" aria-label="Supprimer le patron" onClick={() => setConfirmDelete(true)}>
+        <ItemAction label="Supprimer le patron" onClick={() => setConfirmDelete(true)}>
           <DeleteIcon />
-        </Button>
+        </ItemAction>
       </div>
 
       <div className="max-w-lg space-y-6">

@@ -10,6 +10,7 @@ import { useApi } from '@/app/ApiContext'
 import { ConfirmDialog } from '@/components/ConfirmDialog'
 import { LoadError } from '@/components/LoadError'
 import { Button } from '@/components/ui/button'
+import { ItemAction } from './ItemAction'
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -197,9 +198,9 @@ export function ProgressPanel({ projectId, currentStepId, stepTitle }: Props) {
                 />
                 <SaveNote state={savedCaption.state} />
               </div>
-              <Button variant="outline" className="h-10 justify-self-start text-destructive" onClick={() => setRemoving(viewing)}>
-                <DeleteIcon /> Supprimer la photo
-              </Button>
+              <ItemAction label="Supprimer la photo" className="justify-self-end" onClick={() => setRemoving(viewing)}>
+                <DeleteIcon />
+              </ItemAction>
             </>
           )}
         </DialogContent>

@@ -9,9 +9,11 @@ import { ConfirmDialog } from '@/components/ConfirmDialog'
 import { EmptyState } from '@/components/EmptyState'
 import { PageHeader } from '@/components/PageHeader'
 import { Button, buttonVariants } from '@/components/ui/button'
+import { ItemAction } from '../components/ItemAction'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { LoadError } from '@/components/LoadError'
 import { cn } from '@/lib/utils'
+import { TOUCH_AREA } from '../lib/touch'
 import { openInNewTab } from '@/lib/openInNewTab'
 import { SizePicker, StepText } from '../components/SizedText'
 import { YarnCheckCard } from '../components/YarnCheckCard'
@@ -490,18 +492,18 @@ export function KnittingProjectPage() {
         titleAction={
           <div className="flex items-center gap-1">
             {project.patternId && (
-              <Link to={`/tricot/patrons/${project.patternId}`} aria-label="Fiche du patron" className={buttonVariants({ variant: 'ghost', size: 'icon-touch' })}>
+              <Link to={`/tricot/patrons/${project.patternId}`} aria-label="Fiche du patron" className={cn(buttonVariants({ variant: 'ghost', size: 'icon-sm' }), 'relative [&_svg]:size-5', TOUCH_AREA)}>
                 <PatternsIcon />
               </Link>
             )}
             {project.pdfPath && (
-              <Button variant="ghost" size="icon-touch" aria-label="Voir le PDF" onClick={() => void openPdf()}>
+              <ItemAction label="Voir le PDF" onClick={() => void openPdf()}>
                 <PdfIcon />
-              </Button>
+              </ItemAction>
             )}
-            <Button variant="ghost" size="icon-touch" aria-label="Supprimer le projet" onClick={() => setConfirmDelete(true)}>
+            <ItemAction label="Supprimer le projet" onClick={() => setConfirmDelete(true)}>
               <DeleteIcon />
-            </Button>
+            </ItemAction>
           </div>
         }
       />

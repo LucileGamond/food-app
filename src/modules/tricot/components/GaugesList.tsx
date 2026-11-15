@@ -3,6 +3,7 @@ import { AddIcon, CloseIcon, DeleteIcon, EditIcon } from './KnitIcons'
 import { useEffect, useState, type FormEvent } from 'react'
 import { ConfirmDialog } from '@/components/ConfirmDialog'
 import { Button } from '@/components/ui/button'
+import { ItemAction } from './ItemAction'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { NativeSelect } from '@/components/ui/native-select'
@@ -164,12 +165,12 @@ export function GaugesList({ gauges, needles, onSave, openFor, onOpened }: Props
                 <span className="block knit-name">{gaugeName(gauge.needle)}</span>
                 <span className="text-muted-foreground">{formatGauge(gauge) ?? 'rien de noté'}</span>
               </p>
-              <Button variant="ghost" size="icon-touch" aria-label={`Modifier l’échantillon : ${gaugeName(gauge.needle)}`} onClick={() => setEditing({ gauge })}>
+              <ItemAction label={`Modifier l’échantillon : ${gaugeName(gauge.needle)}`} onClick={() => setEditing({ gauge })}>
                 <EditIcon />
-              </Button>
-              <Button variant="ghost" size="icon-touch" aria-label={`Supprimer l’échantillon : ${gaugeName(gauge.needle)}`} onClick={() => setRemoving(gauge)}>
+              </ItemAction>
+              <ItemAction label={`Supprimer l’échantillon : ${gaugeName(gauge.needle)}`} onClick={() => setRemoving(gauge)}>
                 <DeleteIcon />
-              </Button>
+              </ItemAction>
             </li>
           ))}
         </ul>
