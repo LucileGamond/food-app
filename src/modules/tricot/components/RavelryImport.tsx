@@ -12,7 +12,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { useAsync } from '@/hooks/useAsync'
 import { compressImage } from '@/lib/image'
 import { findDuplicates, importSourceText, pdfMissingText, ravelryImportFields, type KnitPattern, type RavelryImportItem } from '../lib/library'
-import { DoneIcon, LinkIcon } from './KnitIcons'
+import { CloseIcon, DoneIcon, LinkIcon } from './KnitIcons'
 
 type Status = { kind: 'waiting' } | { kind: 'saving' } | { kind: 'added'; note: string | null } | { kind: 'failed'; error: string }
 
@@ -156,13 +156,13 @@ export function RavelryImport({ library, onDone }: Props) {
 
           <DialogFooter>
             {done || !items || items.length === 0 ? (
-              <Button type="button" className="h-10" onClick={close}>
-                Fermer
+              <Button type="button" variant="ghost" className="h-10" onClick={close}>
+                <CloseIcon /> Fermer
               </Button>
             ) : (
               <>
-                <Button type="button" variant="outline" className="h-10" disabled={running} onClick={close}>
-                  Annuler
+                <Button type="button" variant="ghost" className="h-10" disabled={running} onClick={close}>
+                  <CloseIcon /> Annuler
                 </Button>
                 <Button type="button" className="h-10" disabled={running || chosen.length === 0} onClick={() => void run()}>
                   {running && <Loader2 className="animate-spin" aria-hidden />}
