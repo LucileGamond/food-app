@@ -358,6 +358,7 @@ describe('KnittingProjectPage', () => {
     expect(header.textContent!.match(/30 rangs/g)).toHaveLength(1)
     expect(within(header).getByText('Étape 2 sur 3')).toBeInTheDocument()
     expect(within(header).getByText('56 mailles à la fin')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Aide : mailles au début' })).toBeInTheDocument()
   })
 
   it('en bas de la préparation : les étapes voisines, par leur nom (E2)', async () => {

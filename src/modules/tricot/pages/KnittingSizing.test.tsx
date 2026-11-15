@@ -141,6 +141,8 @@ describe('taille selon les mesures, après la lecture', () => {
     api.knitting.readPattern.mockResolvedValue({ ...PATTERN, sizeChart: { ...PATTERN.sizeChart!, easeCm: 12 } })
     const { card } = await readPattern(api)
     expect(within(card).getByRole('group', { name: 'Aisance (patron : 12 cm)' })).toBeInTheDocument()
+    // L'aisance s'explique d'un toucher (pas de survol au doigt)
+    expect(within(card).getByRole('button', { name: 'Aide : aisance' })).toBeInTheDocument()
     expect(await within(card).findByLabelText('Aisance en cm')).toHaveValue('12')
     expect(await within(card).findByRole('status')).toHaveTextContent('Aucune mesure de la fiche ne correspond au tableau du patron')
   })

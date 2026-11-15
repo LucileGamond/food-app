@@ -2,6 +2,7 @@ import { lazy, Suspense } from 'react'
 import { Navigate, Route, Routes } from 'react-router-dom'
 import { TricotTheme } from '@/modules/tricot/components/TricotTheme'
 import { Toaster } from 'sonner'
+import { LongPressLabel } from '@/components/LongPressLabel'
 import type { Api } from '@/api'
 import { ApiProvider } from '@/app/ApiContext'
 import { AuthProvider, type AuthClient } from '@/auth/AuthProvider'
@@ -137,6 +138,7 @@ export function App({ api, auth }: { api: Api; auth: AuthClient }) {
         </Routes>
         </Suspense>
         <Toaster position="top-center" closeButton toastOptions={{ className: 'font-sans' }} />
+        <LongPressLabel />
       </AuthProvider>
     </ApiProvider>
   )

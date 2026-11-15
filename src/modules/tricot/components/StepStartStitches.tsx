@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { NativeSelect } from '@/components/ui/native-select'
+import { HelpTip } from './HelpTip'
 
 interface Props {
   /** Mailles au début : saisies, ou déduites de la fin du patron (null : inconnues). */
@@ -98,6 +99,9 @@ export function StepStartStitches({ start, set, previous, fromPattern, onSave }:
         {start !== null ? plural(start) : 'inconnues'}
         {start !== null && !set && <span className="text-muted-foreground"> (d’après la fin du patron)</span>}
       </span>
+      <HelpTip label="mailles au début">
+        Les mailles sur l’aiguille au début de l’étape. Celles que tu notes font foi : les mailles de chaque rang et de la fin de l’étape se recalculent d’après elles.
+      </HelpTip>
       <Button
         variant="outline"
         className="h-10"

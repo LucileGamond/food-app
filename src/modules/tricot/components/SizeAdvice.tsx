@@ -14,6 +14,7 @@ import { NativeSelect } from '@/components/ui/native-select'
 import { useAsync } from '@/hooks/useAsync'
 import { cn } from '@/lib/utils'
 import { adviseSize, defaultEase, describeAdvice, EASE_STYLES, MEASURE_LABELS, styleOf, type SizeChart } from '../lib/sizing'
+import { HelpTip } from './HelpTip'
 
 interface Props {
   chart: SizeChart
@@ -106,8 +107,12 @@ export function SizeAdvice({ chart, sizes, readIndex, onReread, rereading }: Pro
             </NativeSelect>
           </div>
           {chart.kind === 'finished' && (
-            <fieldset className="grid gap-1.5">
+            <fieldset className="relative grid gap-1.5">
               <legend className="mb-1.5 text-sm font-medium">Aisance{chart.easeCm !== null && ` (patron : ${cm(chart.easeCm)} cm)`}</legend>
+              {/* Hors de la légende : le nom du groupe reste « Aisance… ». */}
+              <HelpTip label="aisance" className="absolute -top-1.5 right-0">
+                L’écart entre ton tour de poitrine et celui du vêtement fini : quelques centimètres pour un pull ajusté, beaucoup plus pour un pull ample.
+              </HelpTip>
               <div className="flex flex-wrap items-center gap-1.5">
                 {EASE_STYLES.map((s) => (
                   // La plage est écrite sous le nom : une infobulle de survol n'existe pas au doigt.
