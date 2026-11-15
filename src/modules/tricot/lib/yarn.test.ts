@@ -113,7 +113,12 @@ describe('quel patron pour ma laine', () => {
   it('décrit la laine, le métrage disponible et la recherche de patrons', () => {
     expect(yarnMeters(PARTNER)).toBe(750)
     expect(yarnMeters({ ...PARTNER, length_m: null })).toBeNull()
-    expect(describeYarn(PARTNER)).toBe('Phildar Partner 3.5, coloris 0012 Ciel · bain 4471 · 50 % laine · 50 g / 125 m · aiguilles 3,5 mm')
+    // Sans le bain (inutile au modèle)
+    expect(describeYarn(PARTNER)).toBe('Phildar Partner 3.5, coloris 0012 Ciel · 50 % laine · 50 g / 125 m · aiguilles 3,5 mm')
+    // Teintes en mots, sans doublon
+    expect(describeYarn({ ...PARTNER, hues: ['#1e3a5f', '#203c60', '#d9d9d9'] })).toBe(
+      'Phildar Partner 3.5, coloris 0012 Ciel · 50 % laine · 50 g / 125 m · aiguilles 3,5 mm, teintes : bleu foncé, gris clair',
+    )
     expect(patternSearchUrl('ribbed beanie')).toBe('https://www.ravelry.com/patterns/search#craft=knitting&query=ribbed%20beanie')
     expect(patternSearchUrl('cabled cowl', { weight: 'dk' })).toBe('https://www.ravelry.com/patterns/search#craft=knitting&weight=dk&query=cabled%20cowl')
     // Métrage disponible en yards, aiguilles Ravelry à 0,5 mm près

@@ -194,6 +194,8 @@ const ADVICE = [
   'adaptés à la grosseur et à la matière ; le métrage indiqué est celui de la taille proposée.',
   'Avec plusieurs laines, chaque ouvrage associe au moins deux d’entre elles (rayures, jacquard, couleurs en blocs, fil doublé…),',
   'et la phrase « pourquoi » dit comment.',
+  'Tiens compte des couleurs quand elles sont données (coloris, teintes) : associations qui vont bien ensemble, motifs qui',
+  'les mettent en valeur (une laine chinée ou multicolore cache les torsades et les points texturés).',
   'Si elle dit ce dont elle a envie, respecte-le.',
 ]
 const SEARCH_RULES = [

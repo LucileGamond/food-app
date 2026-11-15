@@ -1,4 +1,4 @@
-import { EMPTY_YARN, ideaFit, ideasFromJson, ideasKey, ideaYarn, patternNote, stashMeters, type Yarn } from './yarn'
+import { EMPTY_YARN, hueName, ideaFit, ideasFromJson, ideasKey, ideaYarn, patternNote, stashMeters, type Yarn } from './yarn'
 
 const MERINO: Yarn = { ...EMPTY_YARN, brand: 'DROPS', name: 'Merino', composition: 'laine', length_m: 105, skeins: 8, needle_mm: 4 }
 const ALPACA: Yarn = { ...EMPTY_YARN, name: 'Alpaga', length_m: 100, skeins: 1.5 }
@@ -56,5 +56,33 @@ describe('idées pour ma laine', () => {
       { title: 'Bonnet', why: '', size: '', meters: 150, needleMm: null, search: '', patterns: [{ title: 'https://p.exemple/b', url: 'https://p.exemple/b', free: true, language: 'fr', meters: 300, metersMax: null }] },
       { title: 'Snood', why: 'Doux.', size: 'adulte', meters: null, needleMm: 4, search: 'cowl', patterns: [] },
     ])
+  })
+
+  it('teintes en mots : couleurs franches, clair et foncé, neutres, marron et beige', () => {
+    expect(
+      Object.fromEntries(
+        ['#c0392b', '#e67e22', '#f1c40f', '#27ae60', '#2980b9', '#1e3a5f', '#8e44ad', '#e84393', '#f8c8dc', '#000000', '#ffffff', '#7f7f7f', '#d9d9d9', '#333333', '#6b3e1f', '#e8d8b8'].map((h) => [h, hueName(h)]),
+      ),
+    ).toEqual({
+      '#c0392b': 'rouge',
+      '#e67e22': 'orange',
+      '#f1c40f': 'jaune',
+      '#27ae60': 'vert',
+      '#2980b9': 'bleu',
+      '#1e3a5f': 'bleu foncé',
+      '#8e44ad': 'violet',
+      '#e84393': 'rose',
+      '#f8c8dc': 'rose clair',
+      '#000000': 'noir',
+      '#ffffff': 'blanc',
+      '#7f7f7f': 'gris',
+      '#d9d9d9': 'gris clair',
+      '#333333': 'gris foncé',
+      '#6b3e1f': 'marron',
+      '#e8d8b8': 'beige',
+    })
+    expect(hueName('1e3a5f')).toBe('bleu foncé')
+    expect(hueName('bleu')).toBeNull()
+    expect(hueName('#12345')).toBeNull()
   })
 })

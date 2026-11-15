@@ -243,7 +243,44 @@ export const NEEDLE_TOLERANCE_MM = 0.5
 
 /** Description d'une laine pour le modèle (idées de modèles). */
 export function describeYarn(yarn: Yarn): string {
-  return [yarnTitle(yarn), yarnDetails({ ...yarn, skeins: null })].filter(Boolean).join(', ')
+  const hues = [...new Set(yarn.hues.map(hueName).filter((n): n is string => n !== null))]
+  // Le bain ne dit rien au modèle ; les teintes, si, en mots (associations de couleurs, motifs).
+  return [yarnTitle(yarn), yarnDetails({ ...yarn, skeins: null, dye_lot: null }), hues.length > 0 && `teintes : ${hues.join(', ')}`].filter(Boolean).join(', ')
+}
+
+/** Noms des teintes, par tranches de teinte (degrés) : rouge, orange, jaune, vert, bleu, violet, rose, rouge. */
+const HUE_NAMES: [number, string][] = [
+  [15, 'rouge'],
+  [45, 'orange'],
+  [70, 'jaune'],
+  [165, 'vert'],
+  [255, 'bleu'],
+  [290, 'violet'],
+  [340, 'rose'],
+  [360, 'rouge'],
+]
+
+/** « #1e3a5f » → « bleu foncé », « #d9d9d9 » → « gris clair » ; null si ce n'est pas une couleur. */
+export function hueName(hex: string): string | null {
+  const match = /^#?([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i.exec(hex.trim())
+  if (!match) return null
+  const [r, g, b] = match.slice(1).map((h) => parseInt(h, 16) / 255) as [number, number, number]
+  const max = Math.max(r, g, b)
+  const min = Math.min(r, g, b)
+  const light = (max + min) / 2
+  const chroma = max - min
+  const saturation = chroma === 0 ? 0 : chroma / (1 - Math.abs(2 * light - 1))
+  const shade = light < 0.3 ? ' foncé' : light > 0.75 ? ' clair' : ''
+  if (light < 0.12) return 'noir'
+  if (light > 0.94) return 'blanc'
+  if (saturation < 0.15) return `gris${shade}`
+  let hue = max === r ? ((g - b) / chroma) % 6 : max === g ? (b - r) / chroma + 2 : (r - g) / chroma + 4
+  hue = (hue * 60 + 360) % 360
+  // Orangés sombres ou peu saturés : marron, beige.
+  if (hue >= 15 && hue < 50 && light < 0.45) return 'marron'
+  if (hue >= 20 && hue < 60 && saturation < 0.65 && light > 0.6) return 'beige'
+  const name = HUE_NAMES.find(([limit]) => hue < limit)![1]
+  return `${name}${shade}`
 }
 
 /** Tailles d'aiguilles du filtre « needles » de Ravelry, en mm. */

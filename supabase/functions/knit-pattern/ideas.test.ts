@@ -188,6 +188,7 @@ describe('idées pour une laine', () => {
     expect(sent.tools[0].name).toBe('proposer_modeles')
     expect(sent.tool_choice).toEqual({ type: 'tool', name: 'proposer_modeles' })
     expect(sent.system).toContain('associe au moins deux')
+    expect(sent.system).toContain('Tiens compte des couleurs')
     expect(sent.system).not.toContain('Cherche sur internet')
     expect(sent.messages[0].content[0].text).toContain('Laine 2 : Alpaga gris')
     expect(sent.messages[0].content[0].text).toContain('Envie : un snood')
