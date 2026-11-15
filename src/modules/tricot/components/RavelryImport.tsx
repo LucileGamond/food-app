@@ -17,7 +17,8 @@ import { CloseIcon, DoneIcon, LinkIcon } from './KnitIcons'
 type Status = { kind: 'waiting' } | { kind: 'saving' } | { kind: 'added'; text: string; note: string | null } | { kind: 'failed'; error: string }
 
 interface Props {
-  library: KnitPattern[]
+  /** Bibliothèque actuelle ; null tant qu'elle n'est pas chargée (sans elle, impossible de repérer les doublons). */
+  library: KnitPattern[] | null
   /** Fin de l'import : la bibliothèque est rechargée. */
   onDone: () => void
 }
@@ -34,8 +35,10 @@ export function RavelryImport({ library, onDone }: Props) {
   const [running, setRunning] = useState(false)
 
   if (!account.data) return null
+  // Bibliothèque pas encore chargée (ou illisible) : bouton désactivé, sinon les doublons ne seraient pas repérés.
+  const patterns = library ?? []
 
-  const isKnown = (item: RavelryImportItem) => importTarget(item, library).kind === 'known'
+  const isKnown = (item: RavelryImportItem) => importTarget(item, patterns).kind === 'known'
 
   async function show() {
     setOpen(true)
@@ -63,7 +66,7 @@ export function RavelryImport({ library, onDone }: Props) {
       update(item.patternId, { kind: 'saving' })
       try {
         const found = await api.knitting.importRavelryPattern(item)
-        const target = importTarget(item, library)
+        const target = importTarget(item, patterns)
         if (target.kind === 'add-pdf') {
           // Déjà dans la bibliothèque sans PDF : seul le PDF est ajouté, le reste de la fiche ne change pas.
           if (found.pdf) {
@@ -103,7 +106,7 @@ export function RavelryImport({ library, onDone }: Props) {
 
   return (
     <>
-      <Button type="button" variant="outline" className="h-10" onClick={() => void show()}>
+      <Button type="button" variant="outline" className="h-10" disabled={library === null} onClick={() => void show()}>
         <LinkIcon /> Depuis Ravelry
       </Button>
       <Dialog open={open} onOpenChange={(next) => !next && close()}>
@@ -130,7 +133,7 @@ export function RavelryImport({ library, onDone }: Props) {
           ) : (
             <ul aria-label="Patrons Ravelry" className="space-y-2">
               {items.map((item) => {
-                const target = importTarget(item, library)
+                const target = importTarget(item, patterns)
                 const known = target.kind === 'known'
                 const s = status[item.patternId]
                 const id = `ravelry-import-${item.patternId}`

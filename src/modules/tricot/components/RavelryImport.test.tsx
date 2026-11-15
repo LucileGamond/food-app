@@ -21,7 +21,7 @@ function imported(item: RavelryImportItem, extra: Partial<RavelryImported> = {})
 
 const existing = { id: 'x', title: 'Cinder', url: null } as KnitPattern
 
-function setup({ linked = true, library = [] as KnitPattern[] } = {}) {
+function setup({ linked = true, library = [] as KnitPattern[] | null } = {}) {
   const api = fakeApi()
   if (linked) api.knitting.getRavelryAccount.mockResolvedValue({ username: 'Youcite' })
   api.knitting.listRavelryImports.mockResolvedValue([LOULOU, FERN, CINDER])
@@ -66,6 +66,12 @@ describe('import depuis Ravelry : fenêtre', () => {
     const { api } = setup({ linked: false })
     await waitFor(() => expect(api.knitting.getRavelryAccount).toHaveBeenCalled())
     expect(screen.queryByRole('button', { name: 'Depuis Ravelry' })).not.toBeInTheDocument()
+  })
+
+  it('bibliothèque pas encore chargée : bouton désactivé (les doublons ne seraient pas repérés)', async () => {
+    const { api } = setup({ library: null })
+    expect(await screen.findByRole('button', { name: 'Depuis Ravelry' })).toBeDisabled()
+    expect(api.knitting.listRavelryImports).not.toHaveBeenCalled()
   })
 
   it('liste favoris et bibliothèque ; déjà dans la bibliothèque : décoché et bloqué', async () => {
