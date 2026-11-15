@@ -88,7 +88,7 @@ describe('connexion Ravelry (OAuth 2.1 + PKCE)', () => {
     const parsed = new URL(url)
     expect(parsed.origin + parsed.pathname).toBe('https://auth.ravelry.com/oauth2/auth')
     const params = Object.fromEntries(parsed.searchParams)
-    expect(params).toMatchObject({ response_type: 'code', client_id: 'client', redirect_uri: REDIRECT, scope: 'offline_access', code_challenge_method: 'S256' })
+    expect(params).toMatchObject({ response_type: 'code', client_id: 'client', redirect_uri: REDIRECT, scope: 'offline_access library-pdf', code_challenge_method: 'S256' })
     const saved = states.get(params.state!)!
     expect(saved).toMatchObject({ profileId: 'u1', redirectUri: REDIRECT })
     expect(params.code_challenge).toBe(await codeChallenge(saved.verifier))
@@ -176,7 +176,7 @@ describe('connexion Ravelry (OAuth 2.1 + PKCE)', () => {
     // Expire dans moins d'une minute : renouvelé, l'ancien jeton de renouvellement est gardé si Ravelry n'en donne pas
     tokens.set('u1', { accessToken: 'vieux', refreshToken: 'r', expiresAt: NOW + 30_000 })
     expect(await accessTokenFor('u1', c)).toBe('neuf')
-    expect(Object.fromEntries(new URLSearchParams(String(fetchRavelry.mock.calls[0]![1]!.body)))).toEqual({ grant_type: 'refresh_token', refresh_token: 'r', scope: 'offline_access', client_id: 'client' })
+    expect(Object.fromEntries(new URLSearchParams(String(fetchRavelry.mock.calls[0]![1]!.body)))).toEqual({ grant_type: 'refresh_token', refresh_token: 'r', scope: 'offline_access library-pdf', client_id: 'client' })
     expect(tokens.get('u1')).toEqual({ accessToken: 'neuf', refreshToken: 'r', expiresAt: NOW + 7_200_000 })
 
     // Sans jeton de renouvellement, ou renouvellement refusé : plus d'accès

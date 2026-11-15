@@ -17,8 +17,12 @@ import { asRecord } from '../_shared/sanitize.ts'
 export const RAVELRY_AUTHORIZE_URL = 'https://auth.ravelry.com/oauth2/auth'
 export const RAVELRY_TOKEN_URL = 'https://auth.ravelry.com/oauth2/token'
 export const RAVELRY_CURRENT_USER_URL = 'https://api.ravelry.com/current_user.json'
-/** Portée : « offline_access » pour obtenir un jeton de renouvellement (la lecture des patrons n'en demande pas d'autre). */
-export const RAVELRY_SCOPE = 'offline_access'
+/**
+ * Portées : « offline_access » pour obtenir un jeton de renouvellement ; « library-pdf » pour télécharger les PDF de la
+ * bibliothèque Ravelry (import). Ravelry prévient que ces jetons expirent plus vite : le renouvellement s'en charge, et
+ * s'il est refusé, il suffit de relier le compte à nouveau.
+ */
+export const RAVELRY_SCOPE = 'offline_access library-pdf'
 /** Délai pour revenir de Ravelry. */
 export const STATE_TTL_MS = 10 * 60_000
 /** Jeton renouvelé un peu avant son expiration. */
