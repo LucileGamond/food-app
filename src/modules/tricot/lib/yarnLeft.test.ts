@@ -3,12 +3,19 @@ import { projectRowsDone, sanitizeYarnChecks, withYarnCheck, yarnVerdict } from 
 
 // 50 g / 100 m, 10 pelotes = 1 000 m
 const YARN = { ...EMPTY_YARN, weight_g: 50, length_m: 100, skeins: 10 }
-const step = (totalRows: number | null, rowCount = 0, done = false, stitches: number | null = null) => ({ totalRows, stitches, rowCount, done })
+const step = (totalRows: number | null, rowCount = 0, done = false, stitches: number | null = null, times = 1, pass = 1) => ({ totalRows, stitches, rowCount, done, times, pass })
 
 describe('rangs faits', () => {
   it('compte le compteur, ou toute l’étape terminée', () => {
     expect(projectRowsDone([step(100, 80, true), step(50, 10)])).toBe(110)
     expect(projectRowsDone([step(null, 5, true)])).toBe(5)
+  })
+
+  it('compte les fois déjà finies d’une étape tricotée plusieurs fois', () => {
+    // Dos de 100 rangs fini, 1re manche finie (2e fois, compteur à 0), puis 10 rangs de la 2e
+    expect(projectRowsDone([step(100, 100, true), step(80, 0, false, null, 2, 2)])).toBe(180)
+    expect(projectRowsDone([step(100, 100, true), step(80, 10, false, null, 2, 2)])).toBe(190)
+    expect(projectRowsDone([step(80, 80, true, null, 2, 2)])).toBe(160)
   })
 })
 
@@ -41,8 +48,17 @@ describe('assez de laine pour finir ?', () => {
     expect(yarnVerdict({ ...YARN, weight_g: null }, [step(100)], { yarn: 0, grams: 10, rowsDone: 5, at: '' })).toEqual({ kind: 'missing-yarn' })
     expect(yarnVerdict(YARN, [step(100), step(null), step(null)], { yarn: 0, grams: 10, rowsDone: 5, at: '' })).toEqual({ kind: 'unknown-rows', steps: 2 })
     expect(yarnVerdict(YARN, [step(100)], { yarn: 0, grams: 10, rowsDone: 0, at: '' })).toEqual({ kind: 'too-early' })
-    // Plus de laine pesée qu'au départ : la pesée est trop tôt ou fausse
-    expect(yarnVerdict(YARN, [step(100)], { yarn: 0, grams: 600, rowsDone: 5, at: '' })).toEqual({ kind: 'too-early' })
+    // Plus de laine pesée qu'au départ : la pesée ou la laine notée est fausse
+    expect(yarnVerdict(YARN, [step(100)], { yarn: 0, grams: 600, rowsDone: 5, at: '' })).toEqual({ kind: 'heavier' })
+  })
+
+  it('une étape à faire deux fois compte deux fois (même verdict que deux étapes)', () => {
+    const check = { yarn: 0, grams: 300, rowsDone: 180, at: '' }
+    const twice = yarnVerdict(YARN, [step(100, 100, true), step(80, 0, false, null, 2, 2)], check)
+    const split = yarnVerdict(YARN, [step(100, 100, true), step(80, 80, true), step(80)], check)
+    expect(twice).toEqual(split)
+    // 400 m tricotés pour 180 rangs ; il en reste 80 : ≈ 178 m
+    expect(twice).toMatchObject({ kind: 'estimate', metersNeeded: 178 })
   })
 })
 

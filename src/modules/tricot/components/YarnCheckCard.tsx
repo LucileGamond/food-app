@@ -105,6 +105,7 @@ function YarnRow({ yarn, index, steps, check, onSave }: { yarn: Yarn; index: num
         >
           {verdict.kind === 'missing-yarn' && 'Complète cette laine : poids et métrage d’une pelote, et nombre de pelotes au départ.'}
           {verdict.kind === 'unknown-rows' && `Le nombre de rangs de ${plural(verdict.steps, 'étape')} n’est pas connu : impossible d’estimer la fin.`}
+          {verdict.kind === 'heavier' && 'Il reste plus de laine que tu n’en avais au départ : vérifie la pesée, ou le poids et le nombre de pelotes de cette laine.'}
           {verdict.kind === 'too-early' && 'Tricote encore un peu avant de peser : l’estimation se fait d’après la laine déjà utilisée.'}
           {verdict.kind === 'estimate' && (
             <>

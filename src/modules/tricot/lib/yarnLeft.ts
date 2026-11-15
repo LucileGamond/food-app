@@ -21,11 +21,19 @@ export interface YarnCheck {
 /** Marge sous laquelle c'est juste : 10 % de ce qu'il reste à tricoter. */
 export const TIGHT_MARGIN = 0.1
 
-type Step = Pick<KnitStep, 'totalRows' | 'stitches' | 'rowCount' | 'done'>
+type Step = Pick<KnitStep, 'totalRows' | 'stitches' | 'rowCount' | 'done' | 'times' | 'pass'>
 
-/** Rangs faits : le compteur, ou tous les rangs d'une étape terminée. */
+/** Rangs de l'étape entière : une étape tricotée N fois compte N fois ses rangs. */
+const rowsOf = (step: Step): number => step.totalRows! * step.times
+
+/**
+ * Rangs faits : le compteur de la fois en cours plus les fois déjà finies (le compteur repart à 0 à chaque fois),
+ * ou tous les rangs d'une étape terminée.
+ */
 function rowsDoneIn(step: Step): number {
-  return step.done && step.totalRows !== null ? Math.max(step.totalRows, step.rowCount) : step.rowCount
+  if (step.totalRows === null) return step.rowCount
+  if (step.done) return Math.max(rowsOf(step), (step.times - 1) * step.totalRows + step.rowCount)
+  return (Math.min(step.pass, step.times) - 1) * step.totalRows + step.rowCount
 }
 
 /** Rangs faits sur tout le projet (enregistrés avec une pesée). */
@@ -36,6 +44,8 @@ export function projectRowsDone(steps: Step[]): number {
 export type YarnVerdict =
   | { kind: 'missing-yarn' }
   | { kind: 'too-early' }
+  /** Plus de laine pesée qu'au départ : la pesée ou la laine notée est fausse. */
+  | { kind: 'heavier' }
   | { kind: 'unknown-rows'; steps: number }
   | {
       kind: 'estimate'
@@ -61,17 +71,18 @@ export function yarnVerdict(yarn: Yarn | undefined, steps: Step[], check: YarnCh
   const metersPerGram = yarn.length_m / yarn.weight_g
   const metersLeft = check.grams * metersPerGram
   const metersUsed = yarn.skeins * yarn.length_m - metersLeft
-  if (metersUsed <= 0) return { kind: 'too-early' }
+  if (metersUsed < 0) return { kind: 'heavier' }
+  if (metersUsed === 0) return { kind: 'too-early' }
 
   // Travail de chaque étape : rangs, pondérés par les mailles quand toutes les étapes les donnent.
   const weighted = steps.every((s) => s.stitches !== null)
   const weight = (s: Step) => (weighted ? s.stitches! : 1)
-  const total = steps.reduce((sum, s) => sum + s.totalRows! * weight(s), 0)
+  const total = steps.reduce((sum, s) => sum + rowsOf(s) * weight(s), 0)
   // Travail fait à la pesée : les rangs de la pesée, répartis dans l'ordre des étapes.
   let rows = check.rowsDone
   let done = 0
   for (const s of steps) {
-    const here = Math.min(rows, s.totalRows!)
+    const here = Math.min(rows, rowsOf(s))
     done += here * weight(s)
     rows -= here
   }

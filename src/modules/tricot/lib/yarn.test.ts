@@ -57,7 +57,9 @@ describe('laine', () => {
     expect(yarnTitle(EMPTY_YARN)).toBe('Laine')
     expect(yarnDetails(PARTNER)).toBe('coloris 0012 Ciel · bain 4471 · 50 % laine · 50 g / 125 m · 6 pelotes · aiguilles 3,5 mm')
     expect(yarnDetails({ ...EMPTY_YARN, length_m: 200, skeins: 1 })).toBe('200 m · 1 pelote')
-    expect(totalLength([PARTNER, { ...PARTNER, skeins: 0.5, length_m: 101 }, { ...EMPTY_YARN, skeins: 3 }])).toBe(801)
+    expect(totalLength([PARTNER, { ...PARTNER, skeins: 0.5, length_m: 101 }])).toBe(801)
+    // Une laine sans métrage : le total serait trop bas, il n'est pas affiché
+    expect(totalLength([PARTNER, { ...EMPTY_YARN, skeins: 3 }])).toBeNull()
     expect(totalLength([EMPTY_YARN])).toBeNull()
   })
 })

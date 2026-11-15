@@ -183,10 +183,10 @@ export function dyeLotWarnings(yarns: Yarn[]): DyeLotWarning[] {
   return [...groups.values()].filter((g) => g.lots.length > 1)
 }
 
-/** Métrage total du projet (pelotes × métrage), si connu pour toutes les laines comptées. */
+/** Métrage total du projet (pelotes × métrage) ; null s'il manque le métrage ou les pelotes d'une laine (total trop bas). */
 export function totalLength(yarns: Yarn[]): number | null {
-  const counted = yarns.filter((y) => y.skeins !== null && y.length_m !== null)
-  return counted.length === 0 ? null : Math.round(counted.reduce((sum, y) => sum + y.skeins! * y.length_m!, 0))
+  if (yarns.length === 0 || yarns.some((y) => y.skeins === null || y.length_m === null)) return null
+  return Math.round(yarns.reduce((sum, y) => sum + y.skeins! * y.length_m!, 0))
 }
 
 // ---------------------------------------------------------------------------
