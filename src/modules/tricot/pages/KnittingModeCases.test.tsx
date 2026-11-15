@@ -3,13 +3,13 @@
 import { cleanup, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { fakeApi, renderWithApp } from '@/test/fakes'
+import { knitProject, knitStep, repeat } from '@/test/knitFactories'
 import type { Adaptation } from '../lib/adapt'
 import type { KnitChart } from '../lib/chart'
 import type { KnitProject, KnitStep, StepSection } from '../lib/pattern'
 import { KnittingModePage } from './KnittingModePage'
 
 const rows = (n: number | null, text: string): StepSection => ({ kind: 'rows', rows: n, every: null, times: null, text, pattern: n === null ? '5 cm' : null })
-const repeat = (every: number, times: number | null, actions: StepSection['actions']): StepSection => ({ kind: 'repeat', rows: null, every, times, actions, text: '', pattern: null })
 
 const TORSADE: KnitChart = {
   id: 'c1',
@@ -27,26 +27,11 @@ const TORSADE: KnitChart = {
 }
 
 function project(step: Partial<KnitStep>, extra: Partial<KnitProject> = {}): KnitProject {
-  return {
-    id: 'p1',
+  return knitProject({
     title: 'Pull',
-    size: 'M',
-    sizes: [],
-    sizeIndex: null,
-    pdfPath: null,
-    yarns: [],
-    patternGauge: { stitches: null, rows: null },
-    gauges: [],
-    charts: [],
-    chartHints: [],
-    abbreviations: [],
-    yarnChecks: [],
-    steps: [
-      { id: 's1', position: 0, title: 'Devant', instructions: '', totalRows: 20, stitches: 60, sections: [], rowCount: 0, times: 1, pass: 1, notes: '', done: false, highlights: {}, translation: null, ...step },
-      { id: 's2', position: 1, title: 'Col', instructions: '', totalRows: null, stitches: null, sections: [], rowCount: 0, times: 1, pass: 1, notes: '', done: false, highlights: {}, translation: null },
-    ],
+    steps: [knitStep({ title: 'Devant', totalRows: 20, stitches: 60, ...step }), knitStep({ id: 's2', position: 1, title: 'Col' })],
     ...extra,
-  }
+  })
 }
 
 async function open(value: KnitProject) {

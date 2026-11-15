@@ -1,6 +1,7 @@
 import { screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { fakeApi, renderWithApp } from '@/test/fakes'
+import { knitProject, knitStep } from '@/test/knitFactories'
 import { unfoldStepParts } from '@/test/openFold'
 import type { KnitChart } from '../lib/chart'
 import type { KnitProject, KnitStep, StepSection } from '../lib/pattern'
@@ -25,23 +26,7 @@ beforeEach(() => {
   openPdf.mockResolvedValue({ pageCount: 2, ...pdf })
 })
 
-const step = (overrides: Partial<KnitStep>): KnitStep => ({
-  id: 's1',
-  position: 0,
-  title: 'Dos – côtes',
-  instructions: '',
-  totalRows: 40,
-  stitches: null,
-  sections: [],
-  rowCount: 0,
-  times: 1,
-  pass: 1,
-  notes: '',
-  done: false,
-  highlights: {},
-  translation: null,
-  ...overrides,
-})
+const step = (overrides: Partial<KnitStep>): KnitStep => knitStep({ title: 'Dos – côtes', totalRows: 40, ...overrides })
 
 const TORSADE: KnitChart = {
   id: 'c1',
@@ -58,22 +43,10 @@ const TORSADE: KnitChart = {
   oddOnly: false,
 }
 
-const PROJECT: KnitProject = {
-  id: 'p1',
-  title: 'Pull Bergamote',
-  size: 'M',
-  pdfPath: null,
-  yarns: [],
-  patternGauge: { stitches: null, rows: null },
-  gauges: [],
+const PROJECT: KnitProject = knitProject({
   steps: [step({ id: 's1', done: true, rowCount: 40 }), step({ id: 's2', position: 1, title: 'Devant torsadé', rowCount: 8 })],
   charts: [TORSADE],
-  chartHints: [],
-  abbreviations: [],
-  yarnChecks: [],
-  sizes: [],
-  sizeIndex: null,
-}
+})
 
 function renderProject(project: KnitProject = PROJECT, api = fakeApi()) {
   api.knitting.getProject.mockResolvedValue(structuredClone(project))

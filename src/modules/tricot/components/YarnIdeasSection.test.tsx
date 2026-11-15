@@ -156,6 +156,7 @@ describe('Des idées pour ma laine', () => {
     expect(ideas).not.toHaveTextContent('Il manque')
   })
 
+  // Test de rendu (variante du bouton, sans équivalent accessible).
   it('bibliothèque qui convient déjà : bouton secondaire', async () => {
     setup({ emphasize: false })
     expect(screen.getByRole('button', { name: 'Des idées avec l’IA' })).not.toHaveClass('bg-primary')

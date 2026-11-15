@@ -4,12 +4,10 @@ import { Route } from 'react-router-dom'
 import { AppError } from '@/api'
 import { compressImage } from '@/lib/image'
 import { fakeApi, renderWithApp } from '@/test/fakes'
-import { EMPTY_YARN, type StashItem } from '../lib/yarn'
+import { knitPattern } from '@/test/knitFactories'
 import type { KnitPattern, PatternLink } from '../lib/library'
 import { MAX_PDF_BYTES } from '../lib/pattern'
 import { KnittingLibraryPage } from './KnittingLibraryPage'
-import { KnittingPage } from './KnittingPage'
-import { KnittingStashPage } from './KnittingStashPage'
 import { KnittingPatternEditPage } from './KnittingPatternEditPage'
 import { KnittingPatternPage } from './KnittingPatternPage'
 
@@ -21,23 +19,7 @@ vi.mock('@/lib/pdf', () => ({
   openPdf: vi.fn(async () => ({ pageCount: 2, renderPage: async (page: number) => new File(['jpg'], `page-${page}.jpg`, { type: 'image/jpeg' }), close: async () => undefined })),
 }))
 
-const pattern = (id: string, patch: Partial<KnitPattern> = {}): KnitPattern => ({
-  id,
-  title: id,
-  pdfPath: null,
-  photos: [],
-  url: null,
-  size: null,
-  yarnIdea: '',
-  notes: '',
-  metersNeeded: null,
-  needleMm: null,
-  tags: [],
-  createdAt: '2026-11-01T10:00:00Z',
-  projects: [],
-  readSizes: [],
-  ...patch,
-})
+const pattern = (id: string, patch: Partial<KnitPattern> = {}): KnitPattern => knitPattern({ id, title: id, ...patch })
 
 const GILET = pattern('g1', {
   title: 'Gilet Rosée',
@@ -53,33 +35,6 @@ const GILET = pattern('g1', {
 })
 const PULL = pattern('p1', { title: 'Pull Bergamote', pdfPath: 'u-lucile/pull.pdf', projects: [{ id: 'proj1', title: 'Pull Bergamote', size: 'M' }] })
 const BONNET = pattern('b1', { title: 'Bonnet', url: 'https://patrons.exemple/bonnet', createdAt: '2026-11-02T10:00:00Z' })
-
-describe('page Tricot : accès à la bibliothèque', () => {
-  it('résume la bibliothèque : nombre de patrons et ceux déjà tricotés', async () => {
-    const api = fakeApi()
-    api.knitting.listPatterns.mockResolvedValue([GILET, PULL, BONNET])
-    renderWithApp(<KnittingPage />, { api })
-    const link = await screen.findByRole('link', { name: /Bibliothèque de patrons/ })
-    expect(link).toHaveAttribute('href', '/tricot/patrons')
-    expect(await within(link).findByText('3 patrons · 1 tricoté')).toBeInTheDocument()
-  })
-
-  it('bibliothèque, stock ou mesures qui ne se chargent pas : on le dit', async () => {
-    const api = fakeApi()
-    api.knitting.listPatterns.mockRejectedValue(new AppError('Impossible de charger les patrons.'))
-    api.knitting.listStash.mockRejectedValue(new AppError('Impossible de charger le stock de laine.'))
-    api.knitting.listMeasures.mockRejectedValue(new AppError('Impossible de charger les mesures.'))
-    renderWithApp(<KnittingPage />, { api })
-    expect(await screen.findByRole('link', { name: /Bibliothèque de patrons/ })).toHaveTextContent('non chargée')
-    expect(await screen.findByRole('link', { name: /Stock de laine/ })).toHaveTextContent('non chargé')
-    expect(await screen.findByRole('link', { name: /Fiches de mesures/ })).toHaveTextContent('non chargées')
-  })
-
-  it('bibliothèque vide : « aucun patron »', async () => {
-    renderWithApp(<KnittingPage />)
-    expect(await screen.findByRole('link', { name: /Bibliothèque de patrons/ })).toHaveTextContent('aucun patron')
-  })
-})
 
 describe('bibliothèque de patrons', () => {
   it('liste les patrons, les plus récents d’abord, sur une ligne : vignette, ce qu’on en sait, formats', async () => {
@@ -515,23 +470,6 @@ describe('ajout et modification d’un patron', () => {
     const two = [new File(['a'], 'a.jpg', { type: 'image/jpeg' }), new File(['b'], 'b.jpg', { type: 'image/jpeg' })]
     await user.upload(await screen.findByLabelText(/Ajouter des photos/), two)
     expect(screen.getByRole('alert')).toHaveTextContent('10 photos au plus.')
-  })
-})
-
-describe('stock de laine et bibliothèque', () => {
-  it('« Quel patron ? » ouvre la fiche du patron qui convient', async () => {
-    const user = userEvent.setup()
-    const api = fakeApi()
-    const stash: StashItem[] = [{ id: 'st1', yarn: { ...EMPTY_YARN, brand: 'DROPS', name: 'Merino', length_m: 105, skeins: 8, needle_mm: 4 }, notes: '', createdAt: '2026-11-01' }]
-    api.knitting.listStash.mockResolvedValue(stash)
-    api.knitting.listPatterns.mockResolvedValue([GILET, PULL])
-    renderWithApp(<KnittingStashPage />, { api })
-    await user.click(await screen.findByRole('button', { name: 'Quel patron pour DROPS Merino ?' }))
-    const dialog = await screen.findByRole('dialog', { name: 'Quel patron pour cette laine ?' })
-    expect(within(dialog).getByRole('heading', { name: 'Dans ta bibliothèque' })).toBeInTheDocument()
-    expect(within(dialog).getByRole('link', { name: /Gilet Rosée/ })).toHaveAttribute('href', '/tricot/patrons/g1')
-    // Patron déjà tricoté, sans besoins notés : à vérifier
-    expect(dialog).toHaveTextContent('À vérifier (métrage ou aiguilles non notés) : Pull Bergamote.')
   })
 })
 

@@ -1,46 +1,21 @@
 import { act, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { fakeApi, renderWithApp } from '@/test/fakes'
+import { knitProject, knitStep } from '@/test/knitFactories'
 import { EMPTY_YARN } from '../lib/yarn'
 import type { KnitProject, KnitStep } from '../lib/pattern'
 import { KnittingModePage } from './KnittingModePage'
 import { KnittingProjectPage } from './KnittingProjectPage'
 import { openFold, unfoldStepParts } from '@/test/openFold'
 
-const step = (overrides: Partial<KnitStep>): KnitStep => ({
-  id: 's1',
-  position: 0,
-  title: 'Dos',
-  instructions: '',
-  totalRows: 100,
-  stitches: null,
-  sections: [],
-  rowCount: 0,
-  times: 1,
-  pass: 1,
-  notes: '',
-  done: false,
-  highlights: {},
-  translation: null,
-  ...overrides,
-})
+const step = (overrides: Partial<KnitStep>): KnitStep => knitStep({ totalRows: 100, ...overrides })
 
-const PROJECT: KnitProject = {
-  id: 'p1',
-  title: 'Pull Bergamote',
-  size: 'M',
+const PROJECT: KnitProject = knitProject({
   sizes: ['S', 'M', 'L'],
   sizeIndex: 1,
-  pdfPath: null,
-  yarns: [],
-  patternGauge: { stitches: null, rows: null },
-  gauges: [],
   steps: [step({ id: 's1', instructions: 'Tricoter 2 m. ens. puis 1 jeté, C4F.', rowCount: 11 })],
-  charts: [],
-  chartHints: [],
   abbreviations: [{ abbr: 'C4F', meaning: 'Torsade de 4 mailles croisées devant.' }],
-  yarnChecks: [],
-}
+})
 
 const OVERVIEW = '/tricot/p1'
 

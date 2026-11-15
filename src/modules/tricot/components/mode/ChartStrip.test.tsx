@@ -54,6 +54,7 @@ describe('bande du diagramme', () => {
 
   it('reste dans l’image au bord, et suit le sens de lecture', () => {
     // Rang 1 (endroit, de droite à gauche) contre le bas de la grille ; rang 2 (envers) dans l'autre sens
+    // Flèche du sens de lecture : test de rendu (classes CSS), la bande est décorative (aria-hidden)
     const first = strip(1)
     expect(visible(first.img).bottom).toBeCloseTo(0.735, 3)
     // La flèche est à côté de la bande, pas dessus, du côté où le rang commence
@@ -85,6 +86,7 @@ describe('bande du diagramme', () => {
     const jacquard = { ...CHART, oddOnly: true }
     const { container } = render(<ChartStrip chart={jacquard} position={chartPosition(jacquard, 2) as ChartRow} onOpen={() => undefined} />)
     const band = container.querySelector('button > span')!
+    // Test de rendu (classes CSS) : la bande est décorative (aria-hidden), sans équivalent accessible
     expect(band.className).toContain('border-dashed')
     expect(container.querySelector('[data-testid="chart-direction"]')).toBeNull()
   })

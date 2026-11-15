@@ -1,10 +1,9 @@
 import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { newChartForm, type ChartSetup } from '../lib/chart'
-import type { StepSection } from '../lib/pattern'
+import { rows } from '@/test/knitFactories'
 import { ChartSetupDialog } from './ChartSetupDialog'
 
-const rows = (n: number, text: string): StepSection => ({ kind: 'rows', rows: n, every: null, times: null, text, pattern: null })
 
 describe('calage d’un diagramme : sa sous-étape', () => {
   it('choisir la sous-étape remplit le premier et le dernier rang ; l’enregistrement les garde', async () => {

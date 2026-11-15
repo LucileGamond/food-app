@@ -5,7 +5,7 @@ import { TOUCH_AREA, TOUCH_AREA_INLINE } from './touch'
 
 /** Cibles tactiles d'au moins 44 px (E1) : les petits boutons gardent leur dessin, leur zone tactile déborde. */
 describe('zones tactiles', () => {
-  it('28 px + 2 × 8 px = 44 px ; une ligne de texte (20 px) + 2 × 12 px = 44 px', () => {
+  it('la zone déborde de 8 px autour (28 → 44 px) et de 12 px en hauteur pour une ligne de texte (20 → 44 px)', () => {
     expect(TOUCH_AREA).toContain('after:-inset-2')
     expect(TOUCH_AREA_INLINE).toContain('after:-inset-y-3')
   })

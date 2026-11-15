@@ -2,48 +2,21 @@
 import { screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { fakeApi, renderWithApp } from '@/test/fakes'
+import { knitProject, knitStep, rows } from '@/test/knitFactories'
 import type { KnitProject, KnitStep, StepSection } from '../lib/pattern'
 import { KnittingProjectPage } from './KnittingProjectPage'
 
-const rows = (n: number, text: string): StepSection => ({ kind: 'rows', rows: n, every: null, times: null, text, pattern: null })
-const step = (id: string, position: number, title: string, sections: StepSection[], patch: Partial<KnitStep> = {}): KnitStep => ({
-  id,
-  position,
-  title,
-  instructions: '',
-  totalRows: sections.reduce((n, s) => n + (s.rows ?? 0), 0) || null,
-  stitches: null,
-  sections,
-  rowCount: 0,
-  times: 1,
-  pass: 1,
-  notes: '',
-  done: false,
-  highlights: {},
-  translation: null,
-  ...patch,
-})
+const step = (id: string, position: number, title: string, sections: StepSection[], patch: Partial<KnitStep> = {}): KnitStep =>
+  knitStep({ id, position, title, totalRows: sections.reduce((n, s) => n + (s.rows ?? 0), 0) || null, sections, ...patch })
 
-const PROJECT: KnitProject = {
-  id: 'p1',
+const PROJECT: KnitProject = knitProject({
   title: 'Pull',
-  size: 'M',
-  sizes: [],
-  sizeIndex: null,
-  pdfPath: null,
-  yarns: [],
-  patternGauge: { stitches: null, rows: null },
-  gauges: [],
-  charts: [],
-  chartHints: [],
-  abbreviations: [],
-  yarnChecks: [],
   steps: [
     step('s1', 0, 'Dos – côtes', [rows(18, 'côtes')]),
     step('s2', 1, 'Dos – jersey', [rows(40, 'jersey'), rows(20, 'emmanchures')]),
     step('s3', 2, 'Manche', [rows(24, 'côtes')]),
   ],
-}
+})
 
 function open(project: KnitProject = PROJECT) {
   const api = fakeApi()

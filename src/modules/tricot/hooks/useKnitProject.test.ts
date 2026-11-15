@@ -1,25 +1,13 @@
 import { act, renderHook, waitFor } from '@testing-library/react'
 import { AppError } from '@/api'
 import { fakeApi } from '@/test/fakes'
+import { knitProject, knitStep } from '@/test/knitFactories'
 import { pendingFor, queueProgress } from '../lib/offline'
 import type { KnitProject, KnitStep } from '../lib/pattern'
 import { useKnitProject } from './useKnitProject'
 
-const step = (id: string, rowCount = 0): KnitStep => ({ id, position: 0, title: id, instructions: '', totalRows: 100, stitches: null, sections: [], rowCount, times: 1, pass: 1, notes: '', done: false, highlights: {} })
-const project = (id = 'p1', rowCount = 0): KnitProject => ({
-  id,
-  title: `Pull ${id}`,
-  size: 'M',
-  sizes: [],
-  sizeIndex: null,
-  pdfPath: null,
-  steps: [step(`${id}-s1`, rowCount)],
-  charts: [],
-  chartHints: [],
-  yarns: [],
-  patternGauge: { stitches: null, rows: null },
-  gauges: [],
-})
+const step = (id: string, rowCount = 0): KnitStep => knitStep({ id, title: id, totalRows: 100, rowCount })
+const project = (id = 'p1', rowCount = 0): KnitProject => knitProject({ id, title: `Pull ${id}`, steps: [step(`${id}-s1`, rowCount)] })
 
 /** Promesse résolue à la main. */
 function deferred<T>() {

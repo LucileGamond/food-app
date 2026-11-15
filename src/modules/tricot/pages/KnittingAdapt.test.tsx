@@ -2,48 +2,25 @@ import { screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { AppError } from '@/api'
 import { fakeApi, renderWithApp } from '@/test/fakes'
-import { adaptationPaused, adaptationToJson, applyAdaptation, describeChange, sanitizeAdaptation, withAdaptedSections, type Adaptation } from '../lib/adapt'
+import { knitProject, knitStep, repeat, rows } from '@/test/knitFactories'
+import type { Adaptation } from '../lib/adapt'
 import type { KnitProject, KnitStep, StepSection } from '../lib/pattern'
 import { KnittingModePage } from './KnittingModePage'
 import { KnittingProjectPage } from './KnittingProjectPage'
 import { openFold, unfoldStepParts } from '@/test/openFold'
 
-const step = (overrides: Partial<KnitStep>): KnitStep => ({
-  id: 's1',
-  position: 0,
-  title: 'Dos',
-  instructions: '',
-  totalRows: 100,
-  stitches: 88,
-  sections: [],
-  rowCount: 0,
-  times: 1,
-  pass: 1,
-  notes: '',
-  done: false,
-  highlights: {},
-  ...overrides,
-})
+const step = (overrides: Partial<KnitStep>): KnitStep => knitStep({ totalRows: 100, stitches: 88, ...overrides })
 
-const REPEAT: StepSection = { kind: 'repeat', rows: null, every: 8, times: 6, actions: [{ text: '1 augmentation', rank: null }], text: '', pattern: null }
+const REPEAT = repeat(8, 6, [{ text: '1 augmentation', rank: null }])
 const ADAPTED_REPEAT: StepSection = { ...REPEAT, every: 7, times: 7 }
 
 function project(adaptation: Adaptation | null = null): KnitProject {
-  return {
-    id: 'p1',
-    title: 'Pull Bergamote',
-    size: 'M',
-    sizes: [],
-    sizeIndex: null,
-    pdfPath: null,
+  return knitProject({
     steps: [step({ id: 's1', title: 'Manches', totalRows: 120, stitches: 60, sections: [REPEAT] }), step({ id: 's2', position: 1, title: 'Col' })],
-    charts: [],
-    chartHints: [],
-    yarns: [],
     patternGauge: { stitches: 22, rows: 30 },
     gauges: [{ needle: null, stitches: 24, rows: 30, checked: false }],
     adaptation,
-  }
+  })
 }
 
 const ADAPTATION: Adaptation = {
@@ -63,41 +40,6 @@ function renderProject(api = fakeApi(), value = project(), route = '/tricot/p1?e
   api.knitting.getProject.mockResolvedValue(value)
   return renderWithApp(<KnittingProjectPage />, { route, path: '/tricot/:id', api })
 }
-
-describe('patron adapté : logique', () => {
-  it('superpose l’adaptation suivie aux étapes, garde l’origine', () => {
-    const steps = project().steps
-    expect(applyAdaptation(steps, null, 'M')).toBe(steps)
-    expect(applyAdaptation(steps, { ...ADAPTATION, active: false }, 'M')).toBe(steps)
-    // Faite pour M, la taille L est suivie : en pause ; une adaptation d'avant (taille non notée) reste suivie
-    expect(applyAdaptation(steps, ADAPTATION, 'L')).toBe(steps)
-    expect(adaptationPaused(ADAPTATION, 'L')).toBe(true)
-    expect(adaptationPaused({ ...ADAPTATION, size: null }, 'L')).toBe(false)
-    expect(applyAdaptation(steps, { ...ADAPTATION, size: null }, 'L')).not.toBe(steps)
-    const [sleeve, collar] = applyAdaptation(steps, ADAPTATION, 'M')
-    expect(sleeve).toMatchObject({ totalRows: 136, stitches: 66, sections: [ADAPTED_REPEAT], adapted: { note: '16 rangs de plus pour 5 cm.', original: { totalRows: 120, stitches: 60 } } })
-    expect(collar).toBe(steps[1])
-    expect(withAdaptedSections(ADAPTATION, 's1', [REPEAT]).steps[0]!.sections).toEqual([REPEAT])
-    expect(describeChange({ totalRows: 120, stitches: 60 }, { totalRows: 136, stitches: 60 })).toBe('120 → 136 rangs')
-    expect(describeChange({ totalRows: null, stitches: 60 }, { totalRows: 10, stitches: 66 })).toBe('? → 10 rangs · 60 → 66 mailles')
-  })
-
-  it('lit et écrit l’adaptation en base ; une donnée abîmée est ignorée', () => {
-    const json = adaptationToJson(ADAPTATION)
-    expect(json.steps[0]).toMatchObject({ step_id: 's1', total_rows: 136 })
-    expect(sanitizeAdaptation(json)).toEqual(ADAPTATION)
-    expect(sanitizeAdaptation(null)).toBeNull()
-    expect(sanitizeAdaptation({ active: 'oui', steps: [] })).toBeNull()
-    expect(sanitizeAdaptation({ active: true, steps: [{ total_rows: 3 }] })).toBeNull()
-    expect(sanitizeAdaptation({ active: true, steps: [{ step_id: 's1', total_rows: 0, sections: 'x', note: 4 }] })).toEqual({
-      request: '',
-      active: true,
-      at: '',
-      size: null,
-      steps: [{ stepId: 's1', totalRows: null, stitches: null, sections: [], note: '' }],
-    })
-  })
-})
 
 describe('patron adapté : écran', () => {
   it('adapte avec l’échantillon et les retouches, montre l’avant / après puis le suit', async () => {
@@ -195,12 +137,9 @@ describe('patron adapté : écran', () => {
     expect(screen.queryByText(/Patron d’origine :/)).not.toBeInTheDocument()
   })
 
-  it('mode tricoter : suit les chiffres du patron adapté, ou ceux d’origine si l’adaptation est en pause', async () => {
+  // Le patron adapté suivi dans le mode tricoter : KnittingModeCases.test.tsx.
+  it('mode tricoter : adaptation en pause, les chiffres d’origine', async () => {
     const api = fakeApi()
-    api.knitting.getProject.mockResolvedValue(project(ADAPTATION))
-    const { unmount } = renderWithApp(<KnittingModePage />, { api, route: '/tricot/p1/tricoter', path: '/tricot/:id/tricoter' })
-    expect(await screen.findByText(/\d+ \/ 136 rangs tricotés dans l’étape entière/)).toBeInTheDocument()
-    unmount()
     api.knitting.getProject.mockResolvedValue({ ...project(ADAPTATION), sizes: ['M', 'L'], sizeIndex: 1 })
     renderWithApp(<KnittingModePage />, { api, route: '/tricot/p1/tricoter', path: '/tricot/:id/tricoter' })
     expect(await screen.findByText(/\d+ \/ 120 rangs tricotés dans l’étape entière/)).toBeInTheDocument()
@@ -209,7 +148,7 @@ describe('patron adapté : écran', () => {
   it('patron adapté suivi : les sections réglées vont dans l’adaptation, pas dans le patron d’origine', async () => {
     const user = userEvent.setup()
     const api = fakeApi()
-    const rows4: StepSection = { kind: 'rows', rows: 4, every: null, times: null, text: 'jersey', pattern: null }
+    const rows4 = rows(4, 'jersey')
     const adaptation: Adaptation = { ...ADAPTATION, steps: [{ ...ADAPTATION.steps[0]!, sections: [rows4, ADAPTED_REPEAT] }] }
     renderProject(api, project(adaptation))
     await user.click(await screen.findByRole('button', { name: 'Actions pour « 1 augmentation — tous les 7 rangs (7 fois) »' }))

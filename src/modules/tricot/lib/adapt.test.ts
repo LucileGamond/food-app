@@ -1,5 +1,5 @@
 import { adaptationPaused, adaptationToJson, applyAdaptation, describeChange, sanitizeAdaptation, stepsToFollow, withAdaptedSections, type Adaptation } from './adapt'
-import type { KnitProject, KnitStep, StepSection } from './pattern'
+import type { KnitStep, StepSection } from './pattern'
 
 const step = (overrides: Partial<KnitStep>): KnitStep => ({
   id: 's1',

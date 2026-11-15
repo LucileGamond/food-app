@@ -2,7 +2,8 @@ import { screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { AppError } from '@/api'
 import { fakeApi, renderWithApp } from '@/test/fakes'
-import { describePhoto, formatPhotoDate, type ProgressPhoto } from '../lib/progress'
+import { knitProject, knitStep } from '@/test/knitFactories'
+import type { ProgressPhoto } from '../lib/progress'
 import type { KnitProject, KnitStep } from '../lib/pattern'
 import { KnittingProjectPage } from './KnittingProjectPage'
 import { openFold } from '@/test/openFold'
@@ -13,39 +14,11 @@ vi.mock('@/lib/image', async (importOriginal) => ({
   compressImage: vi.fn(async (file: File) => new Blob([file], { type: 'image/jpeg' })),
 }))
 
-const step = (overrides: Partial<KnitStep>): KnitStep => ({
-  id: 's1',
-  position: 0,
-  title: 'Dos – côtes',
-  instructions: '',
-  totalRows: 18,
-  stitches: 64,
-  sections: [],
-  rowCount: 0,
-  times: 1,
-  pass: 1,
-  notes: '',
-  done: false,
-  highlights: {},
-  ...overrides,
-})
+const step = (overrides: Partial<KnitStep>): KnitStep => knitStep({ title: 'Dos – côtes', totalRows: 18, stitches: 64, ...overrides })
 
 /** Projet minimal (deux étapes, la première terminée). */
 function project(): KnitProject {
-  return {
-    charts: [],
-    chartHints: [],
-    sizes: [],
-    sizeIndex: null,
-    id: 'p1',
-    title: 'Pull Bergamote',
-    size: 'M',
-    pdfPath: null,
-    steps: [step({ id: 's1', done: true }), step({ id: 's2', position: 1, title: 'Emmanchures' })],
-    yarns: [],
-    patternGauge: { stitches: null, rows: null },
-    gauges: [],
-  }
+  return knitProject({ steps: [step({ id: 's1', done: true }), step({ id: 's2', position: 1, title: 'Emmanchures' })] })
 }
 
 const PHOTO: ProgressPhoto = { id: 'ph1', storagePath: 'u-lucile/ph1.jpg', caption: '', stepId: 's1', takenAt: '2026-11-08T10:00:00Z' }
@@ -56,12 +29,6 @@ function renderProject(api = fakeApi()) {
 }
 
 describe('notes et photos d’avancement', () => {
-  it('décrit une photo : étape et date', () => {
-    expect(formatPhotoDate('2026-11-08T10:00:00Z')).toBe('8 nov. 2026')
-    expect(describePhoto(PHOTO, (id) => (id === 's1' ? 'Dos – côtes' : undefined))).toBe('Dos – côtes · 8 nov. 2026')
-    expect(describePhoto({ ...PHOTO, stepId: null }, () => 'x')).toBe('8 nov. 2026')
-  })
-
   it('enregistre les notes du projet en quittant le champ', async () => {
     const user = userEvent.setup()
     const api = fakeApi()

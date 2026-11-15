@@ -4,6 +4,9 @@ import { MINUS_RED, PLUS_GREEN } from '../lib/knitIcons'
 
 const ALL = Object.entries(Icons).filter(([name]) => name.endsWith('Icon'))
 
+/** Couleurs de remplissage des éléments dessinés. */
+const fills = (container: Element) => [...container.querySelectorAll('svg [fill]')].map((e) => e.getAttribute('fill'))
+
 describe('icônes illustrées du Tricot', () => {
   it('compte vingt-neuf icônes, chacune décorative, à 24 px par défaut, dans son cadre 64 × 64', () => {
     expect(ALL.map(([name]) => name).sort()).toEqual(
@@ -19,7 +22,8 @@ describe('icônes illustrées du Tricot', () => {
       expect(svg).toHaveAttribute('viewBox', '0 0 64 64')
       expect(svg).toHaveAttribute('aria-hidden', 'true')
       expect(svg).toHaveClass('size-6')
-      expect(svg.innerHTML.length).toBeGreaterThan(100)
+      // Dessinée : des formes peintes, pas un cadre vide
+      expect(svg.querySelectorAll('[fill], [stroke]').length).toBeGreaterThan(0)
       unmount()
     }
   })
@@ -34,8 +38,8 @@ describe('icônes illustrées du Tricot', () => {
   })
 
   it('« + » sur pastille verte pour ajouter, « − » sur pastille rouge pour retirer, même pelote', () => {
-    const add = render(<Icons.AddIcon />).container.innerHTML
-    const remove = render(<Icons.RemoveIcon />).container.innerHTML
+    const add = fills(render(<Icons.AddIcon />).container)
+    const remove = fills(render(<Icons.RemoveIcon />).container)
     expect(add).toContain(PLUS_GREEN)
     expect(add).not.toContain(MINUS_RED)
     expect(remove).toContain(MINUS_RED)

@@ -1,7 +1,7 @@
 import { fireEvent, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { useState } from 'react'
-import { DYES, HuesField } from './HuesField'
+import { HuesField } from './HuesField'
 
 function Harness({ initial = [] as string[], onChange = (_: string[]) => {} }) {
   const [hues, setHues] = useState(initial)
@@ -44,7 +44,6 @@ describe('HuesField', () => {
 
   it('propose huit teintes au nuancier', () => {
     render(<Harness />)
-    expect(DYES).toHaveLength(8)
     expect(screen.getAllByRole('button', { name: /^Ajouter / })).toHaveLength(8)
   })
 })

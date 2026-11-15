@@ -2,52 +2,25 @@ import { screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { Route } from 'react-router-dom'
 import { fakeApi, renderWithApp } from '@/test/fakes'
-import type { KnitProject, KnitStep, StepSection } from '../lib/pattern'
+import { knitProject, knitStep, repeat, rows } from '@/test/knitFactories'
+import type { KnitProject, KnitStep } from '../lib/pattern'
 import { highlightKey } from '../lib/sizes'
 import { KnittingModePage } from './KnittingModePage'
 
-const step = (overrides: Partial<KnitStep>): KnitStep => ({
-  id: 's1',
-  position: 0,
-  title: 'Dos',
-  instructions: '',
-  totalRows: 18,
-  stitches: null,
-  sections: [],
-  rowCount: 0,
-  times: 1,
-  pass: 1,
-  notes: '',
-  done: false,
-  highlights: {},
-  translation: null,
-  ...overrides,
-})
+const step = (overrides: Partial<KnitStep>): KnitStep => knitStep({ totalRows: 18, ...overrides })
 
-const JERSEY: StepSection = { kind: 'rows', rows: 4, every: null, times: null, text: 'jersey', pattern: null }
-const DECREASES: StepSection = { kind: 'repeat', rows: null, every: 6, times: 4, actions: [{ text: '1 dim. de chaque côté', rank: null }], text: '', pattern: null }
+const JERSEY = rows(4, 'jersey')
+const DECREASES = repeat(6, 4, [{ text: '1 dim. de chaque côté', rank: null }])
 
-const PROJECT: KnitProject = {
-  id: 'p1',
-  title: 'Pull Bergamote',
-  size: 'M',
-  sizes: [],
-  sizeIndex: null,
-  pdfPath: null,
-  yarns: [],
-  patternGauge: { stitches: null, rows: null },
-  gauges: [],
-  charts: [],
-  chartHints: [],
+const PROJECT: KnitProject = knitProject({
   abbreviations: [{ abbr: 'dim.', meaning: 'diminution' }],
-  yarnChecks: [],
   steps: [
     step({ id: 's1', done: true, rowCount: 18 }),
     // 4 rangs de jersey, puis 1 dim. tous les 6 rangs (4 fois) : rangs 10, 16, 22, 28 ; 30 rangs
     step({ id: 's2', position: 1, title: 'Emmanchures', instructions: 'Diminuer 1 m. de chaque côté tous les 6 rangs.', totalRows: 30, rowCount: 8, sections: [JERSEY, DECREASES] }),
     step({ id: 's3', position: 2, title: 'Encolure', totalRows: null }),
   ],
-}
+})
 
 function renderMode(project: KnitProject = PROJECT, api = fakeApi(), route = '/tricot/p1/tricoter') {
   api.knitting.getProject.mockResolvedValue(structuredClone(project))
