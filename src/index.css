@@ -278,6 +278,15 @@
     border-radius: 999px;
     background: var(--cord);
 }
+/* Textes d'exemple des champs (placeholders) : plus clairs et en italique, pour ne pas les confondre avec une saisie. */
+:root[data-module='tricot'] ::placeholder {
+    color: oklch(0.68 0.025 70);
+    font-style: italic;
+    opacity: 1;
+}
+:root[data-module='tricot'].dark ::placeholder {
+    color: oklch(0.55 0.02 65);
+}
 /* Boutons du module Tricot (Tricoter, +1 rang, Modifier, Organiser…) : tous le même beige foncé et texte encre, jamais
    la couleur du projet ; les icônes illustrées y gardent leurs couleurs. « Annuler » et « Fermer » restent en simple
    texte (ghost), pour ne pas peser autant que l'action d'à côté. */
