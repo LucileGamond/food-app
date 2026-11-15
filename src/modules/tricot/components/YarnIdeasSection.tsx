@@ -5,7 +5,7 @@
 
 import { BookmarkPlus, Loader2 } from 'lucide-react'
 import { AiIcon } from '@/components/AiIcon'
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { toast } from 'sonner'
 import { errorMessage } from '@/api'
@@ -74,7 +74,14 @@ export function YarnIdeasSection({ item, stash, emphasize }: Props) {
   const ravelry = useAsync(() => api.knitting.getRavelryAccount(), [api])
   const ravelryMissing = ravelry.data === null
 
+  // Dernières idées connues, à jour dès qu'elles changent (une recherche de patrons qui répond après une autre part d'elles)
+  const latest = useRef(current)
+  useEffect(() => {
+    latest.current = current
+  }, [current])
+
   async function keep(value: StashIdeas) {
+    latest.current = value
     setFresh(value)
     try {
       await api.knitting.saveStashIdeas(value)
@@ -103,7 +110,9 @@ export function YarnIdeasSection({ item, stash, emphasize }: Props) {
     try {
       const patterns = await api.knitting.ideaPatterns(idea, yarns, ideas.weight)
       if (patterns.length === 0) setNoneFound((list) => [...list, idea.title])
-      await keep({ ...ideas, ideas: ideas.ideas.map((i) => (i.title === idea.title ? { ...i, patterns } : i)) })
+      // Sur les idées du moment (une autre recherche a pu répondre entre-temps), pas sur celles du clic
+      const base = latest.current && latest.current.stashIds.join(',') === ideas.stashIds.join(',') ? latest.current : ideas
+      await keep({ ...base, ideas: base.ideas.map((i) => (i.title === idea.title ? { ...i, patterns } : i)) })
     } catch (e) {
       setError(errorMessage(e))
     } finally {

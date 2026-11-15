@@ -192,6 +192,27 @@ describe('Des idées pour ma laine', () => {
     expect(within(ideas).getByRole('button', { name: 'Chercher sur internet : Bonnet' })).toBeEnabled()
   })
 
+  it('deux recherches de patrons à la suite : les deux résultats sont gardés', async () => {
+    const { api, user } = setup({ configure: (api) => api.knitting.getStashIdeas.mockResolvedValue({ ...SAVED, ideas: [SWEATER, HAT] }) })
+    const raglan = { title: 'Raglan facile', url: 'https://www.garnstudio.com/pattern.php?id=9', free: true, language: 'fr', meters: null, metersMax: null }
+    const beanie = { title: 'Bonnet simple', url: 'https://www.garnstudio.com/pattern.php?id=10', free: true, language: 'fr', meters: null, metersMax: null }
+    let answerSweater!: (p: (typeof raglan)[]) => void
+    let answerHat!: (p: (typeof raglan)[]) => void
+    api.knitting.ideaPatterns
+      .mockReturnValueOnce(new Promise((resolve) => (answerSweater = resolve)))
+      .mockReturnValueOnce(new Promise((resolve) => (answerHat = resolve)))
+    const ideas = await ideasList()
+    await user.click(within(ideas).getByRole('button', { name: 'Chercher sur internet : Pull raglan' }))
+    await user.click(within(ideas).getByRole('button', { name: 'Chercher sur internet : Bonnet' }))
+    answerSweater([raglan])
+    await within(ideas).findByRole('list', { name: 'Patrons trouvés : Pull raglan' })
+    answerHat([beanie])
+    await within(ideas).findByRole('list', { name: 'Patrons trouvés : Bonnet' })
+    // Le premier résultat est toujours là, à l'écran comme en base
+    expect(within(ideas).getByRole('list', { name: 'Patrons trouvés : Pull raglan' })).toBeInTheDocument()
+    expect(api.knitting.saveStashIdeas).toHaveBeenLastCalledWith(expect.objectContaining({ ideas: [{ ...SWEATER, patterns: [raglan] }, { ...HAT, patterns: [beanie] }] }))
+  })
+
   it('pendant la recherche de patrons : bouton occupé', async () => {
     const { api, user } = setup({ configure: (api) => api.knitting.getStashIdeas.mockResolvedValue(SAVED) })
     api.knitting.ideaPatterns.mockReturnValue(new Promise(() => {}))
