@@ -29,12 +29,13 @@ describe('regrouper une étape avec la suivante', () => {
   })
 
   it('refusé si la suivante est commencée ou si le patron est adapté', () => {
-    const fresh = { rowCount: 0, done: false, pass: 1 }
-    expect(mergeBlocker(fresh, false)).toBeNull()
-    expect(mergeBlocker(null, false)).toBeNull()
-    expect(mergeBlocker({ ...fresh, rowCount: 2 }, false)).toContain('commencée')
-    expect(mergeBlocker({ ...fresh, pass: 2 }, false)).toContain('commencée')
-    expect(mergeBlocker({ ...fresh, done: true }, false)).toContain('commencée')
-    expect(mergeBlocker(fresh, true)).toContain('adaptation')
+    const fresh = { rowCount: 0, done: false, pass: 1, times: 1, totalRows: 10, sections: [] }
+    const FIRST = fresh
+    expect(mergeBlocker(FIRST, fresh, false)).toBeNull()
+    expect(mergeBlocker(FIRST, null, false)).toBeNull()
+    expect(mergeBlocker(FIRST, { ...fresh, rowCount: 2 }, false)).toContain('commencée')
+    expect(mergeBlocker(FIRST, { ...fresh, pass: 2 }, false)).toContain('commencée')
+    expect(mergeBlocker(FIRST, { ...fresh, done: true }, false)).toContain('commencée')
+    expect(mergeBlocker(FIRST, fresh, true)).toContain('adaptation')
   })
 })

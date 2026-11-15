@@ -10,8 +10,8 @@ import { Label } from '@/components/ui/label'
 import { NativeSelect } from '@/components/ui/native-select'
 import { stepsToFollow, type ShownStep } from '../lib/adapt'
 import { mergeBlocker, mergeSteps } from '../lib/merge'
-import { isStarted, moveSection, splitStep } from '../lib/organize'
-import { describeSection, stepFacts, type KnitProject } from '../lib/pattern'
+import { isStarted, moveSection, splitBlocker, splitStep } from '../lib/organize'
+import { describeSection, MAX_SECTIONS, stepFacts, type KnitProject } from '../lib/pattern'
 import { anchoredSections, textOf } from '../lib/sources'
 import { endStitches } from '../lib/stitches'
 import { HelpTip } from './HelpTip'
@@ -22,7 +22,7 @@ type Pending = { kind: 'merge'; index: number } | { kind: 'split'; index: number
 
 /**
  * Organiser les étapes d'un projet : regrouper une étape avec la suivante, séparer une étape, déplacer une sous-étape
- * (dans son étape ou vers une autre). Le texte du patron, les diagrammes et les photos restent dans leur étape.
+ * (dans son étape ou vers une autre). Le texte du patron et les diagrammes suivent leur sous-étape.
  */
 export function OrganizeSteps({ project, reload }: { project: KnitProject; reload: () => Promise<unknown> }) {
   const api = useApi()
@@ -50,13 +50,14 @@ export function OrganizeSteps({ project, reload }: { project: KnitProject; reloa
   }
 
   const pendingStep = pending ? steps[pending.index]! : null
-  const moveTargets = pending?.kind === 'move' ? steps.filter((s, i) => i !== pending.index && !isStarted(s)) : []
+  const moveTargets = pending?.kind === 'move' ? steps.filter((s, i) => i !== pending.index && !isStarted(s) && s.sections.length < MAX_SECTIONS) : []
+  const splitLock = pending?.kind === 'split' ? splitBlocker(pendingStep!, pending.section) : null
 
   return (
     <>
       <p className="mb-3 flex items-center gap-1 text-sm text-muted-foreground">
         Regroupe, sépare et déplace les sous-étapes lues dans le patron.
-        <HelpTip label="organiser">Seules les sous-étapes bougent : le texte du patron, les diagrammes et les photos restent dans leur étape. Une étape commencée ne se réorganise plus.</HelpTip>
+        <HelpTip label="organiser">Le texte du patron et les diagrammes suivent leur sous-étape ; les photos restent dans leur étape. Une étape commencée ne se réorganise plus.</HelpTip>
       </p>
       {adapted && (
         <Note kind="todo" role="status" className="mb-4">
@@ -67,7 +68,7 @@ export function OrganizeSteps({ project, reload }: { project: KnitProject; reloa
         {steps.map((step, index) => {
           const locked = adapted || isStarted(step)
           const next = steps[index + 1] ?? null
-          const mergeLock = next ? mergeBlocker(next, adapted) : 'Dernière étape'
+          const mergeLock = next ? mergeBlocker(step, next, adapted) : 'Dernière étape'
           return (
             <li key={step.id} className="rounded-2xl border bg-background p-3 shadow-xs">
               <div className="flex items-start gap-2">
@@ -162,8 +163,9 @@ export function OrganizeSteps({ project, reload }: { project: KnitProject; reloa
         open={pending?.kind === 'split'}
         onOpenChange={(open) => !open && setPending(null)}
         title="Nouvelle étape à partir d’ici ?"
-        description={pending?.kind === 'split' ? `Les sous-étapes de « ${pendingStep?.title} » à partir de celle-ci deviennent une nouvelle étape juste après.` : undefined}
+        description={pending?.kind === 'split' ? (splitLock ?? `Les sous-étapes de « ${pendingStep?.title} » à partir de celle-ci deviennent une nouvelle étape juste après.`) : undefined}
         confirmLabel="Séparer"
+        confirmDisabled={splitLock !== null}
         onConfirm={() => {
           const step = pendingStep!
           return run(() => api.knitting.splitStep(step.id, splitStep(step, (pending as { section: number }).section)))

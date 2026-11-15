@@ -3,7 +3,8 @@
 // Les deux étapes deviennent les sous-étapes d'une seule : celles de la suivante viennent à la suite, leurs débuts
 // « en même temps » décalés des rangs de la première (à régler s'ils ne sont pas connus).
 
-import { planSections, type KnitStep, type StepSection } from './pattern'
+import { appendAfterEnd } from './organize'
+import { MAX_SECTIONS, planSections, type KnitStep, type StepSection } from './pattern'
 import { anchoredSections } from './sources'
 
 type MergedStep = Pick<KnitStep, 'title' | 'totalRows' | 'sections' | 'instructions'>
@@ -28,16 +29,28 @@ export function mergeSteps(first: MergedStep, second: MergedStep): { sections: S
     return { ...section, at: { row: null, pattern: section.at.pattern ?? `rang ${section.at.row} de « ${second.title} »` } }
   })
   const secondLength = stepLength(second)
+  const own = ownSections(first)
+  // La suite commence après le dernier rang de la première étape, même si ses sous-étapes finissent avant
+  if (following.length && offset !== null) following[0] = appendAfterEnd(own, offset, following[0]!)
   return {
-    sections: [...ownSections(first), ...following],
+    sections: [...own, ...following],
     totalRows: offset !== null && secondLength !== null ? offset + secondLength : null,
   }
 }
 
-/** Pourquoi l'étape suivante ne peut pas être regroupée (null : elle le peut). */
-export function mergeBlocker(next: Pick<KnitStep, 'rowCount' | 'done' | 'pass'> | null, adapted: boolean): string | null {
+/** Rangs au plus d'une étape (comme en base). */
+export const MAX_STEP_ROWS = 2000
+
+type Mergeable = Pick<KnitStep, 'rowCount' | 'done' | 'pass' | 'times' | 'totalRows'> & { sections: unknown[] }
+
+/** Pourquoi l'étape suivante ne peut pas être regroupée avec `current` (null : elle le peut). */
+export function mergeBlocker(current: Mergeable, next: Mergeable | null, adapted: boolean): string | null {
   if (!next) return null
   if (adapted) return 'Le patron a une adaptation : regrouper des étapes n’est pas possible.'
+  if (current.done) return 'Cette étape est terminée : la suivante passerait pour terminée elle aussi.'
   if (next.rowCount > 0 || next.done || next.pass > 1) return 'L’étape suivante est commencée : elle ne peut plus être regroupée.'
+  if (current.times !== next.times) return 'Les deux étapes ne se tricotent pas le même nombre de fois.'
+  if (Math.max(current.sections.length, 1) + Math.max(next.sections.length, 1) > MAX_SECTIONS) return `Ensemble, elles auraient plus de ${MAX_SECTIONS} sous-étapes.`
+  if ((current.totalRows ?? 0) + (next.totalRows ?? 0) > MAX_STEP_ROWS) return `Ensemble, elles auraient plus de ${MAX_STEP_ROWS} rangs.`
   return null
 }
