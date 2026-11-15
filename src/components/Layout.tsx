@@ -8,7 +8,7 @@ import { useAuth } from '@/auth/AuthProvider'
 import { NotificationsPrompt } from '@/components/Notifications'
 import { HOME_PATH, pageOf, sectionOf, visibleSections, type PageKey, type SectionKey } from '@/lib/settings'
 import { cn } from '@/lib/utils'
-import { BasketIcon } from '@/modules/tricot/components/BasketIcon'
+import { TorsadeIcon } from '@/modules/tricot/components/TorsadeIcon'
 
 /** Icône de page ou de section : Lucide, ou dessinée (panier de pelotes du Tricot). */
 type NavIcon = ComponentType<SVGProps<SVGSVGElement>>
@@ -20,7 +20,7 @@ const PAGE_ICONS: Record<PageKey, NavIcon> = {
   poids: Scale,
   plan: ListChecks,
   hydratation: GlassWater,
-  tricot: BasketIcon,
+  tricot: TorsadeIcon,
   plantes: Sprout,
   agenda: CalendarClock,
 }
@@ -28,7 +28,7 @@ const PAGE_ICONS: Record<PageKey, NavIcon> = {
 const SECTION_ICONS: Record<SectionKey, NavIcon> = {
   repas: UtensilsCrossed,
   sante: HeartPulse,
-  tricot: BasketIcon,
+  tricot: TorsadeIcon,
   plantes: Sprout,
   agenda: CalendarClock,
 }
