@@ -44,7 +44,6 @@ const SEARCH = [
 const MERINO = { yarn: 'Mérinos', meters: 750, needle_mm: 3.5 }
 const ALPACA = { yarn: 'Alpaga gris', meters: 200, needle_mm: 4 }
 
-
 describe('idées pour une laine', () => {
   it('lit la demande : une laine (ancienne forme) ou plusieurs, envie, recherche', () => {
     expect(parseIdeasInput({ pdf: 'x' })).toBeNull()

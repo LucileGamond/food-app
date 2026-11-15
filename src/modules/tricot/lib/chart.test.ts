@@ -1,4 +1,4 @@
-import { chartPosition, chartRows, describeHint, describePosition, describeReading, newChartForm, sanitizeHints, formToSetup, moveNearestLine, rowBand, sanitizeSetup, setupToForm, type ChartForm } from './chart'
+import { chartPosition, chartRows, chartStatus, describeHint, describePosition, describeReading, newChartForm, sanitizeHints, formToSetup, moveNearestLine, rowBand, sanitizeSetup, setupToForm, type ChartForm } from './chart'
 
 describe('chartPosition', () => {
   // En rond : chaque tour est dessiné et se lit de droite à gauche.
@@ -179,5 +179,23 @@ describe('diagramme rattaché à une sous-étape', () => {
     expect(setupToForm({ stepId: 's1', title: '', gridTop: 0, gridBottom: 1, rows: 4, startRow: 5, endRow: 12, repeats: true, flat: false, oddOnly: false })).toMatchObject({ startRow: '5', endRow: '12' })
     expect(sanitizeSetup({ grid_top: 0, grid_bottom: 1, rows: 4, start_row: 5, end_row: 12 })).toMatchObject({ endRow: 12 })
     expect(sanitizeSetup({ grid_top: 0, grid_bottom: 1, rows: 4, start_row: 5, end_row: 3 })).not.toHaveProperty('endRow')
+  })
+})
+
+describe('chartStatus', () => {
+  const chart = { rows: 24, flat: true, oddOnly: false }
+
+  it('avant le diagramme : le rang de l’étape où il commence, sans sens de lecture', () => {
+    expect(chartStatus(chart, { kind: 'before', startRow: 12 })).toEqual({ main: 'Commence au rang 12 de l’étape', reading: null })
+  })
+
+  it('après le dernier rang : terminé, sans sens de lecture', () => {
+    expect(chartStatus(chart, { kind: 'after' })).toEqual({ main: 'Diagramme terminé', reading: null })
+  })
+
+  it('dans le motif : le rang du diagramme et son sens de lecture', () => {
+    const row = chartPosition({ ...chart, startRow: 1, repeats: true }, 29)
+    expect(row.kind).toBe('row')
+    expect(chartStatus(chart, row)).toEqual({ main: 'Rang 5 sur 24 · 2e fois', reading: 'Endroit, de droite à gauche' })
   })
 })

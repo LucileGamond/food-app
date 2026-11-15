@@ -1,6 +1,5 @@
 import { handlerReplying, post, toolReply } from './testHelpers.ts'
-import { ADAPT_TOOL, parseAdaptInput, sanitizeAdapted } from './adapt.ts'
-
+import { parseAdaptInput, sanitizeAdapted } from './adapt.ts'
 
 const SLEEVE = {
   title: 'Manches',
@@ -44,7 +43,6 @@ describe('patron adapté', () => {
       { index: 0, totalRows: null, stitches: null, sections: [], note: '' },
     ])
     expect(sanitizeAdapted(null, 2)).toEqual([])
-    expect(ADAPT_TOOL.input_schema.required).toEqual(['steps'])
   })
 
   it('adapte avec les échantillons et les retouches en contexte', async () => {

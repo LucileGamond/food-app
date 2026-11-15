@@ -53,6 +53,22 @@ describe('organiser les étapes', () => {
     expect([legacy.first.instructions, legacy.second.instructions]).toEqual(['Tout le dos.', ''])
   })
 
+  it('déplacer : au moins 1 rang reste à l’étape d’origine ; total de l’étape d’arrivée inconnu, il le reste', () => {
+    // 20 rangs déplacés d'une étape annoncée à 12 rangs : le total ne descend pas sous 1
+    const [from] = moveSection({ ...back, totalRows: 12 }, 1, sleeve)
+    expect(from.totalRows).toBe(1)
+    const [, to] = moveSection(back, 1, { ...sleeve, totalRows: null })
+    expect(to.totalRows).toBeNull()
+  })
+
+  it('séparer : un « en même temps » qui commence avant la coupure devient à régler dans la suite', () => {
+    // Coupure avant « jersey » (rang 31) ; l'encolure, rangée après, démarre au rang 25 : dans la première partie
+    const early = repeat(2, 3, { row: 25, pattern: null })
+    const split = splitStep({ ...back, sections: [...back.sections, early] }, 2)
+    expect(split.first.totalRows).toBe(30)
+    expect(split.second.sections[1]!.at).toEqual({ row: null, pattern: 'rang 25 de « Dos »' })
+  })
+
   it('une étape commencée ne se réorganise plus', () => {
     expect(isStarted({ rowCount: 0, done: false, pass: 1 })).toBe(false)
     expect([{ rowCount: 1, done: false, pass: 1 }, { rowCount: 0, done: true, pass: 1 }, { rowCount: 0, done: false, pass: 2 }].map(isStarted)).toEqual([true, true, true])

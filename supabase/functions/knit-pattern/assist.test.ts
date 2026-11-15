@@ -2,7 +2,6 @@ import { handlerReplying, post, toolReply } from './testHelpers.ts'
 import { numbersOf, parseQuestionInput, parseTranslateInput } from './assist.ts'
 import { sanitizeAbbreviations } from './pattern.ts'
 
-
 describe('question sur le rang', () => {
   it('lit la demande', () => {
     expect(parseQuestionInput({ pdf: 'x' })).toBeNull()

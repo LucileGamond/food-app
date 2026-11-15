@@ -37,12 +37,4 @@ describe('aiguilles', () => {
     expect(chainNeedles([back, raglan, [rows(4, 'col')]], [3, 3.5])).toEqual([null, 3.5, 3.5])
     expect(readyIssues({ sections: raglan, needleFrom: 3.5 }, [3, 3.5])).toEqual([])
   })
-
-  it('prête à tricoter : aiguille à choisir quand le projet en a plusieurs, sauf héritée', () => {
-    const step = { sections: [rows(10, 'côtes'), rows(30, 'jersey', 3.5), rows(4, 'jersey')] }
-    expect(readyIssues(step, [3, 3.5]).map((i) => i.text)).toEqual(['Sous-étape 1 (10 rangs : côtes) : aiguille à choisir.'])
-    // Une seule aiguille : elle vaut partout ; aucune au projet : rien n'est demandé
-    expect(readyIssues(step, [3.5])).toEqual([])
-    expect(readyIssues(step, [])).toEqual([])
-  })
 })

@@ -2,12 +2,15 @@ import {
   currentStepIndex,
   describeRange,
   describeSection,
+  formatStitches,
   formToSection,
   nextActionRow,
+  parseStitches,
   planSections,
   sanitizeSections,
   sectionIndicesAt,
   sectionToForm,
+  stepFacts,
   actionEffect,
   type SectionForm,
   type SectionStart,
@@ -190,5 +193,43 @@ describe('withoutAtPrefix', () => {
   it('laisse tel quel un titre sans ce début', () => {
     expect(withoutAtPrefix('6 rangs : encolure')).toBe('6 rangs : encolure')
     expect(withoutAtPrefix('En même temps que le dos : jersey')).toBe('En même temps que le dos : jersey')
+  })
+})
+
+describe('mailles d’une action', () => {
+  it('lit un nombre signé : signe moins typographique, plus facultatif, vide = aucun', () => {
+    expect(parseStitches('-2')).toBe(-2)
+    expect(parseStitches('−2')).toBe(-2)
+    expect(parseStitches('+2')).toBe(2)
+    expect(parseStitches(' 3 ')).toBe(3)
+    expect(parseStitches('')).toBeNull()
+    expect(parseStitches('  ')).toBeNull()
+  })
+
+  it('refuse ce qui n’est pas un entier raisonnable', () => {
+    expect(parseStitches('1,5')).toBeUndefined()
+    expect(parseStitches('deux')).toBeUndefined()
+    expect(parseStitches('200')).toBe(200)
+    expect(parseStitches('201')).toBeUndefined()
+    expect(parseStitches('-201')).toBeUndefined()
+  })
+
+  it('écrit le signe d’une augmentation', () => {
+    expect(formatStitches(1)).toBe('+1')
+    expect(formatStitches(-2)).toBe('-2')
+    expect(formatStitches(0)).toBe('0')
+    expect(parseStitches(formatStitches(4))).toBe(4)
+  })
+})
+
+describe('repères d’une étape (stepFacts)', () => {
+  it('rangs, fois à tricoter et mailles à la fin, au singulier ou au pluriel', () => {
+    expect(stepFacts({ totalRows: 30, stitches: 56, times: 2 })).toEqual(['30 rangs', 'à tricoter 2 fois', '56 mailles à la fin'])
+    expect(stepFacts({ totalRows: 1, stitches: 1 })).toEqual(['1 rang', '1 maille à la fin'])
+  })
+
+  it('n’écrit que ce qui est connu ; une seule fois ne se dit pas', () => {
+    expect(stepFacts({ totalRows: null, stitches: null, times: 1 })).toEqual([])
+    expect(stepFacts({ totalRows: null, stitches: 64 })).toEqual(['64 mailles à la fin'])
   })
 })
