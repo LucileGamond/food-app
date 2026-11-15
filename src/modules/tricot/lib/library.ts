@@ -2,7 +2,8 @@
 // Logique pure : saisie, tri, recherche et résumé d'un patron. L'envoi des fichiers est dans api.ts.
 
 import { sizeIndexOf } from './sizes'
-import { decimal, NEEDLE_TOLERANCE_MM, parseDecimal, parseMeters, yarnMeters, type Yarn } from './yarn'
+import { NEEDLE_TOLERANCE_MM, parseDecimal, parseMeters, yarnMeters, type Yarn } from './yarn'
+import { decimal } from '@/lib/text'
 
 /** Photos par patron (pages d'un magazine, d'un livre). La première sert de couverture. */
 export const MAX_PATTERN_PHOTOS = 10

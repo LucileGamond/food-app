@@ -7,6 +7,7 @@ import { outlineIndicesAt, stepOutline, type OutlineRow, type OutlineSection } f
 import type { StepSection } from '../lib/pattern'
 import type { StitchCount } from '../lib/stitches'
 import { StepsIcon } from './KnitIcons'
+import { plural } from '@/lib/text'
 
 interface Props {
   step: { sections: StepSection[]; totalRows: number | null; stitches: number | null; rowCount: number }
@@ -16,7 +17,6 @@ interface Props {
   showCurrent?: boolean
 }
 
-const plural = (n: number, word: string) => `${n} ${word}${n > 1 ? 's' : ''}`
 
 /** « → 58 mailles », « → 58 (?) mailles ». */
 function stitchesText(count: StitchCount | null): string | null {

@@ -15,8 +15,8 @@ import { librarySummary } from '../lib/library'
 import { describePass } from '../lib/passes'
 import { seedOf } from '../lib/yarnGauge'
 import { YarnGauge } from '../components/YarnGauge'
+import { plural } from '@/lib/text'
 
-const plural = (n: number, word: string) => `${n} ${word}${n > 1 ? 's' : ''}`
 
 /** « Étape 3 sur 8 · 12 / 40 rangs · 1re fois sur 2 » : où en est le projet, sur une ligne. */
 export function projectProgress(p: KnitProjectSummary): string {

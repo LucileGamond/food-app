@@ -10,6 +10,7 @@ import { Link } from 'react-router-dom'
 import { Fold } from './Fold'
 import { Note } from './Note'
 import { ScaleIcon } from './KnitIcons'
+import { plural } from '@/lib/text'
 
 interface Props {
   /** Laines du projet : chaque coloris est une laine, pesée à part. */
@@ -20,7 +21,6 @@ interface Props {
   onSave: (check: YarnCheck) => Promise<boolean>
 }
 
-const plural = (n: number, word: string) => `${n} ${word}${n > 1 ? 's' : ''}`
 
 /** Jour de la dernière pesée (« 13/11 »). */
 function formatDay(checks: YarnCheck[]): string {

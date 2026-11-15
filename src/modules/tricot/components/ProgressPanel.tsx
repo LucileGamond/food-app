@@ -21,6 +21,7 @@ import { CAPTION_MAX, describePhoto, PROJECT_NOTES_MAX, type ProgressPhoto } fro
 import { Fold } from './Fold'
 import { SaveNote, useSaveNote } from './SaveNote'
 import { Loading } from './Loading'
+import { plural } from '@/lib/text'
 
 interface Props {
   projectId: string
@@ -29,7 +30,6 @@ interface Props {
   stepTitle: (stepId: string) => string | undefined
 }
 
-const plural = (n: number, word: string) => `${n} ${word}${n > 1 ? 's' : ''}`
 
 export function ProgressPanel({ projectId, currentStepId, stepTitle }: Props) {
   const api = useApi()

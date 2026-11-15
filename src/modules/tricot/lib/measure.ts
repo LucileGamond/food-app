@@ -7,6 +7,7 @@
 
 import type { MeasuredRows, StepSection } from './pattern'
 import type { Gauge } from './yarn'
+import { decimal } from '@/lib/text'
 
 const CM_PER_INCH = 2.54
 
@@ -86,7 +87,7 @@ export function validateSection(section: StepSection): StepSection {
   return { ...rest, at }
 }
 
-const number = (n: number) => String(Math.round(n * 10) / 10).replace('.', ',')
+const number = (n: number) => decimal(Math.round(n * 10) / 10)
 
 /** « 5 cm », « 2,5 cm » */
 export const formatCm = (cm: number): string => `${number(cm)} cm`

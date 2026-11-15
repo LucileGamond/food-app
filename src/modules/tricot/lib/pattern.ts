@@ -17,6 +17,7 @@ import type { Highlights } from './sizes'
 import type { Gauge, Yarn } from './yarn'
 import type { YarnCheck } from './yarnLeft'
 import { formatCm, parseMeasure } from './measure'
+import { plural } from '@/lib/text'
 
 export type SectionKind = 'rows' | 'repeat'
 
@@ -331,7 +332,6 @@ export function currentStepIndex(steps: Pick<KnitStep, 'done'>[]): number {
   return index === -1 ? Math.max(steps.length - 1, 0) : index
 }
 
-const plural = (n: number, word: string) => `${n} ${word}${n > 1 ? 's' : ''}`
 
 /** « 1 diminution » (au dernier rang, seule), sinon « 1 diminution (1er rang) ». */
 function describeActions(section: StepSection): string {

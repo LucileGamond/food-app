@@ -18,9 +18,9 @@ import { Label } from '@/components/ui/label'
 import { useAsync } from '@/hooks/useAsync'
 import { formatShortDate } from '@/lib/dates'
 import type { NavState } from '@/lib/navState'
+import { decimal } from '@/lib/text'
 import { LinkIcon, SearchIcon } from './KnitIcons'
 import {
-  decimal,
   ideaFit,
   ideasKey,
   MAX_IDEA_YARNS,

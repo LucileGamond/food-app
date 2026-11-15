@@ -1,5 +1,7 @@
 // Tricot : laine du projet, échantillon (mailles et rangs pour 10 cm), stock de laine et idées de modèles.
 
+import { decimal } from '@/lib/text'
+
 /** Laine utilisée pour un projet (champs facultatifs ; mêmes bornes que la base : knit_yarns_are_valid). */
 export interface Yarn {
   brand: string | null
@@ -53,9 +55,6 @@ const NUMBERS: Record<YarnNumber, { min: number; max: number; step: number; labe
   skeins: { min: 0, max: 200, step: 0.5, label: 'Pelotes : un nombre, par demi (0 à 200).' },
   needle_mm: { min: 1, max: 30, step: 0.01, label: 'Aiguilles : entre 1 et 30 mm.' },
 }
-
-/** 3.5 → « 3,5 ». */
-export const decimal = (n: number) => String(n).replace('.', ',')
 
 export function toYarnDraft(yarn: Yarn): YarnDraft {
   const text = (v: string | null) => v ?? ''

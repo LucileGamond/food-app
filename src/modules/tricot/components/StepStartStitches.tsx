@@ -5,6 +5,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { NativeSelect } from '@/components/ui/native-select'
 import { HelpTip } from './HelpTip'
+import { plural } from '@/lib/text'
 
 interface Props {
   /** Mailles au début : saisies, ou déduites de la fin du patron (null : inconnues). */
@@ -19,7 +20,6 @@ interface Props {
   onSave: (startStitches: number | null) => Promise<boolean>
 }
 
-const plural = (n: number) => `${n} maille${n > 1 ? 's' : ''}`
 
 /**
  * Mailles au début de l'étape : les saisir les fait foi, et tout le reste se décale (mailles de chaque rang, de la fin).
@@ -40,8 +40,8 @@ export function StepStartStitches({ start, set, previous, fromPattern, onSave }:
 
   /** « Comme l'étape d'avant (80) », « Comme le patron (78) » : le même nombre n'est proposé qu'une fois. */
   const choices = [
-    previous !== null && { value: `previous`, label: `Comme l’étape d’avant (${plural(previous)})`, stitches: previous },
-    fromPattern !== null && previous !== fromPattern && { value: `pattern`, label: `Comme le patron (${plural(fromPattern)})`, stitches: fromPattern },
+    previous !== null && { value: `previous`, label: `Comme l’étape d’avant (${plural(previous, 'maille')})`, stitches: previous },
+    fromPattern !== null && previous !== fromPattern && { value: `pattern`, label: `Comme le patron (${plural(fromPattern, 'maille')})`, stitches: fromPattern },
   ].filter((c): c is { value: string; label: string; stitches: number } => !!c)
 
   if (editing) {
@@ -96,7 +96,7 @@ export function StepStartStitches({ start, set, previous, fromPattern, onSave }:
     <div className="flex flex-wrap items-center gap-x-2 text-sm">
       <span>
         <span className="text-muted-foreground">Mailles au début : </span>
-        {start !== null ? plural(start) : 'inconnues'}
+        {start !== null ? plural(start, 'maille') : 'inconnues'}
         {start !== null && !set && <span className="text-muted-foreground"> (d’après la fin du patron)</span>}
       </span>
       <HelpTip label="mailles au début">

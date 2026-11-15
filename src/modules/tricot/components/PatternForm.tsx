@@ -33,11 +33,11 @@ import {
 } from '../lib/library'
 import type { NavState } from '@/lib/navState'
 import { MAX_PDF_BYTES, PDF_TOO_LARGE } from '../lib/pattern'
-import { decimal } from '../lib/yarn'
 import { PatternLinkField } from './PatternLinkField'
 import { Note } from './Note'
 import { PatternThumbs } from './PatternThumbs'
 import { TagsField } from './TagsField'
+import { decimal } from '@/lib/text'
 
 interface Props {
   /** Patron modifié ; null pour en ajouter un. */

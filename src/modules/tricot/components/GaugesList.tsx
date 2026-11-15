@@ -6,11 +6,13 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { NativeSelect } from '@/components/ui/native-select'
-import { formatGaugeCounts, gaugeOf, withGauge, withoutGauge, MAX_GAUGES, type ProjectGauge } from '../lib/gauges'
+import { gaugeOf, withGauge, withoutGauge, MAX_GAUGES, type ProjectGauge } from '../lib/gauges'
 import { formatNeedle, parseNeedle } from '../lib/needles'
 import { parseGauge } from '../lib/yarn'
 import { HelpTip } from './HelpTip'
 import { Note } from './Note'
+import { decimal } from '@/lib/text'
+import { formatGauge } from '../lib/yarn'
 
 interface Props {
   /** Les échantillons du projet : la seule source pour tous les calculs. */
@@ -23,7 +25,7 @@ interface Props {
   onOpened?: () => void
 }
 
-const text = (value: number | null) => (value === null ? '' : String(value).replace('.', ','))
+const text = (value: number | null) => (value === null ? '' : decimal(value))
 
 /** « Aiguille 3,5 mm », « Toutes aiguilles » pour celui qui vaut par défaut. */
 const gaugeName = (needle: number | null): string => (needle === null ? 'Toutes aiguilles' : `Aiguille ${formatNeedle(needle)}`)
@@ -160,7 +162,7 @@ export function GaugesList({ gauges, needles, onSave, openFor, onOpened }: Props
             <li key={String(gauge.needle)} className="flex items-center gap-2 py-1 first:pt-0 last:pb-0">
               <p className="min-w-0 flex-1 text-sm">
                 <span className="block knit-name">{gaugeName(gauge.needle)}</span>
-                <span className="text-muted-foreground">{formatGaugeCounts(gauge) ?? 'rien de noté'}</span>
+                <span className="text-muted-foreground">{formatGauge(gauge) ?? 'rien de noté'}</span>
               </p>
               <Button variant="ghost" size="icon-touch" aria-label={`Modifier l’échantillon : ${gaugeName(gauge.needle)}`} onClick={() => setEditing({ gauge })}>
                 <EditIcon />

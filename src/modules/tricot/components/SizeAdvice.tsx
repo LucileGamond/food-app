@@ -15,6 +15,7 @@ import { useAsync } from '@/hooks/useAsync'
 import { cn } from '@/lib/utils'
 import { adviseSize, defaultEase, describeAdvice, EASE_STYLES, MEASURE_LABELS, styleOf, type SizeChart } from '../lib/sizing'
 import { HelpTip } from './HelpTip'
+import { decimal } from '@/lib/text'
 
 interface Props {
   chart: SizeChart
@@ -26,7 +27,7 @@ interface Props {
   rereading: boolean
 }
 
-const cm = (n: number | null) => (n === null ? '–' : String(n).replace('.', ','))
+const cm = (n: number | null) => (n === null ? '–' : decimal(n))
 
 export function SizeAdvice({ chart, sizes, readIndex, onReread, rereading }: Props) {
   const id = useId()

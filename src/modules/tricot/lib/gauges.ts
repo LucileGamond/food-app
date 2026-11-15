@@ -82,13 +82,6 @@ export function withGauge(gauges: ProjectGauge[], gauge: ProjectGauge): ProjectG
 /** Échantillon retiré de la liste. */
 export const withoutGauge = (gauges: ProjectGauge[], needle: number | null): ProjectGauge[] => gauges.filter((g) => g.needle !== needle)
 
-/** « 22 m. × 30 rangs pour 10 cm », null si rien n'est noté. */
-export function formatGaugeCounts(gauge: Pick<ProjectGauge, 'stitches' | 'rows'>): string | null {
-  const decimal = (n: number) => n.toLocaleString('fr-FR')
-  const parts = [gauge.stitches !== null && `${decimal(gauge.stitches)} m.`, gauge.rows !== null && `${decimal(gauge.rows)} rangs`].filter(Boolean)
-  return parts.length ? `${parts.join(' × ')} pour 10 cm` : null
-}
-
 /** L'échantillon qui vaut pour tout le projet : celui sans aiguille, sinon le premier noté (pour l'IA et les « ≈ »). */
 export function defaultGauge(gauges: ProjectGauge[]): Gauge {
   const chosen = gaugeOf(gauges, null) ?? gauges.find((g) => g.stitches !== null || g.rows !== null) ?? null

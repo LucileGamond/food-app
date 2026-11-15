@@ -49,10 +49,10 @@ import { CHARTS_HELP, SECTIONS_HELP } from '../lib/help'
 import { OrganizeSteps } from '../components/OrganizeSteps'
 import { isStarted } from '../lib/organize'
 import { Loading } from '../components/Loading'
+import { plural } from '@/lib/text'
 
 /** Les blocs de la préparation d'une étape : une carte légère dans la carte de l'étape. */
 const PART = 'p-3 shadow-none sm:p-3'
-const plural = (n: number, word: string) => `${n} ${word}${n > 1 ? 's' : ''}`
 
 export function KnittingProjectPage() {
   const { id = '' } = useParams()

@@ -39,6 +39,7 @@ import {
 } from '../lib/yarn'
 import { Fold } from './Fold'
 import { HelpTip } from './HelpTip'
+import { decimal } from '@/lib/text'
 
 export interface ProjectInfo {
   yarns: Yarn[]
@@ -225,7 +226,7 @@ export function YarnDialog({
   )
 }
 
-const gaugeText = (value: number | null) => (value === null ? '' : String(value).replace('.', ','))
+const gaugeText = (value: number | null) => (value === null ? '' : decimal(value))
 
 function GaugeForm({ info, onSave }: { info: ProjectInfo; onSave: (patternGauge: Gauge) => Promise<boolean> }) {
   const [values, setValues] = useState(() => ({

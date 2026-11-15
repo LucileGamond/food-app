@@ -4,6 +4,8 @@
 // chaque taille convient). L'application compare ensuite aux mesures d'une fiche (la sienne ou celle d'un proche,
 // pour un cadeau) avec l'aisance voulue, et conseille une taille.
 
+import { decimal } from '@/lib/text'
+
 /** Mesures gardées dans une fiche, en cm. */
 export type MeasureKey = 'chest' | 'waist' | 'hip' | 'arm' | 'head'
 
@@ -113,7 +115,7 @@ export function adviseSize(chart: SizeChart | null | undefined, profile: Measure
 
 /** Phrase d'explication : « Tour de poitrine 92 cm + 8 cm d'aisance = 100 cm → M (101 cm, aisance réelle 9 cm). » */
 export function describeAdvice(advice: Extract<SizeAdvice, { kind: 'size' }>, sizes: string[], chart: SizeChart): string {
-  const cm = (n: number) => `${String(n).replace('.', ',')} cm`
+  const cm = (n: number) => `${decimal(n)} cm`
   const label = MEASURE_LABELS[advice.measure]
   const size = sizes[advice.index] ?? `taille ${advice.index + 1}`
   if (chart.kind === 'body') return `${label} ${cm(advice.body)} → ${size} (tableau du patron : ${cm(advice.value)}).`
@@ -159,6 +161,6 @@ export function parseMeasure(text: string): number | null | undefined {
 
 /** Résumé d'une fiche : « poitrine 92 · hanches 98 ». */
 export function describeProfile(profile: MeasureProfile): string {
-  const parts = MEASURE_KEYS.filter((k) => profile.measures[k] !== null).map((k) => `${MEASURE_LABELS[k].replace(/^(Tour|Longueur) de /, '').toLowerCase()} ${String(profile.measures[k]).replace('.', ',')}`)
+  const parts = MEASURE_KEYS.filter((k) => profile.measures[k] !== null).map((k) => `${MEASURE_LABELS[k].replace(/^(Tour|Longueur) de /, '').toLowerCase()} ${decimal(profile.measures[k]!)}`)
   return parts.length ? parts.join(' · ') + ' cm' : 'Aucune mesure notée'
 }

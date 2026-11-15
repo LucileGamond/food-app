@@ -16,10 +16,11 @@ import { PageHeader } from '@/components/PageHeader'
 import { Loading } from './Loading'
 import { useAsync } from '@/hooks/useAsync'
 import { describeProfile, MEASURE_KEYS, MEASURE_LABELS, parseMeasure, type MeasureKey, type MeasureProfile } from '../lib/sizing'
+import { decimal } from '@/lib/text'
 
 type Fields = Record<MeasureKey, string>
 
-const toText = (n: number | null) => (n === null ? '' : String(n).replace('.', ','))
+const toText = (n: number | null) => (n === null ? '' : decimal(n))
 
 /** Ajout ou modification d'une fiche : un nom et les mesures connues (toutes facultatives). */
 function MeasuresDialog({ profile, open, onOpenChange, onSave }: { profile: MeasureProfile | null; open: boolean; onOpenChange: (open: boolean) => void; onSave: (name: string, measures: MeasureProfile['measures']) => Promise<boolean> }) {
