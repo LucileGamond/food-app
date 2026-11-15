@@ -3,7 +3,7 @@
 // patron Ravelry peut en chercher sur internet avec le modèle. Les idées sont gardées pour être revues sans repayer,
 // et un patron trouvé peut être gardé dans la bibliothèque (ajout par lien, sans l'IA).
 
-import { BookmarkPlus, ExternalLink, Loader2, Sparkles } from 'lucide-react'
+import { BookmarkPlus, Loader2, Sparkles } from 'lucide-react'
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { toast } from 'sonner'
@@ -17,7 +17,7 @@ import { Label } from '@/components/ui/label'
 import { useAsync } from '@/hooks/useAsync'
 import { formatShortDate } from '@/lib/dates'
 import type { NavState } from '@/lib/navState'
-import { RestartIcon, SearchIcon } from './KnitIcons'
+import { LinkIcon, RestartIcon, SearchIcon } from './KnitIcons'
 import {
   decimal,
   ideaFit,
@@ -213,7 +213,7 @@ export function YarnIdeasSection({ item, stash, emphasize }: Props) {
                         return (
                           <li key={p.url} className="flex items-start gap-2">
                             <a href={p.url} target="_blank" rel="noreferrer" className="inline-flex min-w-0 flex-1 items-start gap-1 font-medium text-brand underline-offset-4 hover:underline">
-                              <ExternalLink className="mt-0.5 size-3.5 shrink-0" aria-hidden />
+                              <LinkIcon className="mt-0.5 size-3.5 shrink-0" aria-hidden />
                               <span>
                                 {p.title} <span className="font-normal text-muted-foreground">· {[siteOf(p.url), note].filter(Boolean).join(' · ')}</span>
                               </span>
@@ -250,7 +250,7 @@ export function YarnIdeasSection({ item, stash, emphasize }: Props) {
                       rel="noreferrer"
                       className="mt-1 inline-flex items-center gap-1 text-muted-foreground underline-offset-4 hover:underline"
                     >
-                      <ExternalLink className="size-3.5" aria-hidden /> Plus de patrons sur Ravelry
+                      <LinkIcon className="size-3.5" aria-hidden /> Plus de patrons sur Ravelry
                     </a>
                   )}
                 </li>
