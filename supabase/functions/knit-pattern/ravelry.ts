@@ -426,7 +426,8 @@ async function libraryPdf(volumeId: number, deps: RavelryDeps): Promise<Pick<Rav
   if (!attachment) return { pdf: null, pdfMissing: 'aucun' }
   try {
     const link = await get(`product_attachments/${attachment.id}/generate_download_link.json`, new URLSearchParams(), deps, 'POST')
-    const url = httpsUrl(link.url ?? link.download_url)
+    // { download_link: { url, expires_at } } : lien valable un quart d'heure.
+    const url = httpsUrl(record(link.download_link).url)
     return url ? { pdf: { url, name: attachment.name }, pdfMissing: null } : { pdf: null, pdfMissing: 'aucun' }
   } catch (e) {
     if (e instanceof RavelryForbidden) return { pdf: null, pdfMissing: 'permission' }

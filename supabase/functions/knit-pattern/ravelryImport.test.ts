@@ -39,7 +39,7 @@ const VOLUME = {
 }
 
 /** Faux Ravelry : une réponse par chemin d'API ; `downloads` : réponse du lien de PDF. */
-function ravelry(downloads: () => Response = () => Response.json({ url: 'https://library.exemple/fern.pdf' })) {
+function ravelry(downloads: () => Response = () => Response.json({ download_link: { url: 'https://library.exemple/fern.pdf', expires_at: '2026/11/15 10:21:01 -0500' } })) {
   return vi.fn<typeof fetch>(async (input) => {
     const path = new URL(String(input)).pathname
     if (path === '/current_user.json') return Response.json({ user: { username: 'Youcite' } })
