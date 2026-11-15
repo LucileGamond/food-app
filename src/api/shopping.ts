@@ -4,7 +4,7 @@ import type { AppSupabaseClient } from '@/api/client'
 import { AppError, toAppError } from './errors'
 import { subscribeTables } from './realtime'
 
-const ITEM_COLUMNS = 'id, list_id, name, quantity, unit, aisle, checked, position'
+const ITEM_COLUMNS = 'id, list_id, name, quantity, unit, aisle, checked, position, sources'
 
 type RawItem = Omit<ShoppingItem, 'quantity'> & { quantity: number | string | null }
 const toItem = (row: RawItem): ShoppingItem => ({ ...row, quantity: row.quantity === null ? null : Number(row.quantity) })

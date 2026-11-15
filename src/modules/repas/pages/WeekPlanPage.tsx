@@ -11,10 +11,12 @@ import { useApi } from '@/app/ApiContext'
 import { LoadError } from '@/components/LoadError'
 import { PageHeader } from '@/components/PageHeader'
 import { Button, buttonVariants } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
 import { NativeSelect } from '@/components/ui/native-select'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useToday } from '@/hooks/useToday'
-import { formatDay, formatRange, type IsoDate } from '@/lib/dates'
+import { formatDay, formatShortDate, type IsoDate } from '@/lib/dates'
+import { MAX_PORTIONS } from '@/lib/inbox'
 import { slotKey, slotLabel, type Profile } from '@/lib/meals'
 import { cn } from '@/lib/utils'
 import { computePresence, type PresenceEvent, type PresenceRule } from '../lib/presence'
@@ -26,7 +28,11 @@ import {
   parsePlan,
   setEntry,
   toPlanWeekMeals,
-  weekDays,
+  canChooseDay,
+  defaultPlanDays,
+  MAX_PLAN_SPAN_DAYS,
+  planHorizon,
+  toggleDay,
   type Dish,
   type DraftEntry,
   type PlanSlot,
@@ -81,7 +87,12 @@ function useWeekData(start: IsoDate, end: IsoDate) {
     void load()
   }, [load])
 
-  return { data, error, reload: load }
+  /** Portions d'un plat changées sur la page (enregistrées sur l'élément « À planifier »). */
+  const setDishPortions = useCallback((id: string, portions: number | null) => {
+    setData((d) => d && { ...d, dishes: d.dishes.map((dish) => (dish.id === id ? { ...dish, portions } : dish)) })
+  }, [])
+
+  return { data, error, reload: load, setDishPortions }
 }
 
 const ordered = (ids: string[], profiles: readonly Profile[]) => profiles.map((p) => p.id).filter((id) => ids.includes(id))
@@ -91,24 +102,27 @@ const NO_PROFILES: Profile[] = []
 /** `today` et `now` : imposés par les tests. */
 export function WeekPlanPage({ today: fixedToday, now = Date.now }: { today?: IsoDate; now?: () => number }) {
   const today = useToday(fixedToday)
-  const days = useMemo(() => weekDays(today), [today])
+  const horizon = useMemo(() => planHorizon(today), [today])
+  /** Jours cochés (libres, 14 jours au plus du premier au dernier), par défaut les 7 prochains. */
+  const [days, setDays] = useState<IsoDate[]>(() => defaultPlanDays(today))
   const api = useApi()
   const navigate = useNavigate()
-  const { data, error, reload } = useWeekData(days[0]!, days[6]!)
+  const { data, error, reload, setDishPortions } = useWeekData(horizon[0]!, horizon.at(-1)!)
   const profiles = data?.profiles ?? NO_PROFILES
   /** Présence corrigée à la main, par créneau. */
   const [overrides, setOverrides] = useState<Record<string, string[]>>({})
   const [entries, setEntries] = useState<DraftEntry[] | null>(null)
   const [busy, setBusy] = useState<'propose' | 'save' | null>(null)
   const [actionError, setActionError] = useState<string | null>(null)
-  // Passage à minuit (application restée ouverte) : brouillon et corrections de la veille abandonnés.
-  const [draftStart, setDraftStart] = useState(days[0])
-  const start = useRef(days[0])
+  // Passage à minuit (application restée ouverte) : jours, brouillon et corrections de la veille abandonnés.
+  const [draftToday, setDraftToday] = useState(today)
+  const start = useRef(today)
   useEffect(() => {
-    start.current = days[0]
+    start.current = today
   })
-  if (draftStart !== days[0]) {
-    setDraftStart(days[0])
+  if (draftToday !== today) {
+    setDraftToday(today)
+    setDays(defaultPlanDays(today))
     setOverrides({})
     setEntries(null)
     setActionError(null)
@@ -140,10 +154,10 @@ export function WeekPlanPage({ today: fixedToday, now = Date.now }: { today?: Is
   async function propose() {
     setBusy('propose')
     setActionError(null)
-    const from = days[0]
+    const from = today
     try {
       const response = await api.weekPlan.proposePlan(buildPlanRequest(days[0]!, slots, dishes, profiles))
-      // La semaine a changé pendant la réponse : elle ne vaut plus.
+      // Le jour a changé pendant la réponse : elle ne vaut plus.
       if (start.current === from) setEntries(parsePlan(response, slots, dishes))
     } catch (e) {
       setActionError(errorMessage(e))
@@ -152,12 +166,23 @@ export function WeekPlanPage({ today: fixedToday, now = Date.now }: { today?: Is
     }
   }
 
+  async function savePortions(id: string, portions: number | null) {
+    const before = dishes.find((d) => d.id === id)?.portions ?? null
+    setDishPortions(id, portions)
+    try {
+      await api.inbox.setPortions(id, portions)
+    } catch (e) {
+      setDishPortions(id, before)
+      toast.error(errorMessage(e))
+    }
+  }
+
   async function save() {
     if (!entries) return
     setBusy('save')
     setActionError(null)
     try {
-      const count = await api.weekPlan.saveWeek(toPlanWeekMeals(entries, slots))
+      const count = await api.weekPlan.saveWeek(toPlanWeekMeals(entries, slots, dishes))
       toast.success(count > 1 ? `${count} repas planifiés` : '1 repas planifié')
       navigate('/planning')
     } catch (e) {
@@ -185,7 +210,7 @@ export function WeekPlanPage({ today: fixedToday, now = Date.now }: { today?: Is
       <>
         <PageHeader title="Planifier la semaine" actions={back} />
         <div className="grid gap-4" aria-busy="true" aria-label="Chargement de la semaine">
-          {days.slice(0, 3).map((d) => (
+          {horizon.slice(0, 3).map((d) => (
             <Skeleton key={d} className="h-32 rounded-2xl" />
           ))}
         </div>
@@ -200,7 +225,7 @@ export function WeekPlanPage({ today: fixedToday, now = Date.now }: { today?: Is
     <>
       <PageHeader
         title="Planifier la semaine"
-        description={`${formatRange(days[0]!, 7)} · ${entries ? 'Plats proposés, à ajuster' : 'Qui mange à la maison ?'}`}
+        description={`${periodLabel(days)} · ${entries ? 'Plats proposés, à ajuster' : 'Qui mange à la maison ?'}`}
         actions={back}
       />
 
@@ -209,6 +234,13 @@ export function WeekPlanPage({ today: fixedToday, now = Date.now }: { today?: Is
         <p role="alert" className="mb-4 rounded-lg border border-destructive/30 bg-destructive/5 p-3 text-sm">
           {actionError}
         </p>
+      )}
+
+      {!entries && (
+        <>
+          <DayPicker horizon={horizon} chosen={days} onToggle={(day) => setDays((list) => toggleDay(list, day))} />
+          <DishPortions dishes={dishes} onSave={savePortions} />
+        </>
       )}
 
       <div className="grid grid-cols-[minmax(0,1fr)] gap-4">
@@ -283,6 +315,105 @@ export function WeekPlanPage({ today: fixedToday, now = Date.now }: { today?: Is
 }
 
 const PAST = <p className="px-1 text-sm text-muted-foreground">Repas passé</p>
+
+/** « Du 9 novembre au 15 novembre · 7 jours » */
+function periodLabel(days: readonly IsoDate[]): string {
+  if (days.length === 0) return 'Aucun jour choisi'
+  const span = days.length > 1 ? `Du ${formatShortDate(days[0]!)} au ${formatShortDate(days.at(-1)!)}` : `Le ${formatShortDate(days[0]!)}`
+  return `${span} · ${days.length > 1 ? `${days.length} jours` : '1 jour'}`
+}
+
+const shortDay = new Intl.DateTimeFormat('fr-FR', { weekday: 'short', day: 'numeric', timeZone: 'UTC' })
+
+/** Jours à planifier, à cocher librement sur 4 semaines (14 jours au plus du premier au dernier). */
+function DayPicker({ horizon, chosen, onToggle }: { horizon: IsoDate[]; chosen: IsoDate[]; onToggle: (day: IsoDate) => void }) {
+  return (
+    <section aria-labelledby="plan-days" className="mb-4 rounded-2xl border bg-background p-3 shadow-xs">
+      <h2 id="plan-days" className="px-1 font-semibold tracking-tight">
+        Jours à planifier
+      </h2>
+      <p className="mb-2 px-1 text-xs text-muted-foreground">{MAX_PLAN_SPAN_DAYS} jours au plus du premier au dernier jour coché.</p>
+      <div className="flex flex-wrap gap-1.5">
+        {horizon.map((day) => {
+          const on = chosen.includes(day)
+          const allowed = on || canChooseDay(chosen, day)
+          return (
+            <button
+              key={day}
+              type="button"
+              aria-pressed={on}
+              disabled={!allowed}
+              title={allowed ? undefined : `Plus de ${MAX_PLAN_SPAN_DAYS} jours après le premier jour coché`}
+              onClick={() => onToggle(day)}
+              className={cn(
+                'h-10 min-w-16 rounded-full border px-3 text-sm font-medium transition-colors focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-40',
+                on ? 'border-brand bg-brand text-white' : 'bg-background text-muted-foreground',
+              )}
+            >
+              {/* Texte court affiché, nom complet lu : « Lundi 16 novembre ». */}
+              <span aria-hidden>{shortDay.format(new Date(`${day}T00:00:00Z`))}</span>
+              <span className="sr-only">{formatDay(day)}</span>
+            </button>
+          )
+        })}
+      </div>
+    </section>
+  )
+}
+
+/** Portions de chaque plat, restes compris : la liste de courses adapte la recette à ce nombre. */
+function DishPortions({ dishes, onSave }: { dishes: Dish[]; onSave: (id: string, portions: number | null) => Promise<void> }) {
+  if (dishes.length === 0) return null
+  return (
+    <section aria-labelledby="plan-portions" className="mb-4 rounded-2xl border bg-background p-3 shadow-xs">
+      <h2 id="plan-portions" className="px-1 font-semibold tracking-tight">
+        Portions par plat
+      </h2>
+      <p className="mb-2 px-1 text-xs text-muted-foreground">Restes compris. Vide : celles de la recette, ou autant que de personnes à table.</p>
+      <ul className="grid gap-1.5 sm:grid-cols-2">
+        {/* Clé avec les portions : la saisie repart de la valeur enregistrée (ou remise après un échec). */}
+        {dishes.map((dish) => (
+          <PortionsRow key={`${dish.id}-${dish.portions}`} dish={dish} onSave={onSave} />
+        ))}
+      </ul>
+    </section>
+  )
+}
+
+function PortionsRow({ dish, onSave }: { dish: Dish; onSave: (id: string, portions: number | null) => Promise<void> }) {
+  const [value, setValue] = useState(dish.portions ? String(dish.portions) : '')
+  const portions = value.trim() === '' ? null : Number(value)
+  const invalid = portions !== null && (!Number.isInteger(portions) || portions < 1 || portions > MAX_PORTIONS)
+  const id = `portions-${dish.id}`
+
+  function commit() {
+    if (invalid || portions === dish.portions) return
+    void onSave(dish.id, portions)
+  }
+
+  return (
+    <li className="flex items-center gap-2 rounded-xl bg-muted/40 px-2 py-1.5">
+      <label htmlFor={id} className="min-w-0 flex-1 truncate text-sm">
+        <span className="sr-only">Portions : </span>
+        {dish.title}
+      </label>
+      <Input
+        id={id}
+        type="number"
+        inputMode="numeric"
+        min={1}
+        max={MAX_PORTIONS}
+        placeholder={dish.servings ? String(dish.servings) : '—'}
+        value={value}
+        aria-invalid={invalid}
+        onChange={(e) => setValue(e.target.value)}
+        onBlur={commit}
+        onKeyDown={(e) => e.key === 'Enter' && commit()}
+        className="h-9 w-20"
+      />
+    </li>
+  )
+}
 
 function PresenceSlot({ slot, profiles, onToggle }: { slot: PlanSlot; profiles: readonly Profile[]; onToggle: (id: string) => void }) {
   if (slot.past) return PAST

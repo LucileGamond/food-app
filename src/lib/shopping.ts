@@ -41,6 +41,8 @@ export interface ShoppingItem {
   aisle: Aisle
   checked: boolean
   position: number
+  /** Lignes de recette d'où vient l'article (« Lasagnes : 200 g farine ») ; vide pour un article ajouté à la main. */
+  sources?: string[]
 }
 
 export interface ShoppingItemInput {
@@ -48,6 +50,7 @@ export interface ShoppingItemInput {
   quantity: number | null
   unit: string | null
   aisle: Aisle
+  sources?: string[]
 }
 
 // ---------------------------------------------------------------------------

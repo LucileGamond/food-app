@@ -1,6 +1,7 @@
-import { ArrowLeft, Info, Loader2, ShoppingCart } from 'lucide-react'
+import { ArrowLeft, Info, Loader2, RefreshCw, ShoppingCart } from 'lucide-react'
 import { AiIcon } from '@/components/AiIcon'
-import { useMemo, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
+import { errorMessage } from '@/api'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
@@ -10,18 +11,19 @@ import { ShoppingDraftPreview } from '@/components/shopping/ShoppingDraftPreview
 import { useApi } from '@/app/ApiContext'
 import { useOnOpen } from '@/hooks/useOnOpen'
 import { useShoppingFromPlan } from '@/hooks/useShoppingFromPlan'
-import { formatDay, type IsoDate } from '@/lib/dates'
+import { addDays, formatDay, type IsoDate } from '@/lib/dates'
 import { slotLabel, SLOTS, type Meal } from '@/lib/meals'
-import { defaultSelection, mealSource, type MealSource } from '@/lib/shoppingFromPlan'
+import { isLeftover, mealSource, type MealSource } from '@/lib/shoppingFromPlan'
 import { cn } from '@/lib/utils'
 
 interface Props {
   open: boolean
   onOpenChange: (open: boolean) => void
-  /** Repas de la semaine affichée. */
-  meals: Meal[]
   today: IsoDate
 }
+
+/** Repas à venir pris en compte : tout ce qui est planifié dans l'année qui vient. */
+const UPCOMING_DAYS = 366
 
 const SOURCE_LABELS: Record<MealSource, string> = {
   recipe: 'Recette',
@@ -30,18 +32,36 @@ const SOURCE_LABELS: Record<MealSource, string> = {
 }
 
 /** Génère une liste de courses à partir des repas planifiés : choix des repas, aperçu modifiable, destination. */
-export function ShoppingFromPlanDialog({ open, onOpenChange, meals, today }: Props) {
+export function ShoppingFromPlanDialog({ open, onOpenChange, today }: Props) {
   const api = useApi()
   const flow = useShoppingFromPlan(api)
   const [selected, setSelected] = useState<Set<string>>(new Set())
+  /** Tous les repas à venir (pas seulement la semaine affichée), tous cochés. */
+  const [meals, setMeals] = useState<Meal[] | null>(null)
+  const [loadError, setLoadError] = useState<string | null>(null)
+  const loadRun = useRef(0)
+
+  function load() {
+    const run = ++loadRun.current
+    setMeals(null)
+    setLoadError(null)
+    api.meals.listMeals(today, addDays(today, UPCOMING_DAYS)).then(
+      (list) => {
+        if (run !== loadRun.current) return
+        setMeals(list)
+        setSelected(new Set(list.filter((m) => !isLeftover(m)).map((m) => m.id)))
+      },
+      (error: unknown) => run === loadRun.current && setLoadError(errorMessage(error)),
+    )
+  }
 
   useOnOpen(open, () => {
     flow.reset()
-    setSelected(defaultSelection(meals, today))
+    load()
   })
 
   const ordered = useMemo(
-    () => [...meals].sort((a, b) => a.meal_date.localeCompare(b.meal_date) || SLOTS.indexOf(a.slot) - SLOTS.indexOf(b.slot)),
+    () => [...(meals ?? [])].sort((a, b) => a.meal_date.localeCompare(b.meal_date) || SLOTS.indexOf(a.slot) - SLOTS.indexOf(b.slot)),
     [meals],
   )
   const days = [...new Set(ordered.map((m) => m.meal_date))]
@@ -79,8 +99,20 @@ export function ShoppingFromPlanDialog({ open, onOpenChange, meals, today }: Pro
 
           {flow.step === 'meals' && (
             <>
-              {ordered.length === 0 ? (
-                <p className="rounded-xl border border-dashed p-4 text-center text-muted-foreground">Aucun repas planifié cette semaine.</p>
+              {loadError ? (
+                <div role="alert" className="space-y-2 text-sm">
+                  <p className="text-destructive">{loadError}</p>
+                  <Button variant="outline" size="sm" onClick={load}>
+                    <RefreshCw /> Réessayer
+                  </Button>
+                </div>
+              ) : meals === null ? (
+                <div className="space-y-2" aria-busy="true" aria-label="Chargement des repas à venir">
+                  <Skeleton className="h-12 rounded-xl" />
+                  <Skeleton className="h-12 rounded-xl" />
+                </div>
+              ) : ordered.length === 0 ? (
+                <p className="rounded-xl border border-dashed p-4 text-center text-muted-foreground">Aucun repas planifié à venir.</p>
               ) : (
                 <>
                   <div className="flex gap-2">
@@ -108,6 +140,7 @@ export function ShoppingFromPlanDialog({ open, onOpenChange, meals, today }: Pro
                                       <span className="block truncate font-medium">{meal.recipe.title}</span>
                                       <span className="block text-xs text-muted-foreground">
                                         {slotLabel(meal.slot)} · {meal.people.length} pers.
+                                        {isLeftover(meal) ? ' · restes, rien à acheter' : meal.portions ? ` · ${meal.portions} portion${meal.portions > 1 ? 's' : ''}` : ''}
                                       </span>
                                     </span>
                                     <Badge variant={source === 'none' ? 'outline' : 'secondary'} className={cn(source === 'none' && 'text-muted-foreground')}>

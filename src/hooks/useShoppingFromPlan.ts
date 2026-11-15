@@ -148,7 +148,7 @@ export function useShoppingFromPlan(api: Api): ShoppingFromPlanState {
   const addSkipped = useCallback((entry: SkippedEntry) => {
     setSkipped((list) => list.filter((e) => e.key !== entry.key))
     const input = skippedInput(entry)
-    setLines((list) => [...list, { ...input, id: `d${++lineSeq.current}`, name: input.name, pantry: false, include: true, meals: [entry.label], issues: [] }])
+    setLines((list) => [...list, { ...input, id: `d${++lineSeq.current}`, name: input.name, pantry: false, include: true, meals: [entry.label], issues: [], sources: [] }])
   }, [])
 
   const submit = useCallback(
@@ -167,7 +167,7 @@ export function useShoppingFromPlan(api: Api): ShoppingFromPlanState {
           const items = await api.shopping.listItems(listId)
           const { updates, additions } = mergeIntoList(items, inputs)
           written = true
-          await Promise.all(updates.map((u) => api.shopping.updateItem(u.item.id, { quantity: u.quantity })))
+          await Promise.all(updates.map((u) => api.shopping.updateItem(u.item.id, { quantity: u.quantity, sources: u.sources })))
           await api.shopping.addItems(listId, additions, nextItemPosition(items))
         }
         return { listId, count: inputs.length, skipped: [...skipped, ...lineEntries(lines)] }

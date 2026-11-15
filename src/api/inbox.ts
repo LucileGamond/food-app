@@ -14,7 +14,7 @@ export function createInboxApi(db: AppSupabaseClient) {
 
   return {
     async listItems(list: InboxList = 'plan'): Promise<InboxItem[]> {
-      const { data, error } = await db.from('planning_inbox').select('id, title, url, recipe_id, created_at, list, photos').eq('list', list).order('created_at')
+      const { data, error } = await db.from('planning_inbox').select('id, title, url, recipe_id, created_at, list, photos, portions').eq('list', list).order('created_at')
       if (error) throw toAppError(error, list === 'aside' ? 'Impossible de charger les recettes mises de côté.' : 'Impossible de charger la liste à planifier.')
       return data
     },
@@ -79,6 +79,12 @@ export function createInboxApi(db: AppSupabaseClient) {
     },
 
     /** Renomme ; avec `ifTitle`, seulement si le titre n'a pas changé entre-temps (renommage à la main). */
+    /** Portions à cuisiner pour un plat « À planifier » (null : non précisé). */
+    async setPortions(id: string, portions: number | null): Promise<void> {
+      const { error } = await db.from('planning_inbox').update({ portions }).eq('id', id)
+      if (error) throw toAppError(error, 'Impossible de régler les portions.')
+    },
+
     async renameItem(id: string, title: string, ifTitle?: string): Promise<void> {
       let query = db.from('planning_inbox').update({ title: title.trim().slice(0, 200) }).eq('id', id)
       if (ifTitle !== undefined) query = query.eq('title', ifTitle)

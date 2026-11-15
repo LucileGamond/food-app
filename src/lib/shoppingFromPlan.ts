@@ -1,4 +1,4 @@
-import { formatDay, type IsoDate } from './dates'
+import { formatDay } from './dates'
 import { slotLabel, type Meal } from './meals'
 import { formatIngredient, scaleIngredients, type Ingredient } from './recipes'
 import { addAmounts, findMergeTarget, formatAmount, guessAisle, ITEM_NAME_MAX, productKey, type Aisle, type ShoppingItem, type ShoppingItemInput } from './shopping'
@@ -14,11 +14,6 @@ export type MealSource = 'recipe' | 'link' | 'none'
 export function mealSource(meal: Meal): MealSource {
   if (meal.recipe.is_saved) return 'recipe'
   return meal.recipe.url ? 'link' : 'none'
-}
-
-/** Repas cochés par défaut : à partir d'aujourd'hui (les repas passés sont déjà mangés). */
-export function defaultSelection(meals: readonly Meal[], today: IsoDate): Set<string> {
-  return new Set(meals.filter((m) => m.meal_date >= today).map((m) => m.id))
 }
 
 /** « mar. 27 oct. · Soir » */
@@ -73,10 +68,13 @@ export interface MealIngredients {
   ingredients: Ingredient[]
 }
 
-/** Ingrédients d'un repas : autant de personnes que de convives. */
+/** Ingrédients d'un repas : pour ses portions si elles sont fixées, sinon autant que de convives. */
 export function fromMeal(meal: Meal, servings: number | null, ingredients: Ingredient[]): MealIngredients {
-  return { title: meal.recipe.title, people: meal.people.length, servings, ingredients }
+  return { title: meal.recipe.title, people: meal.portions ?? meal.people.length, servings, ingredients }
 }
+
+/** Restes d'un repas précédent : rien à acheter. */
+export const isLeftover = (meal: Pick<Meal, 'portions'>) => meal.portions === 0
 
 export interface DraftLine {
   id: string
@@ -92,6 +90,8 @@ export interface DraftLine {
   meals: string[]
   /** Informations de la recette qui n'ont pas pu être reprises telles quelles. */
   issues: LineIssue[]
+  /** Lignes de recette d'où vient l'article (« Gratin (2 portions, recette pour 4) : 200 g lardons »). */
+  sources: string[]
 }
 
 export type IssueKind = 'unknown-unit' | 'note-quantity' | 'no-quantity' | 'mixed-units'
@@ -148,7 +148,14 @@ export function purchaseQuantity(quantity: number | null, unit: string | null): 
 function finalize(lines: DraftLine[]): DraftLine[] {
   return lines.map((line) => {
     const others = lines.filter((l) => l !== line && productKey(l.name) === productKey(line.name))
-    const issues = line.issues.filter((i) => i.kind !== 'mixed-units' && !(i.kind === 'no-quantity' && line.pantry))
+    const seen = new Set<string>()
+    // Une même remarque (même repas, même ligne) venue de plusieurs lignes fusionnées n'est montrée qu'une fois.
+    const issues = line.issues.filter((i) => {
+      const key = issueText(i)
+      if (i.kind === 'mixed-units' || (i.kind === 'no-quantity' && line.pantry) || seen.has(key)) return false
+      seen.add(key)
+      return true
+    })
     if (others.length > 0) {
       const amounts = others.map((o) => formatAmount({ quantity: purchaseQuantity(o.quantity, o.unit), unit: o.unit }) || 'sans quantité')
       issues.push({ kind: 'mixed-units', text: `aussi ${amounts.join(', ')}`, meal: '' })
@@ -169,9 +176,10 @@ function pushLine(lines: DraftLine[], line: DraftLine) {
     existing.include = !existing.pantry
     for (const title of line.meals) if (!existing.meals.includes(title)) existing.meals.push(title)
     existing.issues.push(...line.issues)
+    for (const text of line.sources) if (!existing.sources.includes(text)) existing.sources.push(text)
     return
   }
-  lines.push({ ...line, meals: [...line.meals], issues: [...line.issues] })
+  lines.push({ ...line, meals: [...line.meals], issues: [...line.issues], sources: [...line.sources] })
 }
 
 /** Lignes de courses : ingrédients adaptés au nombre de personnes, doublons additionnés, rayon deviné. */
@@ -179,7 +187,9 @@ export function buildDraft(sources: readonly MealIngredients[]): DraftLine[] {
   const lines: DraftLine[] = []
   let seq = 0
   for (const source of sources) {
-    for (const ingredient of mealIngredients(source)) {
+    const originals = source.ingredients
+    const header = sourceHeader(source)
+    for (const [index, ingredient] of mealIngredients(source).entries()) {
       const name = ingredient.name.replace(/\s+/g, ' ').trim()
       if (!name) continue
       // Unité inconnue (import) : la quantité n'aurait pas de sens seule.
@@ -203,6 +213,7 @@ export function buildDraft(sources: readonly MealIngredients[]): DraftLine[] {
         include: !pantry,
         meals: [meal],
         issues,
+        sources: [`${header} : ${formatIngredient(originals[index]!)}`],
       })
     }
   }
@@ -229,7 +240,20 @@ export function applyTidy(lines: readonly DraftLine[], tidy: readonly TidyLine[]
 }
 
 export function draftLineToItemInput(line: DraftLine): ShoppingItemInput {
-  return { name: capitalize(line.name).slice(0, ITEM_NAME_MAX), quantity: line.quantity, unit: line.unit, aisle: line.aisle }
+  return { name: capitalize(line.name).slice(0, ITEM_NAME_MAX), quantity: line.quantity, unit: line.unit, aisle: line.aisle, sources: line.sources.slice(0, MAX_SOURCES) }
+}
+
+/** Lignes d'origine gardées au plus par article (limite de la base). */
+export const MAX_SOURCES = 30
+
+/** « Gratin », ou « Gratin (6 portions, recette pour 4) » quand les quantités ont été adaptées. */
+function sourceHeader({ title, people, servings }: MealIngredients): string {
+  return servings && people > 0 && people !== servings ? `${title} (${people} portion${people > 1 ? 's' : ''}, recette pour ${servings})` : title
+}
+
+/** Origines d'un article réunies sans doublon, dans l'ordre, au plus `MAX_SOURCES`. */
+export function mergeSources(a: readonly string[] = [], b: readonly string[] = []): string[] {
+  return [...new Set([...a, ...b])].slice(0, MAX_SOURCES)
 }
 
 /** Pour l'encadré de la liste créée : articles décochés (à rajouter si besoin) et articles ajoutés mais à vérifier. */
@@ -246,7 +270,7 @@ export function lineEntries(lines: readonly DraftLine[]): SkippedEntry[] {
 // Ajout à une liste existante
 
 export interface ListMerge {
-  updates: { item: ShoppingItem; quantity: number }[]
+  updates: { item: ShoppingItem; quantity: number | null; sources: string[] }[]
   additions: ShoppingItemInput[]
 }
 
@@ -261,10 +285,13 @@ export function mergeIntoList(existing: readonly ShoppingItem[], inputs: readonl
       additions.push(input)
       continue
     }
-    // Même article sans quantité des deux côtés : déjà sur la liste, rien à changer.
-    if (plan.quantity === null) continue
-    plan.item.quantity = plan.quantity
+    const sources = mergeSources(plan.item.sources, input.sources)
+    const newSources = sources.length !== (plan.item.sources ?? []).length
+    // Même article sans quantité des deux côtés : déjà sur la liste, seule son origine peut s'ajouter.
+    if (plan.quantity === null && !newSources) continue
+    if (plan.quantity !== null) plan.item.quantity = plan.quantity
+    plan.item.sources = sources
     updated.set(plan.item.id, plan.item)
   }
-  return { updates: [...updated.values()].map((item) => ({ item, quantity: item.quantity! })), additions }
+  return { updates: [...updated.values()].map((item) => ({ item, quantity: item.quantity, sources: item.sources ?? [] })), additions }
 }

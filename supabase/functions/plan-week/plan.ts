@@ -1,11 +1,12 @@
-// Planification de la semaine : les plats « À planifier » répartis sur les créneaux où l'on mange à la maison, avec
+// Planification d'une période (jusqu'à 14 jours) : les plats « À planifier » répartis sur les créneaux où l'on mange à la maison, avec
 // qui cuisine. L'application calcule qui est là et qui a le temps (agenda) ; le modèle choisit. Pas de recherche web.
 // Indépendant de Deno pour pouvoir être testé.
 
 import { callTool, HttpError, type ModelOptions, type ModelUsage } from '../_shared/anthropic.ts'
 import { asRecord, str } from '../_shared/sanitize.ts'
 
-export const MAX_SLOTS = 14
+/** 14 jours, midi et soir. */
+export const MAX_SLOTS = 28
 export const MAX_DISHES = 40
 const MAX_PEOPLE = 6
 const TIMEOUT_MS = 60_000
@@ -53,7 +54,7 @@ const TOOL = {
 }
 
 export const SYSTEM = [
-  'Tu organises les repas de la semaine d’un couple français à partir de sa liste de plats à planifier.',
+  'Tu organises les repas d’un couple français sur une période (jusqu’à 14 jours, pas forcément consécutifs) à partir de sa liste de plats à planifier.',
   'Place chaque plat sur un ou plusieurs créneaux de la liste, et choisis qui cuisine parmi les personnes à la maison.',
   'Règles :',
   '- Jamais le même plat midi et soir le même jour.',
@@ -152,7 +153,8 @@ export async function planWeek(input: PlanInput, options: ModelOptions): Promise
       system: SYSTEM,
       tool: TOOL,
       message: buildUserMessage(input),
-      maxTokens: 4_000,
+      // Jusqu'à 28 repas (14 jours).
+      maxTokens: 6_000,
       failure: 'La planification a échoué',
       missing: 'réponse sans repas',
       timeoutMs: TIMEOUT_MS,

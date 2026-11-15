@@ -27,6 +27,8 @@ export interface Meal {
   people: string[]
   /** Qui cuisine ; absent ou null : personne de désigné. */
   cook_id?: string | null
+  /** Portions cuisinées (courses adaptées) ; 0 : restes d'un repas précédent ; null ou absent : autant que de convives. */
+  portions?: number | null
   recipe: RecipeSummary
 }
 

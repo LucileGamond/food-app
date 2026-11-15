@@ -26,7 +26,7 @@ const BASQUAISE = mealFixture({ id: 'm4', meal_date: '2026-10-23', recipe: { id:
 const MEALS = [GRATIN, PAST, TARTIFLETTE, CURRY, BASQUAISE]
 
 function setup(meals: Meal[] = MEALS, api: FakeApi = fakeApi()) {
-  api.meals.listMeals.mockResolvedValue(meals)
+  api.meals.listMeals.mockImplementation(async (from, to) => meals.filter((m) => m.meal_date >= from && m.meal_date <= to))
   api.recipes.getIngredients.mockResolvedValue([
     { id: 'r0', servings: 2, ingredients: [ing('poireaux', 2)] },
     { id: 'r1', servings: 4, ingredients: [ing('pommes de terre', 1, 'kg'), ing('reblochon', 1), ing('oignons jaunes', 2), ing('sel')] },
@@ -52,7 +52,10 @@ function setup(meals: Meal[] = MEALS, api: FakeApi = fakeApi()) {
 async function openDialog(user: ReturnType<typeof userEvent.setup>) {
   await waitFor(() => expect(screen.getByRole('button', { name: 'Liste de courses' })).toBeEnabled())
   await user.click(screen.getByRole('button', { name: 'Liste de courses' }))
-  return screen.findByRole('dialog', { name: 'Liste de courses' })
+  const dialog = await screen.findByRole('dialog', { name: 'Liste de courses' })
+  // Repas à venir chargés.
+  await waitFor(() => expect(within(dialog).queryByLabelText('Chargement des repas à venir')).not.toBeInTheDocument())
+  return dialog
 }
 
 async function preview(user: ReturnType<typeof userEvent.setup>) {
@@ -65,21 +68,32 @@ async function preview(user: ReturnType<typeof userEvent.setup>) {
 const lineNames = (dialog: HTMLElement) => within(dialog).getAllByTestId('draft-line').map((l) => l.textContent)
 
 describe('PlanningPage — liste de courses depuis le planning', () => {
-  it('propose les repas de la semaine, ceux à venir cochés', async () => {
-    const { user } = setup()
+  it('propose tous les repas à venir, au-delà de la semaine affichée, cochés sauf les restes', async () => {
+    const later = mealFixture({ id: 'm5', meal_date: '2026-11-12', recipe: { id: 'r5', is_saved: true, title: 'Lasagnes' }, portions: 6 })
+    const leftovers = mealFixture({ id: 'm6', meal_date: '2026-11-13', recipe: { id: 'r5', is_saved: true, title: 'Lasagnes' }, portions: 0 })
+    const { user, api } = setup([...MEALS, later, leftovers])
     const dialog = await openDialog(user)
-    expect(within(dialog).getByRole('checkbox', { name: /Soupe/ })).not.toBeChecked()
+    expect(api.meals.listMeals).toHaveBeenLastCalledWith(TODAY, '2027-10-21')
+    // Repas passés : plus proposés.
+    expect(within(dialog).queryByRole('checkbox', { name: /Soupe/ })).not.toBeInTheDocument()
     expect(within(dialog).getByRole('checkbox', { name: /Tartiflette/ })).toBeChecked()
+    expect(within(dialog).getByRole('region', { name: 'Jeudi 12 novembre' })).toHaveTextContent('Midi · 1 pers. · 6 portions')
+    const rest = within(within(dialog).getByRole('region', { name: 'Vendredi 13 novembre' })).getByRole('checkbox', { name: /Lasagnes/ })
+    expect(rest).not.toBeChecked()
+    expect(rest.closest('li')).toHaveTextContent('restes, rien à acheter')
+    await user.click(rest)
+    expect(within(dialog).getByRole('button', { name: 'Préparer la liste (6 repas)' })).toBeEnabled()
+    await user.click(rest)
     expect(within(dialog).getByRole('checkbox', { name: /Tartiflette/ }).closest('li')).toHaveTextContent('Soir · 2 pers.Recette')
     expect(within(dialog).getByRole('checkbox', { name: /Curry/ }).closest('li')).toHaveTextContent('Lien')
     expect(within(dialog).getByRole('checkbox', { name: /Poulet basquaise/ }).closest('li')).toHaveTextContent('Sans ingrédients')
-    expect(within(dialog).getByRole('button', { name: 'Préparer la liste (4 repas)' })).toBeEnabled()
+    expect(within(dialog).getByRole('button', { name: 'Préparer la liste (5 repas)' })).toBeEnabled()
 
     await user.click(within(dialog).getByRole('button', { name: 'Tout décocher' }))
     expect(within(dialog).getByRole('button', { name: 'Préparer la liste (0 repas)' })).toBeDisabled()
     await user.click(within(dialog).getByRole('button', { name: 'Tout cocher' }))
     await user.click(within(dialog).getByRole('checkbox', { name: /Curry/ }))
-    expect(within(dialog).getByRole('button', { name: 'Préparer la liste (4 repas)' })).toBeEnabled()
+    expect(within(dialog).getByRole('button', { name: 'Préparer la liste (5 repas)' })).toBeEnabled()
   })
 
   it('prépare l’aperçu, crée la liste et montre ce qui n’a pas été repris', async () => {
@@ -98,6 +112,11 @@ describe('PlanningPage — liste de courses depuis le planning', () => {
       expect.stringMatching(/^Modifier SelTartiflette$/),
     ])
     expect(within(dialog).getByRole('checkbox', { name: 'Acheter « Sel »' })).not.toBeChecked()
+    // Bulle : les lignes de recette d'où vient l'article.
+    await user.click(within(dialog).getByRole('button', { name: 'D’où vient « Pommes de terre »' }))
+    expect(await screen.findByText('Tartiflette (2 portions, recette pour 4) : 1 kg pommes de terre')).toBeInTheDocument()
+    expect(screen.getByText('Gratin : 500 g pommes de terre')).toBeInTheDocument()
+    await user.keyboard('{Escape}')
     expect(within(dialog).getByText(/Quantités non adaptées.*Gratin/)).toBeInTheDocument()
     const skipped = within(dialog).getByRole('region', { name: 'Non repris (1)' })
     expect(skipped).toHaveTextContent('Poulet basquaise')
@@ -108,10 +127,16 @@ describe('PlanningPage — liste de courses depuis le planning', () => {
     expect(api.shopping.addItems).toHaveBeenCalledWith(
       'new-list',
       [
-        { name: 'Pommes de terre', quantity: 1, unit: 'kg', aisle: 'FRUITS_LEGUMES' },
-        { name: 'Reblochon', quantity: 1, unit: null, aisle: 'CREMERIE' },
-        { name: 'Oignon', quantity: 2, unit: null, aisle: 'FRUITS_LEGUMES' },
-        { name: 'Lait de coco', quantity: 40, unit: 'cl', aisle: 'EPICERIE_SALEE' },
+        {
+          name: 'Pommes de terre',
+          quantity: 1,
+          unit: 'kg',
+          aisle: 'FRUITS_LEGUMES',
+          sources: ['Tartiflette (2 portions, recette pour 4) : 1 kg pommes de terre', 'Gratin : 500 g pommes de terre'],
+        },
+        expect.objectContaining({ name: 'Reblochon', quantity: 1, unit: null, aisle: 'CREMERIE' }),
+        expect.objectContaining({ name: 'Oignon', quantity: 2, unit: null, aisle: 'FRUITS_LEGUMES' }),
+        expect.objectContaining({ name: 'Lait de coco', quantity: 40, unit: 'cl', aisle: 'EPICERIE_SALEE' }),
       ],
       0,
     )
@@ -122,7 +147,7 @@ describe('PlanningPage — liste de courses depuis le planning', () => {
     expect(panel).toHaveTextContent('Poulet basquaise')
     expect(panel).toHaveTextContent('SelDécoché · Tartiflette')
     await user.click(within(panel).getByRole('button', { name: 'Ajouter « Sel »' }))
-    expect(api.shopping.addItem).toHaveBeenCalledWith('new-list', { name: 'Sel', quantity: null, unit: null, aisle: 'EPICERIE_SALEE' }, 0)
+    expect(api.shopping.addItem).toHaveBeenCalledWith('new-list', expect.objectContaining({ name: 'Sel', quantity: null, unit: null, aisle: 'EPICERIE_SALEE' }), 0)
     expect(screen.getByRole('region', { name: 'À vérifier (1)' })).toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: 'Fermer « À vérifier »' }))
     expect(screen.queryByRole('region', { name: /À vérifier/ })).not.toBeInTheDocument()
@@ -158,12 +183,12 @@ describe('PlanningPage — liste de courses depuis le planning', () => {
     await user.click(within(dialog).getByRole('radio', { name: 'Compléter une liste' }))
     expect(within(dialog).getByLabelText('Liste à compléter')).toHaveValue('l1')
     await user.click(within(dialog).getByRole('button', { name: 'Ajouter (3 articles)' }))
-    expect(api.shopping.updateItem).toHaveBeenCalledWith('i1', { quantity: 1000 })
+    expect(api.shopping.updateItem).toHaveBeenCalledWith('i1', { quantity: 1000, sources: ['Tartiflette (2 portions, recette pour 4) : 1 kg pommes de terre'] })
     expect(api.shopping.addItems).toHaveBeenCalledWith(
       'l1',
       [
-        { name: 'Reblochon', quantity: 1, unit: null, aisle: 'CREMERIE' },
-        { name: 'Oignon', quantity: 1, unit: null, aisle: 'FRUITS_LEGUMES' },
+        expect.objectContaining({ name: 'Reblochon', quantity: 1, unit: null, aisle: 'CREMERIE' }),
+        expect.objectContaining({ name: 'Oignon', quantity: 1, unit: null, aisle: 'FRUITS_LEGUMES' }),
       ],
       4,
     )
@@ -290,7 +315,7 @@ describe('PlanningPage — liste de courses, semaine vide', () => {
     await waitFor(() => expect(screen.getByRole('button', { name: 'Liste de courses' })).toBeEnabled())
     await user.click(screen.getByRole('button', { name: 'Liste de courses' }))
     const dialog = await screen.findByRole('dialog', { name: 'Liste de courses' })
-    expect(dialog).toHaveTextContent('Aucun repas planifié cette semaine.')
+    expect(await within(dialog).findByText('Aucun repas planifié à venir.')).toBeInTheDocument()
     await user.click(within(dialog).getByRole('button', { name: 'Annuler' }))
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
   })

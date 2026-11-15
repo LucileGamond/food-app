@@ -14,7 +14,12 @@ export interface InboxItem {
   /** Absents avec une base pas encore à jour : « À planifier », sans photo. */
   list?: InboxList | string
   photos?: string[]
+  /** Portions à cuisiner, indépendamment de la recette ; null ou absent : non précisé. */
+  portions?: number | null
 }
+
+/** Portions au plus pour un plat (limite de la base). */
+export const MAX_PORTIONS = 99
 
 /** Photos au plus pour un élément (pages d'une recette, captures d'une légende). */
 export const MAX_INBOX_PHOTOS = 3

@@ -14,6 +14,7 @@ export interface InboxState {
   /** Ajoute un lien ou une idée saisi(e) ou partagé(e) ; le titre d'un lien est complété ensuite. */
   add: (text: string, sharedTitle?: string | null) => Promise<boolean>
   rename: (id: string, title: string) => Promise<boolean>
+  setPortions: (id: string, portions: number | null) => Promise<boolean>
   remove: (item: InboxItem) => Promise<void>
   /** Crée le repas et retire l'élément (mise à jour optimiste). */
   plan: (item: InboxItem, target: SlotRef, people: string[]) => Promise<boolean>
@@ -91,6 +92,21 @@ export function useInbox(api: Api, list: InboxList = 'plan'): InboxState {
     [api, reload],
   )
 
+  const setPortions = useCallback(
+    async (id: string, portions: number | null) => {
+      try {
+        await api.inbox.setPortions(id, portions)
+        return true
+      } catch (error) {
+        toast.error(errorMessage(error))
+        return false
+      } finally {
+        void reload()
+      }
+    },
+    [api, reload],
+  )
+
   const remove = useCallback(
     async (item: InboxItem) => {
       setItems((list) => list.filter((i) => i.id !== item.id))
@@ -136,5 +152,5 @@ export function useInbox(api: Api, list: InboxList = 'plan'): InboxState {
     [api, reload],
   )
 
-  return { items, loading, loadError, reload, add, rename, remove, plan, move }
+  return { items, loading, loadError, reload, add, rename, setPortions, remove, plan, move }
 }

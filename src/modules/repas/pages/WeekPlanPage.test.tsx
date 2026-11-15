@@ -45,6 +45,7 @@ function setup({
       recipeId: i.recipe_id,
       minutes: i.id === 'i1' ? 90 : 15,
       servings: i.id === 'i1' ? 4 : 2,
+      portions: i.portions ?? null,
       ingredients: i.id === 'i2' ? ['saumon', 'salade'] : ['pâtes'],
     })),
   )
@@ -80,8 +81,9 @@ describe('WeekPlanPage — qui mange à la maison', () => {
     expect(within(await slot('Dimanche 15 novembre — Soir')).getByText('Déjà prévu : Pizza')).toBeInTheDocument()
     expect(screen.getAllByRole('group', { name: / — (Midi|Soir)$/ })).toHaveLength(14)
     expect(screen.getByText(/^2 plats à planifier · \d+ créneaux à remplir$/)).toBeInTheDocument()
-    expect(api.agenda.listEvents).toHaveBeenCalledWith('2026-11-09', '2026-11-15')
-    expect(api.meals.listMeals).toHaveBeenCalledWith('2026-11-09', '2026-11-15')
+    // Quatre semaines chargées d'un coup : les jours se cochent sans attendre.
+    expect(api.agenda.listEvents).toHaveBeenCalledWith('2026-11-09', '2026-12-06')
+    expect(api.meals.listMeals).toHaveBeenCalledWith('2026-11-09', '2026-12-06')
   })
 
   it('la présence se corrige à la main avant de demander à l’IA', async () => {
@@ -135,6 +137,57 @@ describe('WeekPlanPage — qui mange à la maison', () => {
     expect(await screen.findAllByRole('group', { name: / — Midi$/ })).toHaveLength(7)
   })
 
+  it('jours libres : cochés au choix sur 4 semaines, 14 jours au plus du premier au dernier', async () => {
+    const user = userEvent.setup()
+    const { api } = setup()
+    await slot('Lundi 9 novembre — Midi')
+    const days = screen.getByRole('region', { name: 'Jours à planifier' })
+    expect(within(days).getAllByRole('button')).toHaveLength(28)
+    // Retire lundi et mardi, ajoute le lundi suivant : la période va du mercredi 11 au lundi 16.
+    await user.click(within(days).getByRole('button', { name: 'Lundi 9 novembre' }))
+    await user.click(within(days).getByRole('button', { name: 'Mardi 10 novembre' }))
+    await user.click(within(days).getByRole('button', { name: 'Lundi 16 novembre' }))
+    expect(screen.queryByRole('group', { name: 'Lundi 9 novembre — Midi' })).not.toBeInTheDocument()
+    expect(await slot('Lundi 16 novembre — Soir')).toBeInTheDocument()
+    expect(screen.getByText(/Du 11 novembre au 16 novembre · 6 jours/)).toBeInTheDocument()
+    // Au-delà de 14 jours après le mercredi 11 : grisé.
+    expect(within(days).getByRole('button', { name: 'Mardi 24 novembre' })).toBeEnabled()
+    expect(within(days).getByRole('button', { name: 'Mercredi 25 novembre' })).toBeDisabled()
+
+    await user.click(screen.getByRole('button', { name: 'Proposer avec l’IA' }))
+    await waitFor(() => expect(api.weekPlan.proposePlan).toHaveBeenCalled())
+    const request = api.weekPlan.proposePlan.mock.calls[0]![0]
+    expect(request.start).toBe('2026-11-11')
+    expect(request.slots.map((s) => s.key)).toContain('2026-11-16|DINNER')
+    expect(request.slots.map((s) => s.key)).not.toContain('2026-11-10|DINNER')
+  })
+
+  it('portions par plat : réglées sur la page, enregistrées sur le plat, utilisées par l’IA', async () => {
+    const user = userEvent.setup()
+    const { api } = setup()
+    await slot('Lundi 9 novembre — Midi')
+    const input = within(screen.getByRole('region', { name: 'Portions par plat' })).getByLabelText('Portions : Lasagnes')
+    expect(input).toHaveAttribute('placeholder', '4')
+    await user.type(input, '8')
+    await user.tab()
+    expect(api.inbox.setPortions).toHaveBeenCalledWith('i1', 8)
+    await user.click(screen.getByRole('button', { name: 'Proposer avec l’IA' }))
+    await waitFor(() => expect(api.weekPlan.proposePlan).toHaveBeenCalled())
+    expect(api.weekPlan.proposePlan.mock.calls[0]![0].dishes.find((d) => d.id === 'i1')!.servings).toBe(8)
+  })
+
+  it('portions refusées par la base : valeur d’avant remise, erreur affichée', async () => {
+    const user = userEvent.setup()
+    const { api } = setup()
+    api.inbox.setPortions.mockRejectedValueOnce(new AppError('Impossible de régler les portions.'))
+    await slot('Lundi 9 novembre — Midi')
+    await user.type(screen.getByLabelText('Portions : Salade de saumon'), '3{Enter}')
+    expect(await screen.findByText('Impossible de régler les portions.')).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'Proposer avec l’IA' }))
+    await waitFor(() => expect(api.weekPlan.proposePlan).toHaveBeenCalled())
+    expect(api.weekPlan.proposePlan.mock.calls[0]![0].dishes.find((d) => d.id === 'i2')!.servings).toBe(2)
+  })
+
   it('rien à planifier : on le dit, et l’IA n’est pas proposée', async () => {
     setup({ items: [] })
     expect(await screen.findByText(/Rien dans « À planifier »/)).toBeInTheDocument()
@@ -172,9 +225,9 @@ describe('WeekPlanPage — proposition', () => {
     await user.click(screen.getByRole('button', { name: 'Valider la semaine' }))
     await waitFor(() => expect(api.weekPlan.saveWeek).toHaveBeenCalled())
     expect(api.weekPlan.saveWeek.mock.calls[0]![0]).toEqual([
-      { item_id: 'i1', meal_date: '2026-11-11', slot: 'DINNER', people: [ERIC.id, LUCILE.id], cook_id: LUCILE.id },
-      { item_id: 'i1', meal_date: '2026-11-12', slot: 'LUNCH', people: [ERIC.id], cook_id: null },
-      { item_id: 'i2', meal_date: '2026-11-14', slot: 'DINNER', people: [ERIC.id, LUCILE.id], cook_id: LUCILE.id },
+      { item_id: 'i1', meal_date: '2026-11-11', slot: 'DINNER', people: [ERIC.id, LUCILE.id], cook_id: LUCILE.id, portions: null },
+      { item_id: 'i1', meal_date: '2026-11-12', slot: 'LUNCH', people: [ERIC.id], cook_id: null, portions: null },
+      { item_id: 'i2', meal_date: '2026-11-14', slot: 'DINNER', people: [ERIC.id, LUCILE.id], cook_id: LUCILE.id, portions: null },
     ])
     expect(await screen.findByText('Page planning')).toBeInTheDocument()
   })
@@ -230,7 +283,7 @@ describe('WeekPlanPage — proposition', () => {
     await waitFor(() => expect(screen.getByRole('button', { name: 'Proposer avec l’IA' })).toBeEnabled())
     expect(within(tuesday).queryByRole('combobox', { name: 'Plat' })).not.toBeInTheDocument()
     expect(within(tuesday).getByRole('button', { name: 'Lucile' })).toHaveAttribute('aria-pressed', 'true')
-    expect(api.agenda.listEvents).toHaveBeenLastCalledWith('2026-11-10', '2026-11-16')
+    expect(api.agenda.listEvents).toHaveBeenLastCalledWith('2026-11-10', '2026-12-07')
 
     // Proposition et validation repartent du nouveau jour, sans la correction de la veille.
     api.weekPlan.proposePlan.mockResolvedValue({ meals: [{ slot: '2026-11-10|DINNER', dishId: 'i2', cookId: LUCILE.id, why: '' }] })
@@ -238,7 +291,7 @@ describe('WeekPlanPage — proposition', () => {
     await user.click(await screen.findByRole('button', { name: 'Valider la semaine' }))
     await waitFor(() => expect(api.weekPlan.saveWeek).toHaveBeenCalled())
     expect(api.weekPlan.saveWeek.mock.calls[0]![0]).toEqual([
-      { item_id: 'i2', meal_date: '2026-11-10', slot: 'DINNER', people: [LUCILE.id], cook_id: LUCILE.id },
+      { item_id: 'i2', meal_date: '2026-11-10', slot: 'DINNER', people: [LUCILE.id], cook_id: LUCILE.id, portions: null },
     ])
   })
 

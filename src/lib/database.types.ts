@@ -517,14 +517,14 @@ isOneToOne: true
                   ]
                 },"meals": {
                   Row: {
-                    "cook_id": string | null,"created_at": string,"created_by": string | null,"id": string,"meal_date": string,"people": (string)[],"recipe_id": string,"slot": Database["public"]['Enums']["meal_slot"],"updated_at": string
+                    "cook_id": string | null,"created_at": string,"created_by": string | null,"id": string,"meal_date": string,"people": (string)[],"recipe_id": string,"slot": Database["public"]['Enums']["meal_slot"],"updated_at": string,"portions": number | null
                   }
                   ComputedFields: never
                   Insert: {
-                    "cook_id"?: string | null,"created_at"?: string,"created_by"?: string | null,"id"?: string,"meal_date": string,"people": (string)[],"recipe_id": string,"slot": Database["public"]['Enums']["meal_slot"],"updated_at"?: string
+                    "cook_id"?: string | null,"created_at"?: string,"created_by"?: string | null,"id"?: string,"meal_date": string,"people": (string)[],"recipe_id": string,"slot": Database["public"]['Enums']["meal_slot"],"updated_at"?: string,"portions"?: number | null
                   }
                   Update: {
-                    "cook_id"?: string | null,"created_at"?: string,"created_by"?: string | null,"id"?: string,"meal_date"?: string,"people"?: (string)[],"recipe_id"?: string,"slot"?: Database["public"]['Enums']["meal_slot"],"updated_at"?: string
+                    "cook_id"?: string | null,"created_at"?: string,"created_by"?: string | null,"id"?: string,"meal_date"?: string,"people"?: (string)[],"recipe_id"?: string,"slot"?: Database["public"]['Enums']["meal_slot"],"updated_at"?: string,"portions"?: number | null
                   }
                   Relationships: [
                     {
@@ -569,14 +569,14 @@ isOneToOne: false
                   ]
                 },"planning_inbox": {
                   Row: {
-                    "created_at": string,"created_by": string | null,"id": string,"list": string,"photos": (string)[],"recipe_id": string | null,"title": string,"url": string | null
+                    "created_at": string,"created_by": string | null,"id": string,"list": string,"photos": (string)[],"recipe_id": string | null,"title": string,"url": string | null,"portions": number | null
                   }
                   ComputedFields: never
                   Insert: {
-                    "created_at"?: string,"created_by"?: string | null,"id"?: string,"list"?: string,"photos"?: (string)[],"recipe_id"?: string | null,"title": string,"url"?: string | null
+                    "created_at"?: string,"created_by"?: string | null,"id"?: string,"list"?: string,"photos"?: (string)[],"recipe_id"?: string | null,"title": string,"url"?: string | null,"portions"?: number | null
                   }
                   Update: {
-                    "created_at"?: string,"created_by"?: string | null,"id"?: string,"list"?: string,"photos"?: (string)[],"recipe_id"?: string | null,"title"?: string,"url"?: string | null
+                    "created_at"?: string,"created_by"?: string | null,"id"?: string,"list"?: string,"photos"?: (string)[],"recipe_id"?: string | null,"title"?: string,"url"?: string | null,"portions"?: number | null
                   }
                   Relationships: [
                     {
@@ -781,14 +781,14 @@ isOneToOne: false
                   ]
                 },"shopping_items": {
                   Row: {
-                    "aisle": Database["public"]['Enums']["shopping_aisle"],"checked": boolean,"created_at": string,"created_by": string | null,"id": string,"list_id": string,"name": string,"position": number,"quantity": number | null,"unit": string | null,"updated_at": string
+                    "aisle": Database["public"]['Enums']["shopping_aisle"],"checked": boolean,"created_at": string,"created_by": string | null,"id": string,"list_id": string,"name": string,"position": number,"quantity": number | null,"unit": string | null,"updated_at": string,"sources": (string)[]
                   }
                   ComputedFields: never
                   Insert: {
-                    "aisle"?: Database["public"]['Enums']["shopping_aisle"],"checked"?: boolean,"created_at"?: string,"created_by"?: string | null,"id"?: string,"list_id": string,"name": string,"position"?: number,"quantity"?: number | null,"unit"?: string | null,"updated_at"?: string
+                    "aisle"?: Database["public"]['Enums']["shopping_aisle"],"checked"?: boolean,"created_at"?: string,"created_by"?: string | null,"id"?: string,"list_id": string,"name": string,"position"?: number,"quantity"?: number | null,"unit"?: string | null,"updated_at"?: string,"sources"?: (string)[]
                   }
                   Update: {
-                    "aisle"?: Database["public"]['Enums']["shopping_aisle"],"checked"?: boolean,"created_at"?: string,"created_by"?: string | null,"id"?: string,"list_id"?: string,"name"?: string,"position"?: number,"quantity"?: number | null,"unit"?: string | null,"updated_at"?: string
+                    "aisle"?: Database["public"]['Enums']["shopping_aisle"],"checked"?: boolean,"created_at"?: string,"created_by"?: string | null,"id"?: string,"list_id"?: string,"name"?: string,"position"?: number,"quantity"?: number | null,"unit"?: string | null,"updated_at"?: string,"sources"?: (string)[]
                   }
                   Relationships: [
                     {

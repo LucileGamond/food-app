@@ -57,6 +57,7 @@ export function createWeekPlanApi(db: AppSupabaseClient) {
         recipeId: item.recipe_id,
         minutes: null,
         servings: null,
+        portions: item.portions ?? null,
         ingredients: [],
         ...(item.recipe_id ? recipes.get(item.recipe_id) : undefined),
       }))

@@ -1,4 +1,5 @@
 import { ArrowLeft, ExternalLink, Loader2, Plus, TriangleAlert, Info } from 'lucide-react'
+import { ItemSources } from './ItemSources'
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { toast } from 'sonner'
@@ -105,6 +106,7 @@ export function ShoppingDraftPreview({ flow, today, backLabel, onBack, onDone }:
           </span>
           {amount && <span className={cn('shrink-0 text-sm tabular-nums text-muted-foreground', !line.include && 'line-through')}>{amount}</span>}
         </button>
+        <ItemSources name={label} sources={line.sources} />
       </li>
     )
   }

@@ -74,6 +74,11 @@ export function MealItem({ meal, profiles, disabled, onAction }: Props) {
                 <span>{cook.display_name} cuisine</span>
               </span>
             )}
+            {meal.portions === 0 ? (
+              <span className="ml-1.5">· Restes</span>
+            ) : meal.portions ? (
+              <span className="ml-1.5">· {meal.portions} portion{meal.portions > 1 ? 's' : ''}</span>
+            ) : null}
           </p>
         )}
       </div>

@@ -188,7 +188,7 @@ describe('RecipeDetailPage', () => {
 
     await user.click(within(dialog).getByRole('button', { name: 'Créer la liste (1 article)' }))
     expect(api.shopping.createList).toHaveBeenCalled()
-    expect(api.shopping.addItems).toHaveBeenCalledWith('new-list', [{ name: 'Pois chiches', quantity: 300, unit: 'g', aisle: expect.any(String) }], 0)
+    expect(api.shopping.addItems).toHaveBeenCalledWith('new-list', [{ name: 'Pois chiches', quantity: 300, unit: 'g', aisle: expect.any(String), sources: ['Curry de légumes (3 portions, recette pour 4) : 400 g Pois chiches'] }], 0)
     expect(await screen.findByText('Liste de courses')).toBeInTheDocument()
   })
 

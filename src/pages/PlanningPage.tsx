@@ -21,7 +21,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { ConfirmDialog } from '@/components/ConfirmDialog'
 import { PageHeader } from '@/components/PageHeader'
 import { DayCard } from '@/components/planning/DayCard'
-import { InboxPlanDialog, InboxRenameDialog } from '@/components/planning/InboxDialogs'
+import { InboxPlanDialog, InboxPortionsDialog, InboxRenameDialog } from '@/components/planning/InboxDialogs'
 import { InboxPanel, type InboxDragData } from '@/components/planning/InboxPanel'
 import { MealDialog } from '@/components/planning/MealDialog'
 import type { MealAction } from '@/components/planning/MealItem'
@@ -54,7 +54,7 @@ type DialogState =
   | { kind: 'form'; target: SlotRef; meal: Meal | null }
   | { kind: 'move' | 'duplicate'; meal: Meal }
   | { kind: 'delete'; meal: Meal }
-  | { kind: 'plan' | 'rename'; item: InboxItem }
+  | { kind: 'plan' | 'rename' | 'portions'; item: InboxItem }
   | { kind: 'shopping' }
   | { kind: 'ideas' }
 
@@ -215,6 +215,7 @@ export function PlanningPage({ today: fixedToday }: { today?: IsoDate }) {
           <div className="grid grid-cols-[minmax(0,1fr)] gap-4 lg:grid-cols-[minmax(0,1fr)_17rem] lg:items-start lg:gap-6">
             <div className="lg:order-last">
               <InboxPanel inbox={inbox} onPlan={(item) => setDialog({ kind: 'plan', item })} onRename={(item) => setDialog({ kind: 'rename', item })}
+                onPortions={(item) => setDialog({ kind: 'portions', item })}
                 onSetAside={(item) => void inbox.move(item, 'aside')}
               />
             </div>
@@ -291,9 +292,10 @@ export function PlanningPage({ today: fixedToday }: { today?: IsoDate }) {
       />
 
       <InboxRenameDialog item={dialog.kind === 'rename' ? dialog.item : null} onOpenChange={(open) => !open && closeDialog()} onSubmit={inbox.rename} />
+      <InboxPortionsDialog item={dialog.kind === 'portions' ? dialog.item : null} onOpenChange={(open) => !open && closeDialog()} onSubmit={inbox.setPortions} />
 
       <MealIdeasDialog open={dialog.kind === 'ideas'} onOpenChange={(open) => !open && closeDialog()} today={today} onAdded={() => void inbox.reload()} />
-      <ShoppingFromPlanDialog open={dialog.kind === 'shopping'} onOpenChange={(open) => !open && closeDialog()} meals={planning.meals} today={today} />
+      <ShoppingFromPlanDialog open={dialog.kind === 'shopping'} onOpenChange={(open) => !open && closeDialog()} today={today} />
 
       <ConfirmDialog
         open={deleting !== null}

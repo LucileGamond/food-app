@@ -9,7 +9,7 @@ import { Label } from '@/components/ui/label'
 import { NativeSelect } from '@/components/ui/native-select'
 import { useOnOpen } from '@/hooks/useOnOpen'
 import { formatDay, type IsoDate } from '@/lib/dates'
-import type { InboxItem } from '@/lib/inbox'
+import { MAX_PORTIONS, type InboxItem } from '@/lib/inbox'
 import { SLOTS, slotLabel, type MealSlot, type Profile, type SlotRef } from '@/lib/meals'
 
 interface PlanProps {
@@ -144,6 +144,72 @@ export function InboxRenameDialog({ item, onOpenChange, onSubmit }: RenameProps)
               Annuler
             </Button>
             <Button type="submit" className="h-10" disabled={saving || !title.trim()}>
+              Enregistrer
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
+interface PortionsProps {
+  item: InboxItem | null
+  onOpenChange: (open: boolean) => void
+  onSubmit: (id: string, portions: number | null) => Promise<boolean>
+}
+
+/** Portions à cuisiner pour un plat : la liste de courses adapte la recette à ce nombre. */
+export function InboxPortionsDialog({ item, onOpenChange, onSubmit }: PortionsProps) {
+  const [value, setValue] = useState('')
+  const [saving, setSaving] = useState(false)
+
+  useOnOpen(item !== null, () => setValue(item?.portions ? String(item.portions) : ''))
+
+  const portions = value.trim() === '' ? null : Number(value)
+  const invalid = portions !== null && (!Number.isInteger(portions) || portions < 1 || portions > MAX_PORTIONS)
+
+  async function handleSubmit(event: FormEvent) {
+    event.preventDefault()
+    if (!item || invalid) return
+    setSaving(true)
+    const ok = await onSubmit(item.id, portions)
+    setSaving(false)
+    if (ok) onOpenChange(false)
+  }
+
+  return (
+    <Dialog open={item !== null} onOpenChange={(open) => !saving && onOpenChange(open)}>
+      <DialogContent className="sm:max-w-sm">
+        <form onSubmit={handleSubmit} className="grid grid-cols-[minmax(0,1fr)] gap-5">
+          <DialogHeader>
+            <DialogTitle>Portions</DialogTitle>
+            <DialogDescription>Nombre de parts à cuisiner pour « {item?.title} », restes compris. Les courses adaptent la recette.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2">
+            <Label htmlFor="inbox-portions">Portions</Label>
+            <Input
+              id="inbox-portions"
+              type="number"
+              inputMode="numeric"
+              min={1}
+              max={MAX_PORTIONS}
+              placeholder="Non précisé"
+              value={value}
+              aria-invalid={invalid}
+              aria-describedby="inbox-portions-help"
+              onChange={(e) => setValue(e.target.value)}
+              className="h-10"
+            />
+            <p id="inbox-portions-help" className={invalid ? 'text-sm text-destructive' : 'text-sm text-muted-foreground'}>
+              {invalid ? `Entre 1 et ${MAX_PORTIONS} portions.` : 'Vide : autant que de personnes à table.'}
+            </p>
+          </div>
+          <DialogFooter>
+            <Button type="button" variant="outline" className="h-10" onClick={() => onOpenChange(false)} disabled={saving}>
+              Annuler
+            </Button>
+            <Button type="submit" className="h-10" disabled={saving || invalid}>
               Enregistrer
             </Button>
           </DialogFooter>

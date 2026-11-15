@@ -3,6 +3,12 @@ import {
   draftWarnings,
   isFragile,
   isLong,
+  canChooseDay,
+  defaultPlanDays,
+  planHorizon,
+  PLAN_HORIZON_DAYS,
+  toggleDay,
+  dishPortions,
   MAX_PLAN_DISHES,
   openSlots,
   parsePlan,
@@ -41,7 +47,7 @@ const SLOTS: PlanSlot[] = [
   slot('2026-11-14', 'DINNER', [E, L], [E, L], ['Pizza']),
 ]
 
-const dish = (id: string, extra: Partial<Dish> = {}): Dish => ({ id, title: id, recipeId: null, minutes: null, servings: null, ingredients: [], ...extra })
+const dish = (id: string, extra: Partial<Dish> = {}): Dish => ({ id, title: id, recipeId: null, minutes: null, servings: null, portions: null, ingredients: [], ...extra })
 const LASAGNES = dish('lasagnes', { minutes: 90, servings: 4, ingredients: ['pâtes', 'bœuf haché', 'tomate'] })
 const SALADE = dish('salade', { minutes: 15, servings: 2, ingredients: ['saumon fumé', 'roquette'] })
 const SOUPE = dish('soupe', { minutes: 30 })
@@ -195,8 +201,46 @@ describe('setEntry', () => {
 
 describe('toPlanWeekMeals', () => {
   it('donne les repas à créer avec les personnes du créneau', () => {
-    expect(toPlanWeekMeals([entry('2026-11-10', 'DINNER', 'lasagnes', E)], SLOTS)).toEqual([
-      { item_id: 'lasagnes', meal_date: '2026-11-10', slot: 'DINNER', people: [E, L], cook_id: E },
+    expect(toPlanWeekMeals([entry('2026-11-10', 'DINNER', 'lasagnes', E)], SLOTS, [dish('lasagnes')])).toEqual([
+      { item_id: 'lasagnes', meal_date: '2026-11-10', slot: 'DINNER', people: [E, L], cook_id: E, portions: null },
     ])
+  })
+
+  it('portions fixées sur le plat : cuisinées au premier repas, les suivants sont des restes', () => {
+    const entries = [entry('2026-11-11', 'LUNCH', 'lasagnes'), entry('2026-11-10', 'DINNER', 'lasagnes', E), entry('2026-11-10', 'LUNCH', 'soupe', E)]
+    expect(toPlanWeekMeals(entries, SLOTS, [dish('lasagnes', { portions: 6 }), SOUPE]).map((m) => [m.item_id, m.meal_date, m.portions])).toEqual([
+      ['lasagnes', '2026-11-11', 0],
+      ['lasagnes', '2026-11-10', 6],
+      ['soupe', '2026-11-10', null],
+    ])
+  })
+})
+
+describe('portions', () => {
+  it('celles du plat priment sur la recette, pour l’IA comme pour les alertes', () => {
+    const big = dish('salade', { servings: 2, portions: 6, ingredients: ['roquette'] })
+    expect(dishPortions(big)).toBe(6)
+    expect(dishPortions(SALADE)).toBe(2)
+    expect(buildPlanRequest('2026-11-09', SLOTS, [big], PROFILES).dishes[0]!.servings).toBe(6)
+    expect(Object.fromEntries(draftWarnings([entry('2026-11-09', 'DINNER', 'salade', E), entry('2026-11-10', 'LUNCH', 'salade')], SLOTS, [big], PROFILES))).toEqual({})
+  })
+})
+
+describe('jours à planifier', () => {
+  it('par défaut les 7 prochains jours, parmi 4 semaines proposées', () => {
+    expect(planHorizon('2026-11-09')).toHaveLength(PLAN_HORIZON_DAYS)
+    expect(defaultPlanDays('2026-11-09')).toEqual(['2026-11-09', '2026-11-10', '2026-11-11', '2026-11-12', '2026-11-13', '2026-11-14', '2026-11-15'])
+  })
+
+  it('jours libres, 14 jours au plus du premier au dernier', () => {
+    const chosen = ['2026-11-12', '2026-11-14']
+    expect(canChooseDay(chosen, '2026-11-25')).toBe(true)
+    expect(canChooseDay(chosen, '2026-11-26')).toBe(false)
+    expect(canChooseDay(chosen, '2026-11-01')).toBe(true)
+    expect(canChooseDay(chosen, '2026-10-31')).toBe(false)
+    expect(canChooseDay([], '2026-12-31')).toBe(true)
+    expect(toggleDay(chosen, '2026-11-13')).toEqual(['2026-11-12', '2026-11-13', '2026-11-14'])
+    expect(toggleDay(chosen, '2026-11-12')).toEqual(['2026-11-14'])
+    expect(toggleDay(chosen, '2026-11-30')).toEqual(chosen)
   })
 })

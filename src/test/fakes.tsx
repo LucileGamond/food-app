@@ -128,6 +128,7 @@ export function fakeApi(): FakeApi {
       listItems: vi.fn(async () => [] as InboxItem[]),
       addItem: vi.fn(async () => 'new-item'),
       renameItem: vi.fn(async () => undefined),
+      setPortions: vi.fn(async () => undefined),
       deleteItem: vi.fn(async () => undefined),
       uploadPhotos: vi.fn(async (photos: Blob[]) => photos.map((_, i) => `pending/photo-${i + 1}.jpg`)),
       downloadPhotos: vi.fn(async (paths: string[]) => paths.map((p) => new File([p], p.split('/').pop()!, { type: 'image/jpeg' }))),
@@ -295,7 +296,7 @@ export function fakeApi(): FakeApi {
       getMyRule: vi.fn(async () => DEFAULT_RULE),
       saveMyRule: vi.fn(async () => undefined),
       listDishes: vi.fn(async (items: InboxItem[]) =>
-        items.map((i): Dish => ({ id: i.id, title: i.title, recipeId: i.recipe_id, minutes: null, servings: null, ingredients: [] })),
+        items.map((i): Dish => ({ id: i.id, title: i.title, recipeId: i.recipe_id, minutes: null, servings: null, portions: i.portions ?? null, ingredients: [] })),
       ),
       proposePlan: vi.fn(async (): Promise<unknown> => ({ meals: [] })),
       saveWeek: vi.fn(async () => 0),

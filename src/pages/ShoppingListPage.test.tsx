@@ -49,6 +49,15 @@ function deferred<T>() {
 const section = (name: RegExp | string) => screen.getByRole('region', { name, hidden: true })
 
 describe('ShoppingListPage', () => {
+  it('bulle d’un article : les lignes de recette d’où il vient ; rien pour un article ajouté à la main', async () => {
+    const user = userEvent.setup()
+    renderList([item({ id: 'farine', name: 'Farine', quantity: 450, unit: 'g', sources: ['Crêpes : 250 g farine', 'Lasagnes (6 portions, recette pour 4) : 200 g farine'] }), item({ id: 'pain', name: 'Pain' })])
+    await user.click(await screen.findByRole('button', { name: 'D’où vient « Farine »' }))
+    expect(await screen.findByText('Crêpes : 250 g farine')).toBeInTheDocument()
+    expect(screen.getByText('Lasagnes (6 portions, recette pour 4) : 200 g farine')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'D’où vient « Pain »' })).not.toBeInTheDocument()
+  })
+
   it('range les articles par rayon dans l’ordre du magasin, les cochés à part', async () => {
     renderList()
     expect(await screen.findByRole('heading', { name: 'Courses du 25 oct.', level: 1 })).toBeInTheDocument()

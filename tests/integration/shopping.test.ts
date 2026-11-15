@@ -98,6 +98,19 @@ describe('shopping api', () => {
     await expect(api.shopping.addItems(list, [{ name: 'X', quantity: 1, unit: 'pot', aisle: 'AUTRE' }], 5)).rejects.toBeInstanceOf(AppError)
   })
 
+  it('garde l’origine des articles (lignes de recette) et la complète', async () => {
+    const { api } = await signedInApi()
+    const list = await api.shopping.createList('Avec origine')
+    await api.shopping.addItems(list, [{ name: 'Farine', quantity: 250, unit: 'g', aisle: 'EPICERIE_SUCREE', sources: ['Crêpes : 250 g farine'] }], 0)
+    const [farine] = await api.shopping.listItems(list)
+    expect(farine!.sources).toEqual(['Crêpes : 250 g farine'])
+    await api.shopping.updateItem(farine!.id, { quantity: 450, sources: ['Crêpes : 250 g farine', 'Lasagnes : 200 g farine'] })
+    expect((await api.shopping.listItems(list))[0]).toMatchObject({ quantity: 450, sources: ['Crêpes : 250 g farine', 'Lasagnes : 200 g farine'] })
+    // Article ajouté à la main : sans origine.
+    const pain = await api.shopping.addItem(list, { name: 'Pain', quantity: null, unit: null, aisle: 'BOULANGERIE' }, 1)
+    expect(pain.sources).toEqual([])
+  })
+
   it('le regroupement (tidy-shopping) exige une connexion et signale son indisponibilité', async () => {
     const anon = createShoppingApi(anonClient())
     await expect(anon.tidy([{ id: 'd1', name: 'sel', quantity: null, unit: null, aisle: 'AUTRE' }])).rejects.toThrow('Regroupement automatique indisponible.')

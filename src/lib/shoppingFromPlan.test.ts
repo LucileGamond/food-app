@@ -1,7 +1,7 @@
 import { ERIC, LUCILE, mealFixture } from '@/test/fakes'
 import type { Ingredient } from './recipes'
 import type { ShoppingItem } from './shopping'
-import { applyTidy, buildDraft, defaultSelection, isPantry, fromMeal, mealIngredients, mealSource, mealWhen, mergeIntoList, purchaseQuantity, skippedInput, skippedMeal, draftLineToItemInput, issueText, lineEntries, type DraftLine, type MealIngredients } from './shoppingFromPlan'
+import { applyTidy, buildDraft, isLeftover, isPantry, fromMeal, mealIngredients, mealSource, mealWhen, mergeIntoList, purchaseQuantity, skippedInput, skippedMeal, draftLineToItemInput, issueText, lineEntries, type DraftLine, type MealIngredients } from './shoppingFromPlan'
 import { capitalize } from './text'
 
 const ing = (name: string, quantity: number | null = null, unit: string | null = null): Ingredient => ({ name, quantity, unit, note: null })
@@ -18,12 +18,6 @@ describe('repas', () => {
     expect(mealSource(TARTIFLETTE)).toBe('recipe')
     expect(mealSource(mealFixture({ recipe: { url: 'https://exemple.fr/r' } }))).toBe('link')
     expect(mealSource(mealFixture())).toBe('none')
-  })
-
-  it('coche par défaut les repas d’aujourd’hui et des jours suivants', () => {
-    const past = mealFixture({ id: 'old', meal_date: '2026-10-24' })
-    const today = mealFixture({ id: 'today', meal_date: '2026-10-25' })
-    expect([...defaultSelection([past, today, GRATIN], '2026-10-25')]).toEqual(['today', 'm2'])
   })
 
   it('décrit quand a lieu un repas, et ce qui n’a pas pu être repris', () => {
@@ -145,6 +139,47 @@ describe('signalements', () => {
   })
 })
 
+describe('portions du repas', () => {
+  it('adapte la recette aux portions fixées, pas au nombre de convives ; des restes ne comptent rien', () => {
+    const lasagnes = mealFixture({ id: 'm7', people: [LUCILE.id, ERIC.id], recipe: { id: 'r7', is_saved: true, title: 'Lasagnes' }, portions: 6 })
+    const [line] = buildDraft([fromMeal(lasagnes, 4, [ing('pâtes', 400, 'g')])])
+    expect(line).toMatchObject({ quantity: 600, sources: ['Lasagnes (6 portions, recette pour 4) : 400 g pâtes'] })
+    expect(isLeftover({ portions: 0 })).toBe(true)
+    expect(isLeftover({ portions: null })).toBe(false)
+    expect(isLeftover({})).toBe(false)
+  })
+})
+
+describe('remarques et origine', () => {
+  it('une même remarque n’apparaît qu’une fois (plat planifié deux fois, lignes fusionnées après rangement)', () => {
+    const restes = mealFixture({ id: 'm3', meal_date: '2026-10-28', people: [LUCILE.id], recipe: { id: 'r2', is_saved: true, title: 'Gratin' } })
+    const draft = buildDraft([source(GRATIN, null, [ing('ciboulette')]), source(restes, null, [ing('ciboulette')])])
+    expect(draft.map((l) => l.issues.map(issueText))).toEqual([['Quantité non précisée (Gratin)']])
+    const tidied = applyTidy(buildDraft([source(GRATIN, null, [ing('persil plat'), ing('persil')])]), [
+      { id: 'd1', name: 'persil', aisle: 'FRUITS_LEGUMES', pantry: false },
+    ])
+    expect(tidied.map((l) => l.issues.map(issueText))).toEqual([['Quantité non précisée (Gratin)']])
+  })
+
+  it('garde pour chaque article les lignes de recette d’où il vient, avec les portions', () => {
+    const lines = buildDraft([
+      source(TARTIFLETTE, 4, [ing('reblochon', 1), ing('lardons', 200, 'g')]),
+      source(GRATIN, null, [ing('lardons', 100, 'g'), { name: 'lardons', quantity: 100, unit: 'g', note: 'fumés' }]),
+    ])
+    expect(Object.fromEntries(lines.map((l) => [l.name, l.sources]))).toEqual({
+      reblochon: ['Tartiflette (2 portions, recette pour 4) : 1 reblochon'],
+      lardons: ['Tartiflette (2 portions, recette pour 4) : 200 g lardons', 'Gratin : 100 g lardons', 'Gratin : 100 g lardons (fumés)'],
+    })
+    expect(draftLineToItemInput(lines[1]!).sources).toEqual(lines[1]!.sources)
+  })
+
+  it('une liste complétée garde l’origine des articles déjà là et ajoute la nouvelle', () => {
+    const item: ShoppingItem = { id: 'i1', list_id: 'l1', name: 'Lardons', quantity: 100, unit: 'g', aisle: 'BOUCHERIE_POISSON', checked: false, position: 0, sources: ['Quiche : 100 g lardons'] }
+    const { updates } = mergeIntoList([item], [{ name: 'lardons', quantity: 200, unit: 'g', aisle: 'BOUCHERIE_POISSON', sources: ['Tartiflette : 200 g lardons', 'Quiche : 100 g lardons'] }])
+    expect(updates).toEqual([{ item: expect.objectContaining({ id: 'i1' }), quantity: 300, sources: ['Quiche : 100 g lardons', 'Tartiflette : 200 g lardons'] }])
+  })
+})
+
 describe('applyTidy', () => {
   const draft = (): DraftLine[] =>
     buildDraft([source(GRATIN, null, [ing('oignons jaunes', 1), ing('oignon', 2), ing('reblochon', 1), ing('fleur de thym', 1, 'pincée')])])
@@ -189,9 +224,9 @@ describe('enregistrement', () => {
   it('met une majuscule et liste les articles décochés', () => {
     expect(capitalize('œufs')).toBe('Œufs')
     const lines = buildDraft([source(GRATIN, null, [ing('sel'), ing('lait', 1, 'l')])])
-    expect(draftLineToItemInput(lines[1]!)).toEqual({ name: 'Lait', quantity: 1, unit: 'l', aisle: 'CREMERIE' })
+    expect(draftLineToItemInput(lines[1]!)).toEqual({ name: 'Lait', quantity: 1, unit: 'l', aisle: 'CREMERIE', sources: ['Gratin : 1 l lait'] })
     expect(lineEntries(lines)).toEqual([
-      { key: 'line-d1', reason: 'unchecked', label: 'Sel', detail: 'Gratin', url: null, input: { name: 'Sel', quantity: null, unit: null, aisle: 'EPICERIE_SALEE' } },
+      { key: 'line-d1', reason: 'unchecked', label: 'Sel', detail: 'Gratin', url: null, input: { name: 'Sel', quantity: null, unit: null, aisle: 'EPICERIE_SALEE', sources: ['Gratin : sel'] } },
     ])
   })
 

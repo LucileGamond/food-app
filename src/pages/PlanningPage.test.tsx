@@ -39,6 +39,17 @@ describe('PlanningPage', () => {
     expect(await screen.findByText('Planifier la semaine')).toBeInTheDocument()
   })
 
+  it('affiche les portions cuisinées, ou « Restes »', async () => {
+    const api = fakeApi()
+    api.meals.listMeals.mockResolvedValue([
+      mealFixture({ id: 'a', meal_date: TODAY, slot: 'LUNCH', recipe: { title: 'Lasagnes' }, portions: 6 }),
+      mealFixture({ id: 'b', meal_date: TODAY, slot: 'DINNER', recipe: { title: 'Lasagnes' }, portions: 0 }),
+    ])
+    renderPlanning(api)
+    expect(await screen.findByText('· 6 portions')).toBeInTheDocument()
+    expect(screen.getByText('· Restes')).toBeInTheDocument()
+  })
+
   it('affiche qui cuisine et le change depuis le menu', async () => {
     const user = userEvent.setup()
     const api = fakeApi()

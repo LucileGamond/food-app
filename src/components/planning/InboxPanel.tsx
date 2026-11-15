@@ -1,5 +1,5 @@
 import { useDraggable } from '@dnd-kit/core'
-import { Archive, BookmarkCheck, CalendarPlus, ChevronDown, ExternalLink, Images, Inbox, Lightbulb, Link2, Loader2, MoreHorizontal, Pencil, Plus, RefreshCw, ScanText, Trash2 } from 'lucide-react'
+import { Archive, BookmarkCheck, CalendarPlus, ChevronDown, ExternalLink, Images, Inbox, Lightbulb, Link2, Loader2, MoreHorizontal, Pencil, Plus, RefreshCw, ScanText, Trash2, Users } from 'lucide-react'
 import { useState, type FormEvent } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
@@ -22,13 +22,14 @@ interface CardProps {
   item: InboxItem
   onPlan: (item: InboxItem) => void
   onRename: (item: InboxItem) => void
+  onPortions: (item: InboxItem) => void
   onRemove: (item: InboxItem) => void
   onSetAside: (item: InboxItem) => void
 }
 
 const KIND_ICON = { recipe: BookmarkCheck, link: Link2, photos: Images, idea: Lightbulb } as const
 
-function InboxCard({ item, onPlan, onRename, onRemove, onSetAside }: CardProps) {
+function InboxCard({ item, onPlan, onRename, onPortions, onRemove, onSetAside }: CardProps) {
   const navigate = useNavigate()
   const recipes = useSettings().isEnabled('recettes')
   const drag = useDraggable({ id: `inbox:${item.id}`, data: { inbox: item } satisfies InboxDragData })
@@ -57,7 +58,10 @@ function InboxCard({ item, onPlan, onRename, onRemove, onSetAside }: CardProps) 
         ) : (
           <p className="line-clamp-2 text-sm font-medium leading-snug">{item.title}</p>
         )}
-        <p className="mt-0.5 truncate text-xs text-muted-foreground">{inboxSubtitle(item)}</p>
+        <p className="mt-0.5 truncate text-xs text-muted-foreground">
+          {inboxSubtitle(item)}
+          {item.portions ? ` · ${item.portions} portion${item.portions > 1 ? 's' : ''}` : ''}
+        </p>
       </div>
       <Button variant="ghost" size="icon" aria-label={`Planifier « ${item.title} »`} onPointerDown={stop} onClick={() => onPlan(item)}>
         <CalendarPlus />
@@ -83,6 +87,9 @@ function InboxCard({ item, onPlan, onRename, onRemove, onSetAside }: CardProps) 
               <Archive /> Mettre de côté
             </DropdownMenuItem>
           )}
+          <DropdownMenuItem onClick={() => onPortions(item)}>
+            <Users /> Portions
+          </DropdownMenuItem>
           {kind !== 'recipe' && (
             <DropdownMenuItem onClick={() => onRename(item)}>
               <Pencil /> Renommer
@@ -101,12 +108,13 @@ interface Props {
   inbox: InboxState
   onPlan: (item: InboxItem) => void
   onRename: (item: InboxItem) => void
+  onPortions: (item: InboxItem) => void
   /** Passe l'élément dans « De côté » (écran Recettes). */
   onSetAside: (item: InboxItem) => void
 }
 
 /** Liste « À planifier » : liens, recettes et idées à répartir sur la semaine. */
-export function InboxPanel({ inbox, onPlan, onRename, onSetAside }: Props) {
+export function InboxPanel({ inbox, onPlan, onRename, onPortions, onSetAside }: Props) {
   const [text, setText] = useState('')
   const [adding, setAdding] = useState(false)
   // Sur téléphone, le panneau est replié par défaut pour laisser la place au planning.
@@ -174,7 +182,7 @@ export function InboxPanel({ inbox, onPlan, onRename, onSetAside }: Props) {
           <>
             <ul className="space-y-2" aria-label="Éléments à planifier">
               {inbox.items.map((item) => (
-                <InboxCard key={item.id} item={item} onPlan={onPlan} onRename={onRename} onRemove={setRemoving} onSetAside={onSetAside} />
+                <InboxCard key={item.id} item={item} onPlan={onPlan} onRename={onRename} onPortions={onPortions} onRemove={setRemoving} onSetAside={onSetAside} />
               ))}
             </ul>
             <p className="px-1 text-xs text-muted-foreground">Glisse un élément sur un créneau, ou utilise le bouton calendrier.</p>

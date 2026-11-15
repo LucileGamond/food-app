@@ -1,5 +1,5 @@
 import { createHandler, type Deps } from './handler.ts'
-import { buildUserMessage, MAX_DISHES, parseInput, sanitizePlan, type PlanInput } from './plan.ts'
+import { buildUserMessage, MAX_DISHES, MAX_SLOTS, parseInput, sanitizePlan, type PlanInput } from './plan.ts'
 
 const E = 'eric-id'
 const L = 'lucile-id'
@@ -48,6 +48,7 @@ describe('parseInput', () => {
   it.each([
     [{ ...INPUT, start: 'demain' }, 'Date invalide.'],
     [{ ...INPUT, slots: [] }, 'Aucun créneau à remplir.'],
+    [{ ...INPUT, slots: Array.from({ length: MAX_SLOTS + 1 }, () => INPUT.slots[0]) }, '28 créneaux au plus.'],
     [{ ...INPUT, dishes: [] }, 'Aucun plat à planifier.'],
     [{ ...INPUT, dishes: Array.from({ length: MAX_DISHES + 1 }, (_, i) => ({ id: `${i}`, title: 'x' })) }, '40 plats au plus.'],
     [{ ...INPUT, slots: [{ ...INPUT.slots[0], key: 'x' }] }, 'Créneau invalide.'],

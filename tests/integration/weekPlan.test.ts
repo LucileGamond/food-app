@@ -58,26 +58,29 @@ describe('planifier la semaine', () => {
     })
     await api.inbox.addItem({ recipeId })
     await api.inbox.addItem({ title: 'Soupe' })
+    const lasagnesItem = (await api.inbox.listItems('plan')).find((i) => i.title === 'Lasagnes')!
+    await api.inbox.setPortions(lasagnesItem.id, 6)
     const items = await api.inbox.listItems('plan')
+    expect(items.find((i) => i.title === 'Lasagnes')!.portions).toBe(6)
 
     const dishes = await api.weekPlan.listDishes(items)
-    expect(dishes.find((d) => d.title === 'Lasagnes')).toMatchObject({ recipeId, minutes: 75, servings: 4, ingredients: ['pâtes', 'bœuf haché'] })
+    expect(dishes.find((d) => d.title === 'Lasagnes')).toMatchObject({ recipeId, minutes: 75, servings: 4, portions: 6, ingredients: ['pâtes', 'bœuf haché'] })
     expect(dishes.find((d) => d.title === 'Soupe')).toMatchObject({ recipeId: null, minutes: null, servings: null, ingredients: [] })
 
     const lasagnes = items.find((i) => i.title === 'Lasagnes')!.id
     const soupe = items.find((i) => i.title === 'Soupe')!.id
     const count = await api.weekPlan.saveWeek([
-      { item_id: lasagnes, meal_date: '2026-11-10', slot: 'DINNER', people: [LUCILE.id, ERIC.id], cook_id: ERIC.id },
-      { item_id: lasagnes, meal_date: '2026-11-11', slot: 'LUNCH', people: [ERIC.id], cook_id: null },
-      { item_id: soupe, meal_date: '2026-11-09', slot: 'DINNER', people: [LUCILE.id], cook_id: LUCILE.id },
+      { item_id: lasagnes, meal_date: '2026-11-10', slot: 'DINNER', people: [LUCILE.id, ERIC.id], cook_id: ERIC.id, portions: 6 },
+      { item_id: lasagnes, meal_date: '2026-11-11', slot: 'LUNCH', people: [ERIC.id], cook_id: null, portions: 0 },
+      { item_id: soupe, meal_date: '2026-11-09', slot: 'DINNER', people: [LUCILE.id], cook_id: LUCILE.id, portions: null },
     ])
     expect(count).toBe(3)
     const meals = await api.meals.listMeals('2026-11-09', '2026-11-15')
     const byDate = [...meals].sort((a, b) => a.meal_date.localeCompare(b.meal_date))
-    expect(byDate.map((m) => [m.meal_date, m.slot, m.recipe.title, m.cook_id])).toEqual([
-      ['2026-11-09', 'DINNER', 'Soupe', LUCILE.id],
-      ['2026-11-10', 'DINNER', 'Lasagnes', ERIC.id],
-      ['2026-11-11', 'LUNCH', 'Lasagnes', null],
+    expect(byDate.map((m) => [m.meal_date, m.slot, m.recipe.title, m.cook_id, m.portions])).toEqual([
+      ['2026-11-09', 'DINNER', 'Soupe', LUCILE.id, null],
+      ['2026-11-10', 'DINNER', 'Lasagnes', ERIC.id, 6],
+      ['2026-11-11', 'LUNCH', 'Lasagnes', null, 0],
     ])
     expect(await api.inbox.listItems('plan')).toEqual([])
 
@@ -88,7 +91,7 @@ describe('planifier la semaine', () => {
   it('plat déjà planifié entre-temps : message clair, rien de créé', async () => {
     const { api } = await signedInApi()
     await expect(
-      api.weekPlan.saveWeek([{ item_id: crypto.randomUUID(), meal_date: '2026-11-10', slot: 'DINNER', people: [LUCILE.id], cook_id: null }]),
+      api.weekPlan.saveWeek([{ item_id: crypto.randomUUID(), meal_date: '2026-11-10', slot: 'DINNER', people: [LUCILE.id], cook_id: null, portions: null }]),
     ).rejects.toMatchObject({ message: 'Un plat n’est plus dans la liste « À planifier » : recharge la page.' })
     expect(await api.meals.listMeals('2026-11-09', '2026-11-15')).toEqual([])
   })

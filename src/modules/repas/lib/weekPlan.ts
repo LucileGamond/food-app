@@ -32,8 +32,13 @@ export interface Dish {
   /** Préparation, repos et cuisson ; null si inconnu. */
   minutes: number | null
   servings: number | null
+  /** Portions fixées sur le plat « À planifier » (priment sur celles de la recette) ; null si non précisé. */
+  portions: number | null
   ingredients: string[]
 }
+
+/** Portions prévues pour un plat : celles fixées sur le plat, sinon celles de la recette. */
+export const dishPortions = (dish: Pick<Dish, 'portions' | 'servings'>) => dish.portions ?? dish.servings
 
 export interface PlanSlot extends SlotPresence {
   /** Titres des repas déjà prévus : le créneau n'est pas proposé à l'IA. */
@@ -75,7 +80,7 @@ export function buildPlanRequest(start: IsoDate, slots: readonly PlanSlot[], dis
       id: d.id,
       title: d.title,
       minutes: d.minutes,
-      servings: d.servings,
+      servings: dishPortions(d),
       ingredients: d.ingredients.slice(0, 15),
       long: isLong(d),
       fragile: isFragile(d),
@@ -144,7 +149,8 @@ export function draftWarnings(entries: readonly DraftEntry[], slots: readonly Pl
       } else if (daysBetween(first.date, entry.date) > MAX_LEFTOVER_DAYS) {
         warn(entry, `Restes ${daysBetween(first.date, entry.date)} jours après : ça risque de s’abîmer`)
       }
-      if (dish.servings !== null && eaters > dish.servings) warn(entry, `Pas assez de portions (${dish.servings} pour ${eaters})`)
+      const portions = dishPortions(dish)
+      if (portions !== null && eaters > portions) warn(entry, `Pas assez de portions (${portions} pour ${eaters})`)
     })
   }
   return result
@@ -159,16 +165,46 @@ export function setEntry(entries: readonly DraftEntry[], ref: SlotRef, patch: Pa
   return [...entries, { date: ref.date, slot: ref.slot, dishId: patch.dishId, cookId: patch.cookId ?? null, why: '' }]
 }
 
-/** Repas à créer (RPC plan_week). */
-export function toPlanWeekMeals(entries: readonly DraftEntry[], slots: readonly PlanSlot[]) {
-  return entries.map((e) => ({
-    item_id: e.dishId,
-    meal_date: e.date,
-    slot: e.slot,
-    people: slots.find((s) => sameSlot(s, e))?.people ?? [],
-    cook_id: e.cookId,
-  }))
+/**
+ * Repas à créer (RPC plan_week). Un plat aux portions fixées est cuisiné pour ses portions au premier repas ; ses
+ * repas suivants sont des restes (0 : rien à acheter). Sans portions, chaque repas compte ses convives.
+ */
+export function toPlanWeekMeals(entries: readonly DraftEntry[], slots: readonly PlanSlot[], dishes: readonly Dish[]) {
+  return entries.map((e) => {
+    const portions = dishes.find((d) => d.id === e.dishId)?.portions ?? null
+    const first = entries.filter((x) => x.dishId === e.dishId).sort(order)[0] === e
+    return {
+      item_id: e.dishId,
+      meal_date: e.date,
+      slot: e.slot,
+      people: slots.find((s) => sameSlot(s, e))?.people ?? [],
+      cook_id: e.cookId,
+      portions: portions === null ? null : first ? portions : 0,
+    }
+  })
 }
 
 /** Les 7 jours à partir de `start`. */
 export const weekDays = (start: IsoDate): IsoDate[] => Array.from({ length: 7 }, (_, i) => addDays(start, i))
+
+/** Jours proposés à cocher, à partir d'aujourd'hui. */
+export const PLAN_HORIZON_DAYS = 28
+/** Du premier au dernier jour coché, au plus (limite de la fonction plan-week : 2 créneaux par jour). */
+export const MAX_PLAN_SPAN_DAYS = 14
+
+export const planHorizon = (today: IsoDate): IsoDate[] => Array.from({ length: PLAN_HORIZON_DAYS }, (_, i) => addDays(today, i))
+
+export const defaultPlanDays = (today: IsoDate): IsoDate[] => weekDays(today)
+
+/** Le jour peut être coché : la période (du premier au dernier jour coché) reste dans les 14 jours. */
+export function canChooseDay(chosen: readonly IsoDate[], day: IsoDate): boolean {
+  if (chosen.length === 0) return true
+  const all = [...chosen, day].sort()
+  return daysBetween(all[0]!, all.at(-1)!) < MAX_PLAN_SPAN_DAYS
+}
+
+/** Coche ou décoche un jour (sans dépasser 14 jours), dans l'ordre. */
+export function toggleDay(chosen: readonly IsoDate[], day: IsoDate): IsoDate[] {
+  if (chosen.includes(day)) return chosen.filter((d) => d !== day)
+  return canChooseDay(chosen, day) ? [...chosen, day].sort() : [...chosen]
+}

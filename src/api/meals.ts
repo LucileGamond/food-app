@@ -4,7 +4,7 @@ import type { AppSupabaseClient } from '@/api/client'
 import { toAppError } from './errors'
 import { subscribeTables } from './realtime'
 
-const MEAL_COLUMNS = 'id, meal_date, slot, people, cook_id, created_at, recipe:recipes!inner(id, is_saved, title, notes, url, tags)'
+const MEAL_COLUMNS = 'id, meal_date, slot, people, cook_id, portions, created_at, recipe:recipes!inner(id, is_saved, title, notes, url, tags)'
 
 function sourceParams(source: MealRecipeSource) {
   if (source.kind === 'saved') return { p_recipe_id: source.recipeId }

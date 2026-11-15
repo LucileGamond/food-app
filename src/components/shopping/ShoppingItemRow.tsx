@@ -1,4 +1,5 @@
 import { Checkbox } from '@/components/ui/checkbox'
+import { ItemSources } from './ItemSources'
 import { formatAmount, type ShoppingItem } from '@/lib/shopping'
 import { cn } from '@/lib/utils'
 
@@ -26,6 +27,7 @@ export function ShoppingItemRow({ item, onToggle, onEdit }: Props) {
         </span>
         {amount && <span className={cn('shrink-0 text-sm tabular-nums text-muted-foreground', item.checked && 'line-through')}>{amount}</span>}
       </button>
+      <ItemSources name={item.name} sources={item.sources} />
     </li>
   )
 }

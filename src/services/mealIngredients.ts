@@ -5,13 +5,15 @@ import type { Api } from '@/api'
 import { mapWithConcurrency } from '@/lib/async'
 import type { Meal } from '@/lib/meals'
 import type { Ingredient } from '@/lib/recipes'
-import { fromMeal, mealSource, skippedMeal, type MealIngredients, type SkippedEntry } from '@/lib/shoppingFromPlan'
+import { fromMeal, isLeftover, mealSource, skippedMeal, type MealIngredients, type SkippedEntry } from '@/lib/shoppingFromPlan'
 
 /** Pages de recettes lues en même temps. */
 const IMPORT_CONCURRENCY = 3
 
 /** Rejette si les recettes enregistrées ne peuvent pas être lues ; une page illisible ne fait que mettre son repas à part. */
-export async function collectMealIngredients(api: Pick<Api, 'recipes'>, meals: Meal[]): Promise<{ found: MealIngredients[]; missing: SkippedEntry[] }> {
+export async function collectMealIngredients(api: Pick<Api, 'recipes'>, chosen: Meal[]): Promise<{ found: MealIngredients[]; missing: SkippedEntry[] }> {
+  // Restes : déjà comptés avec le repas où le plat est cuisiné.
+  const meals = chosen.filter((m) => !isLeftover(m))
   const recipes = await api.recipes.getIngredients([...new Set(meals.filter((m) => mealSource(m) === 'recipe').map((m) => m.recipe.id))])
 
   // Une même page n'est lue qu'une fois, même si le repas est planifié plusieurs fois.
