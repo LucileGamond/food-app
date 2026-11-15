@@ -89,12 +89,13 @@ export function RowLine({ line, stitches, glossary, setupTo, onOpenChart, subste
       {substeps.length > 0 && (
         <ul aria-label="Sous-étapes en cours" className="space-y-0.5 text-sm">
           {substeps.map((s, i) => (
-            <li key={s.index} className="flex min-w-0 gap-1">
-              <span className="shrink-0 font-medium">
+            // Sur deux lignes au plus : le nom de la sous-étape se lit, au lieu d'être coupé.
+            <li key={s.index} className="line-clamp-2">
+              <span className="font-medium">
                 {i > 0 && 'En même temps · '}Sous-étape {s.index + 1}
                 {sectionCount > 0 && ` sur ${sectionCount}`} :
-              </span>
-              <span className="truncate text-muted-foreground">{withoutAtPrefix(s.title)}</span>
+              </span>{' '}
+              <span className="text-muted-foreground">{withoutAtPrefix(s.title)}</span>
             </li>
           ))}
         </ul>

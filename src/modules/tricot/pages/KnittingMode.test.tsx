@@ -84,7 +84,7 @@ describe('mode tricoter', () => {
     const row = await line()
     expect(within(row).getByRole('heading', { level: 2 })).toHaveTextContent('Ce rang')
     // La sous-étape où l'on est, nommée en tête de la carte
-    expect(within(row).getByRole('list', { name: 'Sous-étapes en cours' })).toHaveTextContent('Sous-étape 2 sur 2 :1 dim. de chaque côté — tous les 6 rangs (4 fois)')
+    expect(within(row).getByRole('list', { name: 'Sous-étapes en cours' })).toHaveTextContent('Sous-étape 2 sur 2 : 1 dim. de chaque côté — tous les 6 rangs (4 fois)')
     // Puis ce rang, puis le rang suivant
     expect(next()).toHaveTextContent('Rang suivant1 dim. de chaque côté (1/4)')
     // La question se pose au niveau du rang

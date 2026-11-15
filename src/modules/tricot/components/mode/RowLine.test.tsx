@@ -52,8 +52,8 @@ describe('RowLine : aller préparer l’étape', () => {
       </MemoryRouter>,
     )
     expect(Array.from(screen.getByRole('list', { name: 'Sous-étapes en cours' }).children, (li) => li.textContent)).toEqual([
-      'Sous-étape 2 sur 4 :1 diminution côté emmanchure — tous les 4 rangs (6 fois)',
-      'En même temps · Sous-étape 3 sur 4 :1 diminution côté encolure — tous les 2 rangs (5 fois)',
+      'Sous-étape 2 sur 4 : 1 diminution côté emmanchure — tous les 4 rangs (6 fois)',
+      'En même temps · Sous-étape 3 sur 4 : 1 diminution côté encolure — tous les 2 rangs (5 fois)',
     ])
   })
 

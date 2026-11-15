@@ -291,7 +291,7 @@ describe('mode tricoter : un seul compteur, celui de la sous-étape', () => {
     const step = { totalRows: null, rowCount: 14, sections: [rows(12, 'côtes'), rows(10, 'jersey'), rows(4, 'côtes')] }
     const { api } = await open(project(step))
     // La sous-étape est nommée dans la carte du rang ; le compteur ne donne que ses nombres
-    expect(screen.getByRole('list', { name: 'Sous-étapes en cours' })).toHaveTextContent('Sous-étape 2 sur 3 :10 rangs : jersey')
+    expect(screen.getByRole('list', { name: 'Sous-étapes en cours' })).toHaveTextContent('Sous-étape 2 sur 3 : 10 rangs : jersey')
     expect(counter()).toHaveTextContent('2 sur 10 rangs')
     expect(counter()).not.toHaveTextContent('jersey')
     expect(counter()).toHaveTextContent('14 rangs tricotés dans l’étape entière')
@@ -320,8 +320,8 @@ describe('mode tricoter : un seul compteur, celui de la sous-étape', () => {
     expect(counter()).toHaveTextContent('En même temps (sous-étape 2) : 2 / 6')
     expect(counter()).not.toHaveTextContent('encolure')
     expect(texts(within(screen.getByRole('list', { name: 'Sous-étapes en cours' })).getAllByRole('listitem'))).toEqual([
-      'Sous-étape 1 sur 2 :20 rangs : jersey',
-      'En même temps · Sous-étape 2 sur 2 :6 rangs : encolure',
+      'Sous-étape 1 sur 2 : 20 rangs : jersey',
+      'En même temps · Sous-étape 2 sur 2 : 6 rangs : encolure',
     ])
   })
 })
