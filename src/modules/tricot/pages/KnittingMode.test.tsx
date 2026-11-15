@@ -106,7 +106,7 @@ describe('mode tricoter', () => {
     await user.click(screen.getByRole('button', { name: 'Ajouter 1 rang' }))
     expect(api.knitting.saveProgress).toHaveBeenCalledWith('s2', { rowCount: 9 })
     expect(row).toHaveTextContent('Ce rang1 dim. de chaque côté (1/4)')
-    expect(next()).toHaveTextContent('Rien de particulier. Ensuite : rang 16, dans 6')
+    expect(screen.getByRole('region', { name: 'Ensuite' })).toHaveTextContent('EnsuiteRang 16, dans 6')
     await user.click(screen.getByRole('button', { name: 'Retirer un rang' }))
     expect(api.knitting.saveProgress).toHaveBeenLastCalledWith('s2', { rowCount: 8 })
     expect(row).toHaveTextContent('Ce rang')
@@ -149,7 +149,7 @@ describe('mode tricoter', () => {
     project.steps[1]!.rowCount = 9
     renderMode(project)
     const row = await line()
-    await user.click(within(row).getByRole('button', { name: 'dim. : explication' }))
+    await user.click(within(row).getAllByRole('button', { name: 'dim. : explication' })[0]!)
     expect(await screen.findByText('diminution')).toBeInTheDocument()
   })
 
@@ -293,7 +293,7 @@ describe('mode tricoter', () => {
     expect(await screen.findByRole('heading', { level: 1, name: 'Encolure' })).toBeInTheDocument()
     // Étape sans nombre de rangs : un rang suivant, mais pas de fin annoncée
     expect(next()).toHaveTextContent('Rang suivantRien de particulier.')
-    expect(next()).not.toHaveTextContent('Ensuite :')
+    expect(screen.queryByRole('region', { name: 'Ensuite' })).not.toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: 'Patron' }))
     const pattern = screen.getByRole('region', { name: 'Patron' })
     expect(within(pattern).getByText('Pas de texte pour cette étape.')).toBeInTheDocument()

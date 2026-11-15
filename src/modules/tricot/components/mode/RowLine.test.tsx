@@ -78,7 +78,9 @@ describe('RowLine : aller préparer l’étape', () => {
         />
       </MemoryRouter>,
     )
-    expect(screen.getByRole('region', { name: 'Rang suivant' })).toHaveTextContent('Rien de particulier. Ensuite : rang 18, dans 4 —')
+    // Rien de particulier au rang suivant : son contexte ; la prochaine chose à faire a sa section « Ensuite »
+    expect(screen.getByRole('region', { name: 'Rang suivant' })).toHaveTextContent('Rang suivantjersey')
+    expect(screen.getByRole('region', { name: 'Ensuite' })).toHaveTextContent('EnsuiteRang 18, dans 4 —')
     unmount2()
     render(
       <MemoryRouter>

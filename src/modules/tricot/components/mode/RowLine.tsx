@@ -23,9 +23,12 @@ interface Props {
   /** Sous-étapes où l'on est (plusieurs avec « en même temps ») et leur nombre dans l'étape. */
   substeps?: SubstepCount[]
   sectionCount?: number
-  /** Le rang d'après (null : c'était le dernier de l'étape), et la prochaine chose à faire s'il n'a rien de particulier. */
+  /** Le rang d'après (null : c'était le dernier de l'étape), et la prochaine chose à faire, plus loin. */
   next?: RowGuide | null
   upcoming?: Upcoming | null
+  /** Le point à tricoter (« jersey », « côtes 1/1 ») sur ce rang et sur le suivant, quand ils n'ont rien de particulier. */
+  point?: string | null
+  nextPoint?: string | null
   /** « Une question sur ce rang ? », au niveau du rang. */
   question?: ReactNode
 }
@@ -49,8 +52,8 @@ function Item({ icon: Icon, strong, children }: { icon: typeof BellRing; strong?
   )
 }
 
-/** Ce que demande un rang : ses consignes (ou la sous-étape en cours), puis ses diagrammes. */
-function Instructions({ line, glossary, setupTo, quiet }: { line: RowGuide; glossary: Abbreviation[]; setupTo: string; quiet?: ReactNode }) {
+/** Ce que demande un rang : ses consignes ou, sans rien de particulier, le point à tricoter ; puis ses diagrammes. */
+function Instructions({ line, glossary, setupTo, point }: { line: RowGuide; glossary: Abbreviation[]; setupTo: string; point?: string | null }) {
   return (
     <ul className="space-y-1.5">
       {line.events.map((event, i) => (
@@ -66,7 +69,19 @@ function Instructions({ line, glossary, setupTo, quiet }: { line: RowGuide; glos
           )}
         </Item>
       ))}
-      {line.events.length === 0 && <li className="text-muted-foreground">{quiet ?? (line.context ? <Glossed text={line.context} glossary={glossary} /> : 'Rien de particulier.')}</li>}
+      {line.events.length === 0 && (
+        <li className="text-muted-foreground">
+          {point ? (
+            <>
+              Point : <Glossed text={point} glossary={glossary} />
+            </>
+          ) : line.context ? (
+            <Glossed text={line.context} glossary={glossary} />
+          ) : (
+            'Rien de particulier.'
+          )}
+        </li>
+      )}
       {line.charts.map((c) => (
         <Item key={c.chart.id} icon={Grid3x3}>
           {chartLine(c)}
@@ -80,10 +95,10 @@ function Instructions({ line, glossary, setupTo, quiet }: { line: RowGuide; glos
  * Le rang à tricoter, d'un coup d'œil : la sous-étape où l'on est, ce rang (consignes, diagramme, mailles en fin de
  * rang), puis le rang suivant. Les nombres de rangs sont au compteur, sous le pouce.
  */
-export function RowLine({ line, stitches, glossary, setupTo, onOpenChart, substeps = [], sectionCount = 0, next = null, upcoming = null, question }: Props) {
+export function RowLine({ line, stitches, glossary, setupTo, onOpenChart, substeps = [], sectionCount = 0, next = null, upcoming = null, point = null, nextPoint = null, question }: Props) {
   const strips = line.charts.filter((c): c is ChartAt & { position: { kind: 'row' } } => c.position.kind === 'row')
-  // Rien de particulier au rang suivant : on dit quand arrive la prochaine chose à faire.
-  const later = upcoming && next && upcoming.row > next.row ? `Rien de particulier. Ensuite : rang ${upcoming.row}, dans ${upcoming.inRows} — ${upcoming.events.map(describeEvent).join(' · ')}` : null
+  // La prochaine chose à faire, quand elle tombe plus loin que le rang suivant.
+  const later = upcoming && (!next || upcoming.row > next.row) ? upcoming : null
   return (
     <section aria-labelledby="row-line" className="space-y-3 rounded-2xl border border-brand/40 bg-brand/5 p-4">
       {substeps.length > 0 && (
@@ -117,7 +132,7 @@ export function RowLine({ line, stitches, glossary, setupTo, onOpenChart, subste
           </p>
         ) : (
           <div className="text-base">
-            <Instructions line={line} glossary={glossary} setupTo={setupTo} />
+            <Instructions line={line} glossary={glossary} setupTo={setupTo} point={point} />
           </div>
         )}
       </div>
@@ -128,7 +143,20 @@ export function RowLine({ line, stitches, glossary, setupTo, onOpenChart, subste
           <h3 id="row-next" className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
             Rang suivant
           </h3>
-          <Instructions line={next} glossary={glossary} setupTo={setupTo} quiet={later ?? undefined} />
+          <Instructions line={next} glossary={glossary} setupTo={setupTo} point={nextPoint} />
+        </section>
+      )}
+      {!line.unknown && later && (
+        <section aria-labelledby="row-later" className="space-y-1.5 border-t border-brand/20 pt-3 text-sm">
+          <h3 id="row-later" className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
+            Ensuite
+          </h3>
+          <p className="flex items-start gap-2">
+            <BellRing className="mt-0.5 size-4 shrink-0 text-muted-foreground" aria-hidden />
+            <span>
+              Rang {later.row}, dans {later.inRows} — <Glossed text={later.events.map(describeEvent).join(' · ')} glossary={glossary} />
+            </span>
+          </p>
         </section>
       )}
       {question}

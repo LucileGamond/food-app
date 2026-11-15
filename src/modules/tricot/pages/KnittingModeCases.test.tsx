@@ -61,6 +61,8 @@ async function open(value: KnitProject) {
     line,
     // Le rang suivant, sous le rang en cours (absent au dernier rang de l'étape)
     next: () => screen.queryByRole('region', { name: 'Rang suivant' }),
+    // La prochaine chose à faire, plus loin que le rang suivant
+    later: () => screen.queryByRole('region', { name: 'Ensuite' }),
     stitches: () => screen.getByText(/En fin de rang/).textContent,
     add: async (n = 1) => {
       for (let i = 0; i < n; i++) await userEvent.setup().click(screen.getByRole('button', { name: 'Ajouter 1 rang' }))
@@ -72,16 +74,18 @@ const texts = (items: ArrayLike<Element>) => Array.from(items, (li) => li.textCo
 
 describe('mode tricoter : sans diagramme', () => {
   it('sans section ni répétition : rien de particulier, la fin de l’étape, les mailles ne changent pas', async () => {
-    const { line, next, stitches } = await open(project({ rowCount: 4 }))
+    const { line, later, stitches } = await open(project({ rowCount: 4 }))
     expect(line).toHaveTextContent('Ce rangRien de particulier.')
-    expect(next()).toHaveTextContent('Rang suivantRien de particulier. Ensuite : rang 20, dans 15 — Dernier rang de l’étape, ensuite : Col')
+    expect(later()).toHaveTextContent('EnsuiteRang 20, dans 15 — Dernier rang de l’étape, ensuite : Col')
     expect(stitches()).toBe('En fin de rang : 60 mailles')
   })
 
   it('rangs sans répétition : la section en cours, puis le début de la suivante', async () => {
-    const { line, next, stitches, add } = await open(project({ rowCount: 2, sections: [rows(4, 'côtes 1/1'), rows(16, 'jersey')] }))
-    expect(line).toHaveTextContent('Ce rang4 rangs : côtes 1/1')
-    expect(next()).toHaveTextContent('Rang suivantRien de particulier. Ensuite : rang 5, dans 2 — Nouvelle sous-étape : 16 rangs : jersey')
+    const { line, next, later, stitches, add } = await open(project({ rowCount: 2, sections: [rows(4, 'côtes 1/1'), rows(16, 'jersey')] }))
+    expect(line).toHaveTextContent('Ce rangPoint : côtes 1/1')
+    // Le rang suivant n'a rien de particulier : il redonne le point
+    expect(next()).toHaveTextContent('Rang suivantPoint : côtes 1/1')
+    expect(later()).toHaveTextContent('EnsuiteRang 5, dans 2 — Nouvelle sous-étape : 16 rangs : jersey')
     await add(2)
     expect(line).toHaveTextContent('Ce rangNouvelle sous-étape : 16 rangs : jersey')
     expect(stitches()).toBe('En fin de rang : 60 mailles')
@@ -93,19 +97,19 @@ describe('mode tricoter : sans diagramme', () => {
       { text: '1 dim.', rank: 1, stitches: -1 },
       { text: '1 aug.', rank: null, stitches: 1 },
     ])
-    const { line, next, stitches, add } = await open(project({ rowCount: 2, totalRows: 10, sections: [rows(2, 'jersey'), raglan] }))
+    const { line, later, stitches, add } = await open(project({ rowCount: 2, totalRows: 10, sections: [rows(2, 'jersey'), raglan] }))
     expect(line).toHaveTextContent('Ce rangNouvelle sous-étape : 1 dim. (1er rang) + 1 aug. (dernier rang) — tous les 4 rangs (2 fois)1 dim. (1/2)')
     expect(stitches()).toBe('En fin de rang : 59 mailles')
-    expect(next()).toHaveTextContent('Rang suivantRien de particulier. Ensuite : rang 6, dans 3 — 1 aug. (1/2)')
+    expect(later()).toHaveTextContent('EnsuiteRang 6, dans 3 — 1 aug. (1/2)')
     await add(3)
     expect(line).toHaveTextContent('Ce rang1 aug. (1/2)')
     expect(stitches()).toBe('En fin de rang : 60 mailles')
   })
 
   it('répétition jusqu’à la fin de l’étape : numérotée sans total', async () => {
-    const { line, next } = await open(project({ rowCount: 7, totalRows: 12, sections: [repeat(4, null, [{ text: '1 aug. de chaque côté', rank: null, stitches: 2 }])] }))
+    const { line, later } = await open(project({ rowCount: 7, totalRows: 12, sections: [repeat(4, null, [{ text: '1 aug. de chaque côté', rank: null, stitches: 2 }])] }))
     expect(line).toHaveTextContent('Ce rang1 aug. de chaque côté (2e fois)')
-    expect(next()).toHaveTextContent('Rang suivantRien de particulier. Ensuite : rang 12, dans 4 — 1 aug. de chaque côté (3e fois) · Dernier rang de l’étape, ensuite : Col')
+    expect(later()).toHaveTextContent('EnsuiteRang 12, dans 4 — 1 aug. de chaque côté (3e fois) · Dernier rang de l’étape, ensuite : Col')
   })
 
   it('deux répétitions à la suite : la jonction se lit sans trou ni doublon', async () => {
@@ -249,12 +253,12 @@ describe('mode tricoter : patron adapté et cas limites', () => {
       size: 'M',
       steps: [{ stepId: 's1', totalRows: 24, stitches: 66, sections: [repeat(8, 3, [{ text: '1 aug. de chaque côté', rank: null, stitches: 2 }])], note: '' }],
     }
-    const { line, next, stitches } = await open(project({ rowCount: 7, sections: [rows(20, 'jersey')] }, { adaptation }))
+    const { line, later, stitches } = await open(project({ rowCount: 7, sections: [rows(20, 'jersey')] }, { adaptation }))
     expect(line).toHaveTextContent('Ce rang1 aug. de chaque côté (1/3)')
     expect(screen.getByRole('contentinfo')).toHaveTextContent('7 sur 24 rangs')
     // 66 à la fin, 3 fois +2 : 60 au départ, 62 après le rang 8
     expect(stitches()).toBe('En fin de rang : 62 mailles')
-    expect(next()).toHaveTextContent('Rang suivantRien de particulier. Ensuite : rang 16, dans 8 — 1 aug. de chaque côté (2/3)')
+    expect(later()).toHaveTextContent('EnsuiteRang 16, dans 8 — 1 aug. de chaque côté (2/3)')
   })
 
   it('cm du patron convertis avec l’échantillon : le mode sait quoi faire, et rappelle de vérifier', async () => {
@@ -273,7 +277,7 @@ describe('mode tricoter : patron adapté et cas limites', () => {
     const { line } = await open(project({ rowCount: 3, sections, totalRows: 15 }, { patternGauge: { stitches: 22, rows: 30 }, gauges: [{ needle: null, stitches: 20, rows: 20, checked: false }] }))
     expect(screen.queryByRole('note')).not.toBeInTheDocument()
     // Validé à 15 rangs : l'échantillon (20 rangs pour 10 cm, soit 10 rangs) ne le change plus
-    expect(line).toHaveTextContent('Ce rang15 rangs : jersey')
+    expect(line).toHaveTextContent('Ce rangPoint : jersey')
   })
 
   it('projet sans étape : rien à tricoter', async () => {

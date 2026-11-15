@@ -85,6 +85,12 @@ interface KnittingProps {
   projectTo: string
 }
 
+/** Le point à tricoter au rang `row` (« jersey », « côtes 1/1 ») : le texte des sous-étapes en cours qui en ont un. */
+function pointAt(step: ShownStep, row: number): string | null {
+  const texts = substepCounts(step, row).map((c) => step.sections[c.index]?.text.trim() ?? '').filter(Boolean)
+  return texts.length ? [...new Set(texts)].join(' · ') : null
+}
+
 function Knitting({ project, knit, projectTo }: KnittingProps) {
   const api = useApi()
   const [params, setParams] = useSearchParams()
@@ -200,6 +206,8 @@ function Knitting({ project, knit, projectTo }: KnittingProps) {
               substeps={substeps}
               sectionCount={step.sections.length}
               next={step.totalRows === null || row < step.totalRows ? guide.at(row + 1) : null}
+              point={pointAt(step, row)}
+              nextPoint={pointAt(step, row + 1)}
               upcoming={guide.upcoming(row, 1)[0] ?? null}
               question={
                 step.instructions ? (
