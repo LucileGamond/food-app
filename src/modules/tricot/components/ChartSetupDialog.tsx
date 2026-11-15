@@ -8,7 +8,7 @@ import { Label } from '@/components/ui/label'
 import { NativeSelect } from '@/components/ui/native-select'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { cn } from '@/lib/utils'
-import { formToSetup, MAX_CHART_TITLE, moveNearestLine, rowBand, type ChartForm, type ChartSetup } from '../lib/chart'
+import { formToSetup, isChartRowCount, MAX_CHART_TITLE, moveNearestLine, nudgeLine, rowBand, type ChartForm, type ChartSetup } from '../lib/chart'
 import { describeSection, planSections, type KnitStep } from '../lib/pattern'
 import { CloseIcon, CropIcon } from './KnitIcons'
 
@@ -28,8 +28,6 @@ interface Props {
 
 /** Pas d'un bouton de réglage fin, en hauteur d'image. */
 const NUDGE = 0.01
-/** Écart minimum gardé entre les deux traits. */
-const GAP = 0.02
 
 const LINES = [
   { key: 'gridTop' as const, label: 'trait du haut (dernière ligne)' },
@@ -57,11 +55,7 @@ export function ChartSetupDialog({ open, imageUrl, initial, steps, onCrop, onCan
 
   /** Monte ou descend un trait d'un pas, sans croiser l'autre : le réglage fin, et le seul geste au clavier. */
   function nudge(key: 'gridTop' | 'gridBottom', by: number) {
-    update(
-      key === 'gridTop'
-        ? { gridTop: Math.min(Math.max(form.gridTop + by, 0), form.gridBottom - GAP) }
-        : { gridBottom: Math.max(Math.min(form.gridBottom + by, 1), form.gridTop + GAP) },
-    )
+    update(nudgeLine(form, key, by))
   }
 
   function moveTo(event: PointerEvent) {
@@ -72,10 +66,10 @@ export function ChartSetupDialog({ open, imageUrl, initial, steps, onCrop, onCan
 
   async function save() {
     const setup = formToSetup(form)
-    if (typeof setup === 'string') {
-      setError(setup)
+    if ('error' in setup) {
+      setError(setup.error)
       // Le problème est montré là où il se règle.
-      setTab(setup.startsWith('Lignes') || setup.startsWith('Place') ? 'grille' : 'place')
+      setTab(setup.tab)
       return
     }
     setSaving(true)
@@ -92,7 +86,7 @@ export function ChartSetupDialog({ open, imageUrl, initial, steps, onCrop, onCan
   const chosen = substeps.findIndex((p) => (form.sectionId ? p.section.id === form.sectionId : p.index === form.sectionIndex))
 
   const rows = Number(form.rows)
-  const showRows = Number.isInteger(rows) && rows >= 1 && rows <= 500
+  const showRows = isChartRowCount(rows)
   const firstRow = showRows ? rowBand({ ...form, rows }, 1) : null
   const pct = (n: number) => `${n * 100}%`
 

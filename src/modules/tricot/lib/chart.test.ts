@@ -1,4 +1,4 @@
-import { chartPosition, chartRows, chartStatus, describeHint, describePosition, describeReading, newChartForm, sanitizeHints, formToSetup, moveNearestLine, rowBand, sanitizeSetup, setupToForm, type ChartForm } from './chart'
+import { chartPosition, chartRows, chartStatus, describeHint, describePosition, describeReading, newChartForm, sanitizeHints, formToSetup, isChartRowCount, moveNearestLine, nudgeLine, rowBand, sanitizeSetup, setupToForm, type ChartForm } from './chart'
 
 describe('chartPosition', () => {
   // En rond : chaque tour est dessiné et se lit de droite à gauche.
@@ -78,14 +78,14 @@ describe('formToSetup', () => {
   })
 
   it('refuse un nombre de rangs ou un premier rang invalide', () => {
-    expect(formToSetup({ ...form, rows: '' })).toMatch(/Lignes de la grille/)
-    expect(formToSetup({ ...form, rows: '2.5' })).toMatch(/Lignes de la grille/)
-    expect(formToSetup({ ...form, rows: '501' })).toMatch(/Lignes de la grille/)
-    expect(formToSetup({ ...form, startRow: '0' })).toMatch(/Premier rang/)
+    expect(formToSetup({ ...form, rows: '' })).toMatchObject({ error: expect.stringMatching(/Lignes de la grille/), tab: 'grille' })
+    expect(formToSetup({ ...form, rows: '2.5' })).toMatchObject({ error: expect.stringMatching(/Lignes de la grille/) })
+    expect(formToSetup({ ...form, rows: '501' })).toMatchObject({ error: expect.stringMatching(/Lignes de la grille/) })
+    expect(formToSetup({ ...form, startRow: '0' })).toMatchObject({ error: expect.stringMatching(/Premier rang/), tab: 'place' })
   })
 
   it('refuse des traits croisés', () => {
-    expect(formToSetup({ ...form, gridTop: 0.5, gridBottom: 0.5 })).toMatch(/trait du haut/)
+    expect(formToSetup({ ...form, gridTop: 0.5, gridBottom: 0.5 })).toMatchObject({ error: expect.stringMatching(/trait du haut/), tab: 'grille' })
   })
 
   it('repart du calage enregistré', () => {
@@ -174,8 +174,8 @@ describe('diagramme rattaché à une sous-étape', () => {
     const form: ChartForm = { stepId: 's1', title: '', gridTop: 0.1, gridBottom: 0.9, rows: '4', startRow: '5', repeats: true, flat: false, oddOnly: false }
     expect(formToSetup({ ...form, endRow: '12' })).toMatchObject({ startRow: 5, endRow: 12 })
     expect(formToSetup({ ...form, endRow: '' })).not.toHaveProperty('endRow')
-    expect(formToSetup({ ...form, endRow: '4' })).toBe('Le dernier rang vient après le premier.')
-    expect(formToSetup({ ...form, endRow: 'x' })).toBe('Dernier rang : un nombre entier entre 1 et 5000.')
+    expect(formToSetup({ ...form, endRow: '4' })).toEqual({ error: 'Le dernier rang vient après le premier.', tab: 'place' })
+    expect(formToSetup({ ...form, endRow: 'x' })).toEqual({ error: 'Dernier rang : un nombre entier entre 1 et 5000.', tab: 'place' })
     expect(setupToForm({ stepId: 's1', title: '', gridTop: 0, gridBottom: 1, rows: 4, startRow: 5, endRow: 12, repeats: true, flat: false, oddOnly: false })).toMatchObject({ startRow: '5', endRow: '12' })
     expect(sanitizeSetup({ grid_top: 0, grid_bottom: 1, rows: 4, start_row: 5, end_row: 12 })).toMatchObject({ endRow: 12 })
     expect(sanitizeSetup({ grid_top: 0, grid_bottom: 1, rows: 4, start_row: 5, end_row: 3 })).not.toHaveProperty('endRow')
@@ -197,5 +197,28 @@ describe('chartStatus', () => {
     const row = chartPosition({ ...chart, startRow: 1, repeats: true }, 29)
     expect(row.kind).toBe('row')
     expect(chartStatus(chart, row)).toEqual({ main: 'Rang 5 sur 24 · 2e fois', reading: 'Endroit, de droite à gauche' })
+  })
+})
+
+describe('réglage fin des traits', () => {
+  const grid = { gridTop: 0.1, gridBottom: 0.9 }
+
+  it('monte ou descend un trait d’un pas', () => {
+    expect(nudgeLine(grid, 'gridTop', 0.01).gridTop).toBeCloseTo(0.11)
+    expect(nudgeLine(grid, 'gridBottom', -0.01).gridBottom).toBeCloseTo(0.89)
+  })
+
+  it('reste dans l’image', () => {
+    expect(nudgeLine({ ...grid, gridTop: 0.005 }, 'gridTop', -0.01).gridTop).toBe(0)
+    expect(nudgeLine({ ...grid, gridBottom: 0.995 }, 'gridBottom', 0.01).gridBottom).toBe(1)
+  })
+
+  it('ne croise pas l’autre trait', () => {
+    expect(nudgeLine({ gridTop: 0.5, gridBottom: 0.52 }, 'gridTop', 0.01).gridTop).toBe(0.5)
+    expect(nudgeLine({ gridTop: 0.5, gridBottom: 0.52 }, 'gridBottom', -0.01).gridBottom).toBe(0.52)
+  })
+
+  it('nombre de lignes plausible pour dessiner les rangs', () => {
+    expect([0, 1, 24, 500, 501, 2.5, Number.NaN].map(isChartRowCount)).toEqual([false, true, true, true, false, false, false])
   })
 })

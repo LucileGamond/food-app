@@ -145,20 +145,26 @@ export function setupToForm(setup: ChartSetup): ChartForm {
 /** Plus petit écart entre le haut et le bas du diagramme (fraction de l'image). */
 export const MIN_GRID_HEIGHT = 0.02
 
-/** Valeurs du formulaire → calage, ou message d'erreur. */
-export function formToSetup(form: ChartForm): ChartSetup | string {
+/** Formulaire invalide : le message, et l'onglet de la fenêtre de calage où il se règle. */
+export interface ChartFormError {
+  error: string
+  tab: 'grille' | 'place'
+}
+
+/** Valeurs du formulaire → calage, ou ce qui ne va pas. */
+export function formToSetup(form: ChartForm): ChartSetup | ChartFormError {
   const parse = (value: string, max: number) => {
     const n = Number(value.trim())
     return value.trim() && Number.isInteger(n) && n >= 1 && n <= max ? n : null
   }
   const rows = parse(form.rows, MAX_CHART_ROWS)
-  if (rows === null) return `Lignes de la grille : un nombre entier entre 1 et ${MAX_CHART_ROWS}.`
+  if (rows === null) return { error: `Lignes de la grille : un nombre entier entre 1 et ${MAX_CHART_ROWS}.`, tab: 'grille' }
   const startRow = parse(form.startRow, 5000)
-  if (startRow === null) return 'Premier rang : un nombre entier entre 1 et 5000.'
-  if (form.gridBottom - form.gridTop < MIN_GRID_HEIGHT) return 'Place le trait du haut au-dessus du trait du bas.'
+  if (startRow === null) return { error: 'Premier rang : un nombre entier entre 1 et 5000.', tab: 'place' }
+  if (form.gridBottom - form.gridTop < MIN_GRID_HEIGHT) return { error: 'Place le trait du haut au-dessus du trait du bas.', tab: 'grille' }
   const endRow = form.endRow?.trim() ? parse(form.endRow, 5000) : null
-  if (endRow === null && form.endRow?.trim()) return 'Dernier rang : un nombre entier entre 1 et 5000.'
-  if (endRow !== null && endRow < startRow) return 'Le dernier rang vient après le premier.'
+  if (endRow === null && form.endRow?.trim()) return { error: 'Dernier rang : un nombre entier entre 1 et 5000.', tab: 'place' }
+  if (endRow !== null && endRow < startRow) return { error: 'Le dernier rang vient après le premier.', tab: 'place' }
   return {
     stepId: form.stepId || null,
     title: form.title.trim().slice(0, MAX_CHART_TITLE),
@@ -186,6 +192,16 @@ export function moveNearestLine(grid: { gridTop: number; gridBottom: number }, y
   return top
     ? { ...grid, gridTop: Math.min(clamped, grid.gridBottom - MIN_GRID_HEIGHT) }
     : { ...grid, gridBottom: Math.max(clamped, grid.gridTop + MIN_GRID_HEIGHT) }
+}
+
+/** Nombre de lignes de grille plausible (pour dessiner les rangs par-dessus l'image avant d'enregistrer). */
+export const isChartRowCount = (n: number): boolean => Number.isInteger(n) && n >= 1 && n <= MAX_CHART_ROWS
+
+/** Monte (by < 0) ou descend un trait d'un pas, sans sortir de l'image ni croiser l'autre. */
+export function nudgeLine(grid: { gridTop: number; gridBottom: number }, key: 'gridTop' | 'gridBottom', by: number): { gridTop: number; gridBottom: number } {
+  return key === 'gridTop'
+    ? { ...grid, gridTop: Math.min(Math.max(grid.gridTop + by, 0), grid.gridBottom - MIN_GRID_HEIGHT) }
+    : { ...grid, gridBottom: Math.max(Math.min(grid.gridBottom + by, 1), grid.gridTop + MIN_GRID_HEIGHT) }
 }
 
 /** Diagramme repéré à la lecture du patron : page du PDF et calage proposé (voir la fonction knit-pattern). */
