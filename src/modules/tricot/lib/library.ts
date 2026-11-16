@@ -119,6 +119,21 @@ export function movePhoto<T>(photos: T[], from: number, to: number): T[] {
   return next
 }
 
+/** Photos dans l'ordre choisi : les nouvelles (`uploaded`, dans leur ordre d'envoi) prennent leur place parmi celles déjà enregistrées. */
+export function placePhotos(photos: PatternPhoto[], uploaded: string[]): string[] {
+  let next = 0
+  return photos.map((p) => (typeof p === 'string' ? p : uploaded[next++]!))
+}
+
+/**
+ * Fichiers devenus inutiles après la modification d'un patron : photos retirées, et ancien PDF s'il a été remplacé ou
+ * retiré et qu'aucun projet ne le lit (encore à vérifier en base au moment de supprimer).
+ */
+export function patternFilesToRemove(existing: Pick<KnitPattern, 'pdfPath' | 'photos' | 'projects'>, saved: { pdfPath: string | null; photos: string[] }): { photos: string[]; pdf: string | null } {
+  const pdfDropped = existing.pdfPath !== null && existing.pdfPath !== saved.pdfPath && existing.projects.length === 0
+  return { photos: existing.photos.filter((p) => !saved.photos.includes(p)), pdf: pdfDropped ? existing.pdfPath : null }
+}
+
 /** Nombre de fichiers d'un patron (PDF et photos), gardés et nouveaux. */
 export function fileCount(files: PatternFiles): { pdf: boolean; photos: number } {
   return { pdf: files.pdfPath !== null || files.newPdf !== null, photos: files.photos.length }
