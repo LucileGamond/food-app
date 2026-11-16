@@ -1,5 +1,6 @@
 import { createAppClient } from '@/api/client'
-import { createKnittingApi, fileToBase64 } from '@/modules/tricot/api'
+import { createKnittingApi } from '@/modules/tricot/api'
+import { fileToBase64 } from '@/modules/tricot/api/shared'
 import type { PatternStep, ReadPattern } from '@/modules/tricot/lib/pattern'
 import type { PatternFields, PatternFiles } from '@/modules/tricot/lib/library'
 import { ERIC, LOCAL_SERVICE_KEY, LOCAL_URL, LUCILE, anonClient, resetData, signedInApi } from './helpers'

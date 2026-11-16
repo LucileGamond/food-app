@@ -16,6 +16,8 @@ import {
   filterPatterns,
   matchPatterns,
   parsePatternDraft,
+  patternFilesToRemove,
+  placePhotos,
   patternFacts,
   patternFormats,
   sortPatterns,
@@ -359,5 +361,29 @@ describe('ajout groupé', () => {
     for (const item of planBatch([{ name: 'Châle.pdf', size: 10 }, { name: '.pdf', size: 10 }], [], 100)) {
       expect(parsePatternDraft({ ...EMPTY_PATTERN_DRAFT, title: batchFields(item.title).title }, WITH_PDF)).toHaveProperty('fields')
     }
+  })
+})
+
+describe('fichiers d’un patron enregistré', () => {
+  const a = new Blob(['a'])
+  const b = new Blob(['b'])
+
+  it('les nouvelles photos prennent leur place parmi les anciennes', () => {
+    expect(placePhotos([a, 'old1', b, 'old2'], ['new-a', 'new-b'])).toEqual(['new-a', 'old1', 'new-b', 'old2'])
+    expect(placePhotos(['old1'], [])).toEqual(['old1'])
+    expect(placePhotos([], [])).toEqual([])
+  })
+
+  it('retire les photos enlevées, et le PDF remplacé ou retiré d’un patron sans projet', () => {
+    const existing = { pdfPath: 'u/old.pdf', photos: ['p1', 'p2', 'p3'], projects: [] }
+    expect(patternFilesToRemove(existing, { pdfPath: 'u/new.pdf', photos: ['p3', 'p1'] })).toEqual({ photos: ['p2'], pdf: 'u/old.pdf' })
+    expect(patternFilesToRemove(existing, { pdfPath: null, photos: [] })).toEqual({ photos: ['p1', 'p2', 'p3'], pdf: 'u/old.pdf' })
+  })
+
+  it('garde le PDF inchangé, absent ou lu par un projet', () => {
+    const photos = { photos: [] as string[] }
+    expect(patternFilesToRemove({ pdfPath: 'u/a.pdf', projects: [], ...photos }, { pdfPath: 'u/a.pdf', photos: [] }).pdf).toBeNull()
+    expect(patternFilesToRemove({ pdfPath: null, projects: [], ...photos }, { pdfPath: 'u/a.pdf', photos: [] }).pdf).toBeNull()
+    expect(patternFilesToRemove({ pdfPath: 'u/a.pdf', projects: [{ id: 'p', title: 'Pull', size: 'M' }], ...photos }, { pdfPath: null, photos: [] }).pdf).toBeNull()
   })
 })
