@@ -2,7 +2,7 @@ import { screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { DEFAULT_SETTINGS } from '@/lib/settings'
 import type { KnitProject, KnitStep } from '@/modules/tricot/lib/pattern'
-import { fakeApi, mealFixture, renderWithApp } from '@/test/fakes'
+import { LUCILE, fakeApi, mealFixture, renderWithApp } from '@/test/fakes'
 import { plantFixture, ruleFixture } from '@/test/plants'
 import { HomePage } from './HomePage'
 
@@ -41,7 +41,7 @@ const PROJECT: KnitProject = {
   steps: [step({ id: 's1', done: true, rowCount: 18 }), step({ id: 's2', position: 1, title: 'Emmanchures', rowCount: 23, totalRows: 30 })],
 }
 
-function setup(disabledPages: string[] = []) {
+function setup(disabledPages: string[] = [], hour = 12) {
   const api = fakeApi()
   api.settings.getSettings.mockResolvedValue({ ...DEFAULT_SETTINGS, disabledPages: disabledPages as never })
   api.meals.listMeals.mockResolvedValue([
@@ -56,7 +56,7 @@ function setup(disabledPages: string[] = []) {
     { id: 'p1', title: 'Pull Bergamote', size: 'M', updatedAt: '2026-11-08T10:00:00Z', stepsDone: 1, stepsTotal: 2, current: { number: 2, title: 'Emmanchures', rowCount: 0, totalRows: 30, times: 1, pass: 1 }, hues: [] },
   ])
   api.knitting.getProject.mockResolvedValue(PROJECT)
-  return { ...renderWithApp(<HomePage today={TODAY} />, { api }), user: userEvent.setup() }
+  return { ...renderWithApp(<HomePage today={TODAY} hour={hour} />, { api }), user: userEvent.setup() }
 }
 
 describe('HomePage', () => {
@@ -137,5 +137,48 @@ describe('HomePage', () => {
     setup(['planning', 'recettes', 'courses', 'hydratation', 'plantes', 'tricot', 'agenda'])
     expect(await screen.findByText('Rien à résumer ici')).toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'Réglages' })).toHaveAttribute('href', '/reglages')
+  })
+
+  describe('rappel du journal des repas', () => {
+    const full = (day: string) => (['BREAKFAST', 'LUNCH', 'DINNER'] as const).map((slot) => ({ profile_id: LUCILE.id, eaten_on: day, slot, kind: 'vegetarian' as const }))
+
+    it('rien noté : rien la journée, un rappel le soir vers le jour du plan', async () => {
+      const { unmount } = setup([], 12)
+      await screen.findByRole('region', { name: 'Eau' })
+      expect(screen.queryByRole('link', { name: /à remplir/ })).not.toBeInTheDocument()
+      unmount()
+      setup([], 21)
+      const link = await screen.findByRole('link', { name: /Repas d’aujourd’hui à remplir/ })
+      expect(link).toHaveTextContent('végé ou non ?')
+      expect(link).toHaveAttribute('href', `/plan?profil=${LUCILE.id}&jour=${TODAY}`)
+    })
+
+    it('jours passés incomplets : leur nombre, et le lien ouvre le plus ancien', async () => {
+      const { api } = setup([], 12)
+      api.mealLog.list.mockResolvedValue([...full('2026-11-05'), ...full('2026-11-07')])
+      const link = await screen.findByRole('link', { name: /2 jours de repas à remplir/ })
+      expect(link).toHaveTextContent('depuis le 6 novembre')
+      expect(link).toHaveAttribute('href', `/plan?profil=${LUCILE.id}&jour=2026-11-06`)
+      expect(api.mealLog.list).toHaveBeenCalledWith(LUCILE.id, '2026-09-10', TODAY)
+    })
+
+    it('un seul jour passé à remplir', async () => {
+      const { api } = setup([], 12)
+      api.mealLog.list.mockResolvedValue([...full('2026-11-07')])
+      expect(await screen.findByRole('link', { name: /1 jour de repas à remplir/ })).toHaveTextContent('depuis le 8 novembre')
+    })
+
+    it('tout est rempli, ou page Plan masquée : pas de rappel', async () => {
+      const { api, unmount } = setup([], 22)
+      api.mealLog.list.mockResolvedValue([...full('2026-11-08'), ...full(TODAY)])
+      await screen.findByRole('region', { name: 'Eau' })
+      await waitFor(() => expect(api.mealLog.list).toHaveBeenCalled())
+      expect(screen.queryByRole('link', { name: /à remplir/ })).not.toBeInTheDocument()
+      unmount()
+      const hidden = setup(['plan'], 22)
+      await screen.findByRole('region', { name: 'Eau' })
+      expect(hidden.api.mealLog.list).not.toHaveBeenCalled()
+      expect(screen.queryByRole('link', { name: /à remplir/ })).not.toBeInTheDocument()
+    })
   })
 })

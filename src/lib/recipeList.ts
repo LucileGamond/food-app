@@ -55,6 +55,21 @@ const MEAT_TAG = /^(viande|poisson|volaille|boeuf|porc|poulet|agneau|veau|fruits
 /** Ingrédients carnés que le classement par rayon ne range pas en boucherie (conserves, épicerie, charcuterie). */
 const MEAT_WORDS = /(^|[^a-z])(thon|anchois|sardine|maquereau|volaille|pancetta|speck|coppa|magret|foie gras|rillettes|boudin|andouille|gelatine|poulpe|seiche|crabe|homard|surimi|jambon|lardon|saucisson)s?([^a-z]|$)/
 
+/** Viandes et poissons qu'un titre de recette nomme (« Poulet basquaise », « Saumon aux poireaux »). */
+const MEAT_TITLE_WORDS =
+  /(^|[^a-z])(viande|poisson|volaille|boeuf|porc|poulet|agneau|veau|canard|dinde|lapin|steak|merguez|chorizo|saucisse|bacon|saumon|cabillaud|colin|merlu|truite|crevette|moule|calamar|lieu|bar|dorade|thon|jambon|lardon)s?([^a-z]|$)/
+
+/**
+ * Végé ou non d'après ce qu'on sait d'un repas du planning (tags et titre, sans les ingrédients) : vrai, faux, ou
+ * null quand rien ne permet de le dire.
+ */
+export function guessRecipeVegetarian(recipe: { tags: readonly string[]; title: string }): boolean | null {
+  if (recipe.tags.some(isVegetarianTag)) return true
+  if (recipe.tags.map(foldText).some((t) => MEAT_TAG.test(t))) return false
+  const title = foldText(recipe.title)
+  return MEAT_TITLE_WORDS.test(title) || MEAT_WORDS.test(title) ? false : null
+}
+
 /** Tag « végé », « végétarien »… : le filtre rapide « Végé » le remplace dans la liste des tags. */
 export function isVegetarianTag(tag: string): boolean {
   return VEGETARIAN_TAG.test(foldText(tag))

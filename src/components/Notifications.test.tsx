@@ -66,12 +66,12 @@ describe('notifications de l’application', () => {
     api.settings.getSettings.mockResolvedValue({ ...DEFAULT_SETTINGS, disabledPages: [] })
     const { unmount } = renderLayout(api)
     expect(await screen.findByRole('region', { name: 'Activer les notifications' })).toHaveTextContent(
-      'Tu seras prévenu(e) : listes de courses modifiées par l’autre, rappels pour boire, plantes à arroser et rendez-vous du jour.',
+      'Tu seras prévenu(e) : listes de courses modifiées par l’autre, rappels pour boire, plantes à arroser, repas à noter le soir et rendez-vous du jour.',
     )
     unmount()
 
     const none = fakeApi()
-    none.settings.getSettings.mockResolvedValue({ ...DEFAULT_SETTINGS, mutedNotifications: ['courses'] })
+    none.settings.getSettings.mockResolvedValue({ ...DEFAULT_SETTINGS, mutedNotifications: ['courses', 'repas'] })
     renderLayout(none)
     await deviceStatus()
     expect(screen.queryByRole('region', { name: 'Activer les notifications' })).not.toBeInTheDocument()

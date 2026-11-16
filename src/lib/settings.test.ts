@@ -30,10 +30,12 @@ describe('réglages', () => {
   })
 
   it('liste les notifications qu’on recevra', () => {
-    expect(activeTopics(DEFAULT_SETTINGS).map((t) => t.key)).toEqual(['courses'])
+    expect(activeTopics(DEFAULT_SETTINGS).map((t) => t.key)).toEqual(['courses', 'repas'])
+    // Le rappel des repas suit la page Plan, pas une page « repas »
+    expect(activeTopics({ ...DEFAULT_SETTINGS, disabledPages: [...DEFAULT_SETTINGS.disabledPages, 'plan'] }).map((t) => t.key)).toEqual(['courses'])
     const all = activeTopics({ ...DEFAULT_SETTINGS, disabledPages: [] })
-    expect(describeTopics(all)).toBe('listes de courses modifiées par l’autre, rappels pour boire, plantes à arroser et rendez-vous du jour')
-    expect(activeTopics({ ...DEFAULT_SETTINGS, disabledPages: [], mutedNotifications: ['courses'] }).map((t) => t.key)).toEqual(['hydratation', 'plantes', 'agenda'])
+    expect(describeTopics(all)).toBe('listes de courses modifiées par l’autre, rappels pour boire, plantes à arroser, repas à noter le soir et rendez-vous du jour')
+    expect(activeTopics({ ...DEFAULT_SETTINGS, disabledPages: [], mutedNotifications: ['courses'] }).map((t) => t.key)).toEqual(['hydratation', 'plantes', 'repas', 'agenda'])
     expect(describeTopics([])).toBe('')
   })
 

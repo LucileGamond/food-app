@@ -16,6 +16,7 @@ import { AuthProvider, type AuthClient } from '@/auth/AuthProvider'
 import type { Meal, Profile, RecipeSummary } from '@/lib/meals'
 import type { Ingredient, Recipe, RecipeHistory, RecipeImport, RecipeListItem } from '@/lib/recipes'
 import type { Consumption, FoodPeriod, PeriodItem, PlanItem } from '@/lib/food'
+import type { MealLogEntry } from '@/lib/mealLog'
 import type { NutritionEstimate } from '@/lib/nutritionEstimate'
 import type { InboxItem } from '@/lib/inbox'
 import type { ShoppingItem, ShoppingItemInput, ShoppingList } from '@/lib/shopping'
@@ -311,6 +312,12 @@ export function fakeApi(): FakeApi {
       deletePeriod: vi.fn(async () => undefined),
       addConsumption: vi.fn(async (_itemId: string, date: string): Promise<Consumption> => ({ id: `c-${Math.random()}`, consumed_on: date, created_at: new Date().toISOString() })),
       removeConsumption: vi.fn(async () => undefined),
+      subscribe: vi.fn(() => () => undefined),
+    },
+    mealLog: {
+      list: vi.fn(async () => [] as MealLogEntry[]),
+      set: vi.fn(async () => undefined),
+      clear: vi.fn(async () => undefined),
       subscribe: vi.fn(() => () => undefined),
     },
   }

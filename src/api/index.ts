@@ -5,6 +5,7 @@ import { createHydrationApi } from './hydration'
 import { createIdeasApi } from './ideas'
 import { createInboxApi } from './inbox'
 import { createLlmUsageApi } from './llmUsage'
+import { createMealLogApi } from './mealLog'
 import { createMealsApi } from './meals'
 import { createPhotosApi } from './photos'
 import { createPushApi } from './push'
@@ -24,6 +25,7 @@ export function createApi(db: AppSupabaseClient) {
     photos: createPhotosApi(db),
     weights: createWeightsApi(db),
     food: createFoodApi(db),
+    mealLog: createMealLogApi(db),
     inbox: createInboxApi(db),
     shopping: createShoppingApi(db),
     push: createPushApi(db),

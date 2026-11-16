@@ -361,36 +361,16 @@ isOneToOne: false
       referencedColumns: ["id"]
     }
                   ]
-                },"ravelry_accounts": {
-                  Row: {
-                    "created_at": string,"profile_id": string,"updated_at": string,"username": string
-                  }
-                  ComputedFields: never
-                  Insert: {
-                    "created_at"?: string,"profile_id": string,"updated_at"?: string,"username": string
-                  }
-                  Update: {
-                    "created_at"?: string,"profile_id"?: string,"updated_at"?: string,"username"?: string
-                  }
-                  Relationships: [
-                    {
-      foreignKeyName: "ravelry_accounts_profile_id_fkey"
-      columns: ["profile_id"]
-isOneToOne: true
-      referencedRelation: "profiles"
-      referencedColumns: ["id"]
-    }
-                  ]
                 },"knit_stash_ideas": {
                   Row: {
-                    "created_at": string,"id": string,"ideas": NonNullable<Json>,"profile_id": string,"stash_ids": string[],"updated_at": string,"weight": string | null,"wish": string
+                    "created_at": string,"id": string,"ideas": NonNullable<Json>,"profile_id": string,"stash_ids": (string)[],"updated_at": string,"weight": string | null,"wish": string
                   }
                   ComputedFields: never
                   Insert: {
-                    "created_at"?: string,"id"?: string,"ideas": NonNullable<Json>,"profile_id"?: string,"stash_ids": string[],"updated_at"?: string,"weight"?: string | null,"wish"?: string
+                    "created_at"?: string,"id"?: string,"ideas": NonNullable<Json>,"profile_id"?: string,"stash_ids": (string)[],"updated_at"?: string,"weight"?: string | null,"wish"?: string
                   }
                   Update: {
-                    "created_at"?: string,"id"?: string,"ideas"?: NonNullable<Json>,"profile_id"?: string,"stash_ids"?: string[],"updated_at"?: string,"weight"?: string | null,"wish"?: string
+                    "created_at"?: string,"id"?: string,"ideas"?: NonNullable<Json>,"profile_id"?: string,"stash_ids"?: (string)[],"updated_at"?: string,"weight"?: string | null,"wish"?: string
                   }
                   Relationships: [
                     {
@@ -495,6 +475,26 @@ isOneToOne: false
       referencedColumns: ["id"]
     }
                   ]
+                },"meal_log": {
+                  Row: {
+                    "eaten_on": string,"kind": string,"profile_id": string,"slot": string,"updated_at": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "eaten_on": string,"kind": string,"profile_id": string,"slot": string,"updated_at"?: string
+                  }
+                  Update: {
+                    "eaten_on"?: string,"kind"?: string,"profile_id"?: string,"slot"?: string,"updated_at"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "meal_log_profile_id_fkey"
+      columns: ["profile_id"]
+isOneToOne: false
+      referencedRelation: "profiles"
+      referencedColumns: ["id"]
+    }
+                  ]
                 },"meal_presence_rules": {
                   Row: {
                     "ignored_keywords": (string)[],"profile_id": string,"updated_at": string,"weekday_lunch_at_work": boolean
@@ -517,14 +517,14 @@ isOneToOne: true
                   ]
                 },"meals": {
                   Row: {
-                    "cook_id": string | null,"created_at": string,"created_by": string | null,"id": string,"meal_date": string,"people": (string)[],"recipe_id": string,"slot": Database["public"]['Enums']["meal_slot"],"updated_at": string,"portions": number | null
+                    "cook_id": string | null,"created_at": string,"created_by": string | null,"id": string,"meal_date": string,"people": (string)[],"portions": number | null,"recipe_id": string,"slot": Database["public"]['Enums']["meal_slot"],"updated_at": string
                   }
                   ComputedFields: never
                   Insert: {
-                    "cook_id"?: string | null,"created_at"?: string,"created_by"?: string | null,"id"?: string,"meal_date": string,"people": (string)[],"recipe_id": string,"slot": Database["public"]['Enums']["meal_slot"],"updated_at"?: string,"portions"?: number | null
+                    "cook_id"?: string | null,"created_at"?: string,"created_by"?: string | null,"id"?: string,"meal_date": string,"people": (string)[],"portions"?: number | null,"recipe_id": string,"slot": Database["public"]['Enums']["meal_slot"],"updated_at"?: string
                   }
                   Update: {
-                    "cook_id"?: string | null,"created_at"?: string,"created_by"?: string | null,"id"?: string,"meal_date"?: string,"people"?: (string)[],"recipe_id"?: string,"slot"?: Database["public"]['Enums']["meal_slot"],"updated_at"?: string,"portions"?: number | null
+                    "cook_id"?: string | null,"created_at"?: string,"created_by"?: string | null,"id"?: string,"meal_date"?: string,"people"?: (string)[],"portions"?: number | null,"recipe_id"?: string,"slot"?: Database["public"]['Enums']["meal_slot"],"updated_at"?: string
                   }
                   Relationships: [
                     {
@@ -569,14 +569,14 @@ isOneToOne: false
                   ]
                 },"planning_inbox": {
                   Row: {
-                    "created_at": string,"created_by": string | null,"id": string,"list": string,"photos": (string)[],"recipe_id": string | null,"title": string,"url": string | null,"portions": number | null
+                    "created_at": string,"created_by": string | null,"id": string,"list": string,"photos": (string)[],"portions": number | null,"recipe_id": string | null,"title": string,"url": string | null
                   }
                   ComputedFields: never
                   Insert: {
-                    "created_at"?: string,"created_by"?: string | null,"id"?: string,"list"?: string,"photos"?: (string)[],"recipe_id"?: string | null,"title": string,"url"?: string | null,"portions"?: number | null
+                    "created_at"?: string,"created_by"?: string | null,"id"?: string,"list"?: string,"photos"?: (string)[],"portions"?: number | null,"recipe_id"?: string | null,"title": string,"url"?: string | null
                   }
                   Update: {
-                    "created_at"?: string,"created_by"?: string | null,"id"?: string,"list"?: string,"photos"?: (string)[],"recipe_id"?: string | null,"title"?: string,"url"?: string | null,"portions"?: number | null
+                    "created_at"?: string,"created_by"?: string | null,"id"?: string,"list"?: string,"photos"?: (string)[],"portions"?: number | null,"recipe_id"?: string | null,"title"?: string,"url"?: string | null
                   }
                   Relationships: [
                     {
@@ -665,6 +665,66 @@ isOneToOne: false
 isOneToOne: false
       referencedRelation: "profiles"
       referencedColumns: ["id"]
+    }
+                  ]
+                },"ravelry_accounts": {
+                  Row: {
+                    "created_at": string,"profile_id": string,"updated_at": string,"username": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "created_at"?: string,"profile_id": string,"updated_at"?: string,"username": string
+                  }
+                  Update: {
+                    "created_at"?: string,"profile_id"?: string,"updated_at"?: string,"username"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "ravelry_accounts_profile_id_fkey"
+      columns: ["profile_id"]
+isOneToOne: true
+      referencedRelation: "profiles"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"ravelry_oauth_states": {
+                  Row: {
+                    "code_verifier": string,"created_at": string,"profile_id": string,"redirect_uri": string,"state": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "code_verifier": string,"created_at"?: string,"profile_id": string,"redirect_uri": string,"state": string
+                  }
+                  Update: {
+                    "code_verifier"?: string,"created_at"?: string,"profile_id"?: string,"redirect_uri"?: string,"state"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "ravelry_oauth_states_profile_id_fkey"
+      columns: ["profile_id"]
+isOneToOne: false
+      referencedRelation: "profiles"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"ravelry_tokens": {
+                  Row: {
+                    "access_token": string,"expires_at": string,"profile_id": string,"refresh_token": string | null,"updated_at": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "access_token": string,"expires_at": string,"profile_id": string,"refresh_token"?: string | null,"updated_at"?: string
+                  }
+                  Update: {
+                    "access_token"?: string,"expires_at"?: string,"profile_id"?: string,"refresh_token"?: string | null,"updated_at"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "ravelry_tokens_profile_id_fkey"
+      columns: ["profile_id"]
+isOneToOne: true
+      referencedRelation: "ravelry_accounts"
+      referencedColumns: ["profile_id"]
     }
                   ]
                 },"recipe_ingredients": {
@@ -781,14 +841,14 @@ isOneToOne: false
                   ]
                 },"shopping_items": {
                   Row: {
-                    "aisle": Database["public"]['Enums']["shopping_aisle"],"checked": boolean,"created_at": string,"created_by": string | null,"id": string,"list_id": string,"name": string,"position": number,"quantity": number | null,"unit": string | null,"updated_at": string,"sources": (string)[]
+                    "aisle": Database["public"]['Enums']["shopping_aisle"],"checked": boolean,"created_at": string,"created_by": string | null,"id": string,"list_id": string,"name": string,"position": number,"quantity": number | null,"sources": (string)[],"unit": string | null,"updated_at": string
                   }
                   ComputedFields: never
                   Insert: {
-                    "aisle"?: Database["public"]['Enums']["shopping_aisle"],"checked"?: boolean,"created_at"?: string,"created_by"?: string | null,"id"?: string,"list_id": string,"name": string,"position"?: number,"quantity"?: number | null,"unit"?: string | null,"updated_at"?: string,"sources"?: (string)[]
+                    "aisle"?: Database["public"]['Enums']["shopping_aisle"],"checked"?: boolean,"created_at"?: string,"created_by"?: string | null,"id"?: string,"list_id": string,"name": string,"position"?: number,"quantity"?: number | null,"sources"?: (string)[],"unit"?: string | null,"updated_at"?: string
                   }
                   Update: {
-                    "aisle"?: Database["public"]['Enums']["shopping_aisle"],"checked"?: boolean,"created_at"?: string,"created_by"?: string | null,"id"?: string,"list_id"?: string,"name"?: string,"position"?: number,"quantity"?: number | null,"unit"?: string | null,"updated_at"?: string,"sources"?: (string)[]
+                    "aisle"?: Database["public"]['Enums']["shopping_aisle"],"checked"?: boolean,"created_at"?: string,"created_by"?: string | null,"id"?: string,"list_id"?: string,"name"?: string,"position"?: number,"quantity"?: number | null,"sources"?: (string)[],"unit"?: string | null,"updated_at"?: string
                   }
                   Relationships: [
                     {
@@ -827,14 +887,14 @@ isOneToOne: false
                   ]
                 },"user_settings": {
                   Row: {
-                    "agenda_reminded_on": string | null,"agenda_scope": string,"disabled_pages": (string)[],"hydration_containers": NonNullable<Json>,"hydration_goal_ml": number,"hydration_reminded_at": string | null,"muted_notifications": (string)[],"plants_reminded_on": string | null,"profile_id": string,"updated_at": string
+                    "agenda_reminded_on": string | null,"agenda_scope": string,"disabled_pages": (string)[],"hydration_containers": NonNullable<Json>,"hydration_goal_ml": number,"hydration_reminded_at": string | null,"meals_reminded_on": string | null,"muted_notifications": (string)[],"plants_reminded_on": string | null,"profile_id": string,"updated_at": string
                   }
                   ComputedFields: never
                   Insert: {
-                    "agenda_reminded_on"?: string | null,"agenda_scope"?: string,"disabled_pages"?: (string)[],"hydration_containers"?: NonNullable<Json>,"hydration_goal_ml"?: number,"hydration_reminded_at"?: string | null,"muted_notifications"?: (string)[],"plants_reminded_on"?: string | null,"profile_id"?: string,"updated_at"?: string
+                    "agenda_reminded_on"?: string | null,"agenda_scope"?: string,"disabled_pages"?: (string)[],"hydration_containers"?: NonNullable<Json>,"hydration_goal_ml"?: number,"hydration_reminded_at"?: string | null,"meals_reminded_on"?: string | null,"muted_notifications"?: (string)[],"plants_reminded_on"?: string | null,"profile_id"?: string,"updated_at"?: string
                   }
                   Update: {
-                    "agenda_reminded_on"?: string | null,"agenda_scope"?: string,"disabled_pages"?: (string)[],"hydration_containers"?: NonNullable<Json>,"hydration_goal_ml"?: number,"hydration_reminded_at"?: string | null,"muted_notifications"?: (string)[],"plants_reminded_on"?: string | null,"profile_id"?: string,"updated_at"?: string
+                    "agenda_reminded_on"?: string | null,"agenda_scope"?: string,"disabled_pages"?: (string)[],"hydration_containers"?: NonNullable<Json>,"hydration_goal_ml"?: number,"hydration_reminded_at"?: string | null,"meals_reminded_on"?: string | null,"muted_notifications"?: (string)[],"plants_reminded_on"?: string | null,"profile_id"?: string,"updated_at"?: string
                   }
                   Relationships: [
                     {
@@ -970,6 +1030,11 @@ isOneToOne: false
               "containers": Json,"drunk_ml": number,"goal_ml": number,"profile_id": string
             }[]
                            },
+"claim_meal_reminders":
+{ Args: { "p_now"?: string }; Returns: {
+              "missing": number,"plan_empty": boolean,"profile_id": string
+            }[]
+                           },
 "claim_plant_reminders":
 { Args: { "p_now"?: string }; Returns: {
               "profile_id": string
@@ -1042,6 +1107,11 @@ isOneToOne: false
 "llm_usage_summary":
 { Args: { "p_since"?: string,"p_until"?: string }; Returns: {
               "cache_creation_tokens": number,"cache_read_tokens": number,"calls": number,"failures": number,"function": string,"input_tokens": number,"mode": string,"model": string,"output_tokens": number,"requests": number,"user_id": string,"web_searches": number
+            }[]
+                           },
+"meal_reminders_due":
+{ Args: { "p_now"?: string }; Returns: {
+              "missing": number,"plan_empty": boolean,"profile_id": string
             }[]
                            },
 "merge_knit_steps":
