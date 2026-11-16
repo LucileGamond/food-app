@@ -240,7 +240,7 @@ export function SettingsPage() {
           </div>
           <ul>
             {NOTIFICATION_TOPICS.map((topic) => {
-              const pageOn = isPageEnabled(settings, topic.key)
+              const pageOn = isPageEnabled(settings, topic.page)
               return (
                 <Toggle
                   key={topic.key}

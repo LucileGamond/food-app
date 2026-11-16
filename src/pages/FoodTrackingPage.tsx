@@ -1,7 +1,7 @@
 import { BellRing, CalendarDays, CalendarPlus, ChevronDown, ChevronLeft, ChevronRight, ClipboardList, MoreHorizontal, Trash2 } from 'lucide-react'
 import { useCallback, useMemo, useState } from 'react'
 import { useToday } from '@/hooks/useToday'
-import { Link } from 'react-router-dom'
+import { Link, useSearchParams } from 'react-router-dom'
 import { Button, buttonVariants } from '@/components/ui/button'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -10,13 +10,17 @@ import { ConfirmDialog } from '@/components/ConfirmDialog'
 import { EmptyState } from '@/components/EmptyState'
 import { PageHeader } from '@/components/PageHeader'
 import { FoodItemRow } from '@/components/food/FoodItemRow'
+import { MealLogCard, MealLogStats } from '@/components/food/MealLogCard'
 import { PeriodDialog } from '@/components/food/PeriodDialog'
 import { ProfileSwitch, useProfileParam } from '@/components/food/ProfileSwitch'
 import { LoadError } from '@/components/LoadError'
 import { useApi } from '@/app/ApiContext'
 import { useAuth } from '@/auth/AuthProvider'
 import { useFoodTracking } from '@/hooks/useFoodTracking'
-import { addDays, currentHour, formatDay, type IsoDate } from '@/lib/dates'
+import { useMealLog } from '@/hooks/useMealLog'
+import { useMealSuggestions } from '@/hooks/useMealSuggestions'
+import { addDays, currentHour, formatDay, parseIsoDate, type IsoDate } from '@/lib/dates'
+import { dayLog, logRangeStart, streak, weeklyStats } from '@/lib/mealLog'
 import {
   clampToPeriod,
   containsDate,
@@ -32,6 +36,17 @@ import { cn } from '@/lib/utils'
 /** Heure à partir de laquelle on rappelle qu'aucune consommation n'est notée aujourd'hui. */
 const DAILY_REMINDER_HOUR = 20
 
+/** Jour demandé dans l'adresse (« ?jour=2026-11-14 », depuis le rappel de l'accueil), s'il est valide et passé. */
+function requestedDay(value: string | null, today: IsoDate): IsoDate | null {
+  if (!value) return null
+  try {
+    parseIsoDate(value)
+  } catch {
+    return null
+  }
+  return value <= today ? value : null
+}
+
 export function FoodTrackingPage({ today: fixedToday, hour = currentHour() }: { today?: IsoDate; hour?: number }) {
   const today = useToday(fixedToday)
   const api = useApi()
@@ -42,8 +57,39 @@ export function FoodTrackingPage({ today: fixedToday, hour = currentHour() }: { 
   const [day, setDay] = useState<{ periodId: string; date: IsoDate } | null>(null)
   const [collapsed, setCollapsed] = useState<ReadonlySet<FoodMeal>>(new Set())
   const [dialog, setDialog] = useState<'none' | 'create' | 'delete'>('none')
+  const [params] = useSearchParams()
+  const requested = requestedDay(params.get('jour'), today)
+  // Sans période : le journal a sa propre navigation.
+  const [journalDay, setJournalDay] = useState<IsoDate | null>(null)
 
-  const date = period ? (day?.periodId === period.id ? day.date : clampToPeriod(today, period)) : today
+  const date = period ? (day?.periodId === period.id ? day.date : clampToPeriod(requested ?? today, period)) : (journalDay ?? requested ?? today)
+  const rangeStart = logRangeStart(today)
+  const mealLog = useMealLog(api, profile?.id ?? null, date < rangeStart ? date : rangeStart, date > today ? date : today)
+  const suggestions = useMealSuggestions(api, profile?.id ?? null, date)
+  const journal = profile && !mealLog.loadError && (
+    <MealLogCard
+      log={dayLog(mealLog.entries, profile.id, date)}
+      suggestions={suggestions}
+      streak={streak(mealLog.entries, profile.id, today)}
+      onAnswer={(slot, kind) => void mealLog.answer(date, slot, kind)}
+      header={
+        !period && (
+          <div className="mb-3 flex items-center gap-2">
+            <Button variant="outline" size="icon-lg" aria-label="Jour précédent" onClick={() => setJournalDay(addDays(date, -1))}>
+              <ChevronLeft />
+            </Button>
+            <p className="flex-1 text-center font-medium" aria-live="polite">
+              {formatDay(date)}
+            </p>
+            <Button variant="outline" size="icon-lg" aria-label="Jour suivant" disabled={date >= today} onClick={() => setJournalDay(addDays(date, 1))}>
+              <ChevronRight />
+            </Button>
+          </div>
+        )
+      }
+    />
+  )
+  const stats = profile && !mealLog.loading && !mealLog.loadError && <MealLogStats weeks={weeklyStats(mealLog.entries, profile.id, today)} />
   const groups = useMemo(() => groupItems(items), [items])
   const notice = periodNotice(tracking.periods, today)
   const progress = period ? periodProgress(period, date) : null
@@ -128,19 +174,25 @@ export function FoodTrackingPage({ today: fixedToday, hour = currentHour() }: { 
           <Skeleton className="h-40 rounded-2xl" />
         </div>
       ) : !period ? (
-        <EmptyState
-          icon={CalendarPlus}
-          title="Aucune période"
-          description="Une période reprend les quotas du plan : crée-la pour commencer à noter ce que tu manges."
-          action={
-            <div className="flex flex-wrap justify-center gap-2">
-              {planLink}
-              {createButton}
-            </div>
-          }
-        />
+        <div className="space-y-4">
+          {journal}
+          <EmptyState
+            icon={CalendarPlus}
+            title="Aucune période"
+            description="Une période reprend les quotas du plan : crée-la pour commencer à noter ce que tu manges."
+            action={
+              <div className="flex flex-wrap justify-center gap-2">
+                {planLink}
+                {createButton}
+              </div>
+            }
+          />
+          {stats}
+        </div>
       ) : (
         <div className="space-y-4">
+          {journal}
+
           {(notice || nothingToday) && (
             <div role="status" className="flex items-start gap-3 rounded-xl border bg-background p-4 text-sm shadow-xs">
               <BellRing className="mt-0.5 size-4 shrink-0 text-brand" aria-hidden />
@@ -251,6 +303,8 @@ export function FoodTrackingPage({ today: fixedToday, hour = currentHour() }: { 
               )
             })
           )}
+
+          {stats}
         </div>
       )}
 

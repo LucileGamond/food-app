@@ -4,6 +4,7 @@
 //   - toutes les 10 minutes, corps {"job": "hydration"} : rappels « pense à boire » ;
 //   - toutes les heures, corps {"job": "plants"} : rappels d'arrosage du matin (à partir de 8 h, une fois par jour) ;
 //   - toutes les heures, corps {"job": "agenda"} : résumé du matin des rendez-vous (agenda.ts, branché par index.ts) ;
+//   - toutes les heures, corps {"job": "meals"} : rappel du soir des repas à noter (meals.ts, branché par index.ts) ;
 //   - chaque nuit, corps {"job": "cleanup"} : suppression des fichiers (photos, PDF) que plus rien n'utilise.
 
 import { CLEANED_BUCKETS, orphanFiles, type CleanedBucket, type StoredFile } from './cleanup.ts'

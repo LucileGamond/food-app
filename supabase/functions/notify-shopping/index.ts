@@ -1,5 +1,5 @@
 // Edge Function Supabase : notifications Web Push des modifications de listes de courses, rappels d'hydratation
-// et d'arrosage des plantes, résumé du matin de l'agenda.
+// et d'arrosage des plantes, résumé du matin de l'agenda, rappel du soir des repas.
 // Appelée par pg_cron (voir les migrations shopping_notifications et settings_hydration). Secrets :
 //   NOTIFY_SECRET  secret partagé avec la tâche planifiée (en-tête x-cron-secret)
 //   VAPID_KEYS     paire de clés VAPID au format JWK : {"publicKey": {...}, "privateKey": {...}}
@@ -9,6 +9,7 @@ import { ApplicationServer, importVapidKeys, PushMessageError } from '@negrel/we
 import { createClient } from '@supabase/supabase-js'
 import { notifyAgenda, type AgendaNotifyDeps } from './agenda.ts'
 import { createHandler, type Deps, type DeviceSubscription } from './handler.ts'
+import { notifyMeals, type MealsNotifyDeps } from './meals.ts'
 import { isAgendaScope } from '../_shared/agenda/scope.ts'
 import { addDays, toCivilDate } from '../_shared/watering/civil-date.ts'
 import type { HydrationReminder } from './hydration.ts'
@@ -222,4 +223,20 @@ const agendaDeps: AgendaNotifyDeps = {
   },
 }
 
-Deno.serve(createHandler(deps, { agenda: () => notifyAgenda(agendaDeps) }))
+const mealsDeps: MealsNotifyDeps = {
+  now: deps.now,
+  send: deps.send,
+  loadProfileSubscriptions: deps.loadProfileSubscriptions,
+  deleteSubscriptions: deps.deleteSubscriptions,
+  async claimMealReminders() {
+    const { data, error } = await db.rpc('claim_meal_reminders')
+    if (error) throw error
+    return (data as { profile_id: string; missing: number; plan_empty: boolean }[]).map((row) => ({
+      profileId: row.profile_id,
+      missing: row.missing,
+      planEmpty: row.plan_empty,
+    }))
+  },
+}
+
+Deno.serve(createHandler(deps, { agenda: () => notifyAgenda(agendaDeps), meals: () => notifyMeals(mealsDeps) }))

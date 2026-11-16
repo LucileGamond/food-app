@@ -4,7 +4,7 @@ import type { AgendaScope } from '@agenda/scope.ts'
 import { DEFAULT_CONTAINERS, type WaterContainer } from './hydration'
 
 export type PageKey = 'planning' | 'recettes' | 'plan' | 'courses' | 'poids' | 'hydratation' | 'tricot' | 'plantes' | 'agenda'
-export type NotificationTopic = 'courses' | 'hydratation' | 'plantes' | 'agenda'
+export type NotificationTopic = 'courses' | 'hydratation' | 'plantes' | 'agenda' | 'repas'
 
 export interface PageInfo {
   key: PageKey
@@ -28,16 +28,18 @@ export const PAGES: PageInfo[] = [
   { key: 'agenda', to: '/agenda', label: 'Agenda', description: 'Rendez-vous de vos agendas Google, en lecture seule' },
 ]
 
-export const NOTIFICATION_TOPICS: { key: NotificationTopic; label: string; description: string; summary: string }[] = [
-  { key: 'courses', label: 'Courses', description: 'Quand l’autre modifie une liste de courses', summary: 'listes de courses modifiées par l’autre' },
-  { key: 'hydratation', label: 'Eau', description: 'Rappel après 4 h sans boire (9 h – 23 h), jusqu’à l’objectif', summary: 'rappels pour boire' },
-  { key: 'plantes', label: 'Plantes', description: 'Le matin à 8 h, les plantes à arroser dans la journée', summary: 'plantes à arroser' },
-  { key: 'agenda', label: 'Agenda', description: 'Le matin à 7 h, les rendez-vous du jour', summary: 'rendez-vous du jour' },
+/** Sujets de notification ; `page` : la page sans laquelle le sujet n'a pas de sens. */
+export const NOTIFICATION_TOPICS: { key: NotificationTopic; page: PageKey; label: string; description: string; summary: string }[] = [
+  { key: 'courses', page: 'courses', label: 'Courses', description: 'Quand l’autre modifie une liste de courses', summary: 'listes de courses modifiées par l’autre' },
+  { key: 'hydratation', page: 'hydratation', label: 'Eau', description: 'Rappel après 4 h sans boire (9 h – 23 h), jusqu’à l’objectif', summary: 'rappels pour boire' },
+  { key: 'plantes', page: 'plantes', label: 'Plantes', description: 'Le matin à 8 h, les plantes à arroser dans la journée', summary: 'plantes à arroser' },
+  { key: 'repas', page: 'plan', label: 'Repas', description: 'Le soir à 21 h, si le journal des repas ou le plan du jour n’est pas rempli', summary: 'repas à noter le soir' },
+  { key: 'agenda', page: 'agenda', label: 'Agenda', description: 'Le matin à 7 h, les rendez-vous du jour', summary: 'rendez-vous du jour' },
 ]
 
 /** Notifications qu'on recevra : page affichée et sujet non coupé. */
 export function activeTopics(settings: UserSettings) {
-  return NOTIFICATION_TOPICS.filter((t) => isPageEnabled(settings, t.key) && !settings.mutedNotifications.includes(t.key))
+  return NOTIFICATION_TOPICS.filter((t) => isPageEnabled(settings, t.page) && !settings.mutedNotifications.includes(t.key))
 }
 
 /** « listes de courses modifiées par l’autre et rappels pour boire ». */

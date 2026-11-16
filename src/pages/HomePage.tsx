@@ -4,6 +4,7 @@ import { buttonVariants } from '@/components/ui/button'
 import { EmptyState } from '@/components/EmptyState'
 import { ActivityCard } from '@/components/home/ActivityCard'
 import { AgendaCard } from '@/components/home/AgendaCard'
+import { MealLogReminder } from '@/components/home/MealLogReminder'
 import { KnittingCard, MealsTodayCard, PlantsCard, WaterCard } from '@/components/home/HomeCards'
 import { PageHeader } from '@/components/PageHeader'
 import { useSettings } from '@/app/SettingsContext'
@@ -12,7 +13,7 @@ import { formatDay, type IsoDate } from '@/lib/dates'
 import { cn } from '@/lib/utils'
 
 /** Accueil « Aujourd’hui » : l'essentiel du jour des pages affichées (rendez-vous, repas, eau, plantes, tricot) et ce que l'autre a fait. */
-export function HomePage({ today: fixedToday }: { today?: IsoDate }) {
+export function HomePage({ today: fixedToday, hour }: { today?: IsoDate; hour?: number }) {
   const today = useToday(fixedToday)
   const { loading, isEnabled } = useSettings()
   const cards = [
@@ -28,6 +29,7 @@ export function HomePage({ today: fixedToday }: { today?: IsoDate }) {
   return (
     <>
       <PageHeader title="Aujourd’hui" description={formatDay(today)} />
+      {!loading && isEnabled('plan') && <MealLogReminder today={today} hour={hour} />}
       {loading ? null : cards.length === 0 ? (
         <EmptyState
           icon={Settings}
