@@ -36,3 +36,6 @@ supabase/.temp
 supabase/functions/.env
 supabase/functions/.env.*
 !supabase/functions/.env.example
+
+# Worktrees des sessions Claude (locaux, jamais versionnés)
+.claude/worktrees/
