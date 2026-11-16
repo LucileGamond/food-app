@@ -1,7 +1,8 @@
 import { act, renderHook, waitFor } from '@testing-library/react'
+import { toast } from 'sonner'
 import { AppError } from '@/api'
 import { fakeApi } from '@/test/fakes'
-import { knitProject, knitStep } from '@/test/knitFactories'
+import { knitProject, knitStep, rows as rowsOf } from '@/test/knitFactories'
 import { pendingFor, queueProgress } from '../lib/offline'
 import type { KnitProject, KnitStep } from '../lib/pattern'
 import { useKnitProject } from './useKnitProject'
@@ -240,5 +241,82 @@ describe('useKnitProject : avancée et file d’attente', () => {
     await waitFor(() => expect(rows(result)).toBe(30))
     expect(api.knitting.saveProgress).toHaveBeenCalledWith('p1-s1', { notes: 'à garder' })
     expect(pendingFor('p1')).toEqual([])
+  })
+})
+
+describe('useKnitProject : écritures du projet', () => {
+  const adaptation = { request: '', active: true, at: '2026-11-16', size: null, steps: [{ stepId: 'p1-s1', totalRows: 120, stitches: null, sections: [], note: '' }] }
+
+  async function loaded(p: KnitProject = project()) {
+    const api = fakeApi()
+    api.knitting.getProject.mockResolvedValue(p)
+    const hook = renderHook(() => useKnitProject(api, 'p1'))
+    await waitFor(() => expect(hook.result.current.project).not.toBeNull())
+    api.knitting.getProject.mockClear()
+    return { api, result: hook.result }
+  }
+
+  it('mutate : écrit puis relit ; en cas d’échec, affiche le message sans relire', async () => {
+    const error = vi.spyOn(toast, 'error')
+    const { api, result } = await loaded()
+    const write = vi.fn().mockResolvedValue(undefined)
+    await expect(act(() => result.current.mutate(write))).resolves.toBe(true)
+    expect(write).toHaveBeenCalledOnce()
+    expect(api.knitting.getProject).toHaveBeenCalledOnce()
+
+    api.knitting.getProject.mockClear()
+    await expect(act(() => result.current.mutate(() => Promise.reject(new AppError('Refusé.'))))).resolves.toBe(false)
+    expect(error).toHaveBeenCalledWith('Refusé.')
+    expect(api.knitting.getProject).not.toHaveBeenCalled()
+    error.mockRestore()
+  })
+
+  it('saveSections : étape du patron → avancée de l’étape', async () => {
+    const { api, result } = await loaded()
+    const sections = [rowsOf(4, 'côtes')]
+    await act(() => result.current.saveSections({ id: 'p1-s1' }, sections))
+    expect(api.knitting.saveProgress).toHaveBeenCalledWith('p1-s1', { sections })
+    expect(api.knitting.saveAdaptation).not.toHaveBeenCalled()
+  })
+
+  it('saveSections : étape adaptée → dans l’adaptation, le patron d’origine reste', async () => {
+    const { api, result } = await loaded(knitProject({ id: 'p1', steps: [step('p1-s1')], adaptation }))
+    const sections = [rowsOf(6, 'côtes')]
+    const adapted = { note: '', original: { totalRows: 100, stitches: null, sections: [] } }
+    await act(() => result.current.saveSections({ id: 'p1-s1', adapted }, sections))
+    expect(api.knitting.saveAdaptation).toHaveBeenCalledWith('p1', { ...adaptation, steps: [{ ...adaptation.steps[0], sections }] })
+    expect(api.knitting.saveProgress).not.toHaveBeenCalled()
+  })
+
+  it('saveSections : étape marquée adaptée mais adaptation disparue → dans l’étape', async () => {
+    const { api, result } = await loaded()
+    const adapted = { note: '', original: { totalRows: 100, stitches: null, sections: [] } }
+    await act(() => result.current.saveSections({ id: 'p1-s1', adapted }, []))
+    expect(api.knitting.saveProgress).toHaveBeenCalledWith('p1-s1', { sections: [] })
+  })
+
+  it('translateStep : traduction gardée avec l’étape, avertit si des nombres ont changé', async () => {
+    const warning = vi.spyOn(toast, 'warning')
+    const { api, result } = await loaded()
+    api.knitting.translateText.mockResolvedValueOnce({ text: 'Tricoter 10 rangs', numbersKept: true })
+    await act(() => result.current.translateStep('p1-s1', 'Knit 10 rows'))
+    expect(api.knitting.translateText).toHaveBeenCalledWith('Knit 10 rows')
+    expect(api.knitting.saveProgress).toHaveBeenLastCalledWith('p1-s1', { translation: 'Tricoter 10 rangs' })
+    expect(warning).not.toHaveBeenCalled()
+
+    api.knitting.translateText.mockResolvedValueOnce({ text: 'Tricoter 12 rangs', numbersKept: false })
+    await act(() => result.current.translateStep('p1-s1', 'Knit 10 rows'))
+    expect(warning).toHaveBeenCalledOnce()
+    warning.mockRestore()
+  })
+
+  it('translateStep : échec de la traduction → message, rien d’enregistré', async () => {
+    const error = vi.spyOn(toast, 'error')
+    const { api, result } = await loaded()
+    api.knitting.translateText.mockRejectedValueOnce(new AppError('La traduction a échoué.'))
+    await act(() => result.current.translateStep('p1-s1', 'Knit'))
+    expect(error).toHaveBeenCalledWith('La traduction a échoué.')
+    expect(api.knitting.saveProgress).not.toHaveBeenCalled()
+    error.mockRestore()
   })
 })

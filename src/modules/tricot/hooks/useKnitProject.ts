@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { toast } from 'sonner'
 import { AppError, errorMessage, type Api } from '@/api'
-import type { StepProgress } from '../lib/pattern'
+import { withAdaptedSections, type ShownStep } from '../lib/adapt'
+import type { StepProgress, StepSection } from '../lib/pattern'
 import { clearProgress, forgetProject, isOffline, loadProjectCopy, pendingFor, queueProgress, saveProjectCopy, settleProgress, withPending } from '../lib/offline'
 import { MAX_ROW_COUNT, type KnitProject } from '../lib/pattern'
 
-interface KnitProjectState {
+export interface KnitProjectState {
   project: KnitProject | null
   loading: boolean
   loadError: string | null
@@ -14,6 +15,12 @@ interface KnitProjectState {
   saveStep: (stepId: string, progress: StepProgress) => Promise<boolean>
   /** Ajoute (ou retire) des rangs à partir de la dernière valeur, même en tapant très vite. */
   countRows: (stepId: string, delta: number) => Promise<boolean>
+  /** Enregistre (`write`), puis relit le projet ; en cas d'échec, le message s'affiche et rien n'est relu. */
+  mutate: (write: () => Promise<unknown>) => Promise<boolean>
+  /** Sous-étapes modifiées : dans l'adaptation pour une étape adaptée, sinon dans l'étape du patron. */
+  saveSections: (step: Pick<ShownStep, 'id' | 'adapted'>, sections: StepSection[]) => Promise<boolean>
+  /** Texte de l'étape (patron en anglais) traduit en français, gardé avec l'étape. */
+  translateStep: (stepId: string, text: string) => Promise<void>
   /** Sans réseau : la dernière version gardée sur le téléphone est affichée. */
   offline: boolean
   /** Étapes dont l'avancée attend le retour du réseau. */
@@ -199,5 +206,42 @@ export function useKnitProject(api: Api, id: string): KnitProjectState {
     [saveStep],
   )
 
-  return { project, loading, loadError, reload, saveStep, countRows, offline, pending }
+  const mutate = useCallback(
+    async (write: () => Promise<unknown>) => {
+      try {
+        await write()
+        await reload()
+        return true
+      } catch (error) {
+        toast.error(errorMessage(error))
+        return false
+      }
+    },
+    [reload],
+  )
+
+  const saveSections = useCallback(
+    (step: Pick<ShownStep, 'id' | 'adapted'>, sections: StepSection[]) => {
+      const current = latest.current
+      const adaptation = current?.adaptation ?? null
+      if (!current || !step.adapted || !adaptation) return saveStep(step.id, { sections })
+      return mutate(() => api.knitting.saveAdaptation(current.id, withAdaptedSections(adaptation, step.id, sections)))
+    },
+    [api, mutate, saveStep],
+  )
+
+  const translateStep = useCallback(
+    async (stepId: string, text: string) => {
+      try {
+        const translated = await api.knitting.translateText(text)
+        if (!translated.numbersKept) toast.warning('Vérifie les nombres : la traduction en a changé certains.')
+        await saveStep(stepId, { translation: translated.text })
+      } catch (error) {
+        toast.error(errorMessage(error))
+      }
+    },
+    [api, saveStep],
+  )
+
+  return { project, loading, loadError, reload, saveStep, countRows, mutate, saveSections, translateStep, offline, pending }
 }

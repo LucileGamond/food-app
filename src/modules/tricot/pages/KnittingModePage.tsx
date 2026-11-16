@@ -2,8 +2,6 @@ import { SearchX, X } from 'lucide-react'
 import { DoneIcon, NotesIcon } from '../components/KnitIcons'
 import { useState, type ReactNode } from 'react'
 import { Link, useParams, useSearchParams } from 'react-router-dom'
-import { toast } from 'sonner'
-import { errorMessage } from '@/api'
 import { useApi } from '@/app/ApiContext'
 import { ConfirmDialog } from '@/components/ConfirmDialog'
 import { EmptyState } from '@/components/EmptyState'
@@ -27,7 +25,7 @@ import { StepOutline } from '../components/StepOutline'
 import { useBaseGlossary } from '../hooks/useBaseGlossary'
 import { useKnitProject } from '../hooks/useKnitProject'
 import { useRowVibration } from '../hooks/useRowVibration'
-import { stepsToFollow, withAdaptedSections, type ShownStep } from '../lib/adapt'
+import { stepsToFollow, type ShownStep } from '../lib/adapt'
 import { chartPosition } from '../lib/chart'
 import { looksEnglish, mergeGlossary } from '../lib/glossary'
 import { stepGuide } from '../lib/guide'
@@ -92,7 +90,6 @@ function pointAt(step: ShownStep, row: number): string | null {
 }
 
 function Knitting({ project, knit, projectTo }: KnittingProps) {
-  const api = useApi()
   const [params, setParams] = useSearchParams()
   const awake = useScreenAwake()
   const base = useBaseGlossary()
@@ -140,28 +137,7 @@ function Knitting({ project, knit, projectTo }: KnittingProps) {
 
   /** Sous-étape finie : sa longueur devient les rangs tricotés (dans l'adaptation pour une étape adaptée). */
   async function finishSub(count: SubstepCount) {
-    const sections = finishSubstep(step.sections, count.index, count.row - 1)
-    const adaptation = project.adaptation ?? null
-    if (!step.adapted || !adaptation) {
-      await knit.saveStep(step.id, { sections })
-      return
-    }
-    try {
-      await api.knitting.saveAdaptation(project.id, withAdaptedSections(adaptation, step.id, sections))
-      await knit.reload()
-    } catch (error) {
-      toast.error(errorMessage(error))
-    }
-  }
-
-  async function translate() {
-    try {
-      const translated = await api.knitting.translateText(step.instructions)
-      if (!translated.numbersKept) toast.warning('Vérifie les nombres : la traduction en a changé certains.')
-      await knit.saveStep(step.id, { translation: translated.text })
-    } catch (error) {
-      toast.error(errorMessage(error))
-    }
+    await knit.saveSections(step, finishSubstep(step.sections, count.index, count.row - 1))
   }
 
   const openChart = charts.find((c) => c.id === chartOpen)
@@ -236,7 +212,7 @@ function Knitting({ project, knit, projectTo }: KnittingProps) {
           sizeIndex={project.sizeIndex}
           abbreviations={project.abbreviations ?? []}
           onHighlights={(highlights) => void knit.saveStep(step.id, { highlights })}
-          onTranslate={translate}
+          onTranslate={() => knit.translateStep(step.id, step.instructions)}
         />
         {/* Les notes de l'étape, dans leur propre bloc. */}
         <Fold
