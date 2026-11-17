@@ -1,4 +1,4 @@
-import { countsFor, gaugeFor, isChecked, rowGaugeFor, sanitizeGauges, withChecked, withGauge, withoutGauge, type ProjectGauge } from './gauges'
+import { adjustCount, formatGauge, gaugeDiffers, parseGauge, countsFor, gaugeFor, isChecked, rowGaugeFor, sanitizeGauges, withChecked, withGauge, withoutGauge, type ProjectGauge } from './gauges'
 
 const g = (needle: number | null, stitches: number | null, rows: number | null, checked = false): ProjectGauge => ({ needle, stitches, rows, checked })
 const NO_PATTERN = { stitches: null, rows: null }
@@ -64,5 +64,29 @@ describe('échantillons du projet', () => {
     gauges = withGauge(gauges, g(null, 20, 26))
     expect(gauges.map((x) => x.needle)).toEqual([null, 3.5])
     expect(withoutGauge(gauges, 3.5).map((x) => x.needle)).toEqual([null])
+  })
+})
+
+describe('échantillon', () => {
+  it('lit un échantillon pour 10 cm', () => {
+    expect(parseGauge('22')).toBe(22)
+    expect(parseGauge('22,45')).toBe(22.5)
+    expect(parseGauge('')).toBeNull()
+    expect(parseGauge('0')).toBeUndefined()
+    expect(parseGauge('abc')).toBeUndefined()
+  })
+
+  it('recalcule mailles et rangs pour l’échantillon de la tricoteuse', () => {
+    // Plus serré (24 m. au lieu de 22) : plus de mailles pour la même largeur.
+    expect(adjustCount(64, 22, 24)).toBe(70)
+    expect(adjustCount(30, 30, 27)).toBe(27)
+    expect(adjustCount(64, 22, 22)).toBeNull()
+    expect(adjustCount(64, null, 24)).toBeNull()
+    expect(adjustCount(null, 22, 24)).toBeNull()
+    expect(adjustCount(1, 30, 1)).toBe(1)
+    expect(gaugeDiffers({ stitches: 22, rows: 30 }, { stitches: 22, rows: 28 })).toBe(true)
+    expect(gaugeDiffers({ stitches: 22, rows: 30 }, { stitches: null, rows: null })).toBe(false)
+    expect(formatGauge({ stitches: 22, rows: 30.5 })).toBe('22 m. × 30,5 rangs pour 10 cm')
+    expect(formatGauge({ stitches: null, rows: null })).toBeNull()
   })
 })

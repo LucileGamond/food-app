@@ -1,4 +1,5 @@
-import { ballScale, ballWraps, DEFAULT_HUE, gaugeFraction, gaugeHues, hexToHsl, plySegments, random, seedOf, shade, threadCenter } from './yarnGauge'
+import { ballScale, ballWraps, DEFAULT_HUE, gaugeFraction, gaugeHues, plySegments, threadCenter } from './yarnDrawing'
+import { seedOf } from './random'
 
 const LINE = { x0: 40, x1: 312, y: 50, amp: 9, waves: 2.5, width: 9 }
 
@@ -8,22 +9,7 @@ describe('jauge pelote et fil', () => {
     expect(gaugeHues(['#d0563a', '#e8a33a'])).toEqual(['#d0563a', '#e8a33a'])
   })
 
-  it('éclaircit ou fonce une couleur sans sortir des bornes', () => {
-    expect(hexToHsl('#ff0000')).toEqual([0, 100, 50])
-    expect(hexToHsl('#808080')).toEqual([0, 0, 50])
-    expect(hexToHsl('#3f4fa0')).toEqual([230, 43, 44])
-    expect(shade('#3f4fa0', -30)).toBe('hsl(230 43% 14%)')
-    expect(shade('#ffffff', 20)).toBe('hsl(0 0% 92%)')
-    expect(shade('#000000', -20)).toBe('hsl(0 0% 6%)')
-  })
-
   it('donne à chaque projet sa pelote, toujours enroulée pareil', () => {
-    expect(seedOf('p1')).toBe(seedOf('p1'))
-    expect(seedOf('p1')).not.toBe(seedOf('p2'))
-    expect(seedOf('')).toBeGreaterThan(0)
-    const a = random(42)
-    const b = random(42)
-    expect([a(), a(), a()]).toEqual([b(), b(), b()])
     expect(ballWraps(7, 30, [], 34)).toEqual(ballWraps(7, 30, [], 34))
     expect(ballWraps(7, 30, [], 34)).not.toEqual(ballWraps(8, 30, [], 34))
     // Centrée ailleurs : même enroulement, décalé.

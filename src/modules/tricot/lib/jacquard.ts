@@ -1,6 +1,6 @@
 // Couverture « tissée » d'un patron sans photo : un petit jacquard tricoté (mailles en V), propre à chaque patron.
 
-import { random } from './yarnGauge'
+import { random } from './random'
 
 /** Teintes du jacquard (fond écru + deux teintures). */
 export const JACQUARD_DYES = ['#3f4fa0', '#b4472f', '#e2b93a', '#6e5238', '#7f9a7a', '#7a3f8f']

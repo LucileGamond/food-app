@@ -6,7 +6,7 @@
 // pas validé ; validé (ou réglé à la main), il devient un nombre de rangs comme un autre.
 
 import type { MeasuredRows, StepSection } from './pattern'
-import type { Gauge } from './yarn'
+import type { Gauge } from './gauges'
 import { decimal } from '@/lib/text'
 
 const CM_PER_INCH = 2.54

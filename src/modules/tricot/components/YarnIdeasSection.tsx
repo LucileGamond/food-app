@@ -20,20 +20,8 @@ import { formatShortDate } from '@/lib/dates'
 import type { NavState } from '@/lib/navState'
 import { decimal } from '@/lib/text'
 import { LinkIcon, SearchIcon } from './KnitIcons'
-import {
-  ideaFit,
-  ideasKey,
-  MAX_IDEA_YARNS,
-  MAX_WISH,
-  patternNote,
-  patternSearchUrl,
-  siteOf,
-  stashMeters,
-  yarnTitle,
-  type StashIdeas,
-  type StashItem,
-  type YarnIdea,
-} from '../lib/yarn'
+import { ideaFit, ideasKey, MAX_IDEA_YARNS, MAX_WISH, patternNote, siteOf, stashMeters, yarnTitle, type StashIdeas, type StashItem, type YarnIdea } from '../lib/yarn'
+import { patternSearchUrl } from '../lib/ravelry'
 
 /** Coûts estimés (Haiku, recherche web à 1 ct), affichés avant de lancer. Ravelry est gratuit. */
 export const IDEAS_COST = '≈ 0,1 ct'

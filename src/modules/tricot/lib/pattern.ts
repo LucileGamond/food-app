@@ -8,13 +8,13 @@
 // une piste qui avance en parallèle des autres, et les sections suivantes s'enchaînent derrière elle.
 // Le compteur compte les rangs terminés : ce qui est annoncé concerne le rang à tricoter (rangs faits + 1).
 
-import type { ProjectGauge } from './gauges'
-import type { SizeChart } from './sizing'
+import type { ProjectGauge, Gauge } from './gauges'
+import type { SizeChart } from './sizeAdvice'
 import type { Adaptation } from './adapt'
 import type { ChartHint, KnitChart } from './chart'
 import type { Abbreviation } from './glossary'
-import type { Highlights } from './sizes'
-import type { Gauge, Yarn } from './yarn'
+import type { Highlights } from './sizedText'
+import type { Yarn } from './yarn'
 import type { YarnCheck } from './yarnLeft'
 import { formatCm, parseMeasure } from './measure'
 import { plural } from '@/lib/text'
@@ -434,6 +434,9 @@ export interface SectionForm {
   /** Aiguille en mm ; vide ou absent : celle de la sous-étape d'avant. */
   needle?: string
 }
+
+/** Nouvelle sous-étape, vide. */
+export const EMPTY_SECTION: StepSection = { kind: 'rows', rows: null, every: null, times: null, text: '', pattern: null }
 
 export function sectionToForm(section: StepSection): SectionForm {
   const text = (n: number | null) => (n === null ? '' : String(n))

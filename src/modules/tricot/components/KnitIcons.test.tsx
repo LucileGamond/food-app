@@ -1,6 +1,6 @@
 import { render } from '@testing-library/react'
 import * as Icons from './KnitIcons'
-import { MINUS_RED, PLUS_GREEN } from '../lib/knitIcons'
+import { MINUS_RED, PLUS_GREEN } from '../lib/knitIconGeometry'
 
 const ALL = Object.entries(Icons).filter(([name]) => name.endsWith('Icon'))
 

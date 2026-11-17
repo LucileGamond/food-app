@@ -3,7 +3,8 @@
 
 import { AppError } from '@/api/errors'
 import { compressForReading } from '@/lib/image'
-import { ideasFromJson, ideaYarn, yarnFromJson, type FoundPattern, type Gauge, type Yarn, type YarnIdea } from '../lib/yarn'
+import { ideasFromJson, ideaYarn, yarnFromJson, type FoundPattern, type Yarn, type YarnIdea } from '../lib/yarn'
+import { type Gauge } from '../lib/gauges'
 import { MAX_INFO_PHOTOS, type PatternFiles, type PatternInfo } from '../lib/library'
 import { readPatternFromResponse } from '../lib/readings'
 import { adaptedStepsFromResponse, type AdaptedStep } from '../lib/adapt'

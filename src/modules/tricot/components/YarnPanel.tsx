@@ -3,7 +3,7 @@
 
 import { AiIcon } from '@/components/AiIcon'
 import { GaugesList } from './GaugesList'
-import type { ProjectGauge } from '../lib/gauges'
+import { parseGauge, type ProjectGauge, type Gauge } from '../lib/gauges'
 import { CircleAlert, Loader2 } from 'lucide-react'
 import { AddIcon, CloseIcon, DeleteIcon, EditIcon, PhotoIcon } from './KnitIcons'
 import { useState, type FormEvent } from 'react'
@@ -23,21 +23,7 @@ import { NativeSelect } from '@/components/ui/native-select'
 import { useAsync } from '@/hooks/useAsync'
 import { useOnOpen } from '@/hooks/useOnOpen'
 import { ACCEPTED_IMAGE_TYPES } from '@/lib/image'
-import {
-  EMPTY_YARN,
-  MAX_YARNS,
-  parseGauge,
-  parseYarn,
-  toYarnDraft,
-  totalLength,
-  YARN_TEXT_MAX,
-  dyeLotWarnings,
-  yarnTitle,
-  type Gauge,
-  type StashItem,
-  type Yarn,
-  type YarnDraft,
-} from '../lib/yarn'
+import { EMPTY_YARN, MAX_YARNS, parseYarn, toYarnDraft, totalLength, YARN_TEXT_MAX, dyeLotWarnings, yarnTitle, type StashItem, type Yarn, type YarnDraft } from '../lib/yarn'
 import { Fold } from './Fold'
 import { HelpTip } from './HelpTip'
 import { decimal } from '@/lib/text'

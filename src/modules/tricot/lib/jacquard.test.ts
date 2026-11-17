@@ -1,5 +1,5 @@
 import { jacquard, JACQUARD_BASE, JACQUARD_SIZE, MOTIFS } from './jacquard'
-import { seedOf } from './yarnGauge'
+import { seedOf } from './random'
 
 describe('couverture tissée', () => {
   it('donne à chaque patron son jacquard, toujours le même', () => {

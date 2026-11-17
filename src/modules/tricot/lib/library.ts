@@ -1,7 +1,7 @@
 // Bibliothèque de patrons : un patron gardé (PDF, photos et/ou lien), commencé ou non, avec ses projets.
 // Logique pure : saisie, tri, recherche et résumé d'un patron. L'envoi des fichiers est dans api.ts.
 
-import { sizeIndexOf } from './sizes'
+import { sizeIndexOf } from './sizedText'
 import { NEEDLE_TOLERANCE_MM, parseDecimal, parseMeters, yarnMeters, type Yarn } from './yarn'
 import { decimal } from '@/lib/text'
 

@@ -7,10 +7,9 @@
 // qui demande quelque chose.
 
 import { hasMeasure } from './measure'
-import type { ProjectGauge } from './gauges'
+import type { ProjectGauge, Gauge } from './gauges'
 import { currentStepIndex, type KnitStep } from './pattern'
 import { isReady } from './ready'
-import type { Gauge } from './yarn'
 
 export type ProjectTab = 'demarrer' | 'preparer' | 'tricoter'
 

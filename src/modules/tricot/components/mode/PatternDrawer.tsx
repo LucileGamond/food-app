@@ -1,7 +1,7 @@
 import { PatternsIcon } from '../KnitIcons'
 import type { Abbreviation } from '../../lib/glossary'
 import type { KnitStep } from '../../lib/pattern'
-import type { Highlights } from '../../lib/sizes'
+import type { Highlights } from '../../lib/sizedText'
 import { SizedText, StepText } from '../SizedText'
 import { useBaseGlossary } from '../../hooks/useBaseGlossary'
 import { looksEnglish, mergeGlossary } from '../../lib/glossary'

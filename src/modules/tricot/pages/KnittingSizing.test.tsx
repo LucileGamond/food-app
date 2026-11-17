@@ -4,7 +4,7 @@ import { Route } from 'react-router-dom'
 import { AppError } from '@/api'
 import { fakeApi, renderWithApp } from '@/test/fakes'
 import type { ReadPattern } from '../lib/pattern'
-import type { MeasureProfile } from '../lib/sizing'
+import type { MeasureProfile } from '../lib/sizeAdvice'
 import { KnittingImportPage } from './KnittingImportPage'
 import { KnittingMeasuresPage } from './KnittingMeasuresPage'
 

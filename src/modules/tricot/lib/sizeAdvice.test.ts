@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { adviseSize, defaultEase, describeAdvice, describeProfile, parseMeasureInput, sanitizeSizeChart, styleOf, type MeasureProfile, type SizeChart } from './sizing'
+import { adviseSize, defaultEase, describeAdvice, describeProfile, parseMeasureInput, sanitizeSizeChart, styleOf, type MeasureProfile, type SizeChart } from './sizeAdvice'
 
 const SIZES = ['S', 'M', 'L']
 const FINISHED: SizeChart = {

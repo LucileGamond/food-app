@@ -1,6 +1,6 @@
 import { render, screen } from '@testing-library/react'
 import { jacquard } from '../lib/jacquard'
-import { seedOf } from '../lib/yarnGauge'
+import { seedOf } from '../lib/random'
 import { KnitCover } from './KnitCover'
 
 describe('KnitCover', () => {

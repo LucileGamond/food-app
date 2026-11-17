@@ -1,7 +1,9 @@
 import { useId, useMemo, type ReactNode } from 'react'
 import { cn } from '@/lib/utils'
 import { yarnFacts, yarnTitle, type Yarn } from '../lib/yarn'
-import { ballWraps, gaugeHues, seedOf, shade } from '../lib/yarnGauge'
+import { ballWraps, gaugeHues } from '../lib/yarnDrawing'
+import { seedOf } from '../lib/random'
+import { shade } from '../lib/color'
 
 /** Petite pelote aux couleurs d'une laine (même enroulement que la jauge), immobile. */
 export function YarnBall({ hues, seed, className }: { hues: string[]; seed: number; className?: string }) {

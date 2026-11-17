@@ -1,6 +1,7 @@
 import { cn } from '@/lib/utils'
 import { jacquard, JACQUARD_SIZE } from '../lib/jacquard'
-import { seedOf, shade } from '../lib/yarnGauge'
+import { seedOf } from '../lib/random'
+import { shade } from '../lib/color'
 
 const CELL = 5
 

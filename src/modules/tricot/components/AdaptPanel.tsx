@@ -18,11 +18,10 @@ import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { ADAPT_REQUEST_MAX, adaptationPaused, describeChange, type Adaptation, type AdaptedStep } from '../lib/adapt'
 import type { KnitProject } from '../lib/pattern'
-import { formatGauge, gaugeDiffers } from '../lib/yarn'
+import { formatGauge, gaugeDiffers, defaultGauge } from '../lib/gauges'
 import { Fold } from './Fold'
 import { Note } from './Note'
 import { SaveNote, useSaveNote } from './SaveNote'
-import { defaultGauge } from '../lib/gauges'
 
 interface Props {
   project: KnitProject

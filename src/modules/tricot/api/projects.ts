@@ -2,7 +2,8 @@
 
 import { toAppError } from '@/api/errors'
 import type { Json } from '@/lib/database.types'
-import { projectHues, yarnsFromJson, type Gauge, type Yarn } from '../lib/yarn'
+import { projectHues, yarnsFromJson, type Yarn } from '../lib/yarn'
+import { sanitizeGauges, type Gauge, type ProjectGauge } from '../lib/gauges'
 import type { KnitPattern } from '../lib/library'
 import { readingKey } from '../lib/readings'
 import { readTimes } from '../lib/passes'
@@ -12,7 +13,6 @@ import { sanitizeAbbreviations, type Abbreviation, type BaseGlossary } from '../
 import { sanitizeYarnChecks, type YarnCheck } from '../lib/yarnLeft'
 import { sanitizeHints, type ChartHint, type KnitChart } from '../lib/chart'
 import { sanitizeNeedles } from '../lib/needles'
-import { sanitizeGauges, type ProjectGauge } from '../lib/gauges'
 import type { KnitProject, KnitProjectSummary, PatternStep, ReadPattern } from '../lib/pattern'
 import { CHART_BUCKET, PATTERN_BUCKET, type KnitContext } from './shared'
 import { CHART_COLUMNS, signCharts } from './charts'

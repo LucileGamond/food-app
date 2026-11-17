@@ -1,6 +1,7 @@
 import { useId, useMemo } from 'react'
 import { cn } from '@/lib/utils'
-import { ballScale, ballWraps, gaugeFraction, gaugeHues, plySegments, shade, threadCenter, type ThreadLine } from '../lib/yarnGauge'
+import { ballScale, ballWraps, gaugeFraction, gaugeHues, plySegments, threadCenter, type ThreadLine } from '../lib/yarnDrawing'
+import { shade } from '../lib/color'
 
 const SIZES = {
   lg: { w: 320, h: 96, r: 30, line: { x0: 40, x1: 312, y: 50, amp: 9, waves: 2.5, width: 9 }, wraps: 34 },

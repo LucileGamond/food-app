@@ -13,7 +13,7 @@ import { Label } from '@/components/ui/label'
 import { NativeSelect } from '@/components/ui/native-select'
 import { useAsync } from '@/hooks/useAsync'
 import { cn } from '@/lib/utils'
-import { adviseSize, defaultEase, describeAdvice, EASE_STYLES, MEASURE_LABELS, styleOf, type SizeChart } from '../lib/sizing'
+import { adviseSize, defaultEase, describeAdvice, EASE_STYLES, MEASURE_LABELS, styleOf, type SizeChart } from '../lib/sizeAdvice'
 import { HelpTip } from './HelpTip'
 import { decimal } from '@/lib/text'
 
