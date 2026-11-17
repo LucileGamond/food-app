@@ -149,7 +149,7 @@ test('aucun écran ni aucune fenêtre ne déborde', async ({ page, isMobile }) =
 
   // Accueil « Aujourd’hui »
   await page.goto('/')
-  await expect(page.getByRole('region', { name: 'Plantes à arroser' })).toBeVisible()
+  await expect(page.getByRole('region', { name: 'Végé ou non ?' })).toBeVisible()
   await check(page, 'accueil')
 
   // Planning et ses fenêtres

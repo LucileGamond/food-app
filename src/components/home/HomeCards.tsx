@@ -1,6 +1,7 @@
 // Cartes de l'accueil « Aujourd’hui » : l'essentiel du jour de chaque section, avec les gestes les plus fréquents.
+// Chaque carte n'apparaît que si elle a quelque chose à montrer (rien pendant le chargement, une erreur toujours).
 
-import { CheckCircle2, Droplets, Loader2, Plus } from 'lucide-react'
+import { Droplets, Loader2, Plus } from 'lucide-react'
 import { useState, type ReactNode } from 'react'
 import { Link } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
@@ -14,7 +15,6 @@ import type { IsoDate } from '@/lib/dates'
 import { formatCl, formatLiters, totalMl } from '@/lib/hydration'
 import { SLOTS, slotLabel } from '@/lib/meals'
 import { capitalize } from '@/lib/text'
-import { formatRelativeDay } from '@/modules/plantes/lib/dates'
 import { formatAmount } from '@/modules/plantes/lib/format'
 import { usePlantsOverview, usePlantsToday, useWateringActions } from '@/modules/plantes/hooks/usePlants'
 import { useKnitProject } from '@/modules/tricot/hooks/useKnitProject'
@@ -44,19 +44,16 @@ export function HomeCard({ id, title, aside, to, linkLabel, children }: { id: st
 
 export const Loading = ({ label }: { label: string }) => <Skeleton className="h-12 rounded-lg" aria-busy="true" aria-label={label} />
 
-/** Repas du jour (midi, soir). */
+/** Repas du jour (midi, soir) ; rien de prévu : pas de carte. */
 export function MealsTodayCard({ today }: { today: IsoDate }) {
   const api = useApi()
   const planning = usePlanning(api, today)
   const meals = planning.meals.filter((m) => m.meal_date === today)
+  if (!planning.loadError && (planning.loading || meals.length === 0)) return null
   return (
     <HomeCard id="home-meals" title="Repas" to="/planning" linkLabel="Planning">
-      {planning.loading ? (
-        <Loading label="Chargement des repas" />
-      ) : planning.loadError ? (
+      {planning.loadError ? (
         <p className="text-sm text-destructive">{planning.loadError}</p>
-      ) : meals.length === 0 ? (
-        <p className="text-sm text-muted-foreground">Rien de prévu aujourd’hui.</p>
       ) : (
         <ul className="space-y-1.5">
           {SLOTS.flatMap((slot) => meals.filter((m) => m.slot === slot)).map((meal) => (
@@ -71,7 +68,7 @@ export function MealsTodayCard({ today }: { today: IsoDate }) {
   )
 }
 
-/** Eau bue aujourd'hui, et un verre en un geste. */
+/** Eau bue aujourd'hui, et un verre en un geste ; objectif atteint : pas de carte. */
 export function WaterCard({ today }: { today: IsoDate }) {
   const api = useApi()
   const { settings } = useSettings()
@@ -85,6 +82,7 @@ export function WaterCard({ today }: { today: IsoDate }) {
     await hydration.add(volumeMl)
     setAdding(false)
   }
+  if (hydration.loading || total >= goal) return null
   return (
     <HomeCard id="home-water" title="Eau" aside={<span className="text-muted-foreground">{formatLiters(total)} sur {formatLiters(goal)}</span>} to="/hydratation" linkLabel="Détail">
       <div className="h-2 overflow-hidden rounded-full bg-water-soft" role="progressbar" aria-label="Eau bue aujourd’hui" aria-valuemin={0} aria-valuemax={goal} aria-valuenow={total}>
@@ -96,7 +94,7 @@ export function WaterCard({ today }: { today: IsoDate }) {
             key={index}
             variant="outline"
             className="h-auto min-h-11 min-w-0 flex-col gap-0 py-1.5"
-            disabled={hydration.loading || adding}
+            disabled={adding}
             onClick={() => void drink(container.volumeMl)}
           >
             <span className="max-w-full truncate">{container.name}</span>
@@ -108,24 +106,17 @@ export function WaterCard({ today }: { today: IsoDate }) {
   )
 }
 
-/** Plantes à arroser aujourd'hui, à noter d'un geste. */
+/** Plantes à arroser aujourd'hui, à noter d'un geste ; tout est arrosé : pas de carte. */
 export function PlantsCard() {
   const today = usePlantsToday()
   const { overview, error, reload } = usePlantsOverview(today)
   const { water, wateringPlantId } = useWateringActions(reload)
   const toWater = overview?.toWater ?? []
-  const next = overview?.upcoming[0]
+  if (!error && toWater.length === 0) return null
   return (
     <HomeCard id="home-plants" title="Plantes à arroser" aside={toWater.length > 0 && <span className="text-muted-foreground">{toWater.length}</span>} to="/plantes" linkLabel="Toutes">
       {error ? (
         <p className="text-sm text-destructive">{error}</p>
-      ) : !overview ? (
-        <Loading label="Chargement des plantes" />
-      ) : toWater.length === 0 ? (
-        <p className="flex items-center gap-2 text-sm text-muted-foreground">
-          <CheckCircle2 className="size-4 text-brand" aria-hidden />
-          Tout est arrosé{next && ` · prochain : ${next.plant.name}, ${formatRelativeDay(next.occurrence.date, today)}`}
-        </p>
       ) : (
         <ul className="divide-y">
           {toWater.slice(0, 4).map(({ plant, schedule }) => {

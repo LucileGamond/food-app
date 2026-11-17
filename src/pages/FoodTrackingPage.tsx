@@ -10,7 +10,7 @@ import { ConfirmDialog } from '@/components/ConfirmDialog'
 import { EmptyState } from '@/components/EmptyState'
 import { PageHeader } from '@/components/PageHeader'
 import { FoodItemRow } from '@/components/food/FoodItemRow'
-import { MealLogCard, MealLogStats } from '@/components/food/MealLogCard'
+import { MealLogCard } from '@/components/food/MealLogCard'
 import { PeriodDialog } from '@/components/food/PeriodDialog'
 import { ProfileSwitch, useProfileParam } from '@/components/food/ProfileSwitch'
 import { LoadError } from '@/components/LoadError'
@@ -66,8 +66,10 @@ export function FoodTrackingPage({ today: fixedToday, hour = currentHour() }: { 
   const rangeStart = logRangeStart(today)
   const mealLog = useMealLog(api, profile?.id ?? null, date < rangeStart ? date : rangeStart, date > today ? date : today)
   const suggestions = useMealSuggestions(api, profile?.id ?? null, date)
+  // Journal et statistiques en bas de page, sous les quotas.
   const journal = profile && !mealLog.loadError && (
     <MealLogCard
+      weeks={mealLog.loading ? undefined : weeklyStats(mealLog.entries, profile.id, today)}
       log={dayLog(mealLog.entries, profile.id, date)}
       suggestions={suggestions}
       streak={streak(mealLog.entries, profile.id, today)}
@@ -89,7 +91,6 @@ export function FoodTrackingPage({ today: fixedToday, hour = currentHour() }: { 
       }
     />
   )
-  const stats = profile && !mealLog.loading && !mealLog.loadError && <MealLogStats weeks={weeklyStats(mealLog.entries, profile.id, today)} />
   const groups = useMemo(() => groupItems(items), [items])
   const notice = periodNotice(tracking.periods, today)
   const progress = period ? periodProgress(period, date) : null
@@ -175,7 +176,6 @@ export function FoodTrackingPage({ today: fixedToday, hour = currentHour() }: { 
         </div>
       ) : !period ? (
         <div className="space-y-4">
-          {journal}
           <EmptyState
             icon={CalendarPlus}
             title="Aucune période"
@@ -187,12 +187,10 @@ export function FoodTrackingPage({ today: fixedToday, hour = currentHour() }: { 
               </div>
             }
           />
-          {stats}
+          {journal}
         </div>
       ) : (
         <div className="space-y-4">
-          {journal}
-
           {(notice || nothingToday) && (
             <div role="status" className="flex items-start gap-3 rounded-xl border bg-background p-4 text-sm shadow-xs">
               <BellRing className="mt-0.5 size-4 shrink-0 text-brand" aria-hidden />
@@ -304,7 +302,7 @@ export function FoodTrackingPage({ today: fixedToday, hour = currentHour() }: { 
             })
           )}
 
-          {stats}
+          {journal}
         </div>
       )}
 

@@ -1,3 +1,4 @@
+import { AppError } from '@/api'
 import { screen, waitFor, within } from '@testing-library/react'
 import { setupUser } from '@/test/user'
 import { DEFAULT_SETTINGS } from '@/lib/settings'
@@ -102,16 +103,32 @@ describe('HomePage', () => {
     await waitFor(() => expect(glass).toBeEnabled())
   })
 
-  it('seulement les pages affichées ; rien à arroser ni tricot en cours', async () => {
-    const { api } = setup(['planning', 'hydratation'])
-    api.plants.listPlants.mockResolvedValue([])
-    api.knitting.listProjects.mockResolvedValue([])
-    expect(await within(await screen.findByRole('region', { name: 'Plantes à arroser' })).findByText(/Tout est arrosé/)).toBeInTheDocument()
+  it('seulement les pages affichées', async () => {
+    setup(['planning', 'hydratation'])
+    expect(await screen.findByRole('region', { name: 'Plantes à arroser' })).toBeInTheDocument()
+    expect(await screen.findByRole('region', { name: 'Pull Bergamote' })).toBeInTheDocument()
     expect(screen.queryByRole('region', { name: 'Repas' })).not.toBeInTheDocument()
     expect(screen.queryByRole('region', { name: 'Eau' })).not.toBeInTheDocument()
-    expect(screen.queryByRole('region', { name: /Pull/ })).not.toBeInTheDocument()
-    // Plantes affichées : les nouvelles de l'autre aussi.
-    expect(screen.getByRole('region', { name: 'Ce que l’autre a fait' })).toBeInTheDocument()
+  })
+
+  it('chaque carte sans rien à montrer est absente ; aucune : un mot plutôt qu’une page vide', async () => {
+    const { api } = setup(['plan'])
+    api.meals.listMeals.mockResolvedValue([mealFixture({ meal_date: '2026-11-10' })])
+    api.plants.listPlants.mockResolvedValue([])
+    api.knitting.listProjects.mockResolvedValue([])
+    // Objectif d'eau atteint
+    api.hydration.listIntakes.mockResolvedValue([{ id: 'w', volume_ml: 1500, drunk_at: `${TODAY}T08:00:00Z` }])
+    expect(await screen.findByText('Rien à signaler aujourd’hui.')).toBeVisible()
+    await waitFor(() => expect(api.activity.listRecent).toHaveBeenCalled())
+    for (const name of ['Repas', 'Eau', 'Plantes à arroser', 'Rendez-vous', 'Ce que l’autre a fait', 'Végé ou non ?']) {
+      expect(screen.queryByRole('region', { name })).not.toBeInTheDocument()
+    }
+  })
+
+  it('une erreur de chargement reste affichée', async () => {
+    const { api } = setup()
+    api.meals.listMeals.mockRejectedValue(new AppError('Impossible de charger le planning.'))
+    expect(await within(await screen.findByRole('region', { name: 'Repas' })).findByText('Impossible de charger le planning.')).toBeInTheDocument()
   })
 
   it('montre ce que l’autre a fait, avec un lien vers chaque page', async () => {
@@ -128,57 +145,72 @@ describe('HomePage', () => {
     expect(api.activity.subscribe).toHaveBeenCalled()
   })
 
-  it('rien de nouveau de l’autre', async () => {
-    setup()
-    expect(await within(await screen.findByRole('region', { name: 'Ce que l’autre a fait' })).findByText('Rien de nouveau depuis 3 jours.')).toBeInTheDocument()
+  it('rien de nouveau de l’autre : pas de carte', async () => {
+    const { api } = setup()
+    await screen.findByRole('region', { name: 'Eau' })
+    await waitFor(() => expect(api.activity.listRecent).toHaveBeenCalled())
+    expect(screen.queryByRole('region', { name: 'Ce que l’autre a fait' })).not.toBeInTheDocument()
   })
 
   it('aucune page résumable : renvoie aux réglages', async () => {
-    setup(['planning', 'recettes', 'courses', 'hydratation', 'plantes', 'tricot', 'agenda'])
+    setup(['planning', 'recettes', 'plan', 'courses', 'hydratation', 'plantes', 'tricot', 'agenda'])
     expect(await screen.findByText('Rien à résumer ici')).toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'Réglages' })).toHaveAttribute('href', '/reglages')
   })
 
-  describe('rappel du journal des repas', () => {
+  describe('journal des repas', () => {
     const full = (day: string) => (['BREAKFAST', 'LUNCH', 'DINNER'] as const).map((slot) => ({ profile_id: LUCILE.id, eaten_on: day, slot, kind: 'vegetarian' as const }))
+    const card = () => screen.findByRole('region', { name: 'Végé ou non ?' })
 
-    it('rien noté : rien la journée, un rappel le soir vers le jour du plan', async () => {
-      const { unmount } = setup([], 12)
-      await screen.findByRole('region', { name: 'Eau' })
-      expect(screen.queryByRole('link', { name: /à remplir/ })).not.toBeInTheDocument()
-      unmount()
-      setup([], 21)
-      const link = await screen.findByRole('link', { name: /Repas d’aujourd’hui à remplir/ })
-      expect(link).toHaveTextContent('végé ou non ?')
-      expect(link).toHaveAttribute('href', `/plan?profil=${LUCILE.id}&jour=${TODAY}`)
+    it('note les repas du jour en un geste, d’après le planning', async () => {
+      const { api, user } = setup()
+      const lunch = within(await card()).getByRole('group', { name: 'Midi' })
+      // « Curry coco » prévu à midi : rien à en déduire ; « Gratin de courge » non plus
+      await user.click(within(lunch).getByRole('button', { name: 'Végé' }))
+      expect(api.mealLog.set).toHaveBeenCalledWith(LUCILE.id, TODAY, 'LUNCH', 'vegetarian')
+      expect(within(lunch).getByRole('button', { name: 'Végé' })).toHaveAttribute('aria-pressed', 'true')
+      expect(within(await card()).getByRole('link', { name: 'Stats' })).toHaveAttribute('href', `/plan?profil=${LUCILE.id}`)
     })
 
-    it('jours passés incomplets : leur nombre, et le lien ouvre le plus ancien', async () => {
-      const { api } = setup([], 12)
+    it('propose la réponse déduite du planning', async () => {
+      const { api } = setup()
+      api.meals.listMeals.mockResolvedValue([mealFixture({ meal_date: TODAY, slot: 'DINNER', recipe: { title: 'Saumon aux poireaux' } })])
+      expect(await within(await card()).findByRole('button', { name: 'Non végé, prévu au planning' })).toBeInTheDocument()
+    })
+
+    it('jours passés à rattraper : leur nombre, et le lien ouvre le plus ancien ; la série', async () => {
+      const { api } = setup()
       api.mealLog.list.mockResolvedValue([...full('2026-11-05'), ...full('2026-11-07')])
-      const link = await screen.findByRole('link', { name: /2 jours de repas à remplir/ })
-      expect(link).toHaveTextContent('depuis le 6 novembre')
+      const link = await within(await card()).findByRole('link', { name: '2 jours à rattraper depuis le 6 novembre' })
       expect(link).toHaveAttribute('href', `/plan?profil=${LUCILE.id}&jour=2026-11-06`)
       expect(api.mealLog.list).toHaveBeenCalledWith(LUCILE.id, '2026-09-10', TODAY)
     })
 
-    it('un seul jour passé à remplir', async () => {
-      const { api } = setup([], 12)
-      api.mealLog.list.mockResolvedValue([...full('2026-11-07')])
-      expect(await screen.findByRole('link', { name: /1 jour de repas à remplir/ })).toHaveTextContent('depuis le 8 novembre')
+    it('un seul jour à rattraper, et la série en cours', async () => {
+      const { api } = setup()
+      api.mealLog.list.mockResolvedValue([...full('2026-11-06'), ...full('2026-11-07')])
+      expect(await within(await card()).findByRole('link', { name: '1 jour à rattraper (8 novembre)' })).toBeInTheDocument()
+      expect(within(await card()).queryByTitle('Jours complets d’affilée')).not.toBeInTheDocument()
     })
 
-    it('tout est rempli, ou page Plan masquée : pas de rappel', async () => {
+    it('série de jours complets jusqu’à hier', async () => {
+      const { api } = setup()
+      api.mealLog.list.mockResolvedValue([...full('2026-11-07'), ...full('2026-11-08')])
+      expect(await within(await card()).findByTitle('Jours complets d’affilée')).toHaveTextContent('2')
+      expect(within(await card()).queryByRole('link', { name: /rattraper/ })).not.toBeInTheDocument()
+    })
+
+    it('tout est rempli, ou page Plan masquée : pas de carte', async () => {
       const { api, unmount } = setup([], 22)
       api.mealLog.list.mockResolvedValue([...full('2026-11-08'), ...full(TODAY)])
       await screen.findByRole('region', { name: 'Eau' })
       await waitFor(() => expect(api.mealLog.list).toHaveBeenCalled())
-      expect(screen.queryByRole('link', { name: /à remplir/ })).not.toBeInTheDocument()
+      expect(screen.queryByRole('region', { name: 'Végé ou non ?' })).not.toBeInTheDocument()
       unmount()
       const hidden = setup(['plan'], 22)
       await screen.findByRole('region', { name: 'Eau' })
       expect(hidden.api.mealLog.list).not.toHaveBeenCalled()
-      expect(screen.queryByRole('link', { name: /à remplir/ })).not.toBeInTheDocument()
+      expect(screen.queryByRole('region', { name: 'Végé ou non ?' })).not.toBeInTheDocument()
     })
   })
 })

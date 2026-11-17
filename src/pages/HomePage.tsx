@@ -12,11 +12,15 @@ import { useToday } from '@/hooks/useToday'
 import { formatDay, type IsoDate } from '@/lib/dates'
 import { cn } from '@/lib/utils'
 
-/** Accueil « Aujourd’hui » : l'essentiel du jour des pages affichées (rendez-vous, repas, eau, plantes, tricot) et ce que l'autre a fait. */
+/**
+ * Accueil « Aujourd’hui » : l'essentiel du jour des pages affichées (rendez-vous, journal des repas, repas, eau,
+ * plantes, tricot) et ce que l'autre a fait. Chaque carte ne s'affiche que si elle a quelque chose à montrer.
+ */
 export function HomePage({ today: fixedToday, hour }: { today?: IsoDate; hour?: number }) {
   const today = useToday(fixedToday)
   const { loading, isEnabled } = useSettings()
   const cards = [
+    isEnabled('plan') && <MealLogReminder key="meal-log" today={today} hour={hour} />,
     isEnabled('agenda') && <AgendaCard key="agenda" today={today} />,
     isEnabled('planning') && <MealsTodayCard key="meals" today={today} />,
     isEnabled('hydratation') && <WaterCard key="water" today={today} />,
@@ -29,7 +33,6 @@ export function HomePage({ today: fixedToday, hour }: { today?: IsoDate; hour?: 
   return (
     <>
       <PageHeader title="Aujourd’hui" description={formatDay(today)} />
-      {!loading && isEnabled('plan') && <MealLogReminder today={today} hour={hour} />}
       {loading ? null : cards.length === 0 ? (
         <EmptyState
           icon={Settings}
@@ -42,7 +45,11 @@ export function HomePage({ today: fixedToday, hour }: { today?: IsoDate; hour?: 
           }
         />
       ) : (
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">{cards}</div>
+        <>
+          {/* Cartes qui n'ont rien à montrer : absentes ; aucune : un mot plutôt qu'une page vide. */}
+          <div className="peer grid grid-cols-1 gap-4 empty:hidden md:grid-cols-2">{cards}</div>
+          <p className="hidden py-10 text-center text-sm text-muted-foreground peer-empty:block">Rien à signaler aujourd’hui.</p>
+        </>
       )}
     </>
   )

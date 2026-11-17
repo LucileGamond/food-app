@@ -77,11 +77,11 @@ describe('FoodTrackingPage', () => {
     expect(screen.getByRole('radio', { name: 'Lucile' })).toHaveAttribute('aria-checked', 'true')
 
     expect(screen.getAllByRole('heading', { level: 2 }).map((h) => h.textContent)).toEqual([
-      'Repas du jour',
       'Petit-déjeuner',
       expect.stringMatching(/^Déjeuner1 noté$/),
       expect.stringMatching(/^Collation1 hors plan$/),
-      'Repas végés',
+      // Journal des repas et ses statistiques, en bas de page
+      'Repas du jour',
     ])
     expect(within(row('cafe')).getByText('· 250 ml')).toBeInTheDocument()
     expect(within(row('cafe')).getByText('0/7')).toBeInTheDocument()

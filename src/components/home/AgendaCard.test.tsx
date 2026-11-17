@@ -56,10 +56,16 @@ describe('Accueil — carte Rendez-vous', () => {
     expect(await within(await card()).findByText('et 2 autres')).toBeInTheDocument()
   })
 
-  it('aucun agenda suivi : lien pour en ajouter un', async () => {
-    setup({ sources: [] })
-    expect(await within(await card()).findByText(/Aucun agenda suivi/)).toBeInTheDocument()
-    expect(within(await card()).getByRole('link', { name: 'Ajouter' })).toHaveAttribute('href', '/agenda/sources')
+  it('aucun rendez-vous aujourd’hui, ou aucun agenda suivi : pas de carte', async () => {
+    const { api, unmount } = setup({ events: [eventFixture({ title: 'Demain', startsAt: '2026-11-11T08:00:00Z', endsAt: '2026-11-11T09:00:00Z' })] })
+    await waitFor(() => expect(api.agenda.listEvents).toHaveBeenCalled())
+    expect(await screen.findByText('Rien à signaler aujourd’hui.')).toBeVisible()
+    expect(screen.queryByRole('region', { name: 'Rendez-vous' })).not.toBeInTheDocument()
+    unmount()
+    const none = setup({ sources: [], events: [] })
+    await waitFor(() => expect(none.api.agenda.listEvents).toHaveBeenCalled())
+    expect(await screen.findByText('Rien à signaler aujourd’hui.')).toBeVisible()
+    expect(screen.queryByRole('region', { name: 'Rendez-vous' })).not.toBeInTheDocument()
   })
 
   it('erreur de chargement', async () => {

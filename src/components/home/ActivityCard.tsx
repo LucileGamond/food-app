@@ -6,9 +6,9 @@ import { useSettings } from '@/app/SettingsContext'
 import { useAsync } from '@/hooks/useAsync'
 import { useNow } from '@/hooks/useNow'
 import { useRealtimeReload } from '@/hooks/useRealtimeReload'
-import { ACTIVITY_DAYS, activityLines, formatAgo } from '@/lib/activity'
+import { activityLines, formatAgo } from '@/lib/activity'
 import { todayIso } from '@/lib/dates'
-import { HomeCard, Loading } from './HomeCards'
+import { HomeCard } from './HomeCards'
 
 /** Lignes affichées au plus. */
 const MAX_LINES = 6
@@ -20,15 +20,13 @@ export function ActivityCard({ now: fixedNow }: { now?: Date }) {
   useRealtimeReload(api.activity.subscribe, reload)
   const now = useNow(fixedNow)
   const lines = data ? activityLines(data, isEnabled, todayIso(now)).slice(0, MAX_LINES) : []
+  // Rien de nouveau (ou pas encore chargé) : pas de carte.
+  if (!error && lines.length === 0) return null
 
   return (
     <HomeCard id="home-activity" title="Ce que l’autre a fait">
       {error ? (
         <p className="text-sm text-destructive">{error}</p>
-      ) : !data ? (
-        <Loading label="Chargement des nouvelles de l’autre" />
-      ) : lines.length === 0 ? (
-        <p className="text-sm text-muted-foreground">Rien de nouveau depuis {ACTIVITY_DAYS} jours.</p>
       ) : (
         <ul className="divide-y">
           {lines.map((line) => (

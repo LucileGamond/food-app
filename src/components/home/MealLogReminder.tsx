@@ -1,37 +1,61 @@
-import { ChevronRight, Leaf } from 'lucide-react'
+import { Flame } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { useApi } from '@/app/ApiContext'
 import { useAuth } from '@/auth/AuthProvider'
+import { SlotButtons } from '@/components/food/MealLogCard'
+import { HomeCard } from '@/components/home/HomeCards'
 import { useMealLog } from '@/hooks/useMealLog'
+import { useMealSuggestions } from '@/hooks/useMealSuggestions'
 import { addDays, currentHour, formatShortDate, type IsoDate } from '@/lib/dates'
-import { missingDays } from '@/lib/mealLog'
+import { dayLog, isComplete, LOG_SLOTS, missingDays, streak } from '@/lib/mealLog'
 
 /** Jours chargés : assez pour savoir si la personne a déjà commencé son journal (le rappel regarde 7 jours). */
 const REMINDER_LOAD_DAYS = 60
 
-/** Bandeau de l'accueil tant que des jours du journal des repas restent à remplir (le plus ancien d'abord). */
+/**
+ * Journal des repas sur l'accueil, en une ligne : végé, non végé ou pas de repas pour le petit-déjeuner, le midi et
+ * le soir d'aujourd'hui, et les jours passés à rattraper. Tout est rempli : pas de carte.
+ */
 export function MealLogReminder({ today, hour = currentHour() }: { today: IsoDate; hour?: number }) {
   const api = useApi()
   const { currentProfile } = useAuth()
   const profileId = currentProfile?.id ?? null
-  const { entries, loading, loadError } = useMealLog(api, profileId, addDays(today, -REMINDER_LOAD_DAYS), today)
+  const { entries, loading, loadError, answer } = useMealLog(api, profileId, addDays(today, -REMINDER_LOAD_DAYS), today)
+  const suggestions = useMealSuggestions(api, profileId, today)
   if (!profileId || loading || loadError) return null
-  const days = missingDays(entries, profileId, today, hour)
-  if (days.length === 0) return null
-  const oldest = days.at(-1)!
+  const log = dayLog(entries, profileId, today)
+  const late = missingDays(entries, profileId, today, hour).filter((d) => d !== today)
+  if (isComplete(log) && late.length === 0) return null
+  const oldest = late.at(-1)
+  const days = streak(entries, profileId, today)
   return (
-    <Link
-      to={`/plan?profil=${profileId}&jour=${oldest}`}
-      className="mb-4 flex items-center gap-3 rounded-2xl border border-brand/25 bg-brand/5 p-4 text-sm hover:bg-brand/10 focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none"
+    <HomeCard
+      id="home-meal-log"
+      title="Végé ou non ?"
+      aside={
+        days > 0 && (
+          <span className="inline-flex items-center gap-1 text-xs font-medium text-amber-900 dark:text-amber-200" title="Jours complets d’affilée">
+            <Flame className="size-3.5" aria-hidden />
+            {days}
+          </span>
+        )
+      }
+      to={`/plan?profil=${profileId}`}
+      linkLabel="Stats"
     >
-      <Leaf className="size-5 shrink-0 text-brand" aria-hidden />
-      <span className="min-w-0 flex-1">
-        <span className="font-medium">
-          {days.length === 1 ? (oldest === today ? 'Repas d’aujourd’hui à remplir' : '1 jour de repas à remplir') : `${days.length} jours de repas à remplir`}
-        </span>{' '}
-        <span className="text-muted-foreground">{days.length > 1 || oldest !== today ? `depuis le ${formatShortDate(oldest)}` : 'végé ou non ?'}</span>
-      </span>
-      <ChevronRight className="size-4 shrink-0 text-muted-foreground" aria-hidden />
-    </Link>
+      <div className="flex flex-wrap justify-between gap-x-2 gap-y-2">
+        {LOG_SLOTS.map((slot) => (
+          <div key={slot.value} className="flex flex-col items-start gap-1">
+            <span className="text-xs text-muted-foreground">{slot.label}</span>
+            <SlotButtons small label={slot.label} answer={log[slot.value]} suggested={suggestions[slot.value]} onAnswer={(kind) => void answer(today, slot.value, kind)} />
+          </div>
+        ))}
+      </div>
+      {oldest && (
+        <Link to={`/plan?profil=${profileId}&jour=${oldest}`} className="block text-sm font-medium text-brand underline-offset-4 hover:underline">
+          {late.length === 1 ? `1 jour à rattraper (${formatShortDate(oldest)})` : `${late.length} jours à rattraper depuis le ${formatShortDate(oldest)}`}
+        </Link>
+      )}
+    </HomeCard>
   )
 }

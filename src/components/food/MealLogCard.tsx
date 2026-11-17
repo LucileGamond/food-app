@@ -20,10 +20,15 @@ interface Props {
   onAnswer: (slot: LogSlot, kind: LogKind | null) => void
   /** En-tête : jour affiché (et sa navigation quand la page n'en a pas). */
   header?: ReactNode
+  /** Statistiques des dernières semaines, sous le journal (absentes tant qu'elles chargent). */
+  weeks?: WeekStats[]
 }
 
-/** Journal du jour : végé, non végé ou pas de repas, pour le petit-déjeuner, le midi et le soir. */
-export function MealLogCard({ log, suggestions, streak, onAnswer, header }: Props) {
+/**
+ * Journal du jour, compact : pour le petit-déjeuner, le midi et le soir, trois icônes (végé, non végé, pas de repas),
+ * puis la part de repas végés des dernières semaines.
+ */
+export function MealLogCard({ log, suggestions, streak, onAnswer, header, weeks }: Props) {
   return (
     <section aria-labelledby="meal-log-title" className="rounded-2xl border bg-background p-4 shadow-xs">
       <div className="mb-3 flex items-center gap-2">
@@ -38,62 +43,83 @@ export function MealLogCard({ log, suggestions, streak, onAnswer, header }: Prop
         )}
       </div>
       {header}
-      <ul className="space-y-2">
+      <ul className="space-y-1.5">
         {LOG_SLOTS.map((slot) => {
           const answer = log[slot.value]
           const suggested = answer === undefined ? suggestions[slot.value] : undefined
           return (
-            <li key={slot.value} className="flex flex-wrap items-center gap-2">
+            <li key={slot.value} className="flex items-center gap-2">
               <span className="w-20 shrink-0 text-sm font-medium">{slot.label}</span>
-              <div role="group" aria-label={slot.label} className="flex flex-1 flex-wrap gap-1.5">
-                {LOG_KINDS.map((kind) => {
-                  const Icon = KIND_ICONS[kind.value]
-                  const active = answer === kind.value
-                  const hinted = suggested === kind.value
-                  return (
-                    <button
-                      key={kind.value}
-                      type="button"
-                      aria-pressed={active}
-                      title={hinted ? 'D’après le planning : touche pour confirmer' : undefined}
-                      onClick={() => onAnswer(slot.value, active ? null : kind.value)}
-                      className={cn(
-                        'inline-flex h-9 items-center gap-1.5 rounded-full border px-3 text-sm transition-colors focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none',
-                        active ? ACTIVE[kind.value] : 'hover:bg-muted',
-                        hinted && 'border-dashed border-brand text-brand',
-                      )}
-                    >
-                      <Icon className="size-4" aria-hidden />
-                      <span>{kind.label}</span>
-                      {hinted && <span className="sr-only">, prévu au planning</span>}
-                    </button>
-                  )
-                })}
-              </div>
+              <SlotButtons label={slot.label} answer={answer} suggested={suggested} onAnswer={(kind) => onAnswer(slot.value, kind)} />
             </li>
           )
         })}
       </ul>
+      {weeks && <MealLogStats weeks={weeks} />}
     </section>
   )
 }
 
+/** Les trois réponses d'un moment, en icônes (nom et infobulle pour chacune) ; un second appui efface la réponse. */
+export function SlotButtons({
+  label,
+  answer,
+  suggested,
+  onAnswer,
+  small = false,
+}: {
+  label: string
+  answer: LogKind | undefined
+  /** Réponse déduite du planning, proposée tant que rien n'est noté. */
+  suggested: LogKind | undefined
+  onAnswer: (kind: LogKind | null) => void
+  small?: boolean
+}) {
+  return (
+    <div role="group" aria-label={label} className={cn('flex', small ? 'gap-1' : 'gap-1.5')}>
+      {LOG_KINDS.map((kind) => {
+        const Icon = KIND_ICONS[kind.value]
+        const active = answer === kind.value
+        const hinted = answer === undefined && suggested === kind.value
+        return (
+          <button
+            key={kind.value}
+            type="button"
+            aria-pressed={active}
+            aria-label={hinted ? `${kind.label}, prévu au planning` : kind.label}
+            title={hinted ? `${kind.label} : d’après le planning, touche pour confirmer` : kind.label}
+            onClick={() => onAnswer(active ? null : kind.value)}
+            className={cn(
+              'inline-flex items-center justify-center rounded-full border transition-colors focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none',
+              small ? 'size-7' : 'size-9',
+              active ? ACTIVE[kind.value] : 'text-muted-foreground hover:bg-muted hover:text-foreground',
+              hinted && 'border-dashed border-brand text-brand',
+            )}
+          >
+            <Icon className="size-4" aria-hidden />
+          </button>
+        )
+      })}
+    </div>
+  )
+}
+
 /** Part de repas végés par semaine (« pas de repas » non compté). */
-export function MealLogStats({ weeks }: { weeks: WeekStats[] }) {
+function MealLogStats({ weeks }: { weeks: WeekStats[] }) {
   const current = weeks.at(-1)
   const share = current ? vegetarianShare(current) : null
   const all = weeks.reduce((sum, w) => ({ vegetarian: sum.vegetarian + w.vegetarian, meat: sum.meat + w.meat }), { vegetarian: 0, meat: 0 })
   const overall = vegetarianShare(all)
   return (
-    <section aria-labelledby="meal-stats-title" className="rounded-2xl border bg-background p-4 shadow-xs">
-      <h2 id="meal-stats-title" className="font-semibold tracking-tight">
+    <section aria-labelledby="meal-stats-title" className="mt-4 border-t pt-3">
+      <h3 id="meal-stats-title" className="text-sm font-semibold tracking-tight">
         Repas végés
-      </h2>
+      </h3>
       <p className="mt-1 text-sm text-muted-foreground">
         {share === null ? 'Rien de noté cette semaine.' : `Cette semaine : ${share} % (${current!.vegetarian} sur ${current!.vegetarian + current!.meat}).`}
         {overall !== null && ` Sur ${weeks.length} semaines : ${overall} %.`}
       </p>
-      <ol className="mt-3 flex h-28 items-end gap-1.5" aria-label="Part de repas végés par semaine">
+      <ol className="mt-3 flex h-24 items-end gap-1.5" aria-label="Part de repas végés par semaine">
         {weeks.map((w) => {
           const value = vegetarianShare(w)
           return (
