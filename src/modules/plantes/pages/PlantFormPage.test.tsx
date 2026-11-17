@@ -1,5 +1,5 @@
 import { screen, waitFor, within } from '@testing-library/react'
-import userEvent from '@testing-library/user-event'
+import { setupUser } from '@/test/user'
 import { Route } from 'react-router-dom'
 import { AppError } from '@/api'
 import { fakeApi, renderWithApp } from '@/test/fakes'
@@ -32,7 +32,7 @@ function renderEdit(plant = plantFixture({ id: 'p1' }), api = fakeApi()) {
 
 describe('PlantFormPage — nouvelle plante', () => {
   it('exige un nom', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     const { api } = renderNew()
     await user.click(await screen.findByRole('button', { name: 'Enregistrer' }))
     expect(await screen.findByText('Donne un nom à la plante.')).toBeInTheDocument()
@@ -41,7 +41,7 @@ describe('PlantFormPage — nouvelle plante', () => {
   })
 
   it('crée une plante avec deux règles saisonnières', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     const { api } = renderNew()
 
     await user.type(await screen.findByLabelText('Nom'), 'Cactus')
@@ -89,7 +89,7 @@ describe('PlantFormPage — nouvelle plante', () => {
   })
 
   it('erreurs de règles affichées sous le bon champ', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     const { api } = renderNew()
     await user.type(await screen.findByLabelText('Nom'), 'Ficus')
     await user.click(screen.getByRole('button', { name: 'Ajouter une règle' }))
@@ -110,7 +110,7 @@ describe('PlantFormPage — nouvelle plante', () => {
   })
 
   it('envoie les photos ajoutées après l’enregistrement, dans l’ordre choisi', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     const api = fakeApi()
     api.plants.uploadPhoto.mockResolvedValueOnce({ id: 'up1', storage_path: 'new-plant/1.jpg', position: 0 }).mockResolvedValueOnce({ id: 'up2', storage_path: 'new-plant/2.jpg', position: 1 })
     renderNew(api)
@@ -129,7 +129,7 @@ describe('PlantFormPage — nouvelle plante', () => {
   })
 
   it('erreur à l’enregistrement : on reste sur le formulaire', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     const api = fakeApi()
     api.plants.savePlant.mockRejectedValue(new AppError('Deux règles couvrent le même mois.'))
     renderNew(api)
@@ -153,7 +153,7 @@ describe('PlantFormPage — modification', () => {
   })
 
   it('pré-remplit le formulaire et enregistre les modifications', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     const { api } = renderEdit(plant)
     expect(await screen.findByRole('heading', { name: 'Modifier Monstera' })).toBeInTheDocument()
     expect(screen.getByLabelText('Nom')).toHaveValue('Monstera')

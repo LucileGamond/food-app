@@ -1,5 +1,5 @@
 import { screen, waitFor, within } from '@testing-library/react'
-import userEvent from '@testing-library/user-event'
+import { setupUser } from '@/test/user'
 import { AppError } from '@/api'
 import { fakeApi, renderWithApp } from '@/test/fakes'
 import { knitProject, knitStep } from '@/test/knitFactories'
@@ -30,7 +30,7 @@ function renderProject(api = fakeApi()) {
 
 describe('notes et photos d’avancement', () => {
   it('enregistre les notes du projet en quittant le champ', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     const api = fakeApi()
     api.knitting.getProgress.mockResolvedValue({ notes: 'Manches raccourcies', photos: [] })
     renderProject(api)
@@ -51,7 +51,7 @@ describe('notes et photos d’avancement', () => {
   })
 
   it('notes non enregistrées : le message d’erreur, jamais « Enregistré »', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     const api = fakeApi()
     api.knitting.saveProjectNotes.mockRejectedValue(new AppError('Impossible d’enregistrer les notes.'))
     renderProject(api)
@@ -65,7 +65,7 @@ describe('notes et photos d’avancement', () => {
   })
 
   it('garde ce qui est tapé pendant l’enregistrement des notes', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     const api = fakeApi()
     let saved!: () => void
     api.knitting.saveProjectNotes.mockImplementationOnce(() => new Promise<void>((resolve) => (saved = resolve)))
@@ -83,7 +83,7 @@ describe('notes et photos d’avancement', () => {
   })
 
   it('ajoute une photo rattachée à l’étape en cours', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     const api = fakeApi()
     renderProject(api)
     await openFold('Notes et photos')
@@ -98,7 +98,7 @@ describe('notes et photos d’avancement', () => {
   })
 
   it('agrandit une photo, la légende puis la supprime', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     const api = fakeApi()
     api.knitting.getProgress.mockResolvedValue({ notes: '', photos: [PHOTO] })
     renderProject(api)
@@ -118,7 +118,7 @@ describe('notes et photos d’avancement', () => {
   })
 
   it('signale les erreurs (chargement, envoi)', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     const api = fakeApi()
     api.knitting.getProgress.mockRejectedValueOnce(new AppError('Impossible de charger les notes et photos.'))
     api.knitting.addProgressPhoto.mockRejectedValue(new AppError('Impossible d’envoyer la photo.'))

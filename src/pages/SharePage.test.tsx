@@ -1,5 +1,5 @@
 import { screen, within } from '@testing-library/react'
-import userEvent from '@testing-library/user-event'
+import { setupUser } from '@/test/user'
 import { Route, useLocation } from 'react-router-dom'
 import { AppError } from '@/api'
 import { takeSharedPhotos } from '@/lib/sharedPhotos'
@@ -38,7 +38,7 @@ function renderShare(query: string, api = fakeApi()) {
       </>
     ),
   })
-  return { ...result, user: userEvent.setup() }
+  return { ...result, user: setupUser() }
 }
 
 const LINK = '?url=https%3A%2F%2Fwww.marmiton.org%2Frecettes%2Fcrepes.aspx&title=P%C3%A2te%20%C3%A0%20cr%C3%AApes'

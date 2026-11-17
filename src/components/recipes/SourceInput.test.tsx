@@ -1,5 +1,5 @@
 import { render, screen } from '@testing-library/react'
-import userEvent from '@testing-library/user-event'
+import { setupUser } from '@/test/user'
 import { useState } from 'react'
 import { SourceInput } from './SourceInput'
 
@@ -26,7 +26,7 @@ function setup(initial = '') {
     )
   }
   render(<Harness />)
-  return { user: userEvent.setup(), input: screen.getByRole('combobox', { name: 'Livre' }), changes }
+  return { user: setupUser(), input: screen.getByRole('combobox', { name: 'Livre' }), changes }
 }
 
 describe('SourceInput', () => {

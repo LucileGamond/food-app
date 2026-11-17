@@ -1,5 +1,5 @@
 import { screen, waitFor } from '@testing-library/react'
-import userEvent from '@testing-library/user-event'
+import { setupUser } from '@/test/user'
 import { Route } from 'react-router-dom'
 import { RequireAuth } from '@/auth/RequireAuth'
 import { fakeAuth, renderWithApp } from '@/test/fakes'
@@ -27,7 +27,7 @@ describe('LoginPage', () => {
   })
 
   it('affiche une erreur avec un mauvais mot de passe', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     const { auth } = renderLogin()
     await user.type(await screen.findByLabelText('E-mail'), ' lucile@food.test ')
     await user.type(screen.getByLabelText('Mot de passe'), 'faux')
@@ -37,7 +37,7 @@ describe('LoginPage', () => {
   })
 
   it('connecte puis redirige vers l’accueil', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     renderLogin()
     await user.type(await screen.findByLabelText('E-mail'), 'lucile@food.test')
     await user.type(screen.getByLabelText('Mot de passe'), 'bon-mot-de-passe')
@@ -51,7 +51,7 @@ describe('LoginPage', () => {
   })
 
   it('affiche un message générique en cas de panne du serveur ou du réseau', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     const auth = fakeAuth({ signedIn: false })
     auth.signInWithPassword.mockResolvedValueOnce({ data: {}, error: { status: 500, message: 'boom' } })
     auth.signInWithPassword.mockRejectedValueOnce(new TypeError('Failed to fetch'))

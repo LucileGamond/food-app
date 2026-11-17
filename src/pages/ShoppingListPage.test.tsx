@@ -1,5 +1,5 @@
 import { act, screen, waitFor, within } from '@testing-library/react'
-import userEvent from '@testing-library/user-event'
+import { setupUser } from '@/test/user'
 import { Route } from 'react-router-dom'
 import { AppError } from '@/api'
 import type { ShoppingItem } from '@/lib/shopping'
@@ -50,7 +50,7 @@ const section = (name: RegExp | string) => screen.getByRole('region', { name, hi
 
 describe('ShoppingListPage', () => {
   it('bulle d’un article : les lignes de recette d’où il vient ; rien pour un article ajouté à la main', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     renderList([item({ id: 'farine', name: 'Farine', quantity: 450, unit: 'g', sources: ['Crêpes : 250 g farine', 'Lasagnes (6 portions, recette pour 4) : 200 g farine'] }), item({ id: 'pain', name: 'Pain' })])
     await user.click(await screen.findByRole('button', { name: 'D’où vient « Farine »' }))
     expect(await screen.findByText('Crêpes : 250 g farine')).toBeInTheDocument()
@@ -73,7 +73,7 @@ describe('ShoppingListPage', () => {
   })
 
   it('ajoute un article avec le rayon deviné ; le rayon reste modifiable', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     const { api } = renderList([])
     expect(await screen.findByText('Ajoute ton premier article')).toBeInTheDocument()
     const name = screen.getByLabelText("Nom de l’article")
@@ -96,7 +96,7 @@ describe('ShoppingListPage', () => {
   })
 
   it('additionne la quantité d’un article déjà présent (unités convertibles)', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     const { api } = renderList()
     await screen.findByRole('heading', { level: 1 })
     await user.type(screen.getByLabelText("Nom de l’article"), 'farine')
@@ -110,7 +110,7 @@ describe('ShoppingListPage', () => {
   })
 
   it('signale un article sans quantité déjà présent', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     const { api } = renderList()
     await screen.findByRole('heading', { level: 1 })
     await user.type(screen.getByLabelText("Nom de l’article"), 'Pommes{Enter}')
@@ -122,7 +122,7 @@ describe('ShoppingListPage', () => {
   })
 
   it('refuse une quantité invalide', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     renderList([])
     await screen.findByText('Ajoute ton premier article')
     await user.type(screen.getByLabelText("Nom de l’article"), 'Pommes')
@@ -132,7 +132,7 @@ describe('ShoppingListPage', () => {
   })
 
   it('coche instantanément, sans attendre le serveur, et annule si le serveur refuse', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     const api = fakeApi()
     const pending = deferred<void>()
     api.shopping.updateItem.mockReturnValueOnce(pending.promise)
@@ -150,7 +150,7 @@ describe('ShoppingListPage', () => {
   })
 
   it('annonce quand tout est dans le caddie, puis retire les cochés', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     const { api } = renderList([item({ id: 'a', name: 'Pain', checked: true }), item({ id: 'b', name: 'Lait', checked: true, position: 1 })])
     expect(await screen.findByText('Tout est dans le caddie')).toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: 'Retirer les cochés' }))
@@ -162,7 +162,7 @@ describe('ShoppingListPage', () => {
   })
 
   it('modifie un article et le supprime', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     const { api } = renderList()
     await user.click(await screen.findByRole('button', { name: /^Modifier Lait/ }))
     const dialog = await screen.findByRole('dialog', { name: "Modifier l’article" })
@@ -189,7 +189,7 @@ describe('ShoppingListPage', () => {
   })
 
   it('remet un article supprimé si le serveur refuse', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     const api = fakeApi()
     api.shopping.deleteItem.mockRejectedValueOnce(new AppError("Impossible de supprimer l'article."))
     renderList(undefined, api)
@@ -201,7 +201,7 @@ describe('ShoppingListPage', () => {
   })
 
   it('renomme et supprime la liste', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     const { api } = renderList()
     await user.click(await screen.findByRole('button', { name: 'Actions sur la liste' }))
     await user.click(await screen.findByRole('menuitem', { name: 'Renommer' }))
@@ -223,7 +223,7 @@ describe('ShoppingListPage', () => {
   })
 
   it('garde le formulaire de renommage ouvert si le serveur refuse', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     const api = fakeApi()
     api.shopping.renameList.mockRejectedValueOnce(new AppError('Impossible de renommer la liste.'))
     api.shopping.deleteList.mockRejectedValueOnce(new AppError('Impossible de supprimer la liste.'))
@@ -250,7 +250,7 @@ describe('ShoppingListPage', () => {
   })
 
   it('affiche une erreur de chargement et permet de réessayer', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     const api = fakeApi()
     api.shopping.listItems.mockRejectedValueOnce(new AppError('Impossible de charger les articles.'))
     renderWithApp(<ShoppingListPage />, { api, route: '/courses/l1', path: '/courses/:id' })
@@ -262,7 +262,7 @@ describe('ShoppingListPage', () => {
   it('recharge en temps réel, mais pas pendant une écriture en cours', async () => {
     vi.useFakeTimers({ shouldAdvanceTime: true })
     try {
-      const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime })
+      const user = setupUser({ advanceTimers: vi.advanceTimersByTime })
       const api = fakeApi()
       let notify: () => void = () => undefined
       api.shopping.subscribe.mockImplementation((cb: () => void) => {

@@ -1,7 +1,7 @@
 // Mode tricoter : les combinaisons d'une étape (sections, répétitions, diagrammes, adaptation), écran complet.
 
 import { cleanup, screen, within } from '@testing-library/react'
-import userEvent from '@testing-library/user-event'
+import { setupUser } from '@/test/user'
 import { fakeApi, renderWithApp } from '@/test/fakes'
 import { knitProject, knitStep, repeat } from '@/test/knitFactories'
 import type { Adaptation } from '../lib/adapt'
@@ -50,7 +50,7 @@ async function open(value: KnitProject) {
     later: () => screen.queryByRole('region', { name: 'Ensuite' }),
     stitches: () => screen.getByText(/En fin de rang/).textContent,
     add: async (n = 1) => {
-      for (let i = 0; i < n; i++) await userEvent.setup().click(screen.getByRole('button', { name: /^Rang \d+ fini$/ }))
+      for (let i = 0; i < n; i++) await setupUser().click(screen.getByRole('button', { name: /^Rang \d+ fini$/ }))
     },
   }
 }
@@ -156,7 +156,7 @@ describe('mode tricoter : avec diagramme', () => {
 
 describe('mode tricoter : toute l’étape', () => {
   it('sections et rangs à faire, avec les mailles, ce qui est fait et le rang à tricoter', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     // 4 rangs de côtes, puis 1 dim. de chaque côté tous les 6 rangs (4 fois) : rangs 10, 16, 22, 28 ; 30 rangs, 52 mailles à la fin
     await open(project({ rowCount: 15, totalRows: 30, stitches: 52, sections: [rows(4, 'côtes'), repeat(6, 4, [{ text: '1 dim. de chaque côté', rank: null, stitches: -2 }])] }))
     await user.click(screen.getByRole('button', { name: 'Étape entière' }))
@@ -178,7 +178,7 @@ describe('mode tricoter : toute l’étape', () => {
   })
 
   it('section à régler : signalée, la suite sans rangs', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     await open(project({ rowCount: 1, sections: [rows(4, 'côtes'), rows(null, 'jersey'), rows(6, 'côtes')] }))
     await user.click(screen.getByRole('button', { name: 'Étape entière' }))
     const outline = screen.getByRole('list', { name: 'Étape entière' })
@@ -290,7 +290,7 @@ describe('mode tricoter : un seul compteur, celui de la sous-étape', () => {
     expect(within(counter()).getByRole('button', { name: 'Rang 15 fini' })).toBeInTheDocument()
     expect(counter()).not.toHaveTextContent('jersey')
     expect(counter()).toHaveTextContent('14 rangs finis dans l’étape entière')
-    await userEvent.setup().click(within(counter()).getByRole('button', { name: 'Terminer la sous-étape (2 rangs)' }))
+    await setupUser().click(within(counter()).getByRole('button', { name: 'Terminer la sous-étape (2 rangs)' }))
     expect(api.knitting.saveProgress).toHaveBeenCalledWith('s1', { sections: [rows(12, 'côtes'), rows(2, 'jersey'), rows(4, 'côtes')] })
   })
 
@@ -341,7 +341,7 @@ describe('mode tricoter : aiguilles', () => {
 
 describe('mode tricoter : texte de la sous-étape en cours', () => {
   it('le volet Patron montre d’abord le paragraphe de la sous-étape en cours', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     const sections = [{ ...rows(4, 'côtes'), source: 'Tricoter 4 rangs de côtes.' }, { ...rows(16, 'jersey'), source: 'Continuer en jersey.' }]
     await open(project({ rowCount: 5, instructions: 'Tricoter 4 rangs de côtes.\n\nContinuer en jersey.', sections }))
     await user.click(screen.getByRole('button', { name: 'Patron' }))

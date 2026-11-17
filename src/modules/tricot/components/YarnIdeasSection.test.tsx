@@ -1,5 +1,5 @@
 import { cleanup, screen, waitFor, within } from '@testing-library/react'
-import userEvent from '@testing-library/user-event'
+import { setupUser } from '@/test/user'
 import { Route, useLocation } from 'react-router-dom'
 import { AppError } from '@/api'
 import type { NavState } from '@/lib/navState'
@@ -27,7 +27,7 @@ function setup(options: { stash?: StashItem[]; current?: StashItem; emphasize?: 
   // Compte Ravelry relié par défaut
   api.knitting.getRavelryAccount.mockResolvedValue({ username: 'lucile' })
   options.configure?.(api)
-  const user = userEvent.setup()
+  const user = setupUser()
   const stash = options.stash ?? STASH
   renderWithApp(<YarnIdeasSection item={options.current ?? stash[0]!} stash={stash} emphasize={options.emphasize ?? true} />, {
     api,

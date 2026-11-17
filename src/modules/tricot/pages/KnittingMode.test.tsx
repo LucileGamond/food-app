@@ -1,5 +1,5 @@
 import { screen, waitFor, within } from '@testing-library/react'
-import userEvent from '@testing-library/user-event'
+import { setupUser } from '@/test/user'
 import { Route } from 'react-router-dom'
 import { fakeApi, renderWithApp } from '@/test/fakes'
 import { knitProject, knitStep, repeat, rows } from '@/test/knitFactories'
@@ -44,7 +44,7 @@ beforeEach(() => localStorage.clear())
 
 describe('mode tricoter', () => {
   it('ouvre l’étape en cours : le rang à tricoter, la suite, le compteur', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     const { api } = renderMode()
     const title = await screen.findByRole('heading', { level: 1, name: 'Emmanchures' })
     // Un titre long passe sur deux lignes au lieu d'être coupé (V5c)
@@ -86,7 +86,7 @@ describe('mode tricoter', () => {
   })
 
   it('mailles en fin de rang : sûres, estimées « (?) » avec la raison, ou inconnues', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     // Mailles de fin non indiquées : inconnues
     const { unmount } = renderMode()
     await line()
@@ -117,7 +117,7 @@ describe('mode tricoter', () => {
   })
 
   it('explique les abréviations de la ligne d’un toucher', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     const project = structuredClone(PROJECT)
     project.steps[1]!.rowCount = 9
     renderMode(project)
@@ -127,7 +127,7 @@ describe('mode tricoter', () => {
   })
 
   it('vibre en arrivant sur un rang où il y a quelque chose à faire', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     const vibrate = vi.fn(() => true)
     Object.defineProperty(navigator, 'vibrate', { value: vibrate, configurable: true })
     try {
@@ -147,7 +147,7 @@ describe('mode tricoter', () => {
   })
 
   it('étape pas prête : la liste de ce qui manque, et le lien vers la préparation', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     const project = structuredClone(PROJECT)
     project.steps[1]!.sections = [JERSEY, { kind: 'rows', rows: null, every: null, times: null, text: 'jersey', pattern: 'Jersey sur 5 cm' }, DECREASES]
     project.steps[1]!.rowCount = 2
@@ -175,7 +175,7 @@ describe('mode tricoter', () => {
   })
 
   it('rétablit le compteur si l’enregistrement est refusé', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     const api = fakeApi()
     api.knitting.saveProgress.mockRejectedValueOnce(new Error('refusé'))
     renderMode(PROJECT, api)
@@ -184,7 +184,7 @@ describe('mode tricoter', () => {
   })
 
   it('dernier rang fait : l’étape se termine après confirmation et la suivante s’ouvre', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     const project = structuredClone(PROJECT)
     project.steps[1]!.rowCount = 29
     const { api } = renderMode(project)
@@ -205,7 +205,7 @@ describe('mode tricoter', () => {
   })
 
   it('étape tricotée 2 fois : la 1re finie, la 2e repart au rang 1, puis l’étape se termine', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     const project = structuredClone(PROJECT)
     project.steps[1] = { ...project.steps[1]!, title: 'Manche', times: 2, pass: 1, rowCount: 29 }
     const { api } = renderMode(project)
@@ -232,7 +232,7 @@ describe('mode tricoter', () => {
   })
 
   it('étape tricotée 2 fois : la 1re peut se terminer avant son dernier rang', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     const project = structuredClone(PROJECT)
     project.steps[2] = { ...project.steps[2]!, times: 2, pass: 1, rowCount: 12 }
     project.steps[1]!.done = true
@@ -246,7 +246,7 @@ describe('mode tricoter', () => {
   })
 
   it('dernière étape : le projet se termine', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     const project = structuredClone(PROJECT)
     project.steps = [step({ id: 's1', title: 'Col', totalRows: 2, rowCount: 2 })]
     const { api } = renderMode(project)
@@ -261,7 +261,7 @@ describe('mode tricoter', () => {
   })
 
   it('volet « Patron » : le texte seul ; les notes dans leur propre bloc ; fin d’étape anticipée', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     const { api } = renderMode(PROJECT, fakeApi(), '/tricot/p1/tricoter?etape=s3')
     expect(await screen.findByRole('heading', { level: 1, name: 'Encolure' })).toBeInTheDocument()
     // Étape sans nombre de rangs : un rang suivant, mais pas de fin annoncée
@@ -292,7 +292,7 @@ describe('mode tricoter', () => {
   })
 
   it('volet « Patron » : les nombres de la taille suivie surlignés, dans la sous-étape en cours et le texte complet', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     const project = structuredClone(PROJECT)
     project.sizes = ['S', 'M', 'L']
     project.sizeIndex = 1
@@ -309,7 +309,7 @@ describe('mode tricoter', () => {
   })
 
   it('volet « Patron » : plusieurs tailles, aucune choisie → on le dit, avec où la choisir', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     const project = structuredClone(PROJECT)
     project.sizes = ['S', 'M', 'L']
     project.sizeIndex = null
@@ -322,7 +322,7 @@ describe('mode tricoter', () => {
   })
 
   it('volet « Patron » : traduction et correction du surlignage enregistrées avec l’étape', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     const project = structuredClone(PROJECT)
     project.sizes = ['S', 'M']
     project.sizeIndex = 1
@@ -341,7 +341,7 @@ describe('mode tricoter', () => {
   })
 
   it('téléphone qui ne sait pas vibrer : le compteur marche quand même', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     expect('vibrate' in navigator).toBe(false)
     renderMode()
     const row = await line()
@@ -350,7 +350,7 @@ describe('mode tricoter', () => {
   })
 
   it('garde l’écran allumé et ramène à la page du projet', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     const release = vi.fn(async () => undefined)
     const request = vi.fn(async () => ({ release, addEventListener: () => undefined }))
     Object.defineProperty(navigator, 'wakeLock', { value: { request }, configurable: true })

@@ -1,5 +1,5 @@
 import { screen, waitFor, within } from '@testing-library/react'
-import userEvent from '@testing-library/user-event'
+import { setupUser } from '@/test/user'
 import { AppError } from '@/api'
 import { fakeApi, renderWithApp } from '@/test/fakes'
 import { knitProject, knitStep, repeat, rows } from '@/test/knitFactories'
@@ -43,7 +43,7 @@ function renderProject(api = fakeApi(), value = project(), route = '/tricot/p1?e
 
 describe('patron adapté : écran', () => {
   it('adapte avec l’échantillon et les retouches, montre l’avant / après puis le suit', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     const api = fakeApi()
     api.knitting.adaptPattern.mockResolvedValue(ADAPTATION.steps)
     renderProject(api, project(), OVERVIEW)
@@ -87,7 +87,7 @@ describe('patron adapté : écran', () => {
   })
 
   it('bascule vers le patron d’origine, refait ou supprime l’adaptation', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     const api = fakeApi()
     renderProject(api, project(ADAPTATION), OVERVIEW)
     await openFold('Patron adapté à moi')
@@ -114,7 +114,7 @@ describe('patron adapté : écran', () => {
   })
 
   it('adaptation faite pour une autre taille : en pause, à refaire pour la taille suivie', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     const api = fakeApi()
     renderProject(api, { ...project(ADAPTATION), sizes: ['M', 'L'], sizeIndex: 1 })
     // L'étape suit le patron d'origine (pas les chiffres de M)
@@ -146,7 +146,7 @@ describe('patron adapté : écran', () => {
   })
 
   it('patron adapté suivi : les sections réglées vont dans l’adaptation, pas dans le patron d’origine', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     const api = fakeApi()
     const rows4 = rows(4, 'jersey')
     const adaptation: Adaptation = { ...ADAPTATION, steps: [{ ...ADAPTATION.steps[0]!, sections: [rows4, ADAPTED_REPEAT] }] }
@@ -163,7 +163,7 @@ describe('patron adapté : écran', () => {
   })
 
   it('sans échantillon différent ni retouche : rien à adapter ; erreur lisible', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     const api = fakeApi()
     api.knitting.adaptPattern.mockRejectedValue(new AppError('L’adaptation du patron a échoué.'))
     renderProject(api, { ...project(), gauges: [] }, OVERVIEW)

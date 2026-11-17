@@ -1,5 +1,5 @@
 import { screen, within } from '@testing-library/react'
-import userEvent from '@testing-library/user-event'
+import { setupUser } from '@/test/user'
 import { Route } from 'react-router-dom'
 import type { Recipe } from '@/lib/recipes'
 import { DEFAULT_SETTINGS, type PageKey } from '@/lib/settings'
@@ -21,7 +21,7 @@ const RECIPE: Recipe = { id: 'r1', is_saved: true, title: 'Curry', notes: null, 
 
 describe('pages masquées', () => {
   it('Planning sans Recettes ni Courses : pas de lien vers la recette ni de liste de courses', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     const api = hiding('recettes', 'courses')
     api.meals.listMeals.mockResolvedValue([
       mealFixture({ meal_date: '2026-10-20', recipe: { id: 'r1', is_saved: true, title: 'Curry' } }),

@@ -1,5 +1,5 @@
 import { screen, waitFor, within } from '@testing-library/react'
-import userEvent from '@testing-library/user-event'
+import { setupUser } from '@/test/user'
 import { AppError } from '@/api'
 import type { FoodPeriod } from '@/lib/food'
 import type { LogKind, LogSlot, MealLogEntry } from '@/lib/mealLog'
@@ -16,7 +16,7 @@ function renderJournal({ api = fakeApi(), periods = [PERIOD], entries = [] as Me
   api.food.listPeriods.mockResolvedValue(periods)
   api.food.listPeriodItems.mockResolvedValue([])
   api.mealLog.list.mockResolvedValue(entries)
-  return { ...renderWithApp(<FoodTrackingPage today={today} hour={12} />, { api, route, path: '/plan' }), user: userEvent.setup() }
+  return { ...renderWithApp(<FoodTrackingPage today={today} hour={12} />, { api, route, path: '/plan' }), user: setupUser() }
 }
 
 const journal = () => screen.findByRole('region', { name: 'Repas du jour' })

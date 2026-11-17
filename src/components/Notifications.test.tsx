@@ -1,6 +1,6 @@
 import { DEFAULT_SETTINGS } from '@/lib/settings'
 import { screen, waitFor, within } from '@testing-library/react'
-import userEvent from '@testing-library/user-event'
+import { setupUser } from '@/test/user'
 import { AppError } from '@/api'
 import { Layout } from '@/components/Layout'
 import { SettingsPage } from '@/pages/SettingsPage'
@@ -51,7 +51,7 @@ describe('notifications de l’application', () => {
   })
 
   it('propose une fois d’activer les notifications, pour toute l’application', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     const { api } = renderLayout()
     const prompt = await screen.findByRole('region', { name: 'Activer les notifications' })
     await user.click(within(prompt).getByRole('button', { name: 'Activer' }))
@@ -78,7 +78,7 @@ describe('notifications de l’application', () => {
   })
 
   it('« Plus tard » masque la proposition, mémorisée pour les prochains lancements', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     const { unmount } = renderLayout()
     const prompt = await screen.findByRole('region', { name: 'Activer les notifications' })
     await user.click(within(prompt).getByRole('button', { name: 'Plus tard' }))
@@ -90,7 +90,7 @@ describe('notifications de l’application', () => {
   })
 
   it('les réglages permettent d’activer puis de désactiver sur cet appareil', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     const { api } = renderLayout()
     expect(await deviceStatus()).toHaveTextContent('Désactivées sur cet appareil.')
     await user.click(screen.getByRole('button', { name: 'Activer sur cet appareil' }))
@@ -121,7 +121,7 @@ describe('notifications de l’application', () => {
   })
 
   it('passe à « bloquées » si l’autorisation est refusée au moment d’activer', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     vi.mocked(subscribeDevice).mockRejectedValueOnce(new PushPermissionError())
     const { api } = renderLayout()
     await user.click(within(await screen.findByRole('region', { name: 'Activer les notifications' })).getByRole('button', { name: 'Activer' }))
@@ -130,7 +130,7 @@ describe('notifications de l’application', () => {
   })
 
   it('affiche l’erreur d’enregistrement', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     const api = fakeApi()
     api.push.saveSubscription.mockRejectedValueOnce(new AppError("Impossible d'activer les notifications."))
     renderLayout(api)
@@ -147,7 +147,7 @@ describe('notifications de l’application', () => {
   })
 
   it('à la déconnexion, l’appareil ne reçoit plus les notifications du compte', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     const api = fakeApi()
     vi.mocked(currentDevicePush).mockResolvedValue(DEVICE)
     api.push.isSubscribed.mockResolvedValue(true)
@@ -159,7 +159,7 @@ describe('notifications de l’application', () => {
   })
 
   it('se déconnecte même si l’abonnement ne peut pas être retiré', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     const api = fakeApi()
     vi.mocked(currentDevicePush).mockResolvedValue(DEVICE)
     api.push.deleteSubscription.mockRejectedValueOnce(new AppError('Hors ligne'))

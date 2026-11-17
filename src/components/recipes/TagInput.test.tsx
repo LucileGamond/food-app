@@ -1,5 +1,5 @@
 import { act, fireEvent, render, screen } from '@testing-library/react'
-import userEvent from '@testing-library/user-event'
+import { setupUser } from '@/test/user'
 import { useState } from 'react'
 import { TagInput } from './TagInput'
 
@@ -22,7 +22,7 @@ const chosen = () => screen.queryAllByRole('listitem').map((li) => li.textConten
 
 describe('TagInput', () => {
   it('ne valide pas un tag tapé au clavier qui commence comme une suggestion', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     render(<Harness />)
     await user.type(input(), 'pâtes fraîches')
     expect(chosen()).toEqual([])
@@ -46,7 +46,7 @@ describe('TagInput', () => {
   })
 
   it('ne valide pas une suggestion obtenue en effaçant des lettres', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     render(<Harness />)
     await user.type(input(), 'pâtesx{Backspace}')
     expect(input()).toHaveValue('pâtes')
@@ -54,7 +54,7 @@ describe('TagInput', () => {
   })
 
   it('valide à la virgule, à la sortie du champ, sans doublon, et retire avec Retour arrière', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     render(<Harness initial={['Rapide']} />)
     await user.type(input(), 'rapide,dessert,')
     expect(chosen()).toEqual(['Rapide', 'dessert'])

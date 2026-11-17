@@ -1,5 +1,6 @@
 import { act, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
+import { setupUser } from '@/test/user'
 import { Route } from 'react-router-dom'
 import { AppError } from '@/api'
 import { ERIC, LUCILE, fakeApi, mealFixture, renderWithApp } from '@/test/fakes'
@@ -32,7 +33,7 @@ async function openMenu(user: ReturnType<typeof userEvent.setup>, title: string)
 
 describe('PlanningPage', () => {
   it('ouvre « Planifier la semaine »', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     renderPlanning()
     await screen.findAllByTestId('day-card')
     await user.click(screen.getByRole('button', { name: 'Planifier la semaine' }))
@@ -51,7 +52,7 @@ describe('PlanningPage', () => {
   })
 
   it('affiche qui cuisine et le change depuis le menu', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     const api = fakeApi()
     api.meals.listMeals.mockResolvedValue([mealFixture({ meal_date: TODAY, people: [ERIC.id, LUCILE.id], cook_id: ERIC.id })])
     renderPlanning(api)
@@ -80,7 +81,7 @@ describe('PlanningPage', () => {
   })
 
   it('navigue de 7 jours en 7 jours et revient à aujourd’hui', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     const { api } = renderPlanning()
     await screen.findAllByTestId('day-card')
     const today = screen.getByRole('button', { name: "Aujourd’hui" })
@@ -119,7 +120,7 @@ describe('PlanningPage', () => {
   })
 
   it('ajoute un repas ponctuel, avec l’utilisateur connecté coché par défaut', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     const { api } = renderPlanning()
     await screen.findAllByTestId('day-card')
 
@@ -155,7 +156,7 @@ describe('PlanningPage', () => {
   })
 
   it('exige au moins une personne', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     renderPlanning()
     await screen.findAllByTestId('day-card')
     await user.click(screen.getByRole('button', { name: 'Ajouter un repas — Mardi 20 octobre, Midi' }))
@@ -167,7 +168,7 @@ describe('PlanningPage', () => {
   })
 
   it('ajoute un repas à partir d’une recette sauvegardée', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     const api = fakeApi()
     api.recipes.listSavedSummaries.mockResolvedValue([
       { id: 'r-curry', is_saved: true, title: 'Curry', notes: null, url: null, tags: ['végé'] },
@@ -193,7 +194,7 @@ describe('PlanningPage', () => {
   })
 
   it('indique quand aucune recette n’est sauvegardée', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     renderPlanning()
     await screen.findAllByTestId('day-card')
     await user.click(screen.getByRole('button', { name: 'Ajouter un repas — Mardi 20 octobre, Midi' }))
@@ -203,7 +204,7 @@ describe('PlanningPage', () => {
   })
 
   it('modifie un repas ponctuel avec le formulaire prérempli', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     const api = fakeApi()
     api.meals.listMeals.mockResolvedValue([mealFixture({ people: [ERIC.id], recipe: { title: 'Pâtes', notes: 'n', url: 'https://a.fr' } })])
     renderPlanning(api)
@@ -227,7 +228,7 @@ describe('PlanningPage', () => {
   })
 
   it('préremplit l’onglet recette sauvegardée pour un repas qui en utilise une', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     const api = fakeApi()
     const curry = { id: 'r-curry', is_saved: true, title: 'Curry', notes: null, url: null, tags: [] }
     api.meals.listMeals.mockResolvedValue([mealFixture({ recipe: curry })])
@@ -242,7 +243,7 @@ describe('PlanningPage', () => {
   })
 
   it('garde le formulaire ouvert si l’enregistrement échoue', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     const api = fakeApi()
     api.meals.createMeal.mockRejectedValue(new AppError('Serveur indisponible'))
     renderPlanning(api)
@@ -256,7 +257,7 @@ describe('PlanningPage', () => {
   })
 
   it('déplace un repas par le menu, de façon optimiste', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     const api = fakeApi()
     api.meals.listMeals.mockResolvedValueOnce([mealFixture()])
     api.meals.moveMeal.mockImplementation(() => new Promise(() => undefined))
@@ -278,7 +279,7 @@ describe('PlanningPage', () => {
   })
 
   it('annule le déplacement si le serveur refuse', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     const api = fakeApi()
     api.meals.listMeals.mockResolvedValue([mealFixture()])
     api.meals.moveMeal.mockRejectedValue(new AppError('Refusé'))
@@ -294,7 +295,7 @@ describe('PlanningPage', () => {
   })
 
   it('duplique un repas vers le premier autre jour par défaut', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     const api = fakeApi()
     api.meals.listMeals.mockResolvedValue([mealFixture()])
     renderPlanning(api)
@@ -309,7 +310,7 @@ describe('PlanningPage', () => {
   })
 
   it('supprime un repas après confirmation', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     const api = fakeApi()
     api.meals.listMeals.mockResolvedValueOnce([mealFixture({ people: [LUCILE.id, ERIC.id] })])
     renderPlanning(api)
@@ -331,7 +332,7 @@ describe('PlanningPage', () => {
   })
 
   it('ouvre le formulaire de recette pour sauvegarder une recette ponctuelle', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     const api = fakeApi()
     api.meals.listMeals.mockResolvedValue([mealFixture()])
     renderPlanning(api)
@@ -342,7 +343,7 @@ describe('PlanningPage', () => {
   })
 
   it('affiche une erreur de chargement et permet de réessayer', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     const api = fakeApi()
     api.meals.listMeals.mockRejectedValueOnce(new AppError('Hors ligne'))
     renderPlanning(api)
@@ -354,7 +355,7 @@ describe('PlanningPage', () => {
   it('ne vide pas le formulaire de repas en cours quand le planning est rechargé', async () => {
     vi.useFakeTimers({ shouldAdvanceTime: true })
     try {
-      const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime })
+      const user = setupUser({ advanceTimers: vi.advanceTimersByTime })
       const api = fakeApi()
       api.meals.listMeals.mockResolvedValue([mealFixture()])
       let notify: () => void = () => undefined

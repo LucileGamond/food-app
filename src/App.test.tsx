@@ -1,5 +1,5 @@
 import { render, screen, waitFor, within } from '@testing-library/react'
-import userEvent from '@testing-library/user-event'
+import { setupUser } from '@/test/user'
 import { MemoryRouter } from 'react-router-dom'
 import type { Api } from '@/api'
 import { DEFAULT_SETTINGS } from '@/lib/settings'
@@ -17,8 +17,20 @@ function renderApp(route: string, auth = fakeAuth()) {
 }
 
 describe('App', () => {
+  // Pages chargées à la demande et visitées ici : transformées une fois avant les tests, et non pendant l'un d'eux (sur
+  // une machine chargée, la première transformation dépasse le délai d'attente d'un élément).
+  beforeAll(async () => {
+    await Promise.all([
+      import('@/pages/HomePage'),
+      import('@/pages/RecipesPage'),
+      import('@/pages/SettingsPage'),
+      import('@/pages/HydrationPage'),
+      import('@/pages/WeightPage'),
+    ])
+  }, 60_000)
+
   it('affiche la navigation Planning / Recettes et le nom de l’utilisateur', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     renderApp('/planning')
     expect(await screen.findByRole('heading', { name: 'Planning' })).toBeInTheDocument()
     expect(await screen.findByText('Lucile')).toBeInTheDocument()
@@ -31,7 +43,7 @@ describe('App', () => {
   })
 
   it('déconnecte et revient à l’écran de connexion', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     const { auth } = renderApp('/planning')
     await screen.findByRole('heading', { name: 'Planning' })
     await user.click(screen.getAllByRole('button', { name: 'Se déconnecter' })[0]!)
@@ -40,7 +52,7 @@ describe('App', () => {
   })
 
   it('le logo ramène à l’accueil', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     renderApp('/planning')
     await screen.findByRole('heading', { name: 'Planning' })
     const logos = screen.getAllByRole('link', { name: 'Life, accueil' })
@@ -75,7 +87,7 @@ describe('App', () => {
   })
 
   it('habille les pages Tricot de leur identité visuelle, et seulement elles', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     const api = fakeApi()
     api.settings.getSettings.mockResolvedValue({ ...DEFAULT_SETTINGS, disabledPages: [] })
     render(
@@ -96,7 +108,7 @@ describe('App', () => {
   })
 
   it('ouvre le suivi d’hydratation une fois activé', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     const { api } = renderApp('/reglages')
     await user.click((await screen.findAllByRole('checkbox', { name: 'Eau' }))[0]!)
     expect(api.settings.saveSettings).toHaveBeenCalled()
@@ -134,7 +146,7 @@ describe('App', () => {
   })
 
   it('navigation par sections : barre latérale groupée, onglets par section et pages de la section', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     const api = fakeApi()
     api.settings.getSettings.mockResolvedValue({ ...DEFAULT_SETTINGS, disabledPages: [] })
     render(

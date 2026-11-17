@@ -1,5 +1,5 @@
 import { screen, waitFor, within } from '@testing-library/react'
-import userEvent from '@testing-library/user-event'
+import { setupUser } from '@/test/user'
 import { Route } from 'react-router-dom'
 import { AppError } from '@/api'
 import type { RecipeSummary } from '@/lib/meals'
@@ -27,7 +27,7 @@ function setup(api: FakeApi = fakeApi()) {
     extraRoutes: <Route path="/recettes" element={<p>Liste des recettes</p>} />,
   })
   const photos = () => screen.getByLabelText('Photos des pages') as HTMLInputElement
-  return { api, user: userEvent.setup({ applyAccept: false }), photos }
+  return { api, user: setupUser({ applyAccept: false }), photos }
 }
 
 describe('RecipeBatchImportPage', () => {

@@ -1,6 +1,6 @@
 import { act, screen, waitFor, within } from '@testing-library/react'
 import { useEffect, useState } from 'react'
-import userEvent from '@testing-library/user-event'
+import { setupUser } from '@/test/user'
 import { Route } from 'react-router-dom'
 import { AppError } from '@/api'
 import { eventFixture } from '@/test/agenda'
@@ -87,7 +87,7 @@ describe('WeekPlanPage — qui mange à la maison', () => {
   })
 
   it('la présence se corrige à la main avant de demander à l’IA', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     const { api } = setup()
     const mondayLunch = await slot('Lundi 9 novembre — Midi')
     await user.click(within(mondayLunch).getByRole('button', { name: 'Lucile' }))
@@ -108,7 +108,7 @@ describe('WeekPlanPage — qui mange à la maison', () => {
   })
 
   it('repas déjà passés du jour : affichés comme tels, pas proposés à l’IA', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     // Lundi 20 h à Paris : le midi est fini, le soir pas encore.
     const { api } = setup({ now: () => Date.parse('2026-11-09T19:00:00Z') })
     expect(within(await slot('Lundi 9 novembre — Midi')).getByText('Repas passé')).toBeInTheDocument()
@@ -119,7 +119,7 @@ describe('WeekPlanPage — qui mange à la maison', () => {
   })
 
   it('plus de 40 plats : seuls les 40 premiers partent à l’IA, et on le dit', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     const { api } = setup({ items: Array.from({ length: 45 }, (_, i) => item(`x${i}`, `Plat ${i}`)) })
     expect(await screen.findByText('Seuls les 40 premiers plats sont proposés à l’IA.')).toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: 'Proposer avec l’IA' }))
@@ -128,7 +128,7 @@ describe('WeekPlanPage — qui mange à la maison', () => {
   })
 
   it('foyer introuvable : erreur et nouvel essai, pas de chargement sans fin', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     const api = fakeApi()
     api.meals.listProfiles.mockResolvedValueOnce([])
     renderWithApp(<WeekPlanPage today={TODAY} now={MORNING} />, { api, auth: fakeAuth({ userId: LUCILE.id }), route: '/planning/semaine', path: '/planning/semaine' })
@@ -138,7 +138,7 @@ describe('WeekPlanPage — qui mange à la maison', () => {
   })
 
   it('jours libres : cochés au choix sur 4 semaines, 14 jours au plus du premier au dernier', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     const { api } = setup()
     await slot('Lundi 9 novembre — Midi')
     const days = screen.getByRole('region', { name: 'Jours à planifier' })
@@ -163,7 +163,7 @@ describe('WeekPlanPage — qui mange à la maison', () => {
   })
 
   it('portions par plat : réglées sur la page, enregistrées sur le plat, utilisées par l’IA', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     const { api } = setup()
     await slot('Lundi 9 novembre — Midi')
     const input = within(screen.getByRole('region', { name: 'Portions par plat' })).getByLabelText('Portions : Lasagnes')
@@ -177,7 +177,7 @@ describe('WeekPlanPage — qui mange à la maison', () => {
   })
 
   it('portions refusées par la base : valeur d’avant remise, erreur affichée', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     const { api } = setup()
     api.inbox.setPortions.mockRejectedValueOnce(new AppError('Impossible de régler les portions.'))
     await slot('Lundi 9 novembre — Midi')
@@ -197,7 +197,7 @@ describe('WeekPlanPage — qui mange à la maison', () => {
 
 describe('WeekPlanPage — proposition', () => {
   it('affiche la proposition, la laisse modifier avec ses alertes, puis crée les repas', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     const { api } = setup()
     api.weekPlan.proposePlan.mockResolvedValue({
       meals: [
@@ -233,7 +233,7 @@ describe('WeekPlanPage — proposition', () => {
   })
 
   it('placer soi-même, sans IA, et revenir à la présence', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     const { api } = setup()
     await slot('Lundi 9 novembre — Midi')
     await user.click(screen.getByRole('button', { name: 'Placer moi-même' }))
@@ -248,7 +248,7 @@ describe('WeekPlanPage — proposition', () => {
   })
 
   it('signale une erreur de l’IA et reste sur la présence', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     const { api } = setup()
     api.weekPlan.proposePlan.mockRejectedValue(new AppError('Le service d’analyse est surchargé.'))
     await slot('Lundi 9 novembre — Midi')
@@ -258,7 +258,7 @@ describe('WeekPlanPage — proposition', () => {
   })
 
   it('signale un échec de l’enregistrement', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     const { api } = setup()
     api.weekPlan.proposePlan.mockResolvedValue({ meals: [{ slot: '2026-11-09|DINNER', dishId: 'i2', cookId: ERIC.id, why: '' }] })
     api.weekPlan.saveWeek.mockRejectedValue(new AppError('Un plat n’est plus dans la liste « À planifier » : recharge la page.'))
@@ -269,7 +269,7 @@ describe('WeekPlanPage — proposition', () => {
   })
 
   it('passage à minuit : brouillon de la veille abandonné, réponse tardive de l’IA ignorée', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     const { api, setToday } = setup()
     let answer: (value: unknown) => void = () => undefined
     api.weekPlan.proposePlan.mockImplementationOnce(() => new Promise((resolve) => (answer = resolve)))
@@ -296,7 +296,7 @@ describe('WeekPlanPage — proposition', () => {
   })
 
   it('erreur de chargement : message et nouvel essai', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     const api = fakeApi()
     api.weekPlan.listRules.mockRejectedValueOnce(new AppError('Impossible de charger les règles des repas.'))
     renderWithApp(<WeekPlanPage today={TODAY} now={MORNING} />, { api, auth: fakeAuth({ userId: LUCILE.id }), route: '/planning/semaine', path: '/planning/semaine' })

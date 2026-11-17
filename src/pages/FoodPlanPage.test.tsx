@@ -1,5 +1,5 @@
 import { screen, waitFor, within } from '@testing-library/react'
-import userEvent from '@testing-library/user-event'
+import { setupUser } from '@/test/user'
 import { AppError } from '@/api'
 import type { PlanItem } from '@/lib/food'
 import { ERIC, LUCILE, fakeApi, renderWithApp } from '@/test/fakes'
@@ -29,7 +29,7 @@ describe('FoodPlanPage', () => {
   })
 
   it('ajoute un aliment après validation du formulaire', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     const { api } = renderPlan()
     await screen.findByRole('region', { name: 'Déjeuner' })
     await user.click(screen.getByRole('button', { name: 'Ajouter un aliment (Déjeuner)' }))
@@ -63,7 +63,7 @@ describe('FoodPlanPage', () => {
   })
 
   it('modifie un aliment ; garde le formulaire ouvert en cas d’erreur', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     const { api } = renderPlan()
     await user.click(await screen.findByRole('button', { name: /^Modifier Yaourt.*\(Déjeuner\)$/ }))
     const dialog = await screen.findByRole('dialog', { name: "Modifier l'aliment" })
@@ -91,7 +91,7 @@ describe('FoodPlanPage', () => {
   })
 
   it('retire un aliment après confirmation', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     const { api } = renderPlan()
     await user.click(await screen.findByRole('button', { name: /^Modifier Sauce\ soja.*\(Déjeuner\)$/ }))
     await user.click(within(await screen.findByRole('dialog')).getByRole('button', { name: 'Supprimer' }))
@@ -103,7 +103,7 @@ describe('FoodPlanPage', () => {
   })
 
   it('plan vide pour une autre personne', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     const { api } = renderPlan(PLAN, fakeApi(), `/plan/modifier?profil=${ERIC.id}`)
     expect(await screen.findByText('Plan vide')).toBeInTheDocument()
     expect(api.food.listPlan).toHaveBeenCalledWith(ERIC.id)
@@ -113,7 +113,7 @@ describe('FoodPlanPage', () => {
   })
 
   it('ajoute depuis l’en-tête avec le premier moment par défaut', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     const { api } = renderPlan([])
     await screen.findByText('Plan vide')
     await user.click(screen.getAllByRole('button', { name: 'Ajouter un aliment' })[0]!)
@@ -130,7 +130,7 @@ describe('FoodPlanPage', () => {
   })
 
   it('affiche une erreur de chargement et permet de réessayer', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     const api = fakeApi()
     api.food.listPlan.mockRejectedValueOnce(new AppError('Impossible de charger le plan.'))
     renderPlan(PLAN, api)

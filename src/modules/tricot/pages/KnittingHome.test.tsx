@@ -1,5 +1,5 @@
 import { screen, within } from '@testing-library/react'
-import userEvent from '@testing-library/user-event'
+import { setupUser } from '@/test/user'
 import { AppError } from '@/api'
 import { fakeApi, renderWithApp } from '@/test/fakes'
 import { knitPattern, stashItem } from '@/test/knitFactories'
@@ -13,7 +13,7 @@ beforeEach(() => localStorage.clear())
 
 describe('KnittingPage', () => {
   it('projets en cours dans un bloc déplié : où ils en sont, et Tricoter d’un toucher ; les terminés à part', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     const api = fakeApi()
     api.knitting.listProjects.mockResolvedValue([
       { id: 'p1', title: 'Pull Bergamote', size: 'M', updatedAt: '', stepsDone: 1, stepsTotal: 3, current: { number: 2, title: 'Manches', rowCount: 12, totalRows: 40, times: 2, pass: 1 }, hues: ['#d0563a'] },
@@ -55,7 +55,7 @@ describe('KnittingPage', () => {
   })
 
   it('aucun projet en cours ; une erreur se réessaie', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     const api = fakeApi()
     api.knitting.listProjects.mockRejectedValueOnce(new Error('réseau'))
     renderWithApp(<KnittingPage />, { api })

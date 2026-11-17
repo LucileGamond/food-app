@@ -1,5 +1,5 @@
 import { screen, within } from '@testing-library/react'
-import userEvent from '@testing-library/user-event'
+import { setupUser } from '@/test/user'
 import { SettingsProvider } from '@/app/SettingsContext'
 import { DEFAULT_SETTINGS } from '@/lib/settings'
 import { fakeApi, renderWithApp } from '@/test/fakes'
@@ -18,7 +18,7 @@ const checkboxes = (name: string) => screen.getAllByRole('checkbox', { name })
 
 describe('SettingsPage', () => {
   it('active le suivi d’hydratation pour la personne connectée', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     const { api } = renderPage()
     const [page, notification] = await screen.findAllByRole('checkbox', { name: 'Eau' })
     expect(page).not.toBeChecked()
@@ -34,7 +34,7 @@ describe('SettingsPage', () => {
   })
 
   it('masque une page, et coupe les notifications des courses', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     const { api } = renderPage()
     await screen.findAllByRole('checkbox', { name: 'Courses' })
     await user.click(checkboxes('Courses')[0]!)
@@ -48,7 +48,7 @@ describe('SettingsPage', () => {
   })
 
   it('change l’objectif d’hydratation, en litres', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     const api = fakeApi()
     api.settings.getSettings.mockResolvedValue({ ...DEFAULT_SETTINGS, disabledPages: [] })
     renderPage(api)
@@ -70,7 +70,7 @@ describe('SettingsPage', () => {
   })
 
   it('règle les contenants d’eau (nom et volume en cl, 4 au plus)', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     const api = fakeApi()
     api.settings.getSettings.mockResolvedValue({ ...DEFAULT_SETTINGS, disabledPages: [] })
     renderPage(api)
@@ -110,7 +110,7 @@ describe('SettingsPage', () => {
   })
 
   it('rétablit le réglage si l’enregistrement échoue', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     const api = fakeApi()
     api.settings.saveSettings.mockRejectedValueOnce(new Error('réseau'))
     renderPage(api)
@@ -121,7 +121,7 @@ describe('SettingsPage', () => {
   })
 
   it('réglages illisibles : rien à modifier (les vrais réglages ne sont pas écrasés), puis Réessayer', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     const api = fakeApi()
     // Les deux lecteurs (écran et application) échouent
     api.settings.getSettings.mockRejectedValueOnce(new Error('réseau')).mockRejectedValueOnce(new Error('réseau'))

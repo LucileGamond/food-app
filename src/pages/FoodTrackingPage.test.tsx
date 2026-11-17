@@ -1,5 +1,5 @@
 import { act, fireEvent, screen, waitFor, within } from '@testing-library/react'
-import userEvent from '@testing-library/user-event'
+import { setupUser } from '@/test/user'
 import { AppError } from '@/api'
 import type { Consumption, FoodPeriod, PeriodItem } from '@/lib/food'
 import { ERIC, LUCILE, fakeApi, renderWithApp, type FakeApi } from '@/test/fakes'
@@ -106,7 +106,7 @@ describe('FoodTrackingPage', () => {
   })
 
   it('note une consommation le jour choisi, sans attendre le serveur', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     const { api } = renderTracking()
     await screen.findByText('Samedi 24 octobre')
     const pending = deferred<Consumption>()
@@ -129,7 +129,7 @@ describe('FoodTrackingPage', () => {
   })
 
   it('au-delà du quota, la consommation est hors plan', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     renderTracking()
     await screen.findByText('Samedi 24 octobre')
     const add = screen.getByRole('button', { name: 'Ajouter « Yaourt » (Déjeuner) (hors plan)' })
@@ -141,7 +141,7 @@ describe('FoodTrackingPage', () => {
   })
 
   it('retire la dernière consommation du jour ; rien à retirer un jour sans consommation', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     const { api } = renderTracking()
     await screen.findByText('Samedi 24 octobre')
     expect(screen.getByRole('button', { name: 'Retirer « Café au lait » (Petit-déjeuner)' })).toBeDisabled()
@@ -152,7 +152,7 @@ describe('FoodTrackingPage', () => {
   })
 
   it('annule la mise à jour et prévient si le serveur refuse', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     const { api } = renderTracking()
     await screen.findByText('Samedi 24 octobre')
     api.food.addConsumption.mockRejectedValueOnce(new AppError('La date doit être comprise dans la période.'))
@@ -167,7 +167,7 @@ describe('FoodTrackingPage', () => {
   })
 
   it('change de jour dans les limites de la période', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     const { api } = renderTracking({ today: '2026-10-20' })
     await screen.findByText('Mardi 20 octobre')
     await user.click(screen.getByRole('button', { name: 'Jour précédent' }))
@@ -186,7 +186,7 @@ describe('FoodTrackingPage', () => {
   })
 
   it('choisit directement la date d’une consommation notée en retard', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     const { api } = renderTracking()
     await screen.findByText('Samedi 24 octobre')
     const input = screen.getByLabelText('Date de saisie')
@@ -206,7 +206,7 @@ describe('FoodTrackingPage', () => {
   })
 
   it('ne dépasse pas le dernier jour', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     renderTracking({ today: '2026-11-02' })
     await screen.findByText('Lundi 2 novembre')
     expect(screen.getByRole('button', { name: 'Jour suivant' })).toBeDisabled()
@@ -215,7 +215,7 @@ describe('FoodTrackingPage', () => {
   })
 
   it('replie et déplie un moment', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     renderTracking()
     await screen.findByText('Samedi 24 octobre')
     await user.click(screen.getByRole('button', { name: /^Petit-déjeuner/ }))
@@ -227,7 +227,7 @@ describe('FoodTrackingPage', () => {
   })
 
   it('affiche une autre période', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     const { api } = renderTracking()
     await screen.findByText('Samedi 24 octobre')
     api.food.listPeriodItems.mockResolvedValue([item({ id: 'old', name: 'Ancien aliment', allowed_occurrences: 3 })])
@@ -240,7 +240,7 @@ describe('FoodTrackingPage', () => {
   })
 
   it('suit la personne choisie', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     const { api } = renderTracking()
     await screen.findByText('Samedi 24 octobre')
     api.food.listPeriods.mockResolvedValue([])
@@ -251,7 +251,7 @@ describe('FoodTrackingPage', () => {
   })
 
   it('crée la première période', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     const { api } = renderTracking({ periods: [] })
     expect(await screen.findByText('Aucune période')).toBeInTheDocument()
     await user.click(screen.getAllByRole('button', { name: 'Nouvelle période' })[1]!)
@@ -270,7 +270,7 @@ describe('FoodTrackingPage', () => {
   })
 
   it('refuse une période qui chevauche, et affiche l’erreur du serveur', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     const { api } = renderTracking()
     await screen.findByText('Samedi 24 octobre')
     await user.click(screen.getByRole('button', { name: 'Nouvelle période' }))
@@ -290,7 +290,7 @@ describe('FoodTrackingPage', () => {
   })
 
   it('rappelle la fin de période et propose de créer la suivante', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     renderTracking({ today: '2026-10-31' })
     const banner = await screen.findByRole('status')
     expect(banner).toHaveTextContent('La période se termine dans 2 jours : pense à préparer la suivante.')
@@ -321,7 +321,7 @@ describe('FoodTrackingPage', () => {
   })
 
   it('supprime la période après confirmation', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     const { api } = renderTracking()
     await screen.findByText('Samedi 24 octobre')
     await user.click(screen.getByRole('button', { name: 'Actions sur la période' }))
@@ -336,7 +336,7 @@ describe('FoodTrackingPage', () => {
   })
 
   it('affiche une erreur de chargement et permet de réessayer', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     const api = fakeApi()
     api.food.listPeriods.mockRejectedValueOnce(new AppError('Impossible de charger les périodes.'))
     renderTracking({ api })
@@ -348,7 +348,7 @@ describe('FoodTrackingPage', () => {
   it('recharge en temps réel, mais pas pendant un enregistrement en cours', async () => {
     vi.useFakeTimers({ shouldAdvanceTime: true })
     try {
-      const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime })
+      const user = setupUser({ advanceTimers: vi.advanceTimersByTime })
       const api = fakeApi()
       const notify = captureRealtime(api)
       renderTracking({ api })

@@ -1,5 +1,5 @@
 import { act, screen, waitFor, within } from '@testing-library/react'
-import userEvent from '@testing-library/user-event'
+import { setupUser } from '@/test/user'
 import { Route } from 'react-router-dom'
 import { AppError } from '@/api'
 import type { Recipe } from '@/lib/recipes'
@@ -29,7 +29,7 @@ function renderCooking(api = fakeApi(), route = '/recettes/r1/cuisiner?personnes
     path: '/recettes/:id/cuisiner',
     extraRoutes: <Route path="/recettes/:id" element={<p>Fiche recette</p>} />,
   })
-  return { user: userEvent.setup(), api }
+  return { user: setupUser(), api }
 }
 
 type Sentinel = { release: ReturnType<typeof vi.fn>; addEventListener: (t: string, l: () => void) => void; fire: () => void }
@@ -126,7 +126,7 @@ describe('CookingPage', () => {
   })
 
   it('« Terminer » attend l’enregistrement en cours, et reste sur place s’il échoue', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     const api = fakeApi()
     let release: () => void = () => undefined
     api.recipes.saveProgress
@@ -223,7 +223,7 @@ describe('CookingPage', () => {
     api.recipes.getRecipe.mockRejectedValueOnce(new AppError('Hors ligne')).mockResolvedValueOnce(null)
     renderWithApp(<CookingPage />, { api, route: '/recettes/r1/cuisiner', path: '/recettes/:id/cuisiner' })
     expect(await screen.findByRole('alert')).toHaveTextContent('Hors ligne')
-    await userEvent.setup().click(screen.getByRole('button', { name: 'Réessayer' }))
+    await setupUser().click(screen.getByRole('button', { name: 'Réessayer' }))
     expect(await screen.findByText('Recette introuvable')).toBeInTheDocument()
   })
 

@@ -1,6 +1,6 @@
 // Organiser les étapes : regrouper, séparer, déplacer une sous-étape (dans son étape ou vers une autre).
 import { screen, within } from '@testing-library/react'
-import userEvent from '@testing-library/user-event'
+import { setupUser } from '@/test/user'
 import { fakeApi, renderWithApp } from '@/test/fakes'
 import { knitProject, knitStep, rows } from '@/test/knitFactories'
 import type { KnitProject, KnitStep, StepSection } from '../lib/pattern'
@@ -31,7 +31,7 @@ const actions = (label: string) => screen.findByRole('button', { name: `Actions 
 /** Une seule barre d'onglets : « Organiser » est un bouton au-dessus de la liste (V6). */
 describe('organiser : une action sur la liste', () => {
   it('s’ouvre et se referme avec le bouton, sans deuxième barre d’onglets', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     const api = fakeApi()
     api.knitting.getProject.mockResolvedValue(structuredClone(PROJECT))
     renderWithApp(<KnittingProjectPage />, { api, route: '/tricot/p1?onglet=preparer', path: '/tricot/:id' })
@@ -50,7 +50,7 @@ describe('organiser : une action sur la liste', () => {
 
 describe('organiser les étapes', () => {
   it('regroupe une étape avec la suivante', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     const api = open()
     await user.click(await screen.findByRole('button', { name: 'Regrouper avec « Dos – jersey »' }))
     const dialog = await screen.findByRole('alertdialog', { name: 'Regrouper avec l’étape suivante ?' })
@@ -63,7 +63,7 @@ describe('organiser les étapes', () => {
   })
 
   it('déplace une sous-étape vers une autre étape, à la fin', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     const api = open()
     await user.click(await actions('20 rangs : emmanchures'))
     await user.click(await screen.findByRole('menuitem', { name: 'Déplacer vers une autre étape' }))
@@ -78,7 +78,7 @@ describe('organiser les étapes', () => {
   })
 
   it('monte une sous-étape dans son étape, et sépare une étape en deux', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     const api = open()
     await user.click(await actions('20 rangs : emmanchures'))
     await user.click(await screen.findByRole('menuitem', { name: 'Monter' }))

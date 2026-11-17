@@ -1,5 +1,5 @@
 import { cleanup, screen, waitFor, within } from '@testing-library/react'
-import userEvent from '@testing-library/user-event'
+import { setupUser } from '@/test/user'
 import { AppError } from '@/api'
 import { fakeApi, renderWithApp } from '@/test/fakes'
 import { unfoldStepParts } from '@/test/openFold'
@@ -28,7 +28,7 @@ describe('préparation d’une étape', () => {
   })
 
   it('préparation : quelque chose à préparer → les sous-étapes s’ouvrent d’office ; « Aller à la première » les ouvre aussi', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     const api = fakeApi()
     // Pas d'aiguille choisie : chaque sous-étape est à régler
     api.knitting.getProject.mockResolvedValue(structuredClone({ ...PROJECT, needles: [3, 4] }))
@@ -52,7 +52,7 @@ describe('préparation d’une étape', () => {
   })
 
   it('en bas de la préparation : les étapes voisines, par leur nom (E2)', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     renderProject(fakeApi(), PROJECT, `${STEP}=s2`)
     const nav = await screen.findByRole('navigation', { name: 'Étapes voisines' })
     expect(within(nav).getAllByRole('button').map((b) => b.textContent?.trim())).toEqual(['Dos – côtes', 'Encolure'])
@@ -63,7 +63,7 @@ describe('préparation d’une étape', () => {
   })
 
   it('étape pas commencée : ses sous-étapes se déplacent dans Organiser, pas ici (E3)', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     const sections: StepSection[] = [
       { kind: 'rows', rows: 4, every: null, times: null, text: 'côtes', pattern: null },
       { kind: 'rows', rows: 10, every: null, times: null, text: 'jersey', pattern: null },
@@ -77,7 +77,7 @@ describe('préparation d’une étape', () => {
   })
 
   it('étape commencée : Organiser ne la touche plus, Monter et Descendre restent dans la préparation (E3)', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     renderProject(fakeApi(), PROJECT, `${STEP}=s2`)
     await user.click(await screen.findByRole('button', { name: 'Actions pour « 4 rangs : jersey »' }))
     expect(await screen.findByRole('menuitem', { name: 'Descendre' })).toBeInTheDocument()
@@ -85,7 +85,7 @@ describe('préparation d’une étape', () => {
   })
 
   it('prête à tricoter : indiquée sur l’étape ; sinon ce qui manque, et le bouton Tricoter bloqué', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     const project = structuredClone(PROJECT)
     project.steps[1]!.sections = [project.steps[1]!.sections[0]!, { kind: 'rows', rows: null, every: null, times: null, text: 'jersey', pattern: '5 cm' }]
     const { api } = renderProject(fakeApi(), project, `${STEP}=s2`)
@@ -107,7 +107,7 @@ describe('préparation d’une étape', () => {
   })
 
   it('« À préparer » : le compte, et le bouton ouvre la sous-étape, qui est signalée', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     const project = structuredClone(PROJECT)
     project.steps[1]!.sections = [project.steps[1]!.sections[0]!, { kind: 'rows', rows: null, every: null, times: null, text: 'jersey', pattern: '5 cm' }]
     renderProject(fakeApi(), project, `${STEP}=s2`)
@@ -154,7 +154,7 @@ describe('préparation d’une étape', () => {
   })
 
   it('prépare une étape : notes, étape suivante ou précédente, reprise d’une étape terminée, sans compteur', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     const { api } = renderProject()
     expect(await screen.findByRole('heading', { name: 'Emmanchures' })).toBeInTheDocument()
     expect(screen.getByText('Étape 2 sur 3')).toBeInTheDocument()
@@ -186,7 +186,7 @@ describe('préparation d’une étape', () => {
   })
 
   it('étape à tricoter plusieurs fois : le nombre de fois se change en touchant l’avancée', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     const { api } = renderProject()
     await screen.findByRole('heading', { name: 'Emmanchures' })
     // L'en-tête ne dit le nombre de fois qu'une fois, dans la ligne d'avancée
@@ -214,7 +214,7 @@ describe('préparation d’une étape', () => {
   })
 
   it('préparation : les aides restent repliées derrière (?) et s’ouvrent d’un toucher', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     renderProject()
     await screen.findByRole('heading', { name: 'Emmanchures' })
     expect(screen.queryByText(/Vérifie et corrige ce que la lecture a compris/)).not.toBeInTheDocument()
@@ -232,7 +232,7 @@ describe('texte du patron et taille mise en valeur, dans le projet', () => {
   const TEXT = 'Monter 60 (64-68) m. et tricoter 6 (6-7) cm.'
 
   it('dans le projet : change la taille mise en valeur', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     const api = fakeApi()
     const project = structuredClone(PROJECT)
     project.sizes = ['S', 'M', 'L']
@@ -263,7 +263,7 @@ describe('texte du patron et taille mise en valeur, dans le projet', () => {
   })
 
   it('corrige le surlignage nombre par nombre, pour la taille mise en valeur', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     const api = fakeApi()
     const project = structuredClone(PROJECT)
     project.sizes = ['S', 'M', 'L']

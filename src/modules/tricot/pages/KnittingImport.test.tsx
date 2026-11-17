@@ -1,5 +1,5 @@
 import { screen, waitFor, within } from '@testing-library/react'
-import userEvent from '@testing-library/user-event'
+import { setupUser } from '@/test/user'
 import { Route } from 'react-router-dom'
 import { fakeApi, renderWithApp } from '@/test/fakes'
 import { knitPattern } from '@/test/knitFactories'
@@ -31,7 +31,7 @@ describe('KnittingImportPage', () => {
   })
 
   it('lit le patron pour la taille choisie, montre les étapes puis enregistre le projet', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     const api = fakeApi()
     const charts = [
       { page: 4, title: 'Torsade', rows: 24, step: 1, flat: true, oddOnly: false },
@@ -69,7 +69,7 @@ describe('KnittingImportPage', () => {
   })
 
   it('étape à tricoter 2 fois lue dans le patron : annoncée, puis gardée à l’enregistrement', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     const api = fakeApi()
     const steps = [{ title: 'Manches', instructions: 'Tricoter 2 manches identiques.', totalRows: 90, stitches: 50, times: 2, sections: [] }]
     api.knitting.readPattern.mockResolvedValue({ ...PATTERN, steps })
@@ -84,7 +84,7 @@ describe('KnittingImportPage', () => {
   })
 
   it('lecture arrêtée en route : les parties pas lues sont signalées, et on relit le patron', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     const api = fakeApi()
     api.knitting.readPattern.mockResolvedValueOnce({ ...PATTERN, missingParts: ['Manches', 'Col'] }).mockResolvedValueOnce({ ...PATTERN, missingParts: [] })
     renderImport(api)
@@ -100,7 +100,7 @@ describe('KnittingImportPage', () => {
   })
 
   it('affiche le message de la lecture (taille introuvable) et permet de recommencer', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     const api = fakeApi()
     const { AppError } = await import('@/api')
     api.knitting.readPattern.mockRejectedValueOnce(new AppError('Taille « XXL » introuvable. Tailles du patron : S, M, L.')).mockResolvedValueOnce(PATTERN)
@@ -118,7 +118,7 @@ describe('KnittingImportPage', () => {
   })
 
   it('la fin de la lecture est annoncée et prend le focus', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     const api = fakeApi()
     api.knitting.readPattern.mockResolvedValue(PATTERN)
     renderImport(api)
@@ -131,7 +131,7 @@ describe('KnittingImportPage', () => {
   })
 
   it('refuse un PDF trop lourd et signale un enregistrement impossible', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     const api = fakeApi()
     api.knitting.readPattern.mockResolvedValue(PATTERN)
     api.knitting.createProject.mockRejectedValueOnce(new Error('réseau'))
@@ -161,7 +161,7 @@ describe('projet d’après un patron de la bibliothèque', () => {
   })
 
   it('reprend le PDF et la taille du patron, puis crée le projet relié au patron', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     const api = fakeApi()
     api.knitting.getPattern.mockResolvedValue(GILET)
     api.knitting.readPattern.mockResolvedValue(PATTERN)
@@ -191,7 +191,7 @@ describe('projet d’après un patron de la bibliothèque', () => {
   })
 
   it('lit un patron sans taille : la première taille du patron est prise', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     const api = fakeApi()
     api.knitting.readPattern.mockResolvedValue({ ...PATTERN, sizeIndex: 0 })
     renderWithApp(<KnittingImportPage />, { api, route: '/tricot/nouveau', path: '/tricot/nouveau', extraRoutes: <Route path="/tricot/:id" element={<p>Projet ouvert</p>} /> })
@@ -205,7 +205,7 @@ describe('projet d’après un patron de la bibliothèque', () => {
   })
 
   it('un autre PDF peut remplacer celui du patron, pour ce projet', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     const api = fakeApi()
     api.knitting.getPattern.mockResolvedValue(GILET)
     api.knitting.readPattern.mockResolvedValue(PATTERN)
@@ -233,7 +233,7 @@ describe('projet d’après un patron de la bibliothèque', () => {
   })
 
   it('taille déjà lue : la lecture gardée est reprise sans l’IA, puis peut être refaite', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     const api = fakeApi()
     api.knitting.getPattern.mockResolvedValue({ ...GILET, readSizes: ['M'] })
     const kept = { ...PATTERN, sizeIndex: 1 }
@@ -252,7 +252,7 @@ describe('projet d’après un patron de la bibliothèque', () => {
   })
 
   it('« Relire avec l’IA » refait la lecture, qui est gardée à son tour', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     const api = fakeApi()
     api.knitting.getPattern.mockResolvedValue({ ...GILET, readSizes: ['M'] })
     api.knitting.listReadings.mockResolvedValue([{ sizeIndex: 1, sizeLabel: 'M', readAt: '2026-11-13T10:00:00Z', reading: { ...PATTERN, sizeIndex: 1 } }])
@@ -269,7 +269,7 @@ describe('projet d’après un patron de la bibliothèque', () => {
   })
 
   it('autre taille : le patron est lu par l’IA, et la lecture gardée', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     const api = fakeApi()
     api.knitting.getPattern.mockResolvedValue({ ...GILET, readSizes: ['M'] })
     api.knitting.listReadings.mockResolvedValue([{ sizeIndex: 1, sizeLabel: 'M', readAt: '2026-11-13T10:00:00Z', reading: { ...PATTERN, sizeIndex: 1 } }])
@@ -287,7 +287,7 @@ describe('projet d’après un patron de la bibliothèque', () => {
   })
 
   it('autre PDF choisi : la lecture gardée ne vaut plus', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     const api = fakeApi()
     api.knitting.getPattern.mockResolvedValue({ ...GILET, readSizes: ['M'] })
     api.knitting.listReadings.mockResolvedValue([{ sizeIndex: 1, sizeLabel: 'M', readAt: '2026-11-13T10:00:00Z', reading: { ...PATTERN, sizeIndex: 1 } }])
@@ -298,7 +298,7 @@ describe('projet d’après un patron de la bibliothèque', () => {
   })
 
   it('patron sans PDF mais déjà lu : le projet se crée sans PDF à choisir', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     const api = fakeApi()
     api.knitting.getPattern.mockResolvedValue({ ...GILET, pdfPath: null, readSizes: ['M'] })
     api.knitting.listReadings.mockResolvedValue([{ sizeIndex: 1, sizeLabel: 'M', readAt: '2026-11-13T10:00:00Z', reading: { ...PATTERN, sizeIndex: 1 } }])
@@ -330,7 +330,7 @@ describe('texte du patron et taille mise en valeur, à l’import', () => {
   const TEXT = 'Monter 60 (64-68) m. et tricoter 6 (6-7) cm.'
 
   it('à l’import : texte tel quel, nombres de la taille choisie mis en valeur, taille modifiable', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     const api = fakeApi()
     const steps = [{ ...PATTERN.steps[0]!, instructions: TEXT }]
     api.knitting.readPattern.mockResolvedValue({ ...PATTERN, steps, sizeIndex: 1 })

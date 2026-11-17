@@ -1,5 +1,5 @@
 import { act, screen, waitFor, within } from '@testing-library/react'
-import userEvent from '@testing-library/user-event'
+import { setupUser } from '@/test/user'
 import { Route } from 'react-router-dom'
 import { AppError } from '@/api'
 import type { ShoppingList } from '@/lib/shopping'
@@ -37,7 +37,7 @@ describe('ShoppingListsPage', () => {
   })
 
   it('crée une liste avec le nom proposé puis l’ouvre', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     const { api } = renderLists([])
     expect(await screen.findByText('Aucune liste')).toBeInTheDocument()
     await user.click(screen.getAllByRole('button', { name: 'Nouvelle liste' })[0]!)
@@ -49,7 +49,7 @@ describe('ShoppingListsPage', () => {
   })
 
   it('refuse un nom vide ou trop long, et affiche l’erreur du serveur', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     const api = fakeApi()
     api.shopping.createList.mockRejectedValueOnce(new AppError('Impossible de créer la liste.'))
     renderLists([], api)
@@ -68,7 +68,7 @@ describe('ShoppingListsPage', () => {
   })
 
   it('renomme et supprime une liste', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     const { api } = renderLists()
     await user.click(await screen.findByRole('button', { name: 'Actions pour « Apéro samedi »' }))
     await user.click(await screen.findByRole('menuitem', { name: 'Renommer' }))
@@ -89,7 +89,7 @@ describe('ShoppingListsPage', () => {
   })
 
   it('affiche une erreur de chargement et permet de réessayer', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     const api = fakeApi()
     api.shopping.listLists.mockRejectedValueOnce(new AppError('Impossible de charger les listes de courses.'))
     renderWithApp(<ShoppingListsPage today={TODAY} />, { api, route: '/courses', path: '/courses' })

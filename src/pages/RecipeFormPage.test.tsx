@@ -1,5 +1,5 @@
 import { fireEvent, screen, waitFor, within } from '@testing-library/react'
-import userEvent from '@testing-library/user-event'
+import { setupUser } from '@/test/user'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { render } from '@testing-library/react'
 import { Toaster } from 'sonner'
@@ -45,7 +45,7 @@ const png = (name: string) => new File(['x'], name, { type: 'image/png' })
 
 describe('RecipeFormPage — nouvelle recette', () => {
   it('affiche les erreurs seulement après une tentative d’enregistrement', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     const api = fakeApi()
     renderForm(api, '/recettes/nouvelle')
     expect(await screen.findByRole('heading', { name: 'Nouvelle recette' })).toBeInTheDocument()
@@ -69,7 +69,7 @@ describe('RecipeFormPage — nouvelle recette', () => {
 
   // Test long (saisie complète et 3 photos) : délai élargi pour la CI et les machines chargées.
   it('enregistre une recette complète avec ingrédients, tags et photos', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     const api = fakeApi()
     api.recipes.listTags.mockResolvedValue(['dessert', 'végé'])
     let uploads = 0
@@ -147,7 +147,7 @@ describe('RecipeFormPage — nouvelle recette', () => {
   }, 30_000)
 
   it('n’envoie pas deux fois les photos si l’enregistrement est relancé après une erreur', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     const api = fakeApi()
     api.photos.uploadPhoto
       .mockResolvedValueOnce({ id: 'p1', storage_path: 'r/p1.jpg', position: 0 })
@@ -170,7 +170,7 @@ describe('RecipeFormPage — nouvelle recette', () => {
   })
 
   it('sur téléphone, prend une photo avec l’appareil (arrière) ; pas de bouton sur ordinateur', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     const matchMedia = vi.fn((query: string) => ({ matches: query === '(pointer: coarse)' }))
     vi.stubGlobal('matchMedia', matchMedia)
     try {
@@ -214,7 +214,7 @@ const EXISTING: Recipe = {
 
 describe('RecipeFormPage — modification', () => {
   it('préremplit le formulaire et supprime les photos retirées', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     const api = fakeApi()
     api.recipes.getRecipe.mockResolvedValue(EXISTING)
     api.recipes.saveRecipe.mockResolvedValue('r1')
@@ -237,7 +237,7 @@ describe('RecipeFormPage — modification', () => {
   })
 
   it('retouche une photo enregistrée : tournée et recadrée, elle remplace l’ancienne à la même place', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     const api = fakeApi()
     api.recipes.getRecipe.mockResolvedValue(EXISTING)
     api.recipes.saveRecipe.mockResolvedValue('r1')
@@ -278,7 +278,7 @@ describe('RecipeFormPage — modification', () => {
   })
 
   it('sauvegarde une recette ponctuelle depuis le planning puis y revient', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     const api = fakeApi()
     api.recipes.getRecipe.mockResolvedValue({
       ...EXISTING, is_saved: false, title: 'Quiche', notes: 'De mamie', url: 'https://quiche.fr', servings: null, tags: [], ingredients: [], photos: [],
@@ -337,7 +337,7 @@ describe('RecipeFormPage — préremplissage depuis un lien', () => {
   }
 
   it('remplit le formulaire, ajoute la photo, puis enregistre', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     const api = fakeApi()
     api.recipes.listTags.mockResolvedValue(['dessert', 'végé'])
     const pending = deferred<typeof IMPORTED>()
@@ -383,7 +383,7 @@ describe('RecipeFormPage — préremplissage depuis un lien', () => {
   })
 
   it('ramène les unités importées à la liste et garde les précisions', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     const api = fakeApi()
     api.recipes.importFromUrl.mockResolvedValue({
       ...IMPORTED,
@@ -423,7 +423,7 @@ describe('RecipeFormPage — préremplissage depuis un lien', () => {
   })
 
   it('Instagram : la légende collée est analysée avec le lien de la publication', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     const api = fakeApi()
     api.recipes.importFromText.mockResolvedValue({ ...IMPORTED, source: 'text', image: null, recipe: { ...IMPORTED.recipe, title: 'Barres framboise' } })
     renderForm(api, '/recettes/nouvelle')
@@ -448,7 +448,7 @@ describe('RecipeFormPage — préremplissage depuis un lien', () => {
   })
 
   it('Instagram : légende déjà enregistrée, ou sans recette', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     const api = fakeApi()
     api.recipes.findSavedByUrl.mockResolvedValueOnce({ id: 'r9', title: 'Barres framboise' })
     api.recipes.importFromText.mockRejectedValueOnce(new AppError('Aucune recette trouvée dans ce texte.'))
@@ -465,7 +465,7 @@ describe('RecipeFormPage — préremplissage depuis un lien', () => {
   })
 
   it('YouTube : message d’attente adapté, et page où la recette a été trouvée', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     const api = fakeApi()
     const pending = deferred<RecipeImport>()
     api.recipes.importFromUrl.mockReturnValueOnce(pending.promise)
@@ -480,7 +480,7 @@ describe('RecipeFormPage — préremplissage depuis un lien', () => {
   })
 
   it('lance l’import avec Entrée sans enregistrer la recette', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     const api = fakeApi()
     api.recipes.importFromUrl.mockResolvedValue({ ...IMPORTED, image: null })
     renderForm(api, '/recettes/nouvelle')
@@ -491,7 +491,7 @@ describe('RecipeFormPage — préremplissage depuis un lien', () => {
   })
 
   it('refuse un lien incomplet et affiche l’erreur du service', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     const api = fakeApi()
     renderForm(api, '/recettes/nouvelle')
     const input = await screen.findByLabelText('Lien de la recette à importer')
@@ -510,7 +510,7 @@ describe('RecipeFormPage — préremplissage depuis un lien', () => {
   })
 
   it('demande confirmation avant de remplacer une saisie ; garde les photos existantes', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     const api = fakeApi()
     api.recipes.getRecipe.mockResolvedValue({
       ...EXISTING,
@@ -556,7 +556,7 @@ describe('RecipeFormPage — lien déjà enregistré', () => {
   const EXISTING_RECIPE = { id: 'r-curry', title: 'Curry maison' }
 
   it('signale un lien déjà utilisé et bloque l’enregistrement', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     const api = fakeApi()
     api.recipes.findSavedByUrl.mockImplementation(async (url: string) => (url === 'https://exemple.fr/curry' ? EXISTING_RECIPE : null))
     renderForm(api, '/recettes/nouvelle')
@@ -582,7 +582,7 @@ describe('RecipeFormPage — lien déjà enregistré', () => {
   })
 
   it('n’analyse pas une page déjà enregistrée', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     const api = fakeApi()
     api.recipes.findSavedByUrl.mockResolvedValue(EXISTING_RECIPE)
     renderForm(api, '/recettes/nouvelle')
@@ -595,7 +595,7 @@ describe('RecipeFormPage — lien déjà enregistré', () => {
   })
 
   it('propose d’utiliser la recette existante dans le planning', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     const api = fakeApi()
     api.recipes.getRecipe.mockResolvedValue({
       ...EXISTING,
@@ -620,7 +620,7 @@ describe('RecipeFormPage — lien déjà enregistré', () => {
   })
 
   it('reste sur le formulaire si la bascule échoue', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     const api = fakeApi()
     api.recipes.getRecipe.mockResolvedValue({ ...EXISTING, is_saved: false, url: 'https://exemple.fr/curry', ingredients: [], photos: [] })
     api.recipes.findSavedByUrl.mockResolvedValue(EXISTING_RECIPE)
@@ -633,7 +633,7 @@ describe('RecipeFormPage — lien déjà enregistré', () => {
   })
 
   it('affiche le doublon détecté par la base au moment d’enregistrer', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     const api = fakeApi()
     api.recipes.saveRecipe.mockRejectedValueOnce(new DuplicateRecipeUrlError(EXISTING_RECIPE))
     renderForm(api, '/recettes/nouvelle')
@@ -653,7 +653,7 @@ describe('RecipeFormPage — choix rapides et recettes en attente', () => {
   const inboxItem = (extra: Partial<InboxItem>): InboxItem => ({ id: 'i1', title: 'Curry du reel', url: null, recipe_id: null, created_at: '2026-11-01T10:00:00Z', ...extra })
 
   it('nouvelle recette : le lien collé peut être mis de côté sans être analysé', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     const api = fakeApi()
     renderForm(api, '/recettes/nouvelle')
     const choices = await screen.findByRole('group', { name: 'Que faire de cette recette ?' })
@@ -666,7 +666,7 @@ describe('RecipeFormPage — choix rapides et recettes en attente', () => {
   })
 
   it('nouvelle recette : « Enregistrer directement » incomplet laisse un message dans la carte', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     const api = fakeApi()
     api.recipes.importFromUrl.mockResolvedValue({ ...READ, recipe: { ...READ.recipe, title: '' } })
     renderForm(api, '/recettes/nouvelle')
@@ -688,7 +688,7 @@ describe('RecipeFormPage — choix rapides et recettes en attente', () => {
   })
 
   it('élément « De côté » avec un lien : prérempli, puis la liste est mise à jour à l’enregistrement', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     const api = fakeApi()
     api.recipes.importFromUrl.mockResolvedValue(READ)
     api.recipes.saveRecipe.mockResolvedValue('r-curry')
@@ -702,7 +702,7 @@ describe('RecipeFormPage — choix rapides et recettes en attente', () => {
   })
 
   it('élément avec photos : relues depuis le stockage puis lues ; erreur de liste signalée sans bloquer', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     const api = fakeApi()
     api.recipes.importFromPhotos.mockResolvedValue({ ...READ, source: 'photo' })
     api.recipes.saveRecipe.mockResolvedValue('r-curry')

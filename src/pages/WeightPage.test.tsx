@@ -1,5 +1,5 @@
 import { act, fireEvent, screen, waitFor, within } from '@testing-library/react'
-import userEvent from '@testing-library/user-event'
+import { setupUser } from '@/test/user'
 import { AppError } from '@/api'
 import type { WeightEntry } from '@/lib/weights'
 import { ERIC, LUCILE, fakeApi, renderWithApp } from '@/test/fakes'
@@ -56,7 +56,7 @@ describe('WeightPage', () => {
   })
 
   it('change de période : la synthèse et le graphique suivent', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     renderWeights()
     const lucile = await screen.findByRole('article', { name: 'Lucile' })
     await user.click(screen.getByRole('radio', { name: '3 mois' }))
@@ -121,7 +121,7 @@ describe('WeightPage', () => {
   })
 
   it('ajoute une pesée pour les deux personnes', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     const { api } = renderWeights()
     await screen.findByRole('img', { name: /Évolution du poids/ })
     await user.click(screen.getByRole('button', { name: 'Nouvelle pesée' }))
@@ -151,7 +151,7 @@ describe('WeightPage', () => {
   })
 
   it('refuse une date future et préremplit une date déjà pesée', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     renderWeights()
     await screen.findByRole('img', { name: /Évolution du poids/ })
     await user.click(screen.getByRole('button', { name: 'Nouvelle pesée' }))
@@ -168,7 +168,7 @@ describe('WeightPage', () => {
   })
 
   it('modifie une pesée (avec changement de date) et efface le poids vidé', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     const { api } = renderWeights()
     await screen.findByRole('img', { name: /Évolution du poids/ })
     await clickPoint('2026-08-27')
@@ -201,7 +201,7 @@ describe('WeightPage', () => {
   })
 
   it('garde le formulaire ouvert si l’enregistrement échoue', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     const api = fakeApi()
     api.weights.saveWeighIn.mockRejectedValue(new AppError('Serveur indisponible'))
     renderWeights(ENTRIES, api)
@@ -215,7 +215,7 @@ describe('WeightPage', () => {
   })
 
   it('supprime une pesée après confirmation', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     const { api } = renderWeights()
     await screen.findByRole('img', { name: /Évolution du poids/ })
     await clickPoint('2026-08-27')
@@ -227,7 +227,7 @@ describe('WeightPage', () => {
   })
 
   it('affiche une erreur de chargement et permet de réessayer', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     const api = fakeApi()
     api.weights.listEntries.mockRejectedValueOnce(new AppError('Hors ligne')).mockResolvedValue(ENTRIES)
     renderWithApp(<WeightPage today={TODAY} />, { api, route: '/poids', path: '/poids' })
@@ -239,7 +239,7 @@ describe('WeightPage', () => {
   it('ne vide pas le formulaire en cours de saisie quand les données sont rechargées', async () => {
     vi.useFakeTimers({ shouldAdvanceTime: true })
     try {
-      const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime })
+      const user = setupUser({ advanceTimers: vi.advanceTimersByTime })
       const api = fakeApi()
       let notify: () => void = () => undefined
       api.weights.subscribe.mockImplementation((cb: () => void) => {

@@ -1,5 +1,5 @@
 import { screen, waitFor } from '@testing-library/react'
-import userEvent from '@testing-library/user-event'
+import { setupUser } from '@/test/user'
 import { AppError } from '@/api'
 import { LUCILE, fakeApi, fakeAuth, renderWithApp } from '@/test/fakes'
 import { MealRulesSettings } from './MealRulesSettings'
@@ -11,7 +11,7 @@ function setup(api = fakeApi()) {
 
 describe('MealRulesSettings', () => {
   it('affiche ma règle et l’enregistre, mots-clés nettoyés', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     const api = fakeApi()
     api.weekPlan.getMyRule.mockResolvedValue({ weekdayLunchAtWork: false, ignoredKeywords: ['yoga'] })
     setup(api)
@@ -31,7 +31,7 @@ describe('MealRulesSettings', () => {
   })
 
   it('erreurs de chargement et d’enregistrement', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     const failing = fakeApi()
     failing.weekPlan.getMyRule.mockRejectedValue(new AppError('Impossible de charger tes règles des repas.'))
     setup(failing)
@@ -49,7 +49,7 @@ describe('MealRulesSettings', () => {
   })
 
   it('refuse des rendez-vous trop longs pour être enregistrés, avec un message clair', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     const api = setup()
     const input = await screen.findByRole('textbox', { name: 'Rendez-vous qui ne m’empêchent pas de manger à la maison' })
     const long = Array.from({ length: 12 }, (_, i) => `${'x'.repeat(38)}${i}`).join(', ')

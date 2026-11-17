@@ -1,5 +1,5 @@
 import { screen, waitFor, within } from '@testing-library/react'
-import userEvent from '@testing-library/user-event'
+import { setupUser } from '@/test/user'
 import { AppError } from '@/api'
 import { DEFAULT_SETTINGS } from '@/lib/settings'
 import { HomePage } from '@/pages/HomePage'
@@ -25,7 +25,7 @@ const card = () => screen.findByRole('region', { name: 'Rendez-vous' })
 
 describe('Accueil — carte Rendez-vous', () => {
   it('les rendez-vous du jour, des agendas choisis', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     const { api } = setup({
       events: [
         eventFixture({ id: 'a', title: 'Dentiste' }),

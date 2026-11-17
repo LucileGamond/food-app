@@ -98,13 +98,16 @@ export default defineConfig(({ mode }) => ({
     environment: 'jsdom',
     // Les écrans chargés à la demande peuvent dépasser 5 s quand toute la suite tourne en parallèle sur une machine chargée.
     testTimeout: 10_000,
+    // La moitié des cœurs : chaque fichier a son jsdom, et plusieurs copies de travail partagent la machine. Mesuré sur
+    // 22 cœurs : même durée qu'avec 21 tâches (≈ 4 min 30), mais 0 à 1 test hors délai au lieu de 5.
+    maxWorkers: '50%',
     setupFiles: ['./src/test/setup.ts'],
     include: ['src/**/*.test.{ts,tsx}', 'scripts/**/*.test.ts', 'supabase/functions/**/*.test.ts'],
     css: false,
     coverage: {
       provider: 'v8',
       include: ['src/lib/**', 'src/services/**', 'src/api/errors.ts', 'src/hooks/**', 'src/components/**', 'src/pages/**', 'src/auth/**', 'src/app/**', 'src/App.tsx', 'src/modules/**', 'supabase/functions/**/*.ts'],
-      exclude: ['src/**/*.test.*', 'src/test/**', 'src/api/client.ts', 'src/lib/database.types.ts', 'src/lib/image.ts', 'src/lib/pdf.ts', 'src/lib/camera.ts', 'src/lib/scanStore.ts', 'src/main.tsx', 'src/components/ui/**', 'supabase/functions/**/index.ts', 'src/modules/**/api.ts'],
+      exclude: ['src/**/*.test.*', 'src/test/**', 'src/api/client.ts', 'src/lib/database.types.ts', 'src/lib/image.ts', 'src/lib/pdf.ts', 'src/lib/camera.ts', 'src/lib/scanStore.ts', 'src/main.tsx', 'src/components/ui/**', 'supabase/functions/**/index.ts', 'src/modules/**/api.ts', 'src/modules/**/api/**'],
       thresholds: { lines: 85, branches: 85, functions: 85, statements: 85 },
     },
   },

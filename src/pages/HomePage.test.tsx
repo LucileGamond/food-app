@@ -1,5 +1,5 @@
 import { screen, waitFor, within } from '@testing-library/react'
-import userEvent from '@testing-library/user-event'
+import { setupUser } from '@/test/user'
 import { DEFAULT_SETTINGS } from '@/lib/settings'
 import type { KnitProject, KnitStep } from '@/modules/tricot/lib/pattern'
 import { LUCILE, fakeApi, mealFixture, renderWithApp } from '@/test/fakes'
@@ -56,7 +56,7 @@ function setup(disabledPages: string[] = [], hour = 12) {
     { id: 'p1', title: 'Pull Bergamote', size: 'M', updatedAt: '2026-11-08T10:00:00Z', stepsDone: 1, stepsTotal: 2, current: { number: 2, title: 'Emmanchures', rowCount: 0, totalRows: 30, times: 1, pass: 1 }, hues: [] },
   ])
   api.knitting.getProject.mockResolvedValue(PROJECT)
-  return { ...renderWithApp(<HomePage today={TODAY} hour={hour} />, { api }), user: userEvent.setup() }
+  return { ...renderWithApp(<HomePage today={TODAY} hour={hour} />, { api }), user: setupUser() }
 }
 
 describe('HomePage', () => {

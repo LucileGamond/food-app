@@ -1,5 +1,6 @@
 import { screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
+import { setupUser } from '@/test/user'
 import { Route } from 'react-router-dom'
 import { AppError } from '@/api'
 import type { Meal } from '@/lib/meals'
@@ -46,7 +47,7 @@ function setup(meals: Meal[] = MEALS, api: FakeApi = fakeApi()) {
     path: '/planning',
     extraRoutes: <Route path="/courses/:id" element={<ShoppingListPage />} />,
   })
-  return { ...result, user: userEvent.setup() }
+  return { ...result, user: setupUser() }
 }
 
 async function openDialog(user: ReturnType<typeof userEvent.setup>) {
@@ -311,7 +312,7 @@ describe('PlanningPage — liste de courses, semaine vide', () => {
   it('explique qu’il n’y a rien à prendre en compte', async () => {
     const api = fakeApi()
     renderWithApp(<PlanningPage today={TODAY} />, { api, route: '/planning', path: '/planning' })
-    const user = userEvent.setup()
+    const user = setupUser()
     await waitFor(() => expect(screen.getByRole('button', { name: 'Liste de courses' })).toBeEnabled())
     await user.click(screen.getByRole('button', { name: 'Liste de courses' }))
     const dialog = await screen.findByRole('dialog', { name: 'Liste de courses' })

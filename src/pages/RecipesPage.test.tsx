@@ -1,5 +1,5 @@
 import { act, fireEvent, screen, waitFor, within } from '@testing-library/react'
-import userEvent from '@testing-library/user-event'
+import { setupUser } from '@/test/user'
 import { AppError } from '@/api'
 import { Link, Route, useLocation } from 'react-router-dom'
 import { fakeApi, listItem, renderWithApp } from '@/test/fakes'
@@ -80,7 +80,7 @@ describe('RecipesPage', () => {
   })
 
   it('cherche par titre ou ingrédient et filtre par tag', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     const api = fakeApi()
     api.recipes.listSavedRecipes.mockResolvedValue(RECIPES)
     renderRecipes(api)
@@ -131,7 +131,7 @@ describe('RecipesPage', () => {
   })
 
   it('trie et filtre par livre, et garde ces choix dans l’adresse', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     const api = fakeApi()
     api.recipes.listSavedRecipes.mockResolvedValue(RECIPES)
     renderRecipes(api)
@@ -163,7 +163,7 @@ describe('RecipesPage', () => {
   })
 
   it('filtres rapides : 30 min max, végé, pas cuisinée depuis 1 mois, sans photo', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     const api = fakeApi()
     api.recipes.listSavedRecipes.mockResolvedValue(RECIPES)
     renderRecipes(api)
@@ -189,7 +189,7 @@ describe('RecipesPage', () => {
   })
 
   it('filtre « De saison » et badge sur les cartes (octobre)', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     const api = fakeApi()
     api.recipes.listSavedRecipes.mockResolvedValue([
       ...RECIPES,
@@ -208,7 +208,7 @@ describe('RecipesPage', () => {
   })
 
   it('un tri choisi juste après « Effacer les filtres » ne remet pas les filtres effacés', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     const api = fakeApi()
     api.recipes.listSavedRecipes.mockResolvedValue(RECIPES)
     renderRecipes(api)
@@ -224,7 +224,7 @@ describe('RecipesPage', () => {
   })
 
   it('« De côté » : liens et photos à préremplir, à planifier ou à supprimer ; rien sans élément', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     const api = fakeApi()
     api.recipes.listSavedRecipes.mockResolvedValue(RECIPES)
     const reel = { id: 'a1', title: 'Curry du reel', url: 'https://www.instagram.com/reel/abc/', recipe_id: null, created_at: '2026-10-30T10:00:00Z', list: 'aside', photos: [] }
@@ -275,7 +275,7 @@ describe('RecipesPage', () => {
   })
 
   it('filtre par site (début de l’adresse) ou par mes recettes, sans source', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     const api = fakeApi()
     api.recipes.listSavedRecipes.mockResolvedValue([
       ...RECIPES,
@@ -296,7 +296,7 @@ describe('RecipesPage', () => {
   })
 
   it('relie les recettes d’un même livre et dit ce qui a été fait', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     const api = fakeApi()
     api.recipes.listSavedRecipes.mockResolvedValue(RECIPES)
     const ing = (name: string, note: string | null = null) => ({ position: 0, name, note, linkedRecipeId: null })
@@ -318,7 +318,7 @@ describe('RecipesPage', () => {
   })
 
   it('signale un échec du chargement des recettes à relier', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     const api = fakeApi()
     api.recipes.listSavedRecipes.mockResolvedValue(RECIPES)
     api.recipes.listLinkable.mockRejectedValue(new AppError('Impossible de charger les recettes.'))
@@ -336,7 +336,7 @@ describe('RecipesPage', () => {
   })
 
   it('affiche les erreurs de chargement et permet de réessayer', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     const api = fakeApi()
     api.recipes.listSavedRecipes.mockRejectedValueOnce(new AppError('Hors ligne'))
     renderRecipes(api)

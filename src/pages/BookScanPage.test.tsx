@@ -1,5 +1,6 @@
 import { act, fireEvent, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
+import { setupUser } from '@/test/user'
 import { Route } from 'react-router-dom'
 import { AppError } from '@/api'
 import type { RecipeImport } from '@/lib/recipes'
@@ -42,7 +43,7 @@ function setup(api: FakeApi = fakeApi()) {
     path: '/recettes/scanner',
     extraRoutes: <Route path="/recettes" element={<p>Liste des recettes</p>} />,
   })
-  return { api, view, user: userEvent.setup({ advanceTimers: vi.advanceTimersByTime }) }
+  return { api, view, user: setupUser({ advanceTimers: vi.advanceTimersByTime }) }
 }
 
 /** Laisse passer le délai d'annulation (3 s) : les photos partent à la lecture. */

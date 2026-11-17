@@ -1,5 +1,5 @@
 import { render, screen, waitFor, within } from '@testing-library/react'
-import userEvent from '@testing-library/user-event'
+import { setupUser } from '@/test/user'
 import { MemoryRouter, Route, Routes, type InitialEntry } from 'react-router-dom'
 import { Toaster } from 'sonner'
 import { AppError, type Api } from '@/api'
@@ -62,7 +62,7 @@ function renderApp(api: FakeApi, entry: InitialEntry) {
 
 describe('recettes liées', () => {
   it('après l’enregistrement, propose d’importer les recettes auxquelles elle renvoie', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     const api = fakeApi()
     api.recipes.getRecipe.mockImplementation(async (id: string) => (id === PARENT ? TARTE : null))
     renderApp(api, { pathname: `/recettes/${PARENT}`, state: { offerLinks: true } })
@@ -102,7 +102,7 @@ describe('recettes liées', () => {
   })
 
   it('propose les recettes liées dès l’enregistrement d’une nouvelle recette', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     const api = fakeApi()
     api.recipes.saveRecipe.mockResolvedValue(PARENT)
     api.recipes.getRecipe.mockResolvedValue(TARTE)
@@ -115,7 +115,7 @@ describe('recettes liées', () => {
   })
 
   it('lie un renvoi à une recette déjà enregistrée', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     const api = fakeApi()
     api.recipes.getRecipe.mockResolvedValue(TARTE)
     api.recipes.listSavedSummaries.mockResolvedValue([summary(PARENT, 'Tarte à la banane'), summary('r3', 'Pâte sucrée maison'), summary('r4', 'Crumble')])
@@ -141,7 +141,7 @@ describe('recettes liées', () => {
   })
 
   it('garde la fenêtre ouverte si le lien échoue', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     const api = fakeApi()
     api.recipes.getRecipe.mockResolvedValue(TARTE)
     api.recipes.listSavedSummaries.mockResolvedValue([summary('r3', 'Pâte sucrée maison')])
@@ -156,7 +156,7 @@ describe('recettes liées', () => {
   })
 
   it('depuis le formulaire de la sous-recette, lie une recette du même nom au lieu d’en créer une', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     const api = fakeApi()
     api.recipes.getRecipe.mockResolvedValue(TARTE)
     api.recipes.listSavedSummaries.mockResolvedValue([summary(PARENT, 'Tarte à la banane'), summary('r3', 'Pâte sucrée')])
@@ -171,7 +171,7 @@ describe('recettes liées', () => {
   })
 
   it('enregistre la recette même si le lien échoue, et le renvoi reste proposé', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     const api = fakeApi()
     api.recipes.getRecipe.mockResolvedValue(TARTE)
     api.recipes.linkIngredient.mockRejectedValue(new AppError('Ingrédient introuvable'))
@@ -184,7 +184,7 @@ describe('recettes liées', () => {
   })
 
   it('devient une recette comme une autre si la recette principale a été supprimée', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     const api = fakeApi()
     api.recipes.getRecipe.mockResolvedValue(null)
     api.recipes.saveRecipe.mockResolvedValue('r2')
@@ -198,7 +198,7 @@ describe('recettes liées', () => {
   })
 
   it('ouvre une recette liée depuis la fenêtre de suppression, sans la garder ouverte', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     const api = fakeApi()
     const pate: Recipe = { ...TARTE, id: 'r2', title: 'Pâte sucrée', ingredients: [{ name: 'farine', quantity: 250, unit: 'g', note: null }] }
     api.recipes.getRecipe.mockImplementation(async (id: string) => (id === 'r2' ? pate : TARTE))
@@ -212,7 +212,7 @@ describe('recettes liées', () => {
   })
 
   it('garde le lien en modifiant la recette, ou le retire', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     const api = fakeApi()
     const linkedRecipe = { id: 'r2', title: 'Pâte sucrée' }
     api.recipes.getRecipe.mockResolvedValue({ ...TARTE, ingredients: [{ ...TARTE.ingredients[0]!, linkedRecipe }, TARTE.ingredients[1]!] })
@@ -226,7 +226,7 @@ describe('recettes liées', () => {
   })
 
   it('retire un lien depuis le formulaire', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     const api = fakeApi()
     api.recipes.getRecipe.mockResolvedValue({ ...TARTE, ingredients: [{ ...TARTE.ingredients[0]!, linkedRecipe: { id: 'r2', title: 'Pâte sucrée' } }] })
     api.recipes.saveRecipe.mockResolvedValue(PARENT)

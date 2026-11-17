@@ -1,5 +1,5 @@
 import { screen, waitFor, within } from '@testing-library/react'
-import userEvent from '@testing-library/user-event'
+import { setupUser } from '@/test/user'
 import { AppError } from '@/api'
 import { fakeApi, renderWithApp } from '@/test/fakes'
 import { EMPTY_YARN } from '../lib/yarn'
@@ -14,7 +14,7 @@ function setup(linked = true) {
   if (linked) api.knitting.getRavelryAccount.mockResolvedValue({ username: 'lucile' })
   const onSave = vi.fn(async () => true)
   renderWithApp(<YarnDialog yarn={null} title="Ajouter au stock" open onOpenChange={() => {}} onSave={onSave} />, { api })
-  return { api, onSave, user: userEvent.setup() }
+  return { api, onSave, user: setupUser() }
 }
 
 describe('laine trouvée sur Ravelry', () => {

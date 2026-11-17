@@ -1,6 +1,6 @@
 import { render, screen, waitFor, within } from '@testing-library/react'
 import { AppError } from '@/api'
-import userEvent from '@testing-library/user-event'
+import { setupUser } from '@/test/user'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { Toaster } from 'sonner'
 import type { Api } from '@/api'
@@ -42,7 +42,7 @@ describe('RecipeFormPage — source, temps, sous-parties, doublons', () => {
   })
 
   it('enregistre la source, les temps et les sous-parties', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     const api = fakeApi()
     api.recipes.listSources.mockResolvedValue(['Pâtisserie maison'])
     renderForm(api)
@@ -81,7 +81,7 @@ describe('RecipeFormPage — source, temps, sous-parties, doublons', () => {
   }, 20_000) // Beaucoup de saisie : lent quand toute la suite tourne en parallèle.
 
   it('refuse une durée illisible, et retire une sous-partie', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     const api = fakeApi()
     renderForm(api)
     await user.type(await screen.findByLabelText('Titre'), 'Tarte')
@@ -97,7 +97,7 @@ describe('RecipeFormPage — source, temps, sous-parties, doublons', () => {
   })
 
   it('après l’enregistrement, lie la recette aux recettes du même livre', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     const api = fakeApi()
     api.recipes.saveRecipe.mockResolvedValue('p')
     api.recipes.listLinkable.mockResolvedValue([
@@ -113,7 +113,7 @@ describe('RecipeFormPage — source, temps, sous-parties, doublons', () => {
   })
 
   it('un échec des liens automatiques ne bloque pas l’enregistrement', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     const api = fakeApi()
     api.recipes.listLinkable.mockRejectedValue(new AppError('Hors ligne'))
     renderForm(api)
@@ -125,7 +125,7 @@ describe('RecipeFormPage — source, temps, sous-parties, doublons', () => {
   })
 
   it('prévient qu’une recette du même titre existe déjà', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     const api = fakeApi()
     api.recipes.listSavedSummaries.mockResolvedValue([{ id: 'r9', is_saved: true, title: 'Tarte à la Banane', notes: null, url: null, tags: [] }])
     renderForm(api)
@@ -137,7 +137,7 @@ describe('RecipeFormPage — source, temps, sous-parties, doublons', () => {
   })
 
   it('même titre dans un autre livre : une autre recette, sans avertissement', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     const api = fakeApi()
     api.recipes.listSavedSummaries.mockResolvedValue([
       { id: 'r9', is_saved: true, title: 'Tarte à la banane', notes: null, url: null, tags: [], source: 'Ottolenghi' },
@@ -155,7 +155,7 @@ describe('RecipeFormPage — source, temps, sous-parties, doublons', () => {
   })
 
   it('garde la photo lue à l’écran pour comparer, en grand sur demande', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     const api = fakeApi()
     api.recipes.importFromPhotos.mockResolvedValue({
       recipe: {

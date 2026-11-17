@@ -1,5 +1,6 @@
 import { screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
+import { setupUser } from '@/test/user'
 import { AppError } from '@/api'
 import type { InboxItem } from '@/lib/inbox'
 import type { MealIdea } from '@/lib/mealIdeas'
@@ -23,7 +24,7 @@ function setup(api: FakeApi = fakeApi()) {
   api.meals.listMeals.mockResolvedValue([mealFixture({ meal_date: '2026-10-20', recipe: { id: 'r2', is_saved: true, title: 'Tartiflette' } })])
   api.ideas.suggestMeals.mockResolvedValue(IDEAS)
   renderWithApp(<PlanningPage today={TODAY} />, { api, route: '/planning', path: '/planning' })
-  return { api, user: userEvent.setup() }
+  return { api, user: setupUser() }
 }
 
 async function open(user: ReturnType<typeof userEvent.setup>) {

@@ -1,5 +1,5 @@
 import { screen, waitFor, within } from '@testing-library/react'
-import userEvent from '@testing-library/user-event'
+import { setupUser } from '@/test/user'
 import { AppError } from '@/api'
 import { fakeApi, renderWithApp } from '@/test/fakes'
 import { stashItem } from '@/test/knitFactories'
@@ -14,7 +14,7 @@ beforeEach(() => localStorage.clear())
 
 describe('Démarrer : aiguilles du patron et mes échantillons', () => {
   it('aiguilles du patron : indiquées dans « Démarrer »', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     const { api } = renderProject(fakeApi(), PROJECT, START)
     await openFold('Taille et aiguilles')
     expect(await screen.findByText('aucune : indique-les pour que chaque sous-étape choisisse la sienne')).toBeInTheDocument()
@@ -30,7 +30,7 @@ describe('Démarrer : aiguilles du patron et mes échantillons', () => {
   })
 
   it('aiguilles du patron : un enregistrement qui rate le dit, au lieu de ne rien faire', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     const api = fakeApi()
     api.knitting.saveNeedles.mockRejectedValueOnce(new Error('réseau'))
     renderProject(api, PROJECT, START)
@@ -45,7 +45,7 @@ describe('Démarrer : aiguilles du patron et mes échantillons', () => {
   })
 
   it('mes échantillons : une liste, un par aiguille ; changer les rangs le fait revérifier', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     const project = { ...structuredClone(PROJECT), needles: [3, 3.5], gauges: [{ needle: 3.5, stitches: 22, rows: 30, checked: true }] }
     const { api } = renderProject(fakeApi(), project, START)
     await openFold('Laine et échantillon')
@@ -63,7 +63,7 @@ describe('Démarrer : aiguilles du patron et mes échantillons', () => {
   })
 
   it('mes échantillons : ajout pour une autre aiguille, et suppression', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     const project = { ...structuredClone(PROJECT), needles: [3, 3.5], gauges: [{ needle: 3.5, stitches: 22, rows: 30, checked: false }] }
     const { api } = renderProject(fakeApi(), project, START)
     await openFold('Laine et échantillon')
@@ -86,7 +86,7 @@ describe('Démarrer : aiguilles du patron et mes échantillons', () => {
   })
 
   it('mes échantillons : une aiguille hors patron se tape, et les sous-étapes peuvent la choisir', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     const project = { ...structuredClone(PROJECT), needles: [3, 3.5], gauges: [] }
     const { api } = renderProject(fakeApi(), project, START)
     await openFold('Laine et échantillon')
@@ -102,7 +102,7 @@ describe('Démarrer : aiguilles du patron et mes échantillons', () => {
   })
 
   it('mes échantillons : une taille d’aiguille illisible est refusée', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     renderProject(fakeApi(), { ...structuredClone(PROJECT), needles: [3] }, START)
     await openFold('Laine et échantillon')
     await user.click(await screen.findByRole('button', { name: 'Ajouter un échantillon' }))
@@ -115,7 +115,7 @@ describe('Démarrer : aiguilles du patron et mes échantillons', () => {
   })
 
   it('mes échantillons : sans rien de noté, ou hors de 1 à 100, la saisie est refusée', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     renderProject(fakeApi(), { ...structuredClone(PROJECT), needles: [3] }, START)
     await openFold('Laine et échantillon')
     await user.click(await screen.findByRole('button', { name: 'Ajouter un échantillon' }))
@@ -141,7 +141,7 @@ describe('Démarrer : laine et échantillon du projet', () => {
   }
 
   it('ajoute une laine lue sur la photo de l’étiquette', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     const api = fakeApi()
     api.knitting.readYarnLabel.mockResolvedValue({ ...EMPTY_YARN, brand: 'Phildar', name: 'Partner 3.5', length_m: 125, needle_mm: 3.5 })
     await renderStart(api)
@@ -165,7 +165,7 @@ describe('Démarrer : laine et échantillon du projet', () => {
   })
 
   it('remplit les couleurs du fil vues sur la photo, qu’on ajuste à la main', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     const api = fakeApi()
     api.knitting.readYarnLabel.mockResolvedValue({ ...EMPTY_YARN, brand: 'Drops', hues: ['#7a6a58', '#d8cbb8'] })
     await renderStart(api)
@@ -202,7 +202,7 @@ describe('Démarrer : laine et échantillon du projet', () => {
   })
 
   it('garde les couleurs choisies quand la photo n’en montre pas', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     const api = fakeApi()
     api.knitting.readYarnLabel.mockResolvedValue({ ...EMPTY_YARN, brand: 'Phildar' })
     await renderStart(api)
@@ -215,7 +215,7 @@ describe('Démarrer : laine et échantillon du projet', () => {
   })
 
   it('signale une étiquette illisible et une saisie invalide', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     const api = fakeApi()
     api.knitting.readYarnLabel.mockRejectedValue(new AppError('Pas d’étiquette de laine sur cette photo.'))
     await renderStart(api)
@@ -230,7 +230,7 @@ describe('Démarrer : laine et échantillon du projet', () => {
   })
 
   it('montre, modifie et retire les laines', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     const api = fakeApi()
     const yarn = { ...EMPTY_YARN, brand: 'DROPS', name: 'Alpaca', length_m: 167, skeins: 4 }
     await renderStart(api, { ...PROJECT, yarns: [yarn] })
@@ -249,7 +249,7 @@ describe('Démarrer : laine et échantillon du projet', () => {
   })
 
   it('retirer une laine retire sa pesée et garde les autres sur leur laine', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     const api = fakeApi()
     const alpaca = { ...EMPTY_YARN, brand: 'DROPS', name: 'Alpaca' }
     const merino = { ...EMPTY_YARN, brand: 'DROPS', name: 'Merino' }
@@ -283,7 +283,7 @@ describe('Démarrer : laine et échantillon du projet', () => {
 
   // La saisie et la validation de l'échantillon sont testées plus haut (« mes échantillons ») : ici, son effet sur l'étape.
   it('échantillon changé : l’étape est recalculée avec', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     const api = fakeApi()
     await renderStart(api, { ...PROJECT, patternGauge: { stitches: 22, rows: 30 }, gauges: [{ needle: null, stitches: 24, rows: 30, checked: false }] })
     // Celui du patron a son propre formulaire ; le sien se modifie dans la liste
@@ -304,7 +304,7 @@ describe('Démarrer : laine et échantillon du projet', () => {
   })
 
   it('prend une laine du stock pour un projet', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     const api = fakeApi()
     api.knitting.listStash.mockResolvedValue([stashItem({ yarn: MERINO })])
     api.knitting.getProject.mockResolvedValue(structuredClone(PROJECT))

@@ -1,5 +1,5 @@
 import { screen, waitFor } from '@testing-library/react'
-import userEvent from '@testing-library/user-event'
+import { setupUser } from '@/test/user'
 import { Route } from 'react-router-dom'
 import { AppError } from '@/api'
 import { fakeApi, renderWithApp } from '@/test/fakes'
@@ -20,7 +20,7 @@ describe('Réglages : compte Ravelry', () => {
 
   it('non relié : « Relier » demande l’adresse d’autorisation et y va', async () => {
     const go = vi.spyOn(leaveFor, 'go').mockImplementation(() => {})
-    const user = userEvent.setup()
+    const user = setupUser()
     const api = fakeApi()
     renderWithApp(<RavelrySettings />, { api })
     await user.click(await screen.findByRole('button', { name: 'Relier mon compte Ravelry' }))
@@ -32,7 +32,7 @@ describe('Réglages : compte Ravelry', () => {
 
   it('erreur au début de la connexion : message, bouton à nouveau disponible', async () => {
     const go = vi.spyOn(leaveFor, 'go').mockImplementation(() => {})
-    const user = userEvent.setup()
+    const user = setupUser()
     const api = fakeApi()
     api.knitting.startRavelryConnect.mockRejectedValue(new AppError('La connexion à Ravelry n’est pas configurée.'))
     renderWithApp(<RavelrySettings />, { api })
@@ -43,7 +43,7 @@ describe('Réglages : compte Ravelry', () => {
   })
 
   it('relié : nom du compte, puis « Délier »', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     const api = fakeApi()
     api.knitting.getRavelryAccount.mockResolvedValueOnce({ username: 'lucile_tricote' }).mockResolvedValue(null)
     renderWithApp(<RavelrySettings />, { api })
@@ -55,7 +55,7 @@ describe('Réglages : compte Ravelry', () => {
   })
 
   it('délier en échec : message, compte toujours affiché', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     const api = fakeApi()
     api.knitting.getRavelryAccount.mockResolvedValue({ username: 'lucile_tricote' })
     api.knitting.disconnectRavelry.mockRejectedValue(new AppError('Impossible de délier le compte Ravelry.'))

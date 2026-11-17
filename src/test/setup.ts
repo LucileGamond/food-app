@@ -2,8 +2,9 @@ import '@testing-library/jest-dom/vitest'
 import { cleanup, configure } from '@testing-library/react'
 import { afterEach } from 'vitest'
 
-// Pages chargées à la demande et machine chargée (CI, suites en parallèle) : 3 s pour qu'un élément apparaisse.
-configure({ asyncUtilTimeout: 3000 })
+// Pages chargées à la demande et machine chargée (CI, 9 copies de travail qui partagent la machine) : 5 s pour qu'un
+// élément apparaisse, bien en dessous des 10 s d'un test.
+configure({ asyncUtilTimeout: 5000 })
 
 afterEach(() => {
   cleanup()

@@ -1,5 +1,5 @@
 import { screen, waitFor, within } from '@testing-library/react'
-import userEvent from '@testing-library/user-event'
+import { setupUser } from '@/test/user'
 import { Route } from 'react-router-dom'
 import { AppError } from '@/api'
 import { compressImage } from '@/lib/image'
@@ -58,7 +58,7 @@ describe('bibliothèque de patrons', () => {
   })
 
   it('cherche un patron, sans autre filtre', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     const api = fakeApi()
     api.knitting.listPatterns.mockResolvedValue([PULL, BONNET, GILET])
     renderWithApp(<KnittingLibraryPage />, { api, route: '/tricot/patrons', path: '/tricot/patrons' })
@@ -81,7 +81,7 @@ describe('bibliothèque de patrons', () => {
   })
 
   it('erreur de chargement, puis nouvel essai', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     const api = fakeApi()
     api.knitting.listPatterns.mockRejectedValueOnce(new AppError('Impossible de charger les patrons.'))
     renderWithApp(<KnittingLibraryPage />, { api, route: '/tricot/patrons', path: '/tricot/patrons' })
@@ -95,7 +95,7 @@ describe('fiche d’un patron', () => {
   const route = { route: '/tricot/patrons/g1', path: '/tricot/patrons/:id' }
 
   it('montre ce qu’on en sait, ouvre le PDF, le lien et les photos', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     const api = fakeApi()
     api.knitting.getPattern.mockResolvedValue(GILET)
     renderWithApp(<KnittingPatternPage />, { api, ...route })
@@ -161,7 +161,7 @@ describe('fiche d’un patron', () => {
   })
 
   it('supprime le patron, en disant ce que deviennent ses projets', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     const api = fakeApi()
     api.knitting.getPattern.mockResolvedValue(PULL)
     renderWithApp(<KnittingPatternPage />, {
@@ -188,7 +188,7 @@ describe('ajout et modification d’un patron', () => {
   const extraRoutes = <Route path="/tricot/patrons/:id" element={<p>Fiche ouverte</p>} />
 
   it('ajoute un patron en PDF, avec photos et lien ; le nom vient du fichier', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     const api = fakeApi()
     renderWithApp(<KnittingPatternEditPage />, { api, route: '/tricot/patrons/nouveau', path: '/tricot/patrons/nouveau', extraRoutes })
     expect(await screen.findByRole('heading', { name: 'Ajouter un patron' })).toBeInTheDocument()
@@ -226,7 +226,7 @@ describe('ajout et modification d’un patron', () => {
   }, 30_000)
 
   it('modifie un patron : garde ses fichiers, retire une photo et le PDF', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     const api = fakeApi()
     api.knitting.getPattern.mockResolvedValue(GILET)
     renderWithApp(<KnittingPatternEditPage />, { api, route: '/tricot/patrons/g1/modifier', path: '/tricot/patrons/:id/modifier', extraRoutes })
@@ -246,7 +246,7 @@ describe('ajout et modification d’un patron', () => {
   })
 
   it('récupère depuis le lien le PDF, la photo et le nom, sans rien remplacer', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     const api = fakeApi()
     const pdf = new File(['%PDF'], 'gilet-rosee.pdf', { type: 'application/pdf' })
     api.knitting.readPatternLink.mockResolvedValue({ url: 'https://p.exemple/gilet', title: 'Gilet Rosée', image: new File(['img'], 'photo.jpg', { type: 'image/jpeg' }), pdf })
@@ -270,7 +270,7 @@ describe('ajout et modification d’un patron', () => {
   })
 
   it('lien illisible : erreur lisible, la saisie reste', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     const api = fakeApi()
     api.knitting.readPatternLink.mockRejectedValue(new AppError('Le site a répondu par une erreur (404).'))
     renderWithApp(<KnittingPatternEditPage />, { api, route: '/tricot/patrons/nouveau', path: '/tricot/patrons/nouveau', extraRoutes })
@@ -329,7 +329,7 @@ describe('ajout et modification d’un patron', () => {
   })
 
   it('lien de patron Ravelry (compte relié) : taille, métrage, aiguilles et laine remplis gratuitement, sans rien écraser', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     const api = fakeApi()
     const info = { title: 'Ladder Rib Beanie', sizes: ['Adult S-M', 'Adult M-L'], meters: [115, 132], needleMm: 4.5, yarn: 'Hamanaka Amerry', kind: null }
     api.knitting.readPatternLink.mockResolvedValue({ url: 'https://www.ravelry.com/patterns/library/ladder-rib-beanie', title: 'Ravelry: Ladder Rib Beanie', image: null, pdf: null, info })
@@ -348,7 +348,7 @@ describe('ajout et modification d’un patron', () => {
   })
 
   it('lien Ravelry sans taille visée : tailles du patron rappelées, métrage à compléter', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     const api = fakeApi()
     const info = { title: null, sizes: ['S', 'L'], meters: [115, 132], needleMm: null, yarn: null, kind: null }
     api.knitting.readPatternLink.mockResolvedValue({ url: 'https://www.ravelry.com/patterns/library/x', title: 'X', image: null, pdf: null, info })
@@ -361,7 +361,7 @@ describe('ajout et modification d’un patron', () => {
   })
 
   it('lecture du lien en cours : « Enregistrer » attend, et un PDF choisi entre-temps est gardé', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     const api = fakeApi()
     let finish!: (link: PatternLink) => void
     api.knitting.readPatternLink.mockImplementation(() => new Promise<PatternLink>((resolve) => (finish = resolve)))
@@ -384,7 +384,7 @@ describe('ajout et modification d’un patron', () => {
   })
 
   it('photo de la page illisible : le reste est ajouté, sans faux message d’erreur', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     const api = fakeApi()
     const pdf = new File(['%PDF'], 'gilet.pdf', { type: 'application/pdf' })
     api.knitting.readPatternLink.mockResolvedValue({ url: 'https://p.exemple/gilet', title: 'Gilet', image: new File(['img'], 'photo.jpg', { type: 'image/jpeg' }), pdf })
@@ -398,7 +398,7 @@ describe('ajout et modification d’un patron', () => {
   })
 
   it('refuse un PDF trop lourd dès qu’il est choisi', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     const api = fakeApi()
     renderWithApp(<KnittingPatternEditPage />, { api, route: '/tricot/patrons/nouveau', path: '/tricot/patrons/nouveau', extraRoutes })
     const heavy = new File(['%PDF'], 'enorme.pdf', { type: 'application/pdf' })
@@ -410,7 +410,7 @@ describe('ajout et modification d’un patron', () => {
   })
 
   it('quitter une saisie non enregistrée : demande avant, au retour comme en fermant la page', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     const api = fakeApi()
     const routes = (
       <>
@@ -441,7 +441,7 @@ describe('ajout et modification d’un patron', () => {
   })
 
   it('rien de changé : le retour part sans rien demander', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     const api = fakeApi()
     api.knitting.getPattern.mockResolvedValue(GILET)
     renderWithApp(<KnittingPatternEditPage />, { api, route: '/tricot/patrons/g1/modifier', path: '/tricot/patrons/:id/modifier', extraRoutes })
@@ -450,7 +450,7 @@ describe('ajout et modification d’un patron', () => {
   })
 
   it('signale un enregistrement impossible et garde la saisie', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     const api = fakeApi()
     api.knitting.savePattern.mockRejectedValue(new AppError('Impossible d’envoyer le PDF.'))
     renderWithApp(<KnittingPatternEditPage />, { api, route: '/tricot/patrons/nouveau', path: '/tricot/patrons/nouveau', extraRoutes })
@@ -463,7 +463,7 @@ describe('ajout et modification d’un patron', () => {
   })
 
   it('refuse plus de 10 photos', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     const api = fakeApi()
     api.knitting.getPattern.mockResolvedValue({ ...GILET, photos: Array.from({ length: 9 }, (_, i) => `u-lucile/${i}.jpg`) })
     renderWithApp(<KnittingPatternEditPage />, { api, route: '/tricot/patrons/g1/modifier', path: '/tricot/patrons/:id/modifier', extraRoutes })
@@ -478,7 +478,7 @@ describe('bibliothèque : étiquettes, couverture, IA, doublons, ajout groupé',
   const newPattern = { route: '/tricot/patrons/nouveau', path: '/tricot/patrons/nouveau', extraRoutes }
 
   it('filtre la bibliothèque par étiquette, d’un toucher', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     const api = fakeApi()
     api.knitting.listPatterns.mockResolvedValue([{ ...GILET, tags: ['gilet', 'bébé'] }, { ...BONNET, tags: ['bébé'] }, PULL])
     renderWithApp(<KnittingLibraryPage />, { api, route: '/tricot/patrons', path: '/tricot/patrons' })
@@ -501,7 +501,7 @@ describe('bibliothèque : étiquettes, couverture, IA, doublons, ajout groupé',
   })
 
   it('étiquettes : saisies (Entrée, virgule), proposées d’après la bibliothèque, retirées', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     const api = fakeApi()
     api.knitting.listPatterns.mockResolvedValue([{ ...GILET, tags: ['bébé', 'gilet'] }, { ...BONNET, tags: ['bébé'] }])
     renderWithApp(<KnittingPatternEditPage />, { api, ...newPattern })
@@ -520,7 +520,7 @@ describe('bibliothèque : étiquettes, couverture, IA, doublons, ajout groupé',
   })
 
   it('photos : une autre en couverture, ou avancée d’une place ; l’ordre est enregistré', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     const api = fakeApi()
     api.knitting.getPattern.mockResolvedValue({ ...GILET, photos: ['u-lucile/p1.jpg', 'u-lucile/p2.jpg', 'u-lucile/p3.jpg'] })
     renderWithApp(<KnittingPatternEditPage />, { api, route: '/tricot/patrons/g1/modifier', path: '/tricot/patrons/:id/modifier', extraRoutes })
@@ -536,7 +536,7 @@ describe('bibliothèque : étiquettes, couverture, IA, doublons, ajout groupé',
   })
 
   it('« Remplir avec l’IA » : seulement avec un PDF ou des photos, remplit les champs vides et le dit', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     const api = fakeApi()
     api.knitting.readPatternInfo.mockResolvedValue({ title: 'Pull Bergamote', sizes: ['S', 'M'], meters: [900, 1000], needleMm: 4, yarn: 'DROPS Alpaca', kind: 'pull' })
     renderWithApp(<KnittingPatternEditPage />, { api, ...newPattern })
@@ -560,7 +560,7 @@ describe('bibliothèque : étiquettes, couverture, IA, doublons, ajout groupé',
   })
 
   it('« Remplir avec l’IA » : une erreur se lit, la saisie reste', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     const api = fakeApi()
     api.knitting.readPatternInfo.mockRejectedValue(new AppError('Budget IA du mois atteint.'))
     renderWithApp(<KnittingPatternEditPage />, { api, ...newPattern })
@@ -571,7 +571,7 @@ describe('bibliothèque : étiquettes, couverture, IA, doublons, ajout groupé',
   })
 
   it('signale un patron déjà dans la bibliothèque (même nom ou même lien), sans empêcher d’enregistrer', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     const api = fakeApi()
     api.knitting.listPatterns.mockResolvedValue([GILET, BONNET])
     renderWithApp(<KnittingPatternEditPage />, { api, ...newPattern })
@@ -598,7 +598,7 @@ describe('bibliothèque : étiquettes, couverture, IA, doublons, ajout groupé',
   })
 
   it('ajout groupé : un patron par PDF, doublons et trop lourds sautés, puis la liste est rechargée', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     const api = fakeApi()
     api.knitting.listPatterns.mockResolvedValue([GILET])
     api.knitting.savePattern.mockRejectedValueOnce(new AppError('Impossible d’enregistrer le patron.'))

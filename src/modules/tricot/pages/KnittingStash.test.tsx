@@ -1,5 +1,5 @@
 import { cleanup, screen, waitFor, within } from '@testing-library/react'
-import userEvent from '@testing-library/user-event'
+import { setupUser } from '@/test/user'
 import { AppError } from '@/api'
 import { fakeApi, renderWithApp } from '@/test/fakes'
 import { knitPattern, stashItem } from '@/test/knitFactories'
@@ -13,7 +13,7 @@ beforeEach(() => localStorage.clear())
 
 describe('stock de laine', () => {
   it('ajoute, modifie et retire une laine du stock', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     const api = fakeApi()
     renderWithApp(<KnittingStashPage />, { api })
     await screen.findByRole('heading', { name: 'Stock de laine', level: 1 })
@@ -55,7 +55,7 @@ describe('stock de laine', () => {
 
   // Parcours court : le tri des patrons (lib/library.test.ts) et les idées (YarnIdeasSection.test.tsx) sont testés à part.
   it('cherche d’abord dans la bibliothèque, puis des idées avec l’IA', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     const api = fakeApi()
     api.knitting.listStash.mockResolvedValue(STASH)
     // 840 m, aiguilles 4 mm
@@ -76,7 +76,7 @@ describe('stock de laine', () => {
   })
 
   it('aucun patron ne convient : les idées sont mises en avant ; erreur lisible', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     const api = fakeApi()
     api.knitting.listStash.mockResolvedValue(STASH)
     api.knitting.yarnIdeas.mockRejectedValue(new AppError('La recherche d’idées a échoué.'))
@@ -89,7 +89,7 @@ describe('stock de laine', () => {
   })
 
   it('« Quel patron ? » ouvre la fiche du patron qui convient', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     const api = fakeApi()
     api.knitting.listStash.mockResolvedValue(STASH)
     api.knitting.listPatterns.mockResolvedValue([

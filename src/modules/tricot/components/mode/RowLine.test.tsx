@@ -1,4 +1,4 @@
-import userEvent from '@testing-library/user-event'
+import { setupUser } from '@/test/user'
 import { render, screen, within } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import type { RowGuide } from '../../lib/guide'
@@ -107,7 +107,7 @@ describe('RowLine : aller préparer l’étape', () => {
         />
       </MemoryRouter>,
     )
-    const user = userEvent.setup()
+    const user = setupUser()
     await user.click(within(screen.getByRole('region', { name: 'Ce rang' })).getAllByRole('button', { name: 'Une question sur ce rang ?' })[0]!)
     await user.click(within(screen.getByRole('region', { name: 'Rang suivant' })).getByRole('button', { name: 'Une question sur le rang suivant ?' }))
     await user.click(within(screen.getByRole('region', { name: 'Ensuite' })).getByRole('button', { name: 'Une question sur le rang 8 ?' }))

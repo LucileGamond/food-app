@@ -1,5 +1,5 @@
 import { screen, waitFor, within } from '@testing-library/react'
-import userEvent from '@testing-library/user-event'
+import { setupUser } from '@/test/user'
 import { Route } from 'react-router-dom'
 import { AppError } from '@/api'
 import { fakeApi, renderWithApp } from '@/test/fakes'
@@ -28,7 +28,7 @@ const PATTERN: ReadPattern = {
 
 describe('fiches de mesures', () => {
   it('ajoute, modifie et supprime une fiche', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     const api = fakeApi()
     renderWithApp(<KnittingMeasuresPage />, { api })
     expect(await screen.findByText(/Aucune fiche : note tes mesures/)).toBeInTheDocument()
@@ -63,7 +63,7 @@ describe('fiches de mesures', () => {
   })
 
   it('signale un enregistrement impossible', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     const api = fakeApi()
     api.knitting.saveMeasures.mockRejectedValue(new AppError('Impossible d’enregistrer la fiche de mesures.'))
     renderWithApp(<KnittingMeasuresPage />, { api })
@@ -80,7 +80,7 @@ describe('taille selon les mesures, après la lecture', () => {
   const pdf = new File(['%PDF-1.4'], 'bergamote.pdf', { type: 'application/pdf' })
 
   async function readPattern(api = fakeApi()) {
-    const user = userEvent.setup()
+    const user = setupUser()
     renderWithApp(<KnittingImportPage />, { api, route: '/tricot/nouveau', path: '/tricot/nouveau', extraRoutes: <Route path="/tricot/mesures" element={<p>Page des mesures</p>} /> })
     await user.upload(screen.getByLabelText('Patron (PDF)'), pdf)
     await user.click(screen.getByRole('button', { name: 'Lire le patron' }))
@@ -169,7 +169,7 @@ describe('taille selon les mesures, après la lecture', () => {
   it('sans tableau des mesures dans le patron, rien n’est proposé', async () => {
     const api = fakeApi()
     api.knitting.readPattern.mockResolvedValue({ ...PATTERN, sizeChart: null })
-    const user = userEvent.setup()
+    const user = setupUser()
     renderWithApp(<KnittingImportPage />, { api, route: '/tricot/nouveau', path: '/tricot/nouveau' })
     await user.upload(screen.getByLabelText('Patron (PDF)'), pdf)
     await user.click(screen.getByRole('button', { name: 'Lire le patron' }))

@@ -1,5 +1,5 @@
 import { screen, waitFor, within } from '@testing-library/react'
-import userEvent from '@testing-library/user-event'
+import { setupUser } from '@/test/user'
 import { fakeApi, renderWithApp } from '@/test/fakes'
 import { knitProject, knitStep } from '@/test/knitFactories'
 import { unfoldStepParts } from '@/test/openFold'
@@ -64,7 +64,7 @@ const rowLine = () => screen.findByRole('region', { name: 'Ce rang' })
 
 describe('diagrammes d’une étape', () => {
   it('préparation : le diagramme est calé sur le rang en cours, sans compteur', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     renderProject()
     const chart = await screen.findByRole('region', { name: 'Torsade' })
     // 8 rangs faits : rang 9 de l'étape = rang 3 du diagramme de 6 rangs, 2e fois
@@ -78,7 +78,7 @@ describe('diagrammes d’une étape', () => {
   })
 
   it('mode tricoter : le rang du diagramme suit le compteur, avec une bande de l’image', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     renderMode()
     const line = await rowLine()
     expect(line).toHaveTextContent('Torsade : rang 3 sur 6 · 2e fois · Tour de droite à gauche')
@@ -110,7 +110,7 @@ describe('diagrammes d’une étape', () => {
   })
 
   it('ajoute un diagramme depuis une image, calé sur ses rangs', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     const api = fakeApi()
     renderProject({ ...PROJECT, charts: [] }, api)
     const image = new File(['png'], 'grille.png', { type: 'image/png' })
@@ -137,7 +137,7 @@ describe('diagrammes d’une étape', () => {
   })
 
   it('refuse un fichier qui n’est pas une image', async () => {
-    const user = userEvent.setup({ applyAccept: false })
+    const user = setupUser({ applyAccept: false })
     const api = fakeApi()
     renderProject(PROJECT, api)
     await user.upload(await screen.findByLabelText('Image du diagramme'), new File(['%PDF'], 'patron.pdf', { type: 'application/pdf' }))
@@ -146,7 +146,7 @@ describe('diagrammes d’une étape', () => {
   })
 
   it('calé sur une sous-étape : elle reçoit un identifiant, le diagramme la suit quand sa longueur change', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     const api = fakeApi()
     const sections: StepSection[] = [
       { kind: 'rows', rows: 4, every: null, times: null, text: 'côtes', pattern: null },
@@ -177,7 +177,7 @@ describe('diagrammes d’une étape', () => {
   })
 
   it('règle et supprime un diagramme', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     const api = fakeApi()
     renderProject(PROJECT, api)
     await user.click(await screen.findByRole('button', { name: 'Modifier Torsade' }))
@@ -195,7 +195,7 @@ describe('diagrammes d’une étape', () => {
   })
 
   it('prend le diagramme sur une page du PDF du patron, recadrée', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     const api = fakeApi()
     renderProject({ ...PROJECT, pdfPath: 'u-lucile/abc.pdf', charts: [] }, api)
     await user.click(await screen.findByRole('button', { name: 'Ajouter un diagramme' }))
@@ -218,7 +218,7 @@ describe('diagrammes d’une étape', () => {
   })
 
   it('prévient si le PDF ne s’ouvre pas', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     openPdf.mockRejectedValue(new Error('PDF abîmé'))
     renderProject({ ...PROJECT, pdfPath: 'u-lucile/abc.pdf', charts: [] })
     await user.click(await screen.findByRole('button', { name: 'Ajouter un diagramme' }))
@@ -251,13 +251,13 @@ describe('diagrammes d’une étape', () => {
     // Une ligne pour deux rangs : rang 9 sur 12
     expect(line).toHaveTextContent('Jacquard : rang 9 sur 12 · Endroit, de droite à gauche')
 
-    await userEvent.setup().click(screen.getByRole('button', { name: /^Rang \d+ fini$/ }))
+    await setupUser().click(screen.getByRole('button', { name: /^Rang \d+ fini$/ }))
     expect(line).toHaveTextContent('Torsade : rang 4 sur 6 · 2e fois · Envers, de gauche à droite')
     expect(line).toHaveTextContent('Jacquard : rang 10 sur 12 · Envers, non dessiné')
   })
 
   it('mode tricoter : suit le diagramme en plein écran, avec le compteur et le zoom', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     const api = fakeApi()
     renderMode(PROJECT, api)
     await user.click(await screen.findByRole('button', { name: 'Voir Torsade en grand' }))
@@ -285,7 +285,7 @@ describe('diagrammes d’une étape', () => {
   })
 
   it('règle le tricot à plat et les rangs endroit seuls', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     const api = fakeApi()
     renderProject(PROJECT, api)
     await user.click(await screen.findByRole('button', { name: 'Modifier Torsade' }))
@@ -300,7 +300,7 @@ describe('diagrammes d’une étape', () => {
   })
 
   it('signale les pages repérées à la lecture et pré-remplit le calage', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     const api = fakeApi()
     const hint = { page: 2, title: 'Jacquard', rows: 12, step: 1, flat: true, oddOnly: true }
     renderProject({ ...PROJECT, pdfPath: 'u-lucile/abc.pdf', charts: [], chartHints: [hint] }, api)

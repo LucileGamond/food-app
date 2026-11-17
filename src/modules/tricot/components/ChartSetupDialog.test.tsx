@@ -1,5 +1,5 @@
 import { render, screen, waitFor } from '@testing-library/react'
-import userEvent from '@testing-library/user-event'
+import { setupUser } from '@/test/user'
 import { newChartForm, type ChartSetup } from '../lib/chart'
 import { rows } from '@/test/knitFactories'
 import { ChartSetupDialog } from './ChartSetupDialog'
@@ -7,7 +7,7 @@ import { ChartSetupDialog } from './ChartSetupDialog'
 
 describe('calage d’un diagramme : sa sous-étape', () => {
   it('choisir la sous-étape remplit le premier et le dernier rang ; l’enregistrement les garde', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     const onSave = vi.fn(async (_setup: ChartSetup) => true)
     const steps = [{ id: 's1', title: 'Dos', totalRows: 30, sections: [rows(4, 'côtes'), rows(26, 'torsades')] }]
     render(<ChartSetupDialog open imageUrl="https://cdn.test/c1.png" initial={{ ...newChartForm('s1'), rows: '4' }} steps={steps} onCancel={() => undefined} onSave={onSave} />)
@@ -21,7 +21,7 @@ describe('calage d’un diagramme : sa sous-étape', () => {
   })
 
   it('sous-étape identifiée : suivie par son identifiant ; des rangs tapés à la main la détachent', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     const onSave = vi.fn(async (_setup: ChartSetup) => true)
     const steps = [{ id: 's1', title: 'Dos', totalRows: 30, sections: [rows(4, 'côtes'), { ...rows(26, 'torsades'), id: 'tors' }] }]
     const { unmount } = render(<ChartSetupDialog open imageUrl="https://cdn.test/c1.png" initial={{ ...newChartForm('s1'), rows: '4' }} steps={steps} onCancel={() => undefined} onSave={onSave} />)
@@ -50,7 +50,7 @@ describe('calage d’un diagramme : sa sous-étape', () => {
 
 describe('calage d’un diagramme : les deux traits', () => {
   it('se règlent au doigt sur l’image, ou au bouton (et au clavier) rang par rang', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     const onSave = vi.fn(async (_setup: ChartSetup) => true)
     const steps = [{ id: 's1', title: 'Dos', totalRows: 30, sections: [rows(30, 'torsades')] }]
     render(<ChartSetupDialog open imageUrl="https://cdn.test/c1.png" initial={{ ...newChartForm('s1'), rows: '4' }} steps={steps} onCancel={() => undefined} onSave={onSave} />)
@@ -61,7 +61,7 @@ describe('calage d’un diagramme : les deux traits', () => {
   })
 
   it('dit où est le problème : le nombre de lignes ramène à la grille', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     const onSave = vi.fn(async (_setup: ChartSetup) => true)
     const steps = [{ id: 's1', title: 'Dos', totalRows: 30, sections: [rows(30, 'torsades')] }]
     render(<ChartSetupDialog open imageUrl="https://cdn.test/c1.png" initial={newChartForm('s1')} steps={steps} onCancel={() => undefined} onSave={onSave} />)

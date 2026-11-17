@@ -1,5 +1,6 @@
 import { act, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
+import { setupUser } from '@/test/user'
 import { fakeApi, renderWithApp } from '@/test/fakes'
 import { knitProject, knitStep } from '@/test/knitFactories'
 import { EMPTY_YARN } from '../lib/yarn'
@@ -41,7 +42,7 @@ beforeEach(() => localStorage.clear())
 
 describe('abréviations expliquées', () => {
   it('explique les abréviations du texte, celles du patron d’abord', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     renderProject()
     await user.click(await screen.findByRole('button', { name: 'jeté : explication' }))
     expect(await screen.findByRole('dialog')).toHaveTextContent(/Passer le fil sur l’aiguille droite/)
@@ -56,7 +57,7 @@ describe('patron en anglais', () => {
   const ENGLISH = { ...PROJECT, steps: [step({ id: 's1', instructions: 'Row 1 (RS): knit 60 (64-68) sts. Row 2: purl to end. Repeat rows 1-2.' })] }
 
   it('traduit l’étape en français et garde le texte d’origine à côté', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     const { api } = renderProject(ENGLISH)
     api.knitting.translateText.mockResolvedValue({ text: 'Rang 1 (end.) : tricoter 60 (64-68) m. Rang 2 : envers. Répéter les rangs 1-2.', numbersKept: true })
     await user.click(await screen.findByRole('button', { name: 'Traduire en français' }))
@@ -70,7 +71,7 @@ describe('patron en anglais', () => {
   })
 
   it('prévient si la traduction a changé des nombres', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     const { api } = renderProject(ENGLISH)
     api.knitting.translateText.mockResolvedValue({ text: 'Rang 1 : tricoter 64 m.', numbersKept: false })
     await user.click(await screen.findByRole('button', { name: 'Traduire en français' }))
@@ -86,7 +87,7 @@ describe('patron en anglais', () => {
 
 describe('question sur le rang', () => {
   it('pose une question avec l’étape, le rang et la taille en contexte', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     const { api } = renderMode()
     api.knitting.askAboutStep.mockResolvedValue('Tricote 2 mailles ensemble, puis fais un jeté.')
     await openPattern(user)
@@ -110,7 +111,7 @@ describe('question sur le rang', () => {
   })
 
   it('question sur le rang suivant : elle porte sur ce rang-là', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     const { api } = renderMode()
     api.knitting.askAboutStep.mockResolvedValue('Oui.')
     await openPattern(user)
@@ -121,7 +122,7 @@ describe('question sur le rang', () => {
   })
 
   it('montre l’erreur de la réponse', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     const { api } = renderMode()
     api.knitting.askAboutStep.mockRejectedValue(new Error('réseau'))
     await openPattern(user)
@@ -138,7 +139,7 @@ describe('assez de laine pour finir ?', () => {
   const WITH_YARN = { ...PROJECT, yarns: [YARN, CONTRAST], steps: [step({ id: 's1', totalRows: 100, rowCount: 100, done: true }), step({ id: 's2', title: 'Devant', totalRows: 100 })] }
 
   it('pèse chaque laine à part et garde les pesées des autres', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     const project = { ...WITH_YARN, yarnChecks: [{ yarn: 0, grams: 220, rowsDone: 100, at: '2026-11-08' }] }
     const { api } = renderProject(project, undefined, OVERVIEW)
     await openFold('Assez de laine pour finir ?')
@@ -189,7 +190,7 @@ describe('assez de laine pour finir ?', () => {
 
 describe('hors ligne', () => {
   it('compte les rangs sans réseau, puis les envoie au retour du réseau', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     const { api } = renderMode()
     await screen.findByRole('heading', { name: 'Dos' })
     const online = vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(false)
@@ -225,7 +226,7 @@ describe('hors ligne', () => {
   })
 
   it('garde l’avancée si l’envoi échoue en perdant le réseau', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     const { api } = renderMode()
     await screen.findByRole('heading', { name: 'Dos' })
     const online = vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(true)

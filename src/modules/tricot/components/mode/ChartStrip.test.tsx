@@ -1,5 +1,5 @@
 import { fireEvent, render, screen } from '@testing-library/react'
-import userEvent from '@testing-library/user-event'
+import { setupUser } from '@/test/user'
 import { chartPosition, type ChartRow, type KnitChart } from '../../lib/chart'
 import { ChartStrip } from './ChartStrip'
 
@@ -77,7 +77,7 @@ describe('bande du diagramme', () => {
     // Image 2:1, bande de 17 % de sa hauteur
     const [width, height] = button.style.aspectRatio.split('/').map(Number)
     expect(width! / height!).toBeCloseTo(2 / 0.17, 3)
-    await userEvent.setup().click(button)
+    await setupUser().click(button)
     expect(onOpen).toHaveBeenCalled()
     expect(screen.getByRole('button', { name: 'Voir Torsade en grand' })).toBe(button)
   })

@@ -1,5 +1,5 @@
 import { screen, within } from '@testing-library/react'
-import userEvent from '@testing-library/user-event'
+import { setupUser } from '@/test/user'
 import { AppError } from '@/api/errors'
 import type { UsageRow } from '@/lib/llmUsage'
 import { ERIC, fakeApi, LUCILE, renderWithApp } from '@/test/fakes'
@@ -60,7 +60,7 @@ describe('LlmUsageSettings', () => {
   })
 
   it('change de période', async () => {
-    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime })
+    const user = setupUser({ advanceTimers: vi.advanceTimersByTime })
     const { api } = renderWithApp(<LlmUsageSettings />)
     await screen.findByText('Aucun appel sur cette période.')
     await user.selectOptions(screen.getByLabelText('Période'), 'Le mois dernier')

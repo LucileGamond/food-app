@@ -1,5 +1,5 @@
 import { screen, within } from '@testing-library/react'
-import userEvent from '@testing-library/user-event'
+import { setupUser } from '@/test/user'
 import { AppError } from '@/api'
 import { fakeApi, listItem, renderWithApp } from '@/test/fakes'
 import { SeasonPage } from './SeasonPage'
@@ -16,7 +16,7 @@ const RECIPES = [
 function renderSeason(api = fakeApi(), route = '/recettes/saison') {
   api.recipes.listSavedRecipes.mockResolvedValue(RECIPES)
   renderWithApp(<SeasonPage today={TODAY} />, { api, route, path: '/recettes/saison' })
-  return { api, user: userEvent.setup() }
+  return { api, user: setupUser() }
 }
 
 const recipeTitles = () =>
@@ -71,7 +71,7 @@ describe('SeasonPage', () => {
     api.recipes.listSavedRecipes.mockRejectedValueOnce(new AppError('Hors ligne')).mockResolvedValueOnce([])
     renderWithApp(<SeasonPage today={TODAY} />, { api, route: '/recettes/saison', path: '/recettes/saison' })
     expect(await screen.findByRole('alert')).toHaveTextContent('Hors ligne')
-    await userEvent.setup().click(screen.getByRole('button', { name: 'Réessayer' }))
+    await setupUser().click(screen.getByRole('button', { name: 'Réessayer' }))
     expect(await screen.findByText('Aucune recette de saison')).toBeInTheDocument()
   })
 })

@@ -1,5 +1,5 @@
 import { screen, waitFor, within } from '@testing-library/react'
-import userEvent from '@testing-library/user-event'
+import { setupUser } from '@/test/user'
 import { AppError } from '@/api'
 import { fakeApi, renderWithApp } from '@/test/fakes'
 import { importSourceText, pdfMissingText, ravelryImportFields, type KnitPattern, type RavelryImported, type RavelryImportItem } from '../lib/library'
@@ -27,7 +27,7 @@ function setup({ linked = true, library = [] as KnitPattern[] | null } = {}) {
   api.knitting.listRavelryImports.mockResolvedValue([LOULOU, FERN, CINDER])
   const onDone = vi.fn()
   renderWithApp(<RavelryImport library={library} onDone={onDone} />, { api })
-  return { api, onDone, user: userEvent.setup() }
+  return { api, onDone, user: setupUser() }
 }
 
 describe('import depuis Ravelry : fiche du patron', () => {

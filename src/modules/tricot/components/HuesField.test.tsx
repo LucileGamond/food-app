@@ -1,5 +1,5 @@
 import { fireEvent, render, screen } from '@testing-library/react'
-import userEvent from '@testing-library/user-event'
+import { setupUser } from '@/test/user'
 import { useState } from 'react'
 import { HuesField } from './HuesField'
 
@@ -18,7 +18,7 @@ function Harness({ initial = [] as string[], onChange = (_: string[]) => {} }) {
 
 describe('HuesField', () => {
   it('ajoute des couleurs depuis le nuancier, 3 au plus', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     render(<Harness />)
     expect(screen.queryByRole('list', { name: 'Couleurs choisies' })).not.toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: 'Ajouter Indigo' }))
@@ -33,7 +33,7 @@ describe('HuesField', () => {
   })
 
   it('change une pastille au sélecteur (en minuscules) et en retire une', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     const onChange = vi.fn()
     render(<Harness initial={['#3f4fa0', '#b4472f']} onChange={onChange} />)
     fireEvent.change(screen.getByLabelText('Couleur 2'), { target: { value: '#D0563A' } })

@@ -1,5 +1,5 @@
 import { act, screen, waitFor, within } from '@testing-library/react'
-import userEvent from '@testing-library/user-event'
+import { setupUser } from '@/test/user'
 import { Route, useLocation } from 'react-router-dom'
 import { AppError } from '@/api'
 import type { InboxItem } from '@/lib/inbox'
@@ -44,7 +44,7 @@ describe('PlanningPage — liste « À planifier »', () => {
   })
 
   it('se replie et se déplie (téléphone)', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     renderPlanning()
     const toggle = await screen.findByRole('button', { name: /À planifier/ })
     expect(toggle).toHaveAttribute('aria-expanded', 'false')
@@ -53,7 +53,7 @@ describe('PlanningPage — liste « À planifier »', () => {
   })
 
   it('ajoute un lien puis récupère le titre de la page', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     const api = fakeApi()
     api.inbox.fetchTitle.mockResolvedValue('Tarte tatin facile')
     renderPlanning([], api)
@@ -70,7 +70,7 @@ describe('PlanningPage — liste « À planifier »', () => {
   })
 
   it('ajoute une idée sans chercher de titre ; signale un doublon', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     const api = fakeApi()
     renderPlanning([], api)
     await within(panel()).findByText(/Rien en attente/)
@@ -87,7 +87,7 @@ describe('PlanningPage — liste « À planifier »', () => {
   })
 
   it('planifie un élément : jour, créneau et personnes', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     const api = fakeApi()
     renderPlanning(undefined, api)
     await user.click(await screen.findByRole('button', { name: 'Planifier « Pâte à crêpes »' }))
@@ -112,7 +112,7 @@ describe('PlanningPage — liste « À planifier »', () => {
   })
 
   it('exige au moins une personne pour planifier', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     renderPlanning()
     await user.click(await screen.findByRole('button', { name: 'Planifier « Raclette »' }))
     const dialog = await screen.findByRole('dialog')
@@ -122,7 +122,7 @@ describe('PlanningPage — liste « À planifier »', () => {
   })
 
   it('remet l’élément dans la liste si la planification échoue', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     const api = fakeApi()
     api.inbox.planItem.mockRejectedValueOnce(new AppError('Impossible de planifier ce repas.'))
     renderPlanning(undefined, api)
@@ -134,7 +134,7 @@ describe('PlanningPage — liste « À planifier »', () => {
   })
 
   it('renomme une idée et retire un élément', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     const api = fakeApi()
     renderPlanning(undefined, api)
     await user.click(await screen.findByRole('button', { name: 'Actions pour « Raclette »' }))
@@ -161,7 +161,7 @@ describe('PlanningPage — liste « À planifier »', () => {
   })
 
   it('règle les portions d’un plat (affichées sous son titre), ou les efface', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     const api = fakeApi()
     renderPlanning([CURRY, item('i2', 'Raclette', { portions: 4 })], api)
     expect(await within(panel()).findByText('Idée · 4 portions')).toBeInTheDocument()
@@ -188,7 +188,7 @@ describe('PlanningPage — liste « À planifier »', () => {
   })
 
   it('signale un échec du réglage des portions', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     const api = fakeApi()
     api.inbox.setPortions.mockRejectedValueOnce(new AppError('Impossible de régler les portions.'))
     renderPlanning(undefined, api)
@@ -202,14 +202,14 @@ describe('PlanningPage — liste « À planifier »', () => {
   })
 
   it('propose d’ouvrir le lien d’un élément', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     renderPlanning()
     await user.click(await screen.findByRole('button', { name: 'Actions pour « Pâte à crêpes »' }))
     expect(await screen.findByRole('menuitem', { name: 'Ouvrir le lien' })).toHaveAttribute('href', CREPES.url)
   })
 
   it('affiche une erreur de chargement de la liste et permet de réessayer', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     const api = fakeApi()
     api.inbox.listItems.mockRejectedValueOnce(new AppError('Impossible de charger la liste à planifier.'))
     renderWithApp(<PlanningPage today={TODAY} />, { api, route: '/planning', path: '/planning' })
@@ -244,7 +244,7 @@ describe('PlanningPage — liste « À planifier »', () => {
 
 describe('PlanningPage — préremplir et mettre de côté', () => {
   it('un lien ou des photos : « Préremplir et enregistrer » ouvre le formulaire avec l’élément', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     const PHOTOS = item('i4', 'Photos du 1 nov.', { photos: ['pending/a.jpg', 'pending/b.jpg'] })
     const api = fakeApi()
     api.inbox.listItems.mockResolvedValue([CREPES, RACLETTE, PHOTOS])
@@ -268,7 +268,7 @@ describe('PlanningPage — préremplir et mettre de côté', () => {
   })
 
   it('« Mettre de côté » passe l’élément dans « De côté »', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     const { api } = renderPlanning()
     await user.click(await screen.findByRole('button', { name: 'Actions pour « Pâte à crêpes »' }))
     await user.click(await screen.findByRole('menuitem', { name: 'Mettre de côté' }))

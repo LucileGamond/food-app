@@ -1,5 +1,5 @@
 import { render, screen } from '@testing-library/react'
-import userEvent from '@testing-library/user-event'
+import { setupUser } from '@/test/user'
 import { MemoryRouter } from 'react-router-dom'
 import { StitchLine } from './StitchLine'
 
@@ -22,14 +22,14 @@ describe('mailles en fin de rang', () => {
 
   it('estimé : le (?) dit pourquoi et mène droit à la sous-étape à corriger', async () => {
     show({ kind: 'estimate', stitches: 82, reasons: ['Effet de « 1 dim. » deviné : -1 mailles.'], section: 1 })
-    await userEvent.setup().click(screen.getByRole('button', { name: 'Pourquoi ce nombre ?' }))
+    await setupUser().click(screen.getByRole('button', { name: 'Pourquoi ce nombre ?' }))
     expect(await screen.findByText('Effet de « 1 dim. » deviné : -1 mailles.')).toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'Corriger la sous-étape' })).toHaveAttribute('href', `${SETUP}&sous-etape=2`)
   })
 
   it('inconnu sans sous-étape désignée : la préparation de l’étape', async () => {
     show({ kind: 'unknown', reason: 'Le nombre de mailles à la fin de l’étape n’est pas indiqué.' })
-    await userEvent.setup().click(screen.getByRole('button', { name: 'Pourquoi ce nombre ?' }))
+    await setupUser().click(screen.getByRole('button', { name: 'Pourquoi ce nombre ?' }))
     expect(await screen.findByRole('link', { name: 'Corriger la sous-étape' })).toHaveAttribute('href', SETUP)
   })
 })

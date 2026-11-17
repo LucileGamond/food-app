@@ -1,12 +1,12 @@
 import { screen, within } from '@testing-library/react'
-import userEvent from '@testing-library/user-event'
+import { setupUser } from '@/test/user'
 import { AppError } from '@/api/errors'
 import { fakeApi, LUCILE, renderWithApp } from '@/test/fakes'
 import { LlmBudgetSettings } from './LlmBudgetSettings'
 
 describe('LlmBudgetSettings : budget du mois', () => {
   it('sans budget : le dit, et permet d’en fixer un', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     const { api } = renderWithApp(<LlmBudgetSettings />)
     const budget = await screen.findByRole('group', { name: 'Budget du mois' })
     expect(await within(budget).findByText(/Pas de budget/)).toBeInTheDocument()
@@ -20,7 +20,7 @@ describe('LlmBudgetSettings : budget du mois', () => {
   })
 
   it('affiche la dépense, le reste et la jauge ; refuse un montant invalide ; retire le budget', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     const api = fakeApi()
     api.llmUsage.budgetStatus.mockResolvedValue({ monthlyEur: 5, spentUsd: 2.5 })
     renderWithApp(<LlmBudgetSettings />, { api })
@@ -57,7 +57,7 @@ describe('LlmBudgetSettings : crédit Anthropic', () => {
   })
 
   it('crédit restant estimé et réel, recharges listées, ajout et suppression', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     const api = fakeApi()
     api.llmUsage.creditStatus.mockResolvedValue({ creditsUsd: 20, since: '2026-11-01', spentUsd: 3.5 })
     api.llmUsage.listCredits.mockResolvedValue([{ id: 'c1', addedOn: '2026-11-01', amountUsd: 20, note: 'Première', createdBy: LUCILE.id }])
@@ -86,7 +86,7 @@ describe('LlmBudgetSettings : crédit Anthropic', () => {
   })
 
   it('montant de recharge invalide refusé ; coût réel en erreur ou sans clé Admin signalé', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     const api = fakeApi()
     api.llmUsage.creditStatus.mockResolvedValue({ creditsUsd: 20, since: '2026-11-01', spentUsd: 0 })
     api.llmUsage.realCost.mockResolvedValue({ available: true, since: '2026-11-01', error: 'La clé Admin Anthropic est refusée.' })

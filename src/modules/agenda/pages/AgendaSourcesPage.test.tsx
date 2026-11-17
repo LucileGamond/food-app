@@ -1,5 +1,5 @@
 import { screen, waitFor, within } from '@testing-library/react'
-import userEvent from '@testing-library/user-event'
+import { setupUser } from '@/test/user'
 import { AppError } from '@/api'
 import { ERIC_SOURCE, sourceFixture } from '@/test/agenda'
 import { fakeApi, renderWithApp } from '@/test/fakes'
@@ -36,7 +36,7 @@ describe('AgendaSourcesPage', () => {
   })
 
   it('ajouter un agenda : vérifie l’adresse, l’ajoute et le synchronise', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     const { api } = setup([])
     expect(await screen.findByText('Aucun agenda suivi pour l’instant.')).toBeInTheDocument()
 
@@ -60,7 +60,7 @@ describe('AgendaSourcesPage', () => {
   })
 
   it('ajout refusé : le message, l’adresse reste saisie', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     const { api } = setup([])
     api.agenda.addIcalSource.mockRejectedValueOnce(new AppError('Adresse ou nom refusé.'))
     await user.type(await screen.findByLabelText('Adresse secrète au format iCal'), SECRET_URL)
@@ -70,7 +70,7 @@ describe('AgendaSourcesPage', () => {
   })
 
   it('ne plus suivre un agenda, après confirmation', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     const { api } = setup()
     await user.click(await screen.findByRole('button', { name: 'Ne plus suivre Perso' }))
     await user.click(screen.getByRole('button', { name: 'Ne plus suivre' }))
@@ -79,7 +79,7 @@ describe('AgendaSourcesPage', () => {
   })
 
   it('synchroniser tout de suite', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     const { api } = setup()
     await user.click(await screen.findByRole('button', { name: 'Synchroniser' }))
     await waitFor(() => expect(api.agenda.syncNow).toHaveBeenCalled())
@@ -89,7 +89,7 @@ describe('AgendaSourcesPage', () => {
   })
 
   it('erreur de chargement : réessayer', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     const api = fakeApi()
     api.agenda.listSources.mockRejectedValueOnce(new AppError('Impossible de charger les agendas.'))
     renderWithApp(<AgendaSourcesPage today={TODAY} />, { api, route: '/agenda/sources', path: '/agenda/sources' })

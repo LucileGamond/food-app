@@ -1,5 +1,5 @@
 import { screen, waitFor, within } from '@testing-library/react'
-import userEvent from '@testing-library/user-event'
+import { setupUser } from '@/test/user'
 import { Route } from 'react-router-dom'
 import { AppError, RecipeInUseError } from '@/api'
 import type { Recipe } from '@/lib/recipes'
@@ -43,7 +43,7 @@ describe('RecipeDetailPage', () => {
   })
 
   it('ouvre le mode cuisine avec le nombre de personnes choisi', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     const api = fakeApi()
     api.recipes.getRecipe.mockResolvedValue(CURRY)
     renderDetail(api)
@@ -54,7 +54,7 @@ describe('RecipeDetailPage', () => {
   })
 
   it('ouvre la fiche à imprimer avec le nombre de personnes choisi', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     const api = fakeApi()
     api.recipes.getRecipe.mockResolvedValue(CURRY)
     renderDetail(api)
@@ -89,7 +89,7 @@ describe('RecipeDetailPage', () => {
   })
 
   it('calcule les calories d’une recette qui n’en a pas, et les enregistre si on valide', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     const api = fakeApi()
     api.recipes.getRecipe.mockResolvedValue(CURRY)
     api.recipes.estimateNutrition.mockResolvedValue({
@@ -122,7 +122,7 @@ describe('RecipeDetailPage', () => {
   })
 
   it('calcul des calories : erreur et réessai, annulation sans rien enregistrer, pas de bouton si déjà rempli', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     const api = fakeApi()
     api.recipes.getRecipe.mockResolvedValue(CURRY)
     api.recipes.estimateNutrition
@@ -167,7 +167,7 @@ describe('RecipeDetailPage', () => {
   })
 
   it('ajoute les ingrédients aux courses pour le nombre de personnes choisi', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     const api = fakeApi()
     api.recipes.getRecipe.mockResolvedValue(CURRY)
     api.shopping.tidy.mockRejectedValue(new AppError('indisponible'))
@@ -193,7 +193,7 @@ describe('RecipeDetailPage', () => {
   })
 
   it('complète une liste existante', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     const api = fakeApi()
     api.recipes.getRecipe.mockResolvedValue(CURRY)
     api.shopping.listLists.mockResolvedValue([{ id: 'l1', name: 'Semaine', updated_at: '2026-10-30T10:00:00Z', total: 0, checked: 0 }])
@@ -231,7 +231,7 @@ describe('RecipeDetailPage', () => {
   })
 
   it('montre l’avis des autres et enregistre le sien', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     const api = fakeApi()
     api.recipes.getRecipe.mockResolvedValue({
       ...CURRY,
@@ -267,7 +267,7 @@ describe('RecipeDetailPage', () => {
   })
 
   it('signale un avis qui n’a pas pu être enregistré', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     const api = fakeApi()
     api.recipes.getRecipe.mockResolvedValue(CURRY)
     api.recipes.saveReview.mockRejectedValue(new AppError('Impossible d’enregistrer l’avis.'))
@@ -280,7 +280,7 @@ describe('RecipeDetailPage', () => {
   })
 
   it('affiche la recette complète', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     const api = fakeApi()
     api.recipes.getRecipe.mockResolvedValue(CURRY)
     renderDetail(api)
@@ -317,7 +317,7 @@ describe('RecipeDetailPage', () => {
   })
 
   it('bloque la suppression d’une recette utilisée et liste les dates', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     const api = fakeApi()
     api.recipes.getRecipe.mockResolvedValue(CURRY)
     api.recipes.listUsages.mockResolvedValue({
@@ -342,7 +342,7 @@ describe('RecipeDetailPage', () => {
   })
 
   it('bloque la suppression d’une recette utilisée dans une autre recette', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     const api = fakeApi()
     api.recipes.getRecipe.mockResolvedValue(CURRY)
     api.recipes.listUsages.mockResolvedValue({ meals: [{ meal_date: '2026-10-23', slot: 'DINNER' }], recipes: [{ id: 'r9', title: 'Tarte à la banane' }] })
@@ -364,7 +364,7 @@ describe('RecipeDetailPage', () => {
   })
 
   it('supprime une recette inutilisée et revient à la liste', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     const api = fakeApi()
     api.recipes.getRecipe.mockResolvedValue(CURRY)
     renderDetail(api)
@@ -377,7 +377,7 @@ describe('RecipeDetailPage', () => {
   })
 
   it('affiche l’erreur si la suppression est refusée entre-temps', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     const api = fakeApi()
     api.recipes.getRecipe.mockResolvedValue(CURRY)
     api.recipes.deleteRecipe.mockRejectedValue(new RecipeInUseError())
@@ -390,7 +390,7 @@ describe('RecipeDetailPage', () => {
   })
 
   it('signale une erreur de vérification du planning', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     const api = fakeApi()
     api.recipes.getRecipe.mockResolvedValue(CURRY)
     api.recipes.listUsages.mockRejectedValue(new AppError('Vérification impossible'))
@@ -401,7 +401,7 @@ describe('RecipeDetailPage', () => {
   })
 
   it('affiche une erreur de chargement et permet de réessayer', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     const api = fakeApi()
     api.recipes.getRecipe.mockRejectedValueOnce(new AppError('Hors ligne')).mockResolvedValueOnce(CURRY)
     renderDetail(api)
@@ -411,7 +411,7 @@ describe('RecipeDetailPage', () => {
   })
 
   it('adapte les quantités au nombre de personnes choisi', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     const api = fakeApi()
     api.recipes.getRecipe.mockResolvedValue({
       ...CURRY,
@@ -457,7 +457,7 @@ describe('RecipeDetailPage', () => {
   })
 
   it('ajoute la recette à la liste « À planifier »', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     const api = fakeApi()
     api.recipes.getRecipe.mockResolvedValue(CURRY)
     renderDetail(api)

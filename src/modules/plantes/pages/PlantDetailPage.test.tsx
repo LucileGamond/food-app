@@ -1,5 +1,5 @@
 import { screen, waitFor, within } from '@testing-library/react'
-import userEvent from '@testing-library/user-event'
+import { setupUser } from '@/test/user'
 import { Route } from 'react-router-dom'
 import { AppError } from '@/api'
 import { fakeApi, renderWithApp } from '@/test/fakes'
@@ -62,7 +62,7 @@ describe('PlantDetailPage', () => {
 
     // Photo principale = position 0, vignettes pour changer
     expect(await screen.findByRole('img', { name: 'Cactus' })).toHaveAttribute('src', 'https://cdn.test/cactus/1.jpg')
-    await userEvent.setup().click(screen.getByRole('button', { name: 'Voir la photo 2' }))
+    await setupUser().click(screen.getByRole('button', { name: 'Voir la photo 2' }))
     expect(screen.getByRole('img', { name: 'Cactus' })).toHaveAttribute('src', 'https://cdn.test/cactus/2.jpg')
   })
 
@@ -87,7 +87,7 @@ describe('PlantDetailPage', () => {
   })
 
   it('supprimer un arrosage de l’historique, après confirmation', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     const { api } = setup(cactus, [eventFixture({ id: 'e1', plant_id: 'cactus', watered_at: '2026-10-20T17:30:00Z' })])
     await user.click(await screen.findByRole('button', { name: 'Supprimer l’arrosage du mardi 20 octobre' }))
     await user.click(within(await screen.findByRole('alertdialog')).getByRole('button', { name: 'Supprimer' }))
@@ -95,7 +95,7 @@ describe('PlantDetailPage', () => {
   })
 
   it('échéance en attente : « Marquer comme arrosée » la couvre', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     const plant = plantFixture({ id: 'cactus', name: 'Cactus' })
     const { api } = setup(plant)
     expect(await screen.findByText(/En retard de 2 jours/)).toBeInTheDocument()
@@ -106,7 +106,7 @@ describe('PlantDetailPage', () => {
   })
 
   it('rien en attente : « Arroser maintenant » note un arrosage hors planning', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     const { api } = setup()
     await user.click(await screen.findByRole('button', { name: /Arroser maintenant/ }))
     await waitFor(() => expect(api.plants.water).toHaveBeenCalledWith({ plantId: 'cactus', scheduledOn: null, ruleId: null, amountMl: 200 }))
@@ -119,7 +119,7 @@ describe('PlantDetailPage', () => {
   })
 
   it('archiver puis réactiver', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     const { api } = setup()
     await user.click(await screen.findByRole('button', { name: 'Plus d’actions' }))
     await user.click(await screen.findByRole('menuitem', { name: 'Archiver' }))
@@ -128,7 +128,7 @@ describe('PlantDetailPage', () => {
   })
 
   it('plante archivée : pas de rappel, réactivation possible', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     const { api } = setup({ ...cactus, archived_at: '2026-10-01T00:00:00Z' })
     expect(await screen.findByText('Archivée')).toBeInTheDocument()
     expect(screen.getByText('Plante archivée : aucun rappel n’est envoyé.')).toBeInTheDocument()
@@ -138,7 +138,7 @@ describe('PlantDetailPage', () => {
   })
 
   it('erreur à l’archivage', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     const { api } = setup()
     api.plants.setArchived.mockRejectedValue(new AppError('Impossible d’archiver la plante.'))
     await user.click(await screen.findByRole('button', { name: 'Plus d’actions' }))
@@ -147,7 +147,7 @@ describe('PlantDetailPage', () => {
   })
 
   it('supprimer la plante après confirmation, retour à la liste', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     const { api } = setup()
     await user.click(await screen.findByRole('button', { name: 'Plus d’actions' }))
     await user.click(await screen.findByRole('menuitem', { name: 'Supprimer' }))
@@ -158,7 +158,7 @@ describe('PlantDetailPage', () => {
   })
 
   it('erreur à la suppression', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     const { api } = setup()
     api.plants.deletePlant.mockRejectedValue(new AppError('Impossible de supprimer la plante.'))
     await user.click(await screen.findByRole('button', { name: 'Plus d’actions' }))

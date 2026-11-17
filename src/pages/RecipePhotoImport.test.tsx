@@ -1,5 +1,5 @@
 import { render, screen, waitFor, within } from '@testing-library/react'
-import userEvent from '@testing-library/user-event'
+import { setupUser } from '@/test/user'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { Toaster } from 'sonner'
 import { AppError, type Api } from '@/api'
@@ -67,7 +67,7 @@ describe('RecipeFormPage — recette depuis une photo', () => {
   })
 
   it('lit la recette sur deux pages et préremplit le formulaire, sans garder la photo', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     const api = fakeApi()
     api.recipes.listTags.mockResolvedValue(['dessert'])
     api.recipes.importFromPhotos.mockResolvedValue(READ)
@@ -102,7 +102,7 @@ describe('RecipeFormPage — recette depuis une photo', () => {
   })
 
   it('ajoute la photo du plat imprimée sur la page, recadrée dans l’image d’origine', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     const api = fakeApi()
     const area = { image: 1, left: 0.05, top: 0.1, right: 0.95, bottom: 0.6 }
     api.recipes.importFromPhotos.mockResolvedValue({ ...READ, recipe: { ...READ.recipe, photo: area } })
@@ -116,7 +116,7 @@ describe('RecipeFormPage — recette depuis une photo', () => {
   })
 
   it('sans photo du plat sur la page, ou si le recadrage échoue : pas de photo', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     const api = fakeApi()
     vi.mocked(cropImage).mockRejectedValueOnce(new Error('HEIC'))
     api.recipes.importFromPhotos.mockResolvedValue({ ...READ, recipe: { ...READ.recipe, photo: { image: 0, left: 0, top: 0, right: 1, bottom: 0.5 } } })
@@ -129,7 +129,7 @@ describe('RecipeFormPage — recette depuis une photo', () => {
   })
 
   it('demande quelle recette préremplir quand la page en contient plusieurs', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     const api = fakeApi()
     const quiche = { ...READ.recipe, title: 'Quiche lorraine', ingredients: [{ name: 'lardons', quantity: 200, unit: 'g', note: null }] }
     api.recipes.importFromPhotos.mockResolvedValue({ ...READ, recipes: [READ.recipe, quiche] })
@@ -149,7 +149,7 @@ describe('RecipeFormPage — recette depuis une photo', () => {
   })
 
   it('signale ce qui est à vérifier, jusqu’à la correction', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     const api = fakeApi()
     api.recipes.importFromPhotos.mockResolvedValue({
       ...READ,
@@ -192,7 +192,7 @@ describe('RecipeFormPage — recette depuis une photo', () => {
   })
 
   it('garde 4 images au plus, ignore ce qui n’est pas une image, et permet de retirer une page', async () => {
-    const user = userEvent.setup({ applyAccept: false })
+    const user = setupUser({ applyAccept: false })
     const api = fakeApi()
     const { pageInput } = renderForm(api)
     await screen.findByRole('button', { name: "Photo d'un livre ou scan" })
@@ -211,7 +211,7 @@ describe('RecipeFormPage — recette depuis une photo', () => {
   })
 
   it('Instagram : lit les captures de la légende et garde le lien du reel', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     const api = fakeApi()
     api.recipes.importFromPhotos.mockResolvedValue({ recipe: { title: 'Barres framboise', servings: 8, ingredients: [], steps: '1. Mélanger.', tags: [] }, source: 'photo', image: null })
     const { pageInput } = renderForm(api)
@@ -230,7 +230,7 @@ describe('RecipeFormPage — recette depuis une photo', () => {
   })
 
   it('Instagram : captures d’un reel déjà enregistré, non lues', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     const api = fakeApi()
     api.recipes.findSavedByUrl.mockResolvedValueOnce({ id: 'r9', title: 'Barres framboise' })
     const { pageInput } = renderForm(api)
@@ -242,7 +242,7 @@ describe('RecipeFormPage — recette depuis une photo', () => {
   })
 
   it('demande avant de remplacer une saisie, et affiche une erreur de lecture', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     const api = fakeApi()
     api.recipes.importFromPhotos.mockRejectedValueOnce(new AppError('Aucune recette lisible sur cette photo. Essaie une photo plus nette, bien droite.'))
     const { pageInput } = renderForm(api)
@@ -257,7 +257,7 @@ describe('RecipeFormPage — recette depuis une photo', () => {
   })
 
   it('explique quand une photo ne peut pas être lue par le navigateur (HEIC, fichier abîmé)', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     const api = fakeApi()
     vi.mocked(compressForReading).mockRejectedValueOnce(new Error('format non pris en charge'))
     const { pageInput } = renderForm(api)

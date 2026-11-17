@@ -1,5 +1,5 @@
 import { screen, within } from '@testing-library/react'
-import userEvent from '@testing-library/user-event'
+import { setupUser } from '@/test/user'
 import { SettingsProvider } from '@/app/SettingsContext'
 import { DEFAULT_SETTINGS } from '@/lib/settings'
 import { fakeApi, renderWithApp } from '@/test/fakes'
@@ -25,7 +25,7 @@ function renderPage(api = setup(), route = '/') {
 
 describe('HydrationPage', () => {
   it('propose les contenants réglés par la personne', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     const api = setup()
     api.settings.getSettings.mockResolvedValue({
       ...DEFAULT_SETTINGS,
@@ -46,7 +46,7 @@ describe('HydrationPage', () => {
   })
 
   it('ajoute un petit et un grand verre au total du jour', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     const { api } = renderPage()
     expect(await screen.findByText('Rien bu aujourd’hui pour l’instant.')).toBeInTheDocument()
     // Minuit à Paris (UTC+1 en novembre)
@@ -65,7 +65,7 @@ describe('HydrationPage', () => {
   })
 
   it('affiche le dernier verre, et supprime un verre noté par erreur', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     const api = setup()
     api.hydration.listIntakes.mockResolvedValue([
       { id: 'w1', volume_ml: 330, drunk_at: local('09:30') },
@@ -102,7 +102,7 @@ describe('HydrationPage', () => {
   })
 
   it('propose de réessayer si le chargement échoue', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     const api = setup()
     api.hydration.listIntakes.mockRejectedValueOnce(new Error('réseau'))
     renderPage(api)
@@ -112,7 +112,7 @@ describe('HydrationPage', () => {
   })
 
   it('rétablit la liste si la suppression échoue', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     const api = setup()
     api.hydration.listIntakes.mockResolvedValue([{ id: 'w1', volume_ml: 200, drunk_at: local('10:00') }])
     api.hydration.deleteIntake.mockRejectedValueOnce(new Error('réseau'))
@@ -140,7 +140,7 @@ describe('HydrationPage', () => {
   })
 
   it('raccourci hors ligne : le dit, et le verre est noté en réessayant', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     const api = setup()
     api.hydration.addIntake.mockRejectedValueOnce(new Error('réseau'))
     renderPage(api, '/?boire')
@@ -152,7 +152,7 @@ describe('HydrationPage', () => {
   })
 
   it('raccourci sans réglages chargés : le dit, et note le verre une fois les réglages rechargés', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     const api = setup()
     api.settings.getSettings.mockRejectedValueOnce(new Error('réseau'))
     renderPage(api, '/?boire')
@@ -171,7 +171,7 @@ describe('HydrationPage', () => {
   })
 
   it('signale un verre non enregistré', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     const api = setup()
     api.hydration.addIntake.mockRejectedValueOnce(new Error('réseau'))
     renderPage(api)

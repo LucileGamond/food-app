@@ -1,5 +1,5 @@
 import { screen, waitFor, within } from '@testing-library/react'
-import userEvent from '@testing-library/user-event'
+import { setupUser } from '@/test/user'
 import { AppError } from '@/api'
 import { DEFAULT_SETTINGS } from '@/lib/settings'
 import { ERIC_SOURCE, eventFixture, sourceFixture } from '@/test/agenda'
@@ -43,7 +43,7 @@ describe('AgendaPage — semaine', () => {
   })
 
   it('choisir les agendas affichés : filtre et enregistre le réglage', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     const { api } = setup()
     await day(/Mardi 10 novembre/)
     await waitFor(() => expect(screen.getByRole('radio', { name: 'Eric' })).toBeEnabled())
@@ -58,7 +58,7 @@ describe('AgendaPage — semaine', () => {
   })
 
   it('semaines suivante et précédente, retour à aujourd’hui', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     const { api } = setup()
     await day(/Mardi 10 novembre/)
     expect(screen.getByRole('button', { name: 'Aujourd’hui' })).toBeDisabled()
@@ -96,7 +96,7 @@ describe('AgendaPage — semaine', () => {
 
 describe('AgendaPage — mois', () => {
   it('grille du mois en semaines complètes, puis le jour choisi', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     const { api } = setup()
     await day(/Mardi 10 novembre/)
     await user.click(screen.getByRole('tab', { name: 'Mois' }))
@@ -115,7 +115,7 @@ describe('AgendaPage — mois', () => {
   })
 
   it('mois suivant, gardé dans l’adresse', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     const { api } = setup({ route: '/agenda?vue=mois&jour=2026-11-27' })
     expect(await screen.findByRole('group', { name: 'Novembre 2026' })).toBeInTheDocument()
     expect(within(await day(/Vendredi 27 novembre/)).getByText('Concert')).toBeInTheDocument()
@@ -129,7 +129,7 @@ describe('AgendaPage — mois', () => {
 
 describe('AgendaPage — détail d’un rendez-vous', () => {
   it('un clic ouvre le détail : quand, où, quel agenda, description', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     setup()
     await user.click(await screen.findByRole('button', { name: /Dentiste.*voir le détail/ }))
     const dialog = await screen.findByRole('dialog', { name: 'Dentiste' })
@@ -152,7 +152,7 @@ describe('AgendaPage — détail d’un rendez-vous', () => {
 
 describe('AgendaPage — période', () => {
   it('au changement de semaine, chargement (pas « Aucun rendez-vous ») tant que la nouvelle semaine n’est pas lue', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     const { api } = setup()
     await day(/Mardi 10 novembre/)
     let resolve: (events: never[]) => void = () => undefined
@@ -187,7 +187,7 @@ describe('AgendaPage — états', () => {
   })
 
   it('erreur de chargement : réessayer', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     const api = fakeApi()
     api.agenda.listEvents.mockRejectedValueOnce(new AppError('Impossible de charger l’agenda.'))
     setup({ api })

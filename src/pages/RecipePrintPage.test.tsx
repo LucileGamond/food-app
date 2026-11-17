@@ -1,5 +1,5 @@
 import { screen, within } from '@testing-library/react'
-import userEvent from '@testing-library/user-event'
+import { setupUser } from '@/test/user'
 import { Route } from 'react-router-dom'
 import { AppError } from '@/api'
 import type { Recipe } from '@/lib/recipes'
@@ -31,7 +31,7 @@ function renderPrint(api = fakeApi(), route = '/recettes/r1/imprimer?personnes=6
     path: '/recettes/:id/imprimer',
     extraRoutes: <Route path="/recettes/:id" element={<p>Fiche recette</p>} />,
   })
-  return { user: userEvent.setup(), api }
+  return { user: setupUser(), api }
 }
 
 describe('RecipePrintPage', () => {

@@ -1,5 +1,5 @@
 import { cleanup, screen, within } from '@testing-library/react'
-import userEvent from '@testing-library/user-event'
+import { setupUser } from '@/test/user'
 import { fakeApi, renderWithApp } from '@/test/fakes'
 import { EMPTY_YARN } from '../lib/yarn'
 import { KnittingProjectPage } from './KnittingProjectPage'
@@ -10,7 +10,7 @@ beforeEach(() => localStorage.clear())
 
 describe('KnittingProjectPage : navigation, onglets et en-tête', () => {
   it('retour au-dessus du titre : « Tricot » depuis le projet, le nom du projet depuis une étape (C1)', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     renderProject(fakeApi(), PROJECT, STEP)
     const toProject = await screen.findByRole('link', { name: PROJECT.title })
     expect(toProject).toHaveAttribute('href', '/tricot/p1?onglet=preparer')
@@ -29,7 +29,7 @@ describe('KnittingProjectPage : navigation, onglets et en-tête', () => {
   })
 
   it('projet en trois onglets : Démarrer (matériel), Préparer (étapes), Tricoter (étape en cours)', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     // Projet commencé et étape en cours prête : il s'ouvre sur « Tricoter »
     renderProject(fakeApi(), PROJECT, OVERVIEW)
     expect(await screen.findByRole('tab', { name: /3. Tricoter/, selected: true })).toBeInTheDocument()
@@ -99,7 +99,7 @@ describe('KnittingProjectPage : navigation, onglets et en-tête', () => {
   })
 
   it('blocs repliés : même geste partout, et un résumé de ce qu’ils contiennent', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     const project = {
       ...structuredClone(PROJECT),
       yarns: [{ ...EMPTY_YARN, brand: 'Phildar', name: 'Partner 3.5' }],
@@ -143,7 +143,7 @@ describe('KnittingProjectPage : navigation, onglets et en-tête', () => {
   })
 
   it('ouvre le PDF d’origine et supprime le projet', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     const tab = { location: { href: '' }, close: vi.fn() }
     const open = vi.spyOn(window, 'open').mockReturnValue(tab as unknown as Window)
     const { api } = renderProject(fakeApi(), PROJECT, OVERVIEW)
@@ -163,7 +163,7 @@ describe('KnittingProjectPage : navigation, onglets et en-tête', () => {
   })
 
   it('signale un projet introuvable ou illisible', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     renderProject(fakeApi(), null)
     expect(await screen.findByText('Projet introuvable')).toBeInTheDocument()
     await user.click(screen.getByRole('link', { name: 'Retour aux projets' }))
@@ -171,7 +171,7 @@ describe('KnittingProjectPage : navigation, onglets et en-tête', () => {
   })
 
   it('propose de réessayer le chargement', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     const api = fakeApi()
     api.knitting.getProject.mockRejectedValueOnce(new Error('réseau')).mockResolvedValue(structuredClone(PROJECT))
     renderWithApp(<KnittingProjectPage />, { api, route: STEP, path: '/tricot/:id' })

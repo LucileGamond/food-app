@@ -1,5 +1,5 @@
 import { screen, waitFor, within } from '@testing-library/react'
-import userEvent from '@testing-library/user-event'
+import { setupUser } from '@/test/user'
 import { AppError } from '@/api'
 import { fakeApi, renderWithApp } from '@/test/fakes'
 import { eventFixture, plantFixture, ruleFixture } from '@/test/plants'
@@ -37,7 +37,7 @@ describe('PlantsPage — À arroser', () => {
   })
 
   it('marquer une plante comme arrosée enregistre l’échéance couverte', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     const { api } = setup()
     await user.click(await screen.findByRole('button', { name: 'Marquer Monstera comme arrosée' }))
     await waitFor(() =>
@@ -49,7 +49,7 @@ describe('PlantsPage — À arroser', () => {
   })
 
   it('le message de confirmation permet d’annuler', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     const { api } = setup()
     api.plants.water.mockResolvedValue(eventFixture({ id: 'event-new', plant_id: 'basilic' }))
     await user.click(await screen.findByRole('button', { name: 'Marquer Basilic comme arrosée' }))
@@ -60,7 +60,7 @@ describe('PlantsPage — À arroser', () => {
   })
 
   it('erreur à l’enregistrement', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     const { api } = setup()
     api.plants.water.mockRejectedValue(new AppError('Cet arrosage a déjà été noté.'))
     await user.click(await screen.findByRole('button', { name: 'Marquer Basilic comme arrosée' }))
@@ -68,7 +68,7 @@ describe('PlantsPage — À arroser', () => {
   })
 
   it('montre qui a déjà arrosé aujourd’hui, et permet d’annuler', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     const { api } = setup({
       events: [eventFixture({ id: 'e-today', plant_id: 'monstera', scheduled_on: '2026-10-22', watered_at: '2026-10-24T07:12:00Z', done_by: 'u-eric' })],
     })
@@ -95,7 +95,7 @@ describe('PlantsPage — À arroser', () => {
   })
 
   it('erreur de chargement, puis nouvel essai', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     const api = fakeApi()
     api.plants.listPlants.mockRejectedValueOnce(new AppError('Impossible de charger les plantes.')).mockResolvedValue([])
     renderWithApp(<PlantsPage today="2026-10-24" />, { api, route: '/plantes', path: '/plantes' })
@@ -129,7 +129,7 @@ describe('PlantsPage — Toutes', () => {
   })
 
   it('recherche sans tenir compte des accents ni des majuscules', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     setup({ route: '/plantes?vue=toutes' })
     await user.type(await screen.findByRole('searchbox', { name: 'Rechercher une plante' }), 'ELASTICA')
     expect(screen.getAllByRole('heading', { level: 3 }).map((h) => h.textContent)).toEqual(['Ficus'])
@@ -139,7 +139,7 @@ describe('PlantsPage — Toutes', () => {
   })
 
   it('filtre par emplacement', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     setup({ route: '/plantes?vue=toutes' })
     const filters = await screen.findByRole('group', { name: 'Filtrer par emplacement' })
     await user.click(within(filters).getByRole('button', { name: 'Cuisine' }))
@@ -149,14 +149,14 @@ describe('PlantsPage — Toutes', () => {
   })
 
   it('affiche les plantes archivées à la demande', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     setup({ route: '/plantes?vue=toutes' })
     await user.click(await screen.findByRole('button', { name: 'Archivées (1)' }))
     expect(screen.getAllByRole('heading', { level: 3 }).map((h) => h.textContent)).toEqual(['Ancien cactus'])
   })
 
   it('changer d’onglet met à jour l’adresse', async () => {
-    const user = userEvent.setup()
+    const user = setupUser()
     setup()
     await user.click(await screen.findByRole('tab', { name: /Toutes/ }))
     expect(await screen.findByRole('searchbox')).toBeInTheDocument()
