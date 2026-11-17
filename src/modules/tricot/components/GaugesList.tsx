@@ -7,13 +7,11 @@ import { ItemAction } from './ItemAction'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { NativeSelect } from '@/components/ui/native-select'
-import { gaugeOf, withGauge, withoutGauge, MAX_GAUGES, type ProjectGauge } from '../lib/gauges'
+import { gaugeOf, withGauge, withoutGauge, MAX_GAUGES, parseGauge, formatGauge, type ProjectGauge } from '../lib/gauges'
 import { formatNeedle, parseNeedle } from '../lib/needles'
-import { parseGauge } from '../lib/yarn'
 import { HelpTip } from './HelpTip'
 import { Note } from './Note'
 import { decimal } from '@/lib/text'
-import { formatGauge } from '../lib/yarn'
 
 interface Props {
   /** Les échantillons du projet : la seule source pour tous les calculs. */

@@ -1,7 +1,7 @@
 import { useId, type ReactNode, type SVGProps } from 'react'
 import { cn } from '@/lib/utils'
-import { arc, cubic, join, line, MINUS_RED, PALETTES, plyAlong, PLUS_GREEN, toPoints, WOOD, type Palette, type Point } from '../lib/knitIcons'
-import { ballWraps } from '../lib/yarnGauge'
+import { arc, cubic, join, line, MINUS_RED, PALETTES, plyAlong, PLUS_GREEN, toPoints, WOOD, type Palette, type Point } from '../lib/knitIconGeometry'
+import { ballWraps } from '../lib/yarnDrawing'
 
 // Icônes illustrées du module Tricot : de petits objets du métier (pelotes, fil retors, aiguilles en bois), en
 // couleurs et en matière. Chaque action garde son sens habituel. Les étoiles de l'IA (AiIcon) ne changent pas.

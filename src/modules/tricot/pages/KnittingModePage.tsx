@@ -38,7 +38,7 @@ import { Fold } from '../components/Fold'
 import { StepNotes } from '../components/StepNotes'
 import { StepQuestion } from '../components/StepQuestion'
 import { projectHues } from '../lib/yarn'
-import { seedOf } from '../lib/yarnGauge'
+import { seedOf } from '../lib/random'
 import { useYarnHue } from '../components/TricotTheme'
 
 /**

@@ -1,6 +1,6 @@
 // Surlignage de la taille : invariants sur des textes de patron fabriqués au hasard (nombres, listes de tailles,
 // abréviations collées comme « k2tog » ou « C4F », décimales, parenthèses).
-import { highlightParts, sizedParts, toggleHighlight } from './sizes'
+import { highlightParts, sizedParts, toggleHighlight } from './sizedText'
 
 function rng(seed: number) {
   let x = seed

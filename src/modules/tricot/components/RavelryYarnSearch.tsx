@@ -9,7 +9,8 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { useAsync } from '@/hooks/useAsync'
-import { ravelryYarnDetails, type RavelryYarnHit, type Yarn } from '../lib/yarn'
+import { ravelryYarnDetails, type RavelryYarnHit } from '../lib/ravelry'
+import { type Yarn } from '../lib/yarn'
 import { SearchIcon } from './KnitIcons'
 
 export function RavelryYarnSearch({ onPick, disabled = false }: { onPick: (yarn: Yarn) => void; disabled?: boolean }) {

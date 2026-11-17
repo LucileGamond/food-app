@@ -3,10 +3,9 @@
 
 import { stepsToFollow, type ShownStep } from './adapt'
 import { placeCharts } from './chartPlace'
-import { countsFor, type ProjectGauge } from './gauges'
+import { countsFor, type ProjectGauge, type Gauge } from './gauges'
 import { effectiveNeedles, sanitizeNeedles } from './needles'
 import { currentStepIndex, type KnitProject } from './pattern'
-import type { Gauge } from './yarn'
 
 export interface ProjectView {
   /** Taille suivie (celle mise en valeur, sinon celle du projet). */

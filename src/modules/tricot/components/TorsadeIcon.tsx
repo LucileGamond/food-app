@@ -1,5 +1,5 @@
 import type { SVGProps } from "react";
-import { plyAlong, toPoints, type Palette, type Point } from "../lib/knitIcons";
+import { plyAlong, toPoints, type Palette, type Point } from "../lib/knitIconGeometry";
 
 // Icône du module Tricot, « T de Torsade » : une aiguille pour la barre du T, une torsade de deux brins bleus pour le
 // jambage, sur fond blanc, cadrée serré pour rester lisible en petit.

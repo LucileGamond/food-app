@@ -2,7 +2,7 @@
 
 import { rpcError, toAppError } from '@/api/errors'
 import type { Json } from '@/lib/database.types'
-import { sanitizeHighlights } from '../lib/sizes'
+import { sanitizeHighlights } from '../lib/sizedText'
 import type { SectionsChange, Split } from '../lib/organize'
 import { sanitizeSections, type KnitStep, type StepProgress, type StepSection } from '../lib/pattern'
 import type { KnitContext } from './shared'

@@ -1,8 +1,8 @@
 // Ravelry : compte relié, recherche de laines, import de patrons (gratuit, par la fonction knit-pattern).
 
 import { toAppError } from '@/api/errors'
-import { yarnFromJson, type RavelryYarnHit, type Yarn } from '../lib/yarn'
-import { hasList, hasObject, hasText, isRavelryImport } from '../lib/ravelry'
+import { yarnFromJson, type Yarn } from '../lib/yarn'
+import { hasList, hasObject, hasText, isRavelryImport, type RavelryYarnHit } from '../lib/ravelry'
 import { patternLinkFromResponse, type PatternInfo, type PatternLinkResponse, type RavelryImported, type RavelryImportItem } from '../lib/library'
 import { READ_TIMEOUT_MS, type KnitContext } from './shared'
 

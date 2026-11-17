@@ -4,7 +4,7 @@ import { Route } from 'react-router-dom'
 import { fakeApi, renderWithApp } from '@/test/fakes'
 import { knitProject, knitStep, repeat, rows } from '@/test/knitFactories'
 import type { KnitProject, KnitStep } from '../lib/pattern'
-import { highlightKey } from '../lib/sizes'
+import { highlightKey } from '../lib/sizedText'
 import { KnittingModePage } from './KnittingModePage'
 
 const step = (overrides: Partial<KnitStep>): KnitStep => knitStep({ totalRows: 18, ...overrides })

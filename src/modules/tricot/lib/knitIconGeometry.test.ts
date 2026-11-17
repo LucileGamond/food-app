@@ -1,4 +1,4 @@
-import { arc, cubic, join, line, plyAlong, toPoints } from './knitIcons'
+import { arc, cubic, join, line, plyAlong, toPoints } from './knitIconGeometry'
 
 describe('géométrie des icônes illustrées', () => {
   it('trace courbes, segments et arcs de bout en bout', () => {

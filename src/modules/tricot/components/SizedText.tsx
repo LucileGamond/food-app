@@ -8,7 +8,7 @@ import { cn } from '@/lib/utils'
 import { looksEnglish, mergeGlossary, type Abbreviation } from '../lib/glossary'
 import { Glossed } from './Glossed'
 import { useBaseGlossary } from '../hooks/useBaseGlossary'
-import { highlightKey, highlightParts, toggleHighlight, type HighlightPart, type Highlights } from '../lib/sizes'
+import { highlightKey, highlightParts, toggleHighlight, type HighlightPart, type Highlights } from '../lib/sizedText'
 
 interface Props {
   text: string

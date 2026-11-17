@@ -1,27 +1,4 @@
-import {
-  adjustCount,
-  describeYarn,
-  parseMeters,
-  patternSearchUrl,
-  siteOf,
-  yarnMeters,
-  EMPTY_YARN,
-  formatGauge,
-  gaugeDiffers,
-  MAX_HUES,
-  normalizeHues,
-  projectHues,
-  parseGauge,
-  parseYarn,
-  toYarnDraft,
-  totalLength,
-  yarnDetails,
-  yarnFacts,
-  dyeLotWarnings,
-  yarnsFromJson,
-  yarnTitle,
-  type Yarn,
-} from './yarn'
+import { describeYarn, parseMeters, siteOf, yarnMeters, EMPTY_YARN, MAX_HUES, normalizeHues, projectHues, parseYarn, toYarnDraft, totalLength, yarnDetails, yarnFacts, dyeLotWarnings, yarnsFromJson, yarnTitle, type Yarn } from './yarn'
 
 const PARTNER: Yarn = { brand: 'Phildar', name: 'Partner 3.5', color: '0012 Ciel', dye_lot: '4471', composition: '50 % laine', weight_g: 50, length_m: 125, skeins: 6, needle_mm: 3.5, hues: [] }
 
@@ -91,32 +68,8 @@ describe('couleurs de la laine', () => {
   })
 })
 
-describe('échantillon', () => {
-  it('lit un échantillon pour 10 cm', () => {
-    expect(parseGauge('22')).toBe(22)
-    expect(parseGauge('22,45')).toBe(22.5)
-    expect(parseGauge('')).toBeNull()
-    expect(parseGauge('0')).toBeUndefined()
-    expect(parseGauge('abc')).toBeUndefined()
-  })
-
-  it('recalcule mailles et rangs pour l’échantillon de la tricoteuse', () => {
-    // Plus serré (24 m. au lieu de 22) : plus de mailles pour la même largeur.
-    expect(adjustCount(64, 22, 24)).toBe(70)
-    expect(adjustCount(30, 30, 27)).toBe(27)
-    expect(adjustCount(64, 22, 22)).toBeNull()
-    expect(adjustCount(64, null, 24)).toBeNull()
-    expect(adjustCount(null, 22, 24)).toBeNull()
-    expect(adjustCount(1, 30, 1)).toBe(1)
-    expect(gaugeDiffers({ stitches: 22, rows: 30 }, { stitches: 22, rows: 28 })).toBe(true)
-    expect(gaugeDiffers({ stitches: 22, rows: 30 }, { stitches: null, rows: null })).toBe(false)
-    expect(formatGauge({ stitches: 22, rows: 30.5 })).toBe('22 m. × 30,5 rangs pour 10 cm')
-    expect(formatGauge({ stitches: null, rows: null })).toBeNull()
-  })
-})
-
 describe('quel patron pour ma laine', () => {
-  it('décrit la laine, le métrage disponible et la recherche de patrons', () => {
+  it('décrit la laine et le métrage disponible', () => {
     expect(yarnMeters(PARTNER)).toBe(750)
     expect(yarnMeters({ ...PARTNER, length_m: null })).toBeNull()
     // Sans le bain (inutile au modèle)
@@ -125,13 +78,6 @@ describe('quel patron pour ma laine', () => {
     expect(describeYarn({ ...PARTNER, hues: ['#1e3a5f', '#203c60', '#d9d9d9'] })).toBe(
       'Phildar Partner 3.5, coloris 0012 Ciel · 50 % laine · 50 g / 125 m · aiguilles 3,5 mm, teintes : bleu foncé, gris clair',
     )
-    expect(patternSearchUrl('ribbed beanie')).toBe('https://www.ravelry.com/patterns/search#craft=knitting&query=ribbed%20beanie')
-    expect(patternSearchUrl('cabled cowl', { weight: 'dk' })).toBe('https://www.ravelry.com/patterns/search#craft=knitting&weight=dk&query=cabled%20cowl')
-    // Métrage disponible en yards, aiguilles Ravelry à 0,5 mm près
-    expect(patternSearchUrl('hat', { meters: 750, needleMm: 3.5 })).toBe(
-      'https://www.ravelry.com/patterns/search#craft=knitting&yardage=0%7C820&needles=3.0mm%7C3.25mm%7C3.5mm%7C3.75mm%7C4.0mm&query=hat',
-    )
-    expect(patternSearchUrl('hat', { meters: 0, needleMm: 40 })).toBe('https://www.ravelry.com/patterns/search#craft=knitting&query=hat')
     expect(siteOf('https://www.garnstudio.com/pattern.php?id=1')).toBe('garnstudio.com')
     expect(siteOf('pas une adresse')).toBe('pas une adresse')
     expect(parseMeters('350')).toBe(350)

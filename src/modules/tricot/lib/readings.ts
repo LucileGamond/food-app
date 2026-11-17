@@ -6,8 +6,8 @@ import { sanitizeAbbreviations } from './glossary'
 import { sanitizeNeedles } from './needles'
 import { readTimes } from './passes'
 import { readMissingParts, sanitizeSections, type PatternStep, type ReadPattern } from './pattern'
-import { sizeIndexOf } from './sizes'
-import { sanitizeSizeChart } from './sizing'
+import { sizeIndexOf } from './sizedText'
+import { sanitizeSizeChart } from './sizeAdvice'
 
 export interface StoredReading {
   /** Position de la taille lue parmi celles du patron (null : taille unique). */

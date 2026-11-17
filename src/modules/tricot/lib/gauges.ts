@@ -1,4 +1,4 @@
-// Module Tricot : les échantillons du projet, une seule liste.
+// Module Tricot : l'échantillon (mailles et rangs pour 10 cm) et les échantillons du projet, une seule liste.
 //
 // Un projet garde l'échantillon du patron (imprimé sur le modèle) à part, puis autant d'échantillons que la tricoteuse
 // veut, chacun avec la taille d'aiguille sur laquelle elle l'a tricoté. Un échantillon sans aiguille vaut par défaut.
@@ -8,7 +8,43 @@
 
 import { rowGauge } from './measure'
 import type { MeasuredRows } from './pattern'
-import type { Gauge } from './yarn'
+import { decimal } from '@/lib/text'
+import { parseDecimal } from './yarn'
+
+/** Mailles et rangs pour 10 cm. */
+export interface Gauge {
+  stitches: number | null
+  rows: number | null
+}
+
+export const MIN_GAUGE = 1
+export const MAX_GAUGE = 100
+
+/** « 22 » ou « 22,5 » (pour 10 cm) → nombre ; '' → null ; undefined si invalide. */
+export function parseGauge(value: string): number | null | undefined {
+  const n = parseDecimal(value)
+  if (n === null) return null
+  return Number.isFinite(n) && n >= MIN_GAUGE && n <= MAX_GAUGE ? Math.round(n * 10) / 10 : undefined
+}
+
+/**
+ * Nombre du patron ramené à l'échantillon de la tricoteuse (arrondi) : 64 m. pour 22 m./10 cm, tricotées à 24 m./10 cm
+ * → 70 m. pour la même largeur. null si l'un des deux échantillons manque ou s'ils sont identiques.
+ */
+export function adjustCount(count: number | null, pattern: number | null, mine: number | null): number | null {
+  if (count === null || pattern === null || mine === null || pattern === mine) return null
+  return Math.max(1, Math.round((count * mine) / pattern))
+}
+
+/** Échantillon renseigné (patron et tricoteuse) qui change les mailles ou les rangs. */
+export function gaugeDiffers(pattern: Gauge, mine: Gauge): boolean {
+  return adjustCount(100, pattern.stitches, mine.stitches) !== null || adjustCount(100, pattern.rows, mine.rows) !== null
+}
+
+export function formatGauge(gauge: Gauge): string | null {
+  const parts = [gauge.stitches !== null && `${decimal(gauge.stitches)} m.`, gauge.rows !== null && `${decimal(gauge.rows)} rangs`].filter(Boolean)
+  return parts.length ? `${parts.join(' × ')} pour 10 cm` : null
+}
 
 /** Nombre d'échantillons gardés pour un projet (une aiguille chacun, plus celui par défaut). */
 export const MAX_GAUGES = 11

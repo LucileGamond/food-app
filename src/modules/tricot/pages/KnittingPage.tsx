@@ -13,7 +13,7 @@ import { Loading } from '../components/Loading'
 import type { KnitProjectSummary } from '../lib/pattern'
 import { librarySummary } from '../lib/library'
 import { describePass } from '../lib/passes'
-import { seedOf } from '../lib/yarnGauge'
+import { seedOf } from '../lib/random'
 import { YarnGauge } from '../components/YarnGauge'
 import { plural } from '@/lib/text'
 

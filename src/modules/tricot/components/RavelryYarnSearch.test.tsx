@@ -2,7 +2,8 @@ import { screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { AppError } from '@/api'
 import { fakeApi, renderWithApp } from '@/test/fakes'
-import { EMPTY_YARN, ravelryYarnDetails, type RavelryYarnHit } from '../lib/yarn'
+import { EMPTY_YARN } from '../lib/yarn'
+import { ravelryYarnDetails, type RavelryYarnHit } from '../lib/ravelry'
 import { YarnDialog } from './YarnPanel'
 
 const HIT: RavelryYarnHit = { id: 25852, brand: 'Garnstudio', name: 'DROPS Merino Extra Fine', weightG: 50, lengthM: 105, category: 'DK' }

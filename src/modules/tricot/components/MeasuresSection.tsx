@@ -16,7 +16,7 @@ import { Label } from '@/components/ui/label'
 import { PageHeader } from '@/components/PageHeader'
 import { Loading } from './Loading'
 import { useAsync } from '@/hooks/useAsync'
-import { describeProfile, MEASURE_KEYS, MEASURE_LABELS, parseMeasureInput, type MeasureKey, type MeasureProfile } from '../lib/sizing'
+import { describeProfile, MEASURE_KEYS, MEASURE_LABELS, parseMeasureInput, type MeasureKey, type MeasureProfile } from '../lib/sizeAdvice'
 import { decimal } from '@/lib/text'
 
 type Fields = Record<MeasureKey, string>

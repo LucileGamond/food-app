@@ -1,4 +1,4 @@
-import { highlightParts, sanitizeHighlights, sizedParts, sizeIndexOf, toggleHighlight, type SizedPart } from './sizes'
+import { highlightParts, sanitizeHighlights, sizedParts, sizeIndexOf, toggleHighlight, type SizedPart } from './sizedText'
 
 /** Texte avec le nombre de la taille choisie entre [crochets] et ceux des autres tailles entre {accolades}. */
 function render(parts: SizedPart[]): string {

@@ -3,7 +3,7 @@
 import { toAppError } from '@/api/errors'
 import type { Json } from '@/lib/database.types'
 import { ideasFromJson, ideasKey, yarnFromJson, type StashIdeas, type StashItem, type Yarn, type YarnIdea } from '../lib/yarn'
-import type { MeasureProfile } from '../lib/sizing'
+import type { MeasureProfile } from '../lib/sizeAdvice'
 import { sameSet, type KnitContext } from './shared'
 
 export function stashApi({ db }: KnitContext) {
