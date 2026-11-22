@@ -47,8 +47,16 @@ jobs:
       - uses: supabase/setup-cli@v1
         with:
           version: 2.121.0
+      # Images Docker tirées sans compte : le registre limite par IP (« Rate exceeded »), on réessaie.
       - name: Démarrer Supabase en local
-        run: supabase start -x studio,imgproxy,logflare,vector,supavisor
+        run: |
+          for i in 1 2; do
+            supabase start -x studio,imgproxy,logflare,vector,supavisor && exit 0
+            echo "::warning::supabase start a échoué (essai $i), nouvel essai dans $((i * 45)) s"
+            supabase stop --no-backup || true
+            sleep $((i * 45))
+          done
+          supabase start -x studio,imgproxy,logflare,vector,supavisor
       - run: npm run test:db
       - run: npm run test:integration
 
@@ -70,8 +78,16 @@ jobs:
       - uses: supabase/setup-cli@v1
         with:
           version: 2.121.0
+      # Images Docker tirées sans compte : le registre limite par IP (« Rate exceeded »), on réessaie.
       - name: Démarrer Supabase en local
-        run: supabase start -x studio,imgproxy,logflare,vector,supavisor
+        run: |
+          for i in 1 2; do
+            supabase start -x studio,imgproxy,logflare,vector,supavisor && exit 0
+            echo "::warning::supabase start a échoué (essai $i), nouvel essai dans $((i * 45)) s"
+            supabase stop --no-backup || true
+            sleep $((i * 45))
+          done
+          supabase start -x studio,imgproxy,logflare,vector,supavisor
 
       # Navigateurs Playwright en cache (clé : version installée) ; les paquets système restent à installer.
       - id: playwright
