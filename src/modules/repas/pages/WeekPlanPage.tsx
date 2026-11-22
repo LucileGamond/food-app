@@ -2,7 +2,7 @@
 // modifiable), puis les plats « À planifier » placés par l'IA (ou à la main), modifiables avant de créer les repas.
 
 import { AiIcon } from '@/components/AiIcon'
-import { AlertTriangle, ArrowLeft, CalendarCheck, ChefHat, Loader2 } from 'lucide-react'
+import { AlertTriangle, ArrowLeft, ArrowRight, CalendarCheck, ChefHat, ChevronsDownUp, ChevronsUpDown, Loader2, RotateCcw, Soup, Users } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { toast } from 'sonner'
@@ -23,16 +23,26 @@ import { computePresence, type PresenceEvent, type PresenceRule } from '../lib/p
 import {
   buildPlanRequest,
   draftWarnings,
+  dayKind,
+  dayNeedsAttention,
+  daySummary,
+  DAY_KIND_LABELS,
+  dishEntries,
+  earlierEntry,
   MAX_PLAN_DISHES,
   openSlots,
   parsePlan,
+  placeDish,
+  pruneEntries,
   setEntry,
+  suggestedPortions,
   toPlanWeekMeals,
   canChooseDay,
   defaultPlanDays,
   MAX_PLAN_SPAN_DAYS,
   planHorizon,
   toggleDay,
+  type DayKind,
   type Dish,
   type DraftEntry,
   type PlanSlot,
@@ -111,7 +121,11 @@ export function WeekPlanPage({ today: fixedToday, now = Date.now }: { today?: Is
   const profiles = data?.profiles ?? NO_PROFILES
   /** Présence corrigée à la main, par créneau. */
   const [overrides, setOverrides] = useState<Record<string, string[]>>({})
+  /** Jours dépliés à l'étape de présence (absent : replié sauf s'il y a quelque chose à regarder). */
+  const [openDays, setOpenDays] = useState<Record<string, boolean>>({})
   const [entries, setEntries] = useState<DraftEntry[] | null>(null)
+  /** Étape affichée : qui mange à la maison, ou le placement des plats. Le brouillon survit aux allers-retours. */
+  const [step, setStep] = useState<'presence' | 'draft'>('presence')
   const [busy, setBusy] = useState<'propose' | 'save' | null>(null)
   const [actionError, setActionError] = useState<string | null>(null)
   // Passage à minuit (application restée ouverte) : jours, brouillon et corrections de la veille abandonnés.
@@ -124,7 +138,9 @@ export function WeekPlanPage({ today: fixedToday, now = Date.now }: { today?: Is
     setDraftToday(today)
     setDays(defaultPlanDays(today))
     setOverrides({})
+    setOpenDays({})
     setEntries(null)
+    setStep('presence')
     setActionError(null)
   }
 
@@ -142,7 +158,7 @@ export function WeekPlanPage({ today: fixedToday, now = Date.now }: { today?: Is
 
   const open = openSlots(slots)
   const dishes = data?.dishes ?? []
-  const warnings = entries ? draftWarnings(entries, slots, dishes, profiles) : new Map<string, string[]>()
+
   const name = (id: string) => profiles.find((p) => p.id === id)?.display_name ?? 'Quelqu’un'
 
   function togglePerson(slot: PlanSlot, id: string) {
@@ -158,7 +174,10 @@ export function WeekPlanPage({ today: fixedToday, now = Date.now }: { today?: Is
     try {
       const response = await api.weekPlan.proposePlan(buildPlanRequest(days[0]!, slots, dishes, profiles))
       // Le jour a changé pendant la réponse : elle ne vaut plus.
-      if (start.current === from) setEntries(parsePlan(response, slots, dishes))
+      if (start.current === from) {
+        setEntries(parsePlan(response, slots, dishes))
+        setStep('draft')
+      }
     } catch (e) {
       setActionError(errorMessage(e))
     } finally {
@@ -182,7 +201,7 @@ export function WeekPlanPage({ today: fixedToday, now = Date.now }: { today?: Is
     setBusy('save')
     setActionError(null)
     try {
-      const count = await api.weekPlan.saveWeek(toPlanWeekMeals(entries, slots, dishes))
+      const count = await api.weekPlan.saveWeek(toPlanWeekMeals(pruneEntries(entries, slots), slots, dishes))
       toast.success(count > 1 ? `${count} repas planifiés` : '1 repas planifié')
       navigate('/planning')
     } catch (e) {
@@ -218,14 +237,25 @@ export function WeekPlanPage({ today: fixedToday, now = Date.now }: { today?: Is
     )
   }
 
-  const placed = new Set(entries?.map((e) => e.dishId))
+  // Brouillon affiché : seulement à l'étape de placement, débarrassé des créneaux qui ne sont plus ouverts.
+  const draft = step === 'draft' && entries ? pruneEntries(entries, slots) : null
+  // Ce qui décide la présence de chaque jour : les jours sans surprise restent repliés.
+  const dayKinds = new Map(
+    days.map((date) => {
+      const daySlots = slots.filter((s) => s.date === date)
+      return [date, dayKind(daySlots, daySlots.some((s) => overrides[slotKey(s)] !== undefined), profiles)] as const
+    }),
+  )
+  const allOpen = days.every((date) => openDays[date] ?? dayNeedsAttention(dayKinds.get(date) ?? 'all'))
+  const warnings = draft ? draftWarnings(draft, slots, dishes, profiles) : new Map<string, string[]>()
+  const placed = new Set(draft?.map((e) => e.dishId))
   const unplaced = dishes.filter((d) => !placed.has(d.id))
 
   return (
     <>
       <PageHeader
         title="Planifier la semaine"
-        description={`${periodLabel(days)} · ${entries ? 'Plats proposés, à ajuster' : 'Qui mange à la maison ?'}`}
+        description={`${periodLabel(days)} · ${draft ? 'Plats proposés, à ajuster' : 'Qui mange à la maison ?'}`}
         actions={back}
       />
 
@@ -236,56 +266,75 @@ export function WeekPlanPage({ today: fixedToday, now = Date.now }: { today?: Is
         </p>
       )}
 
-      {!entries && (
-        <>
-          <DayPicker horizon={horizon} chosen={days} onToggle={(day) => setDays((list) => toggleDay(list, day))} />
-          <DishPortions dishes={dishes} onSave={savePortions} />
-        </>
-      )}
+      {!draft && <DayPicker horizon={horizon} chosen={days} onToggle={(day) => setDays((list) => toggleDay(list, day))} />}
+
+      {!draft && <PresenceBanner kinds={dayKinds} allOpen={allOpen} onToggleAll={() => setOpenDays(Object.fromEntries(days.map((d) => [d, !allOpen])))} />}
 
       <div className="grid grid-cols-[minmax(0,1fr)] gap-4">
-        {days.map((date) => (
-          <article key={date} aria-label={formatDay(date)} className="rounded-2xl border bg-background p-3 shadow-xs">
-            <h2 className="mb-2 px-1 font-semibold tracking-tight">{formatDay(date)}</h2>
+        {days.map((date) => {
+          const daySlots = slots.filter((s) => s.date === date)
+          const body = (
             <div className="grid grid-cols-[minmax(0,1fr)] gap-2 sm:grid-cols-2">
-              {slots
-                .filter((s) => s.date === date)
-                .map((s) => {
-                  const key = slotKey(s)
-                  const label = `${formatDay(s.date)} — ${slotLabel(s.slot)}`
-                  return (
-                    <section key={key} role="group" aria-label={label} className="rounded-xl bg-muted/40 p-2">
-                      <h3 className="mb-1.5 px-1 text-xs font-medium tracking-wide text-muted-foreground uppercase">{slotLabel(s.slot)}</h3>
-                      {entries ? (
-                        <DraftSlot
-                          slot={s}
-                          entry={entries.find((e) => e.date === s.date && e.slot === s.slot)}
-                          dishes={dishes}
-                          warnings={warnings.get(key) ?? []}
-                          name={name}
-                          onChange={(patch) => setEntries((list) => setEntry(list ?? [], s, patch))}
-                        />
-                      ) : (
-                        <PresenceSlot slot={s} profiles={profiles} onToggle={(id) => togglePerson(s, id)} />
-                      )}
-                    </section>
-                  )
-                })}
+              {daySlots.map((s) => {
+                const key = slotKey(s)
+                return (
+                  <section key={key} role="group" aria-label={`${formatDay(s.date)} — ${slotLabel(s.slot)}`} className="rounded-xl bg-muted/40 p-2">
+                    <h3 className="mb-1.5 px-1 text-xs font-medium tracking-wide text-muted-foreground uppercase">{slotLabel(s.slot)}</h3>
+                    {draft ? (
+                      <DraftSlot
+                        slot={s}
+                        entries={draft}
+                        slots={slots}
+                        entry={draft.find((e) => e.date === s.date && e.slot === s.slot)}
+                        dishes={dishes}
+                        warnings={warnings.get(key) ?? []}
+                        name={name}
+                        onDish={(dishId) => setEntries((list) => placeDish(list ?? [], slots, s, dishId))}
+                        onCook={(cookId) => setEntries((list) => setEntry(list ?? [], s, { cookId }))}
+                        onPortions={savePortions}
+                      />
+                    ) : (
+                      <PresenceSlot slot={s} profiles={profiles} onToggle={(id) => togglePerson(s, id)} />
+                    )}
+                  </section>
+                )
+              })}
             </div>
-          </article>
-        ))}
+          )
+          if (draft) {
+            return (
+              <article key={date} aria-label={formatDay(date)} className="rounded-2xl border bg-background p-3 shadow-xs">
+                <h2 className="mb-2 px-1 font-semibold tracking-tight">{formatDay(date)}</h2>
+                {body}
+              </article>
+            )
+          }
+          const kind = dayKinds.get(date) ?? 'all'
+          return (
+            <PresenceDay
+              key={date}
+              date={date}
+              kind={kind}
+              summary={daySummary(daySlots, profiles)}
+              open={openDays[date] ?? dayNeedsAttention(kind)}
+              onOpenChange={(value) => setOpenDays((o) => ({ ...o, [date]: value }))}
+            >
+              {body}
+            </PresenceDay>
+          )
+        })}
       </div>
 
       <div className="sticky bottom-20 z-20 mt-4 flex flex-wrap items-center gap-2 rounded-xl border bg-background/95 p-3 shadow-sm backdrop-blur md:bottom-4">
-        {entries ? (
+        {draft ? (
           <>
             <p className="w-full text-sm text-muted-foreground">
               {unplaced.length ? `Non placés : ${unplaced.map((d) => d.title).join(', ')}` : 'Tous les plats sont placés.'}
             </p>
-            <Button variant="outline" className="h-11" onClick={() => setEntries(null)} disabled={busy !== null}>
+            <Button variant="outline" className="h-11" onClick={() => setStep('presence')} disabled={busy !== null}>
               <ArrowLeft /> Modifier qui mange
             </Button>
-            <Button className="h-11" onClick={() => void save()} disabled={busy !== null || entries.length === 0}>
+            <Button className="h-11" onClick={() => void save()} disabled={busy !== null || draft.length === 0}>
               {busy === 'save' ? <Loader2 className="animate-spin" aria-hidden /> : <CalendarCheck />}
               Valider la semaine
             </Button>
@@ -300,13 +349,39 @@ export function WeekPlanPage({ today: fixedToday, now = Date.now }: { today?: Is
             {dishes.length > MAX_PLAN_DISHES && (
               <p className="w-full text-sm text-amber-700 dark:text-amber-400">Seuls les {MAX_PLAN_DISHES} premiers plats sont proposés à l’IA.</p>
             )}
-            <Button variant="outline" className="h-11" onClick={() => setEntries([])} disabled={busy !== null || dishes.length === 0 || open.length === 0}>
-              Placer moi-même
-            </Button>
-            <Button className="h-11" onClick={() => void propose()} disabled={busy !== null || dishes.length === 0 || open.length === 0}>
-              {busy === 'propose' ? <Loader2 className="animate-spin" aria-hidden /> : <AiIcon />}
-              Proposer avec l’IA
-            </Button>
+            {/* Un placement déjà commencé se reprend tel quel ; seul « Tout recommencer » le jette. */}
+            {entries && entries.length > 0 ? (
+              <>
+                <Button variant="outline" className="h-11" onClick={() => setEntries(null)} disabled={busy !== null}>
+                  <RotateCcw /> Tout recommencer
+                </Button>
+                <Button variant="outline" className="h-11" onClick={() => void propose()} disabled={busy !== null || dishes.length === 0 || open.length === 0}>
+                  {busy === 'propose' ? <Loader2 className="animate-spin" aria-hidden /> : <AiIcon />}
+                  Reproposer avec l’IA
+                </Button>
+                <Button className="h-11" onClick={() => setStep('draft')} disabled={busy !== null}>
+                  <ArrowRight /> Reprendre le placement
+                </Button>
+              </>
+            ) : (
+              <>
+                <Button
+                  variant="outline"
+                  className="h-11"
+                  onClick={() => {
+                    setEntries([])
+                    setStep('draft')
+                  }}
+                  disabled={busy !== null || dishes.length === 0 || open.length === 0}
+                >
+                  Placer moi-même
+                </Button>
+                <Button className="h-11" onClick={() => void propose()} disabled={busy !== null || dishes.length === 0 || open.length === 0}>
+                  {busy === 'propose' ? <Loader2 className="animate-spin" aria-hidden /> : <AiIcon />}
+                  Proposer avec l’IA
+                </Button>
+              </>
+            )}
           </>
         )}
       </div>
@@ -328,12 +403,15 @@ const shortDay = new Intl.DateTimeFormat('fr-FR', { weekday: 'short', day: 'nume
 /** Jours à planifier, à cocher librement sur 4 semaines (14 jours au plus du premier au dernier). */
 function DayPicker({ horizon, chosen, onToggle }: { horizon: IsoDate[]; chosen: IsoDate[]; onToggle: (day: IsoDate) => void }) {
   return (
-    <section aria-labelledby="plan-days" className="mb-4 rounded-2xl border bg-background p-3 shadow-xs">
-      <h2 id="plan-days" className="px-1 font-semibold tracking-tight">
-        Jours à planifier
-      </h2>
-      <p className="mb-2 px-1 text-xs text-muted-foreground">{MAX_PLAN_SPAN_DAYS} jours au plus du premier au dernier jour coché.</p>
-      <div className="flex flex-wrap gap-1.5">
+    // Replié par défaut : les 7 prochains jours conviennent presque toujours, le calendrier prend tout l'écran.
+    <details className="mb-4 rounded-2xl border bg-background shadow-xs [&[open]>summary]:border-b">
+      <summary className="grid cursor-pointer gap-0.5 rounded-2xl p-3 marker:content-[''] focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none [&::-webkit-details-marker]:hidden">
+        <span className="font-semibold tracking-tight">Jours à planifier</span>
+        <span className="text-xs text-muted-foreground">
+          {chosen.length > 1 ? `${chosen.length} jours cochés` : '1 jour coché'} · {MAX_PLAN_SPAN_DAYS} jours au plus du premier au dernier
+        </span>
+      </summary>
+      <div className="flex flex-wrap gap-1.5 p-3">
         {horizon.map((day) => {
           const on = chosen.includes(day)
           const allowed = on || canChooseDay(chosen, day)
@@ -357,30 +435,15 @@ function DayPicker({ horizon, chosen, onToggle }: { horizon: IsoDate[]; chosen: 
           )
         })}
       </div>
-    </section>
+    </details>
   )
 }
 
-/** Portions de chaque plat, restes compris : la liste de courses adapte la recette à ce nombre. */
-function DishPortions({ dishes, onSave }: { dishes: Dish[]; onSave: (id: string, portions: number | null) => Promise<void> }) {
-  if (dishes.length === 0) return null
-  return (
-    <section aria-labelledby="plan-portions" className="mb-4 rounded-2xl border bg-background p-3 shadow-xs">
-      <h2 id="plan-portions" className="px-1 font-semibold tracking-tight">
-        Portions par plat
-      </h2>
-      <p className="mb-2 px-1 text-xs text-muted-foreground">Restes compris. Vide : celles de la recette, ou autant que de personnes à table.</p>
-      <ul className="grid gap-1.5 sm:grid-cols-2">
-        {/* Clé avec les portions : la saisie repart de la valeur enregistrée (ou remise après un échec). */}
-        {dishes.map((dish) => (
-          <PortionsRow key={`${dish.id}-${dish.portions}`} dish={dish} onSave={onSave} />
-        ))}
-      </ul>
-    </section>
-  )
-}
-
-function PortionsRow({ dish, onSave }: { dish: Dish; onSave: (id: string, portions: number | null) => Promise<void> }) {
+/**
+ * Portions à cuisiner pour un plat, réglées sur son premier repas : par défaut les couverts de tous ses repas
+ * (restes compris), modifiables. La valeur est enregistrée sur l'élément « À planifier ».
+ */
+function PortionsField({ dish, suggested, onSave }: { dish: Dish; suggested: number | null; onSave: (id: string, portions: number | null) => Promise<void> }) {
   const [value, setValue] = useState(dish.portions ? String(dish.portions) : '')
   const portions = value.trim() === '' ? null : Number(value)
   const invalid = portions !== null && (!Number.isInteger(portions) || portions < 1 || portions > MAX_PORTIONS)
@@ -392,26 +455,81 @@ function PortionsRow({ dish, onSave }: { dish: Dish; onSave: (id: string, portio
   }
 
   return (
-    <li className="flex items-center gap-2 rounded-xl bg-muted/40 px-2 py-1.5">
-      <label htmlFor={id} className="min-w-0 flex-1 truncate text-sm">
-        <span className="sr-only">Portions : </span>
-        {dish.title}
-      </label>
+    <label htmlFor={id} className="flex items-center gap-2 text-sm">
+      <Users className="size-4 shrink-0 text-muted-foreground" aria-hidden />
+      <span className="min-w-0 flex-1 truncate text-muted-foreground">Portions à cuisiner</span>
       <Input
         id={id}
         type="number"
         inputMode="numeric"
         min={1}
         max={MAX_PORTIONS}
-        placeholder={dish.servings ? String(dish.servings) : '—'}
+        placeholder={suggested === null ? '—' : String(suggested)}
         value={value}
+        aria-label={`Portions à cuisiner pour « ${dish.title} »`}
         aria-invalid={invalid}
         onChange={(e) => setValue(e.target.value)}
         onBlur={commit}
         onKeyDown={(e) => e.key === 'Enter' && commit()}
         className="h-9 w-20"
       />
-    </li>
+    </label>
+  )
+}
+
+/** Combien de jours n'ont rien à corriger, et un bouton pour tout déplier ou tout replier d'un coup. */
+function PresenceBanner({ kinds, allOpen, onToggleAll }: { kinds: Map<IsoDate, DayKind>; allOpen: boolean; onToggleAll: () => void }) {
+  const total = kinds.size
+  if (total === 0) return null
+  const quiet = [...kinds.values()].filter((k) => !dayNeedsAttention(k)).length
+  return (
+    <section aria-label="Présence de la semaine" className="mb-4 flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-brand/40 bg-brand/5 p-3">
+      <p className="min-w-0 text-sm font-medium">
+        {quiet === total
+          ? total > 1
+            ? `Les ${total} jours sont prêts, rien à corriger`
+            : 'Rien à corriger'
+          : `${quiet} jour${quiet > 1 ? 's' : ''} sur ${total} sans rien à corriger`}
+      </p>
+      <Button variant="outline" className="h-9" onClick={onToggleAll}>
+        {allOpen ? <ChevronsDownUp /> : <ChevronsUpDown />}
+        {allOpen ? 'Tout replier' : 'Tout déplier'}
+      </Button>
+    </section>
+  )
+}
+
+/** Un jour de l'étape de présence : résumé d'une ligne, déplié d'une touche pour corriger qui mange. */
+function PresenceDay({
+  date,
+  kind,
+  summary,
+  open,
+  onOpenChange,
+  children,
+}: {
+  date: IsoDate
+  kind: DayKind
+  summary: string
+  open: boolean
+  onOpenChange: (open: boolean) => void
+  children: React.ReactNode
+}) {
+  return (
+    <details
+      open={open}
+      onToggle={(e) => onOpenChange((e.currentTarget as HTMLDetailsElement).open)}
+      className="rounded-2xl border bg-background shadow-xs [&[open]>summary]:border-b"
+    >
+      <summary className="grid cursor-pointer gap-0.5 rounded-2xl p-3 marker:content-[''] focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none [&::-webkit-details-marker]:hidden">
+        <span className="flex items-baseline justify-between gap-2">
+          <span className="min-w-0 font-semibold tracking-tight">{formatDay(date)}</span>
+          <span className={cn('shrink-0 text-xs', dayNeedsAttention(kind) ? 'font-medium text-brand' : 'text-muted-foreground')}>{DAY_KIND_LABELS[kind]}</span>
+        </span>
+        <span className="text-xs text-muted-foreground">{summary}</span>
+      </summary>
+      <div className="p-3">{children}</div>
+    </details>
   )
 }
 
@@ -450,41 +568,55 @@ function PresenceSlot({ slot, profiles, onToggle }: { slot: PlanSlot; profiles: 
 
 function DraftSlot({
   slot,
+  entries,
+  slots,
   entry,
   dishes,
   warnings,
   name,
-  onChange,
+  onDish,
+  onCook,
+  onPortions,
 }: {
   slot: PlanSlot
+  entries: readonly DraftEntry[]
+  slots: readonly PlanSlot[]
   entry: DraftEntry | undefined
   dishes: Dish[]
   warnings: string[]
   name: (id: string) => string
-  onChange: (patch: Partial<Pick<DraftEntry, 'dishId' | 'cookId'>> | null) => void
+  onDish: (dishId: string | null) => void
+  onCook: (cookId: string | null) => void
+  onPortions: (id: string, portions: number | null) => Promise<void>
 }) {
   if (slot.taken.length > 0) return <p className="px-1 text-sm text-muted-foreground">Déjà prévu : {slot.taken.join(', ')}</p>
   if (slot.past) return PAST
   if (slot.people.length === 0) return <p className="px-1 text-sm text-muted-foreground">Personne à la maison</p>
+  const dish = entry && dishes.find((d) => d.id === entry.dishId)
+  // Un plat déjà cuisiné un autre jour revient ici en restes : c'est son premier repas qui se cuisine.
+  const leftover = entry && earlierEntry(entries, slot, entry.dishId)
   return (
     <div className="grid gap-1.5">
       <p className="px-1 text-xs text-muted-foreground">{slot.people.map(name).join(' et ')}</p>
-      <NativeSelect
-        aria-label="Plat"
-        value={entry?.dishId ?? ''}
-        onChange={(e) => onChange(e.target.value ? { dishId: e.target.value, ...(entry ? {} : { cookId: slot.freeCooks[0] ?? slot.people[0] ?? null }) } : null)}
-      >
+      <NativeSelect aria-label="Plat" value={entry?.dishId ?? ''} onChange={(e) => onDish(e.target.value || null)}>
         <option value="">—</option>
         {dishes.map((d) => (
           <option key={d.id} value={d.id}>
-            {d.title}
+            {dishOption(d, entries, slot, entry)}
           </option>
         ))}
       </NativeSelect>
+      {entry && dish && !leftover && <PortionsField key={`${dish.id}-${dish.portions}`} dish={dish} suggested={suggestedPortions(entries, slots, dish)} onSave={onPortions} />}
+      {entry && leftover && (
+        <p className="flex items-center gap-2 px-1 text-xs text-muted-foreground">
+          <Soup className="size-3.5 shrink-0" aria-hidden />
+          Restes de {shortDay.format(new Date(`${leftover.date}T00:00:00Z`))}, {slotLabel(leftover.slot).toLowerCase()}
+        </p>
+      )}
       {entry && (
         <label className="flex items-center gap-2 text-sm">
           <ChefHat className="size-4 shrink-0 text-muted-foreground" aria-hidden />
-          <NativeSelect aria-label="Qui cuisine" className="h-9 flex-1" value={entry.cookId ?? ''} onChange={(e) => onChange({ cookId: e.target.value || null })}>
+          <NativeSelect aria-label="Qui cuisine" className="h-9 flex-1" value={entry.cookId ?? ''} onChange={(e) => onCook(e.target.value || null)}>
             {slot.people.map((id) => (
               <option key={id} value={id}>
                 {name(id)}
@@ -507,4 +639,14 @@ function DraftSlot({
       )}
     </div>
   )
+}
+
+/**
+ * Nom du plat dans la liste d'un créneau : tel quel, « — restes » s'il est déjà cuisiné un jour d'avant, « — déjà
+ * placé » s'il est posé ailleurs plus tard. Le plat du créneau lui-même garde son nom nu.
+ */
+function dishOption(dish: Dish, entries: readonly DraftEntry[], ref: PlanSlot, current: DraftEntry | undefined): string {
+  if (current?.dishId === dish.id) return dish.title
+  if (earlierEntry(entries, ref, dish.id)) return `${dish.title} — restes`
+  return dishEntries(entries, dish.id).length > 0 ? `${dish.title} — déjà placé` : dish.title
 }

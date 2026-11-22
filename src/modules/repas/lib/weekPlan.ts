@@ -3,7 +3,7 @@
 // ne respecte pas les règles, y compris après les modifications faites à la main.
 
 import { addDays, formatDay, type IsoDate } from '@/lib/dates'
-import { parseSlotKey, slotKey, type MealSlot, type Profile, type SlotRef } from '@/lib/meals'
+import { parseSlotKey, slotKey, slotLabel, type MealSlot, type Profile, type SlotRef } from '@/lib/meals'
 import { foldText } from '@/lib/text'
 import type { SlotPresence } from './presence'
 
@@ -65,6 +65,52 @@ export function isFragile(dish: Pick<Dish, 'title' | 'ingredients'>): boolean {
   return FRAGILE_WORDS.some((word) => text.includes(word))
 }
 
+/**
+ * Ce qui a décidé la présence d'un jour, pour la pastille et le repli :
+ *   - `manual` : la présence a été corrigée à la main ;
+ *   - `agenda` : un rendez-vous a retiré quelqu'un ou l'a occupé avant le repas ;
+ *   - `rule` : seule la règle « midi en semaine au travail » s'applique ;
+ *   - `all` : tout le monde est là aux deux repas.
+ * Un jour `manual` ou `agenda` s'ouvre tout seul : c'est là qu'il y a quelque chose à regarder.
+ */
+export type DayKind = 'manual' | 'agenda' | 'rule' | 'all'
+
+export const DAY_KIND_LABELS: Record<DayKind, string> = {
+  manual: 'Modifié',
+  agenda: 'Agenda',
+  rule: 'Habitude',
+  all: 'Tout le monde',
+}
+
+export function dayKind(slots: readonly PlanSlot[], corrected: boolean, profiles: readonly Profile[]): DayKind {
+  const live = slots.filter((s) => !s.past && s.taken.length === 0)
+  if (corrected) return 'manual'
+  if (live.some((s) => s.fromAgenda)) return 'agenda'
+  if (live.some((s) => Object.keys(s.notes).length > 0 || s.people.length < profiles.length)) return 'rule'
+  return 'all'
+}
+
+export const dayNeedsAttention = (kind: DayKind) => kind === 'manual' || kind === 'agenda'
+
+/** « Midi et soir : Eric et Lucile », « Midi : Eric · Soir : personne », « Repas passés ». */
+export function daySummary(slots: readonly PlanSlot[], profiles: readonly Profile[]): string {
+  const name = (id: string) => profiles.find((p) => p.id === id)?.display_name ?? 'Quelqu’un'
+  const describe = (slot: PlanSlot): string => {
+    if (slot.past) return 'repas passé'
+    if (slot.taken.length > 0) return `déjà prévu (${slot.taken.join(', ')})`
+    if (slot.people.length === 0) return 'personne'
+    return slot.people.map(name).join(' et ')
+  }
+  const parts = slots.map((s) => [slotLabel(s.slot), describe(s)] as const)
+  if (parts.length === 0) return ''
+  const [first, ...rest] = parts
+  if (rest.length > 0 && rest.every((p) => p[1] === first![1])) {
+    // « Midi et soir : … » : seul le premier créneau garde sa majuscule.
+    return `${[first![0], ...rest.map((p) => p[0].toLowerCase())].join(' et ')} : ${first![1]}`
+  }
+  return parts.map(([label, who]) => `${label} : ${who}`).join(' · ')
+}
+
 /** Créneaux à remplir : pas encore passés, quelqu'un mange à la maison et rien n'est encore prévu. */
 export const openSlots = (slots: readonly PlanSlot[]) => slots.filter((s) => !s.past && s.people.length > 0 && s.taken.length === 0)
 
@@ -113,6 +159,53 @@ export function parsePlan(data: unknown, slots: readonly PlanSlot[], dishes: rea
 
 const order = (a: SlotRef, b: SlotRef) => a.date.localeCompare(b.date) || (a.slot === b.slot ? 0 : a.slot === 'LUNCH' ? -1 : 1)
 
+/** Créneaux où ce plat est placé, du premier au dernier. */
+export const dishEntries = (entries: readonly DraftEntry[], dishId: string): DraftEntry[] => entries.filter((e) => e.dishId === dishId).sort(order)
+
+/** Repas de ce plat qui précède le créneau donné : le créneau sert alors des restes. */
+export const earlierEntry = (entries: readonly DraftEntry[], ref: SlotRef, dishId: string): DraftEntry | undefined =>
+  dishEntries(entries, dishId).find((e) => !sameSlot(e, ref) && order(e, ref) < 0)
+
+/** Couverts de tous les repas d'un plat : ce qu'il faut cuisiner en une fois, restes compris. */
+export const plannedEaters = (entries: readonly DraftEntry[], slots: readonly PlanSlot[], dishId: string): number =>
+  dishEntries(entries, dishId).reduce((sum, e) => sum + (slots.find((s) => sameSlot(s, e))?.people.length ?? 0), 0)
+
+/** Portions au plus pour un plat (limite de la base). */
+const MAX_PORTIONS = 99
+
+/** Portions proposées pour un plat placé : celles fixées, sinon les couverts de tous ses repas. */
+export function suggestedPortions(entries: readonly DraftEntry[], slots: readonly PlanSlot[], dish: Pick<Dish, 'id' | 'portions'>): number | null {
+  if (dish.portions !== null) return dish.portions
+  const eaters = plannedEaters(entries, slots, dish.id)
+  return eaters > 0 ? Math.min(eaters, MAX_PORTIONS) : null
+}
+
+/**
+ * Cuisiniers d'un plat remis d'équerre : son premier repas se cuisine (quelqu'un qui a le temps, sinon quelqu'un de
+ * présent), les suivants sont des restes. Un choix fait à la main sur le premier repas est gardé.
+ */
+function withLeftoverCooks(entries: readonly DraftEntry[], slots: readonly PlanSlot[], dishId: string): DraftEntry[] {
+  const [first] = dishEntries(entries, dishId)
+  return entries.map((e) => {
+    if (e.dishId !== dishId) return e
+    if (e !== first) return e.cookId === null ? e : { ...e, cookId: null }
+    if (e.cookId !== null) return e
+    const slot = slots.find((s) => sameSlot(s, e))
+    return { ...e, cookId: slot?.freeCooks[0] ?? slot?.people[0] ?? null }
+  })
+}
+
+/**
+ * Pose un plat sur un créneau (ou le retire avec `null`) : le même plat peut revenir sur plusieurs jours, et seul son
+ * premier repas se cuisine. Le plat qui quittait le créneau est remis d'équerre lui aussi.
+ */
+export function placeDish(entries: readonly DraftEntry[], slots: readonly PlanSlot[], ref: SlotRef, dishId: string | null): DraftEntry[] {
+  const previous = entries.find((e) => sameSlot(e, ref))?.dishId ?? null
+  let next = dishId === null ? setEntry(entries, ref, null) : setEntry(entries, ref, { dishId, cookId: null })
+  for (const id of new Set([previous, dishId].filter((v): v is string => v !== null))) next = withLeftoverCooks(next, slots, id)
+  return next
+}
+
 /** Alertes par créneau (clé `date|slot`). */
 export function draftWarnings(entries: readonly DraftEntry[], slots: readonly PlanSlot[], dishes: readonly Dish[], profiles: readonly Profile[]): Map<string, string[]> {
   const result = new Map<string, string[]>()
@@ -149,10 +242,23 @@ export function draftWarnings(entries: readonly DraftEntry[], slots: readonly Pl
       } else if (daysBetween(first.date, entry.date) > MAX_LEFTOVER_DAYS) {
         warn(entry, `Restes ${daysBetween(first.date, entry.date)} jours après : ça risque de s’abîmer`)
       }
-      const portions = dishPortions(dish)
-      if (portions !== null && eaters > portions) warn(entry, `Pas assez de portions (${portions} pour ${eaters})`)
+      // Seules des portions fixées à la main peuvent manquer : sinon le plat est cuisiné pour tous ses repas.
+      if (dish.portions !== null && eaters > dish.portions) warn(entry, `Pas assez de portions (${dish.portions} pour ${eaters})`)
     })
   }
+  return result
+}
+
+/**
+ * Brouillon ramené aux créneaux encore ouverts : les jours décochés ou les créneaux où plus personne ne mange à la
+ * maison perdent leur plat, et le plat touché retrouve son cuisinier s'il a perdu son premier repas.
+ */
+export function pruneEntries(entries: readonly DraftEntry[], slots: readonly PlanSlot[]): DraftEntry[] {
+  const open = openSlots(slots)
+  const kept = entries.filter((e) => open.some((s) => sameSlot(s, e)))
+  if (kept.length === entries.length) return [...entries]
+  let result = kept
+  for (const id of new Set(entries.filter((e) => !kept.includes(e)).map((e) => e.dishId))) result = withLeftoverCooks(result, slots, id)
   return result
 }
 
@@ -166,20 +272,20 @@ export function setEntry(entries: readonly DraftEntry[], ref: SlotRef, patch: Pa
 }
 
 /**
- * Repas à créer (RPC plan_week). Un plat aux portions fixées est cuisiné pour ses portions au premier repas ; ses
- * repas suivants sont des restes (0 : rien à acheter). Sans portions, chaque repas compte ses convives.
+ * Repas à créer (RPC plan_week). Un plat est cuisiné en une fois à son premier repas, pour les portions fixées ou, à
+ * défaut, pour les couverts de tous ses repas ; ses repas suivants sont des restes (0 : rien à acheter).
  */
 export function toPlanWeekMeals(entries: readonly DraftEntry[], slots: readonly PlanSlot[], dishes: readonly Dish[]) {
   return entries.map((e) => {
-    const portions = dishes.find((d) => d.id === e.dishId)?.portions ?? null
-    const first = entries.filter((x) => x.dishId === e.dishId).sort(order)[0] === e
+    const dish = dishes.find((d) => d.id === e.dishId)
+    const first = dishEntries(entries, e.dishId)[0] === e
     return {
       item_id: e.dishId,
       meal_date: e.date,
       slot: e.slot,
       people: slots.find((s) => sameSlot(s, e))?.people ?? [],
       cook_id: e.cookId,
-      portions: portions === null ? null : first ? portions : 0,
+      portions: first ? (dish ? suggestedPortions(entries, slots, dish) : null) : 0,
     }
   })
 }

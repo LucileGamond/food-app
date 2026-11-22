@@ -39,6 +39,8 @@ export interface SlotPresence {
   freeCooks: string[]
   /** Raison affichée par personne : absence, rendez-vous ignoré, ou occupée avant le repas. */
   notes: Record<string, string>
+  /** Au moins une note vient d'un rendez-vous de l'agenda (et non de la règle « midi au travail »). */
+  fromAgenda: boolean
   /** Le repas est déjà fini : rien à y planifier. */
   past?: boolean
 }
@@ -93,6 +95,7 @@ export function computePresence({
       const people: string[] = []
       const freeCooks: string[] = []
       const notes: Record<string, string> = {}
+      let fromAgenda = false
       for (const { id } of profiles) {
         const rule = rules.find((r) => r.profileId === id) ?? DEFAULT_RULE
         const own = timedEvents.filter((e) => e.ownerId === id)
@@ -105,15 +108,21 @@ export function computePresence({
         const blocking = during.find((e) => !matchesKeyword(e.title, rule.ignoredKeywords))
         if (blocking) {
           notes[id] = label(blocking)
+          fromAgenda = true
           continue
         }
         people.push(id)
         const before = own.find((e) => overlaps(e, cookFrom, mealTo))
-        if (during[0]) notes[id] = `${label(during[0])} (mange à la maison)`
-        else if (before) notes[id] = `Occupé avant : ${label(before)}`
+        if (during[0]) {
+          notes[id] = `${label(during[0])} (mange à la maison)`
+          fromAgenda = true
+        } else if (before) {
+          notes[id] = `Occupé avant : ${label(before)}`
+          fromAgenda = true
+        }
         if (!before) freeCooks.push(id)
       }
-      return { date, slot, people, freeCooks, notes, past: now !== undefined && mealTo <= now }
+      return { date, slot, people, freeCooks, notes, fromAgenda, past: now !== undefined && mealTo <= now }
     }),
   )
 }

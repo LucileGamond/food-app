@@ -5,6 +5,14 @@ import {
   isLong,
   canChooseDay,
   defaultPlanDays,
+  dayKind,
+  dayNeedsAttention,
+  daySummary,
+  dishEntries,
+  earlierEntry,
+  placeDish,
+  plannedEaters,
+  suggestedPortions,
   planHorizon,
   PLAN_HORIZON_DAYS,
   toggleDay,
@@ -26,13 +34,15 @@ const PROFILES = [
   { id: L, display_name: 'Lucile' },
 ]
 
-const slot = (date: string, s: 'LUNCH' | 'DINNER', people: string[], freeCooks = people, taken: string[] = []): PlanSlot => ({
+const slot = (date: string, s: 'LUNCH' | 'DINNER', people: string[], freeCooks = people, taken: string[] = [], extra: Partial<PlanSlot> = {}): PlanSlot => ({
   date,
   slot: s,
   people,
   freeCooks,
   notes: {},
+  fromAgenda: false,
   taken,
+  ...extra,
 })
 
 const SLOTS: PlanSlot[] = [
@@ -158,9 +168,10 @@ describe('draftWarnings', () => {
     })
   })
 
-  it('pas assez de portions', () => {
-    // Salade pour 2 : 2 personnes le soir, puis 1 le lendemain midi.
-    expect(warnings([entry('2026-11-09', 'DINNER', 'salade', E), entry('2026-11-10', 'LUNCH', 'salade')])).toEqual({
+  it('pas assez de portions quand elles sont fixées à la main', () => {
+    // Salade cuisinée pour 2 : 2 personnes le soir, puis 1 le lendemain midi.
+    const petite = dish('salade', { servings: 2, portions: 2, ingredients: ['roquette'] })
+    expect(Object.fromEntries(draftWarnings([entry('2026-11-09', 'DINNER', 'salade', E), entry('2026-11-10', 'LUNCH', 'salade')], SLOTS, [petite], PROFILES))).toEqual({
       '2026-11-10|LUNCH': ['Pas assez de portions (2 pour 3)'],
     })
   })
@@ -200,19 +211,91 @@ describe('setEntry', () => {
 })
 
 describe('toPlanWeekMeals', () => {
-  it('donne les repas à créer avec les personnes du créneau', () => {
-    expect(toPlanWeekMeals([entry('2026-11-10', 'DINNER', 'lasagnes', E)], SLOTS, [dish('lasagnes')])).toEqual([
-      { item_id: 'lasagnes', meal_date: '2026-11-10', slot: 'DINNER', people: [E, L], cook_id: E, portions: null },
+  it('cuisine le plat pour les couverts de tous ses repas, les suivants sont des restes', () => {
+    // Lasagnes mardi soir (2 personnes) puis mercredi midi (1) : 3 portions cuisinées d'un coup.
+    const entries = [entry('2026-11-11', 'LUNCH', 'lasagnes'), entry('2026-11-10', 'DINNER', 'lasagnes', E)]
+    expect(toPlanWeekMeals(entries, SLOTS, [dish('lasagnes')])).toEqual([
+      { item_id: 'lasagnes', meal_date: '2026-11-11', slot: 'LUNCH', people: [E], cook_id: null, portions: 0 },
+      { item_id: 'lasagnes', meal_date: '2026-11-10', slot: 'DINNER', people: [E, L], cook_id: E, portions: 3 },
     ])
   })
 
-  it('portions fixées sur le plat : cuisinées au premier repas, les suivants sont des restes', () => {
+  it('plat placé une seule fois : cuisiné pour les convives du créneau', () => {
+    expect(toPlanWeekMeals([entry('2026-11-10', 'DINNER', 'lasagnes', E)], SLOTS, [dish('lasagnes')])).toEqual([
+      { item_id: 'lasagnes', meal_date: '2026-11-10', slot: 'DINNER', people: [E, L], cook_id: E, portions: 2 },
+    ])
+  })
+
+  it('portions fixées sur le plat : elles priment sur les couverts', () => {
     const entries = [entry('2026-11-11', 'LUNCH', 'lasagnes'), entry('2026-11-10', 'DINNER', 'lasagnes', E), entry('2026-11-10', 'LUNCH', 'soupe', E)]
     expect(toPlanWeekMeals(entries, SLOTS, [dish('lasagnes', { portions: 6 }), SOUPE]).map((m) => [m.item_id, m.meal_date, m.portions])).toEqual([
       ['lasagnes', '2026-11-11', 0],
       ['lasagnes', '2026-11-10', 6],
-      ['soupe', '2026-11-10', null],
+      ['soupe', '2026-11-10', 1],
     ])
+  })
+
+  it('plat inconnu (retiré de « À planifier » entre-temps) : sans portions', () => {
+    expect(toPlanWeekMeals([entry('2026-11-10', 'DINNER', 'disparu', E)], SLOTS, DISHES)[0]!.portions).toBeNull()
+  })
+})
+
+describe('plats placés plusieurs fois', () => {
+  const first = entry('2026-11-09', 'DINNER', 'soupe', E)
+
+  it('dishEntries et earlierEntry : les repas d’un plat, du premier au dernier', () => {
+    const later = entry('2026-11-11', 'LUNCH', 'soupe')
+    expect(dishEntries([later, first], 'soupe')).toEqual([first, later])
+    expect(earlierEntry([later, first], { date: '2026-11-11', slot: 'LUNCH' }, 'soupe')).toEqual(first)
+    expect(earlierEntry([later, first], { date: '2026-11-09', slot: 'DINNER' }, 'soupe')).toBeUndefined()
+    expect(earlierEntry([], { date: '2026-11-11', slot: 'LUNCH' }, 'soupe')).toBeUndefined()
+  })
+
+  it('plannedEaters et suggestedPortions : les couverts de tous les repas, sauf portions fixées', () => {
+    const entries = [first, entry('2026-11-11', 'LUNCH', 'soupe')]
+    expect(plannedEaters(entries, SLOTS, 'soupe')).toBe(3)
+    expect(plannedEaters(entries, SLOTS, 'lasagnes')).toBe(0)
+    expect(suggestedPortions(entries, SLOTS, SOUPE)).toBe(3)
+    expect(suggestedPortions(entries, SLOTS, dish('soupe', { portions: 8 }))).toBe(8)
+    // Plat pas encore placé : rien à proposer.
+    expect(suggestedPortions(entries, SLOTS, LASAGNES)).toBeNull()
+  })
+
+  it('placeDish : le premier repas se cuisine, les suivants sont des restes', () => {
+    const entries = placeDish([first], SLOTS, { date: '2026-11-11', slot: 'LUNCH' }, 'soupe')
+    expect(entries).toEqual([first, { date: '2026-11-11', slot: 'LUNCH', dishId: 'soupe', cookId: null, why: '' }])
+  })
+
+  it('placeDish : un plat posé avant ses autres repas leur prend le cuisinier', () => {
+    const entries = placeDish([first], SLOTS, { date: '2026-11-09', slot: 'LUNCH' }, 'soupe')
+    expect(entries.map((e) => [e.date, e.slot, e.cookId])).toEqual([
+      ['2026-11-09', 'DINNER', null],
+      ['2026-11-09', 'LUNCH', E],
+    ])
+  })
+
+  it('placeDish : le premier repas retiré, le suivant se cuisine', () => {
+    const entries = placeDish([first, entry('2026-11-11', 'LUNCH', 'soupe')], SLOTS, { date: '2026-11-09', slot: 'DINNER' }, null)
+    expect(entries).toEqual([{ date: '2026-11-11', slot: 'LUNCH', dishId: 'soupe', cookId: E, why: '' }])
+  })
+
+  it('placeDish : le plat remplacé sur un créneau est remis d’équerre lui aussi', () => {
+    const entries = placeDish([first, entry('2026-11-11', 'LUNCH', 'soupe')], SLOTS, { date: '2026-11-09', slot: 'DINNER' }, 'salade')
+    expect(entries.map((e) => [e.dishId, e.date, e.cookId])).toEqual([
+      ['salade', '2026-11-09', E],
+      ['soupe', '2026-11-11', E],
+    ])
+  })
+
+  it('placeDish : un cuisinier choisi à la main sur le premier repas est gardé', () => {
+    const chosen = entry('2026-11-09', 'DINNER', 'soupe', L)
+    expect(placeDish([chosen], SLOTS, { date: '2026-11-11', slot: 'LUNCH' }, 'soupe')[0]!.cookId).toBe(L)
+  })
+
+  it('placeDish : créneau sans personne libre, le premier venu cuisine ; créneau vide, personne', () => {
+    // Mercredi soir : tout le monde est là mais personne n'a le temps.
+    expect(placeDish([], SLOTS, { date: '2026-11-11', slot: 'DINNER' }, 'soupe')[0]!.cookId).toBe(E)
+    expect(placeDish([], SLOTS, { date: '2026-11-13', slot: 'DINNER' }, 'soupe')[0]!.cookId).toBeNull()
   })
 })
 
@@ -223,6 +306,37 @@ describe('portions', () => {
     expect(dishPortions(SALADE)).toBe(2)
     expect(buildPlanRequest('2026-11-09', SLOTS, [big], PROFILES).dishes[0]!.servings).toBe(6)
     expect(Object.fromEntries(draftWarnings([entry('2026-11-09', 'DINNER', 'salade', E), entry('2026-11-10', 'LUNCH', 'salade')], SLOTS, [big], PROFILES))).toEqual({})
+  })
+})
+
+describe('résumé d’un jour', () => {
+  const day = (lunch: PlanSlot, dinner: PlanSlot) => [lunch, dinner]
+
+  it('dayKind : corrigé à la main, agenda, habitude, ou tout le monde', () => {
+    const plein = day(slot('2026-11-09', 'LUNCH', [E, L]), slot('2026-11-09', 'DINNER', [E, L]))
+    expect(dayKind(plein, false, PROFILES)).toBe('all')
+    expect(dayKind(plein, true, PROFILES)).toBe('manual')
+    const regle = day(slot('2026-11-09', 'LUNCH', [E], [E], [], { notes: { [L]: 'Au travail' } }), slot('2026-11-09', 'DINNER', [E, L]))
+    expect(dayKind(regle, false, PROFILES)).toBe('rule')
+    const rdv = day(slot('2026-11-09', 'LUNCH', [E, L]), slot('2026-11-09', 'DINNER', [L], [L], [], { fromAgenda: true, notes: { [E]: '20 h Dîner' } }))
+    expect(dayKind(rdv, false, PROFILES)).toBe('agenda')
+    // Un rendez-vous sur un repas déjà passé ou déjà prévu ne fait plus ouvrir le jour.
+    const passe = day(slot('2026-11-09', 'LUNCH', [E, L], [E, L], [], { fromAgenda: true, past: true }), slot('2026-11-09', 'DINNER', [E, L]))
+    expect(dayKind(passe, false, PROFILES)).toBe('all')
+    expect(dayNeedsAttention('agenda')).toBe(true)
+    expect(dayNeedsAttention('rule')).toBe(false)
+  })
+
+  it('daySummary : les deux repas réunis quand ils se ressemblent', () => {
+    expect(daySummary(day(slot('2026-11-09', 'LUNCH', [E, L]), slot('2026-11-09', 'DINNER', [E, L])), PROFILES)).toBe('Midi et soir : Eric et Lucile')
+    expect(daySummary(day(slot('2026-11-09', 'LUNCH', [E]), slot('2026-11-09', 'DINNER', [E, L])), PROFILES)).toBe('Midi : Eric · Soir : Eric et Lucile')
+    expect(daySummary(day(slot('2026-11-09', 'LUNCH', []), slot('2026-11-09', 'DINNER', [L])), PROFILES)).toBe('Midi : personne · Soir : Lucile')
+  })
+
+  it('daySummary : repas passés et créneaux déjà prévus', () => {
+    const slots = day(slot('2026-11-09', 'LUNCH', [E, L], [E, L], [], { past: true }), slot('2026-11-09', 'DINNER', [E, L], [E, L], ['Pizza']))
+    expect(daySummary(slots, PROFILES)).toBe('Midi : repas passé · Soir : déjà prévu (Pizza)')
+    expect(daySummary([], PROFILES)).toBe('')
   })
 })
 

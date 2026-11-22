@@ -56,15 +56,30 @@ test('planifier la semaine : qui mange à la maison, proposition de l’IA, repa
   await expect(page.getByRole('heading', { name: 'Planifier la semaine' })).toBeVisible()
   await expect(page.getByText(/^2 plats à planifier/)).toBeVisible()
 
-  // Eric dîne dehors demain : décoché, avec la raison.
+  /** Déplie un jour : seuls ceux qu'un rendez-vous touche sont ouverts d'office. */
+  const openDay = async (offset: number) => {
+    const group = page.getByRole('group', { name: `${dayLabel(offset)} — Soir` })
+    if (!(await group.isVisible())) await page.locator('summary').filter({ hasText: dayLabel(offset) }).click()
+    await expect(group).toBeVisible()
+  }
+
+  // La semaine est repliée : chaque jour tient sur une ligne, et le bandeau dit ce qui reste à regarder.
+  await expect(page.getByText(/sans rien à corriger$/)).toBeVisible()
+  const tomorrowRow = page.locator('summary').filter({ hasText: dayLabel(1) })
+  await expect(tomorrowRow.getByText('Agenda')).toBeVisible()
+
+  // Eric dîne dehors demain : le jour s'est ouvert tout seul, Eric est décoché, avec la raison.
   const tomorrowDinner = page.getByRole('group', { name: `${dayLabel(1)} — Soir` })
   await expect(tomorrowDinner.getByRole('button', { name: 'Eric' })).toHaveAttribute('aria-pressed', 'false')
   await expect(tomorrowDinner.getByText(/^Eric : .*Ciné$/)).toBeVisible()
   // Corrigé à la main : Lucile ne dîne pas là après-demain. Pas « ce soir » : le soir, le créneau du jour est déjà
-  // passé et n'est plus proposé.
+  // passé et n'est plus proposé. Ce jour-là n'a rien de prévu, il faut donc le déplier.
+  await openDay(2)
   const laterDinner = page.getByRole('group', { name: `${dayLabel(2)} — Soir` })
   await laterDinner.getByRole('button', { name: 'Lucile' }).click()
   await expect(laterDinner.getByRole('button', { name: 'Lucile' })).toHaveAttribute('aria-pressed', 'false')
+  // Le jour corrigé est signalé comme tel et reste ouvert.
+  await expect(page.locator('summary').filter({ hasText: dayLabel(2) }).getByText('Modifié')).toBeVisible()
 
   const presence = await (await axeFor(page)).include('main').withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa']).analyze()
   expect(presence.violations.map((v) => v.id)).toEqual([])
