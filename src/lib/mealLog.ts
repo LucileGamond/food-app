@@ -142,3 +142,23 @@ export function vegetarianShare(stats: { vegetarian: number; meat: number }): nu
 export function logRangeStart(today: IsoDate): IsoDate {
   return addDays(weekStart(today), -7 * (STATS_WEEKS - 1))
 }
+
+/**
+ * Jours passés pas encore remplis (un moment au moins sans réponse), du plus récent au plus ancien : d'hier jusqu'au
+ * premier jour noté, sans remonter avant `from`. Rien de noté : aucun jour (le journal n'a pas commencé).
+ */
+export function daysToFill(entries: readonly MealLogEntry[], profileId: string, today: IsoDate, from: IsoDate): IsoDate[] {
+  const first = firstLogged(entries, profileId)
+  if (first === null) return []
+  const start = first > from ? first : from
+  const days: IsoDate[] = []
+  for (let day = addDays(today, -1); day >= start; day = addDays(day, -1)) {
+    if (!isComplete(dayLog(entries, profileId, day))) days.push(day)
+  }
+  return days
+}
+
+/** Jours d'une semaine (à partir de son lundi), sans dépasser aujourd'hui. */
+export function weekDays(week: IsoDate, today: IsoDate): IsoDate[] {
+  return Array.from({ length: 7 }, (_, i) => addDays(week, i)).filter((d) => d <= today)
+}

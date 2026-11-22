@@ -15,7 +15,7 @@ export async function login(page: Page, email = LUCILE.email) {
 }
 
 /** Section de chaque page qui n'est pas elle-même une section (téléphone : ses pages sont en haut de l'écran). */
-const PAGE_SECTIONS: Record<string, string> = { Planning: 'Repas', Recettes: 'Repas', Courses: 'Repas', Poids: 'Santé', Plan: 'Santé', Eau: 'Santé' }
+const PAGE_SECTIONS: Record<string, string> = { Planning: 'Repas', Recettes: 'Repas', Courses: 'Repas', 'Végé': 'Repas', Poids: 'Santé', Plan: 'Santé', Eau: 'Santé' }
 
 /** Ouvre une page depuis la navigation (sur téléphone : l'onglet de sa section, puis la page en haut de l'écran). */
 export async function openNavPage(page: Page, name: string) {

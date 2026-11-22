@@ -9,9 +9,14 @@ describe('message du soir', () => {
     expect(buildMealsMessage({ profileId: 'lucile', missing: 3, planEmpty: true }, DAY)).toEqual({
       title: 'Tes repas du jour 🥗',
       body: 'Végé ou non ? Note tes repas du jour.\nRien de noté dans ton plan alimentaire aujourd’hui.',
-      url: '/plan?profil=lucile&jour=2026-11-16',
+      url: '/vege?profil=lucile',
       tag: 'repas-2026-11-16',
     })
+  })
+
+  it('mène au journal végé s’il reste des repas, sinon au plan du jour', () => {
+    expect(buildMealsMessage({ profileId: 'lucile', missing: 1, planEmpty: false }, DAY)?.url).toBe('/vege?profil=lucile')
+    expect(buildMealsMessage({ profileId: 'eric', missing: 0, planEmpty: true }, DAY)?.url).toBe('/plan?profil=eric&jour=2026-11-16')
   })
 
   it('le nombre de repas restants, au singulier comme au pluriel', () => {

@@ -20,7 +20,7 @@ export function HomePage({ today: fixedToday, hour }: { today?: IsoDate; hour?: 
   const today = useToday(fixedToday)
   const { loading, isEnabled } = useSettings()
   const cards = [
-    isEnabled('plan') && <MealLogReminder key="meal-log" today={today} hour={hour} />,
+    isEnabled('vege') && <MealLogReminder key="meal-log" today={today} hour={hour} />,
     isEnabled('agenda') && <AgendaCard key="agenda" today={today} />,
     isEnabled('planning') && <MealsTodayCard key="meals" today={today} />,
     isEnabled('hydratation') && <WaterCard key="water" today={today} />,

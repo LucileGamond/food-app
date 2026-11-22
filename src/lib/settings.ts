@@ -3,7 +3,7 @@
 import type { AgendaScope } from '@agenda/scope.ts'
 import { DEFAULT_CONTAINERS, type WaterContainer } from './hydration'
 
-export type PageKey = 'planning' | 'recettes' | 'plan' | 'courses' | 'poids' | 'hydratation' | 'tricot' | 'plantes' | 'agenda'
+export type PageKey = 'planning' | 'recettes' | 'vege' | 'plan' | 'courses' | 'poids' | 'hydratation' | 'tricot' | 'plantes' | 'agenda'
 export type NotificationTopic = 'courses' | 'hydratation' | 'plantes' | 'agenda' | 'repas'
 
 export interface PageInfo {
@@ -20,6 +20,7 @@ export const PAGES: PageInfo[] = [
   { key: 'planning', to: '/planning', label: 'Planning', description: 'Repas de la semaine et idées à planifier' },
   { key: 'recettes', to: '/recettes', label: 'Recettes', description: 'Recettes enregistrées et mode cuisine' },
   { key: 'courses', to: '/courses', label: 'Courses', description: 'Listes de courses partagées' },
+  { key: 'vege', to: '/vege', label: 'Végé', description: 'Journal des repas végés ou non, et statistiques' },
   { key: 'poids', to: '/poids', label: 'Poids', description: 'Suivi du poids' },
   { key: 'plan', to: '/plan', label: 'Plan', description: 'Suivi alimentaire' },
   { key: 'hydratation', to: '/hydratation', label: 'Eau', description: 'Suivi d’hydratation' },
@@ -33,7 +34,7 @@ export const NOTIFICATION_TOPICS: { key: NotificationTopic; page: PageKey; label
   { key: 'courses', page: 'courses', label: 'Courses', description: 'Quand l’autre modifie une liste de courses', summary: 'listes de courses modifiées par l’autre' },
   { key: 'hydratation', page: 'hydratation', label: 'Eau', description: 'Rappel après 4 h sans boire (9 h – 23 h), jusqu’à l’objectif', summary: 'rappels pour boire' },
   { key: 'plantes', page: 'plantes', label: 'Plantes', description: 'Le matin à 8 h, les plantes à arroser dans la journée', summary: 'plantes à arroser' },
-  { key: 'repas', page: 'plan', label: 'Repas', description: 'Le soir à 21 h, si le journal des repas ou le plan du jour n’est pas rempli', summary: 'repas à noter le soir' },
+  { key: 'repas', page: 'vege', label: 'Repas', description: 'Le soir à 21 h, si le journal végé (ou le plan du jour, page Plan affichée) n’est pas rempli', summary: 'repas à noter le soir' },
   { key: 'agenda', page: 'agenda', label: 'Agenda', description: 'Le matin à 7 h, les rendez-vous du jour', summary: 'rendez-vous du jour' },
 ]
 
@@ -90,7 +91,7 @@ export interface SectionInfo {
 
 /** Sections de la navigation : chacune regroupe des pages. */
 export const SECTIONS: SectionInfo[] = [
-  { key: 'repas', label: 'Repas', pages: ['planning', 'recettes', 'courses'] },
+  { key: 'repas', label: 'Repas', pages: ['planning', 'recettes', 'courses', 'vege'] },
   { key: 'sante', label: 'Santé', pages: ['poids', 'plan', 'hydratation'] },
   { key: 'tricot', label: 'Tricot', pages: ['tricot'] },
   { key: 'plantes', label: 'Plantes', pages: ['plantes'] },

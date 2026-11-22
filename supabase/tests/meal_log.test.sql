@@ -1,6 +1,6 @@
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(24);
+select plan(26);
 
 -- Tests indépendants des données locales (annulés en fin de transaction)
 delete from public.meal_log;
@@ -85,7 +85,14 @@ select is((select count(*)::int from public.claim_meal_reminders('2026-11-17T21:
 update public.user_settings set muted_notifications = '{repas}';
 select is((select count(*)::int from public.meal_reminders_due('2026-11-18T20:15:00Z')), 0, 'rappel coupé dans les réglages');
 update public.user_settings set muted_notifications = '{}', disabled_pages = '{plan}';
-select is((select count(*)::int from public.meal_reminders_due('2026-11-18T20:15:00Z')), 0, 'page Plan masquée : pas de rappel');
+select is(
+  (select row(missing, plan_empty)::text from public.meal_reminders_due('2026-11-18T20:15:00Z')),
+  row(3, false)::text,
+  'page Plan masquée : le journal seulement'
+);
+update public.user_settings set disabled_pages = '{vege}';
+select is((select count(*)::int from public.meal_reminders_due('2026-11-18T20:15:00Z')), 0, 'page Végé masquée : pas de rappel');
+select lives_ok($$update public.user_settings set disabled_pages = '{vege,plan}'$$, 'pages Végé et Plan masquables');
 
 select ok(exists (select 1 from cron.job where jobname = 'notify-meals'), 'rappel du soir planifié');
 

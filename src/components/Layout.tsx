@@ -1,4 +1,4 @@
-import { BookOpen, CalendarClock, CalendarDays, GlassWater, HeartPulse, House, Leaf, ListChecks, LogOut, Scale, Settings, ShoppingCart, Sprout, UtensilsCrossed } from 'lucide-react'
+import { BookOpen, CalendarClock, CalendarDays, GlassWater, HeartPulse, House, Leaf, ListChecks, LogOut, Salad, Scale, Settings, ShoppingCart, Sprout, UtensilsCrossed } from 'lucide-react'
 import { useState, type ComponentType, type SVGProps } from 'react'
 import { Link, NavLink, Outlet, useLocation } from 'react-router-dom'
 import { Button, buttonVariants } from '@/components/ui/button'
@@ -17,6 +17,7 @@ const PAGE_ICONS: Record<PageKey, NavIcon> = {
   planning: CalendarDays,
   recettes: BookOpen,
   courses: ShoppingCart,
+  vege: Salad,
   poids: Scale,
   plan: ListChecks,
   hydratation: GlassWater,

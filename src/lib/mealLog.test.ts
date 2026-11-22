@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import type { Meal } from './meals'
 import {
   dayLog,
+  daysToFill,
   isComplete,
   logRangeStart,
   missingDays,
@@ -9,6 +10,7 @@ import {
   streak,
   vegetarianShare,
   weekStart,
+  weekDays,
   weeklyStats,
   type LogKind,
   type LogSlot,
@@ -167,5 +169,31 @@ describe('statistiques', () => {
 
   it('logRangeStart : lundi de la première semaine des stats', () => {
     expect(logRangeStart('2026-11-17')).toBe('2026-09-28')
+  })
+})
+
+describe('daysToFill', () => {
+  const today = '2026-11-16'
+
+  it('jours passés incomplets d’hier au premier jour noté, du plus récent au plus ancien, sans aujourd’hui', () => {
+    const entries = [entry('2026-11-10', 'LUNCH'), ...fullDay('2026-11-12'), entry('2026-11-15', 'DINNER'), entry(today, 'LUNCH')]
+    expect(daysToFill(entries, ME, today, '2026-09-01')).toEqual(['2026-11-15', '2026-11-14', '2026-11-13', '2026-11-11', '2026-11-10'])
+  })
+
+  it('ne remonte pas avant le début demandé ; rien de noté ou noté par l’autre : aucun jour', () => {
+    expect(daysToFill([entry('2026-10-01', 'LUNCH'), ...fullDay('2026-11-15')], ME, today, '2026-11-13')).toEqual(['2026-11-14', '2026-11-13'])
+    expect(daysToFill([], ME, today, '2026-09-01')).toEqual([])
+    expect(daysToFill(fullDay('2026-11-10', undefined, OTHER), ME, today, '2026-09-01')).toEqual([])
+  })
+
+  it('commencé aujourd’hui : rien à rattraper', () => {
+    expect(daysToFill([entry(today, 'LUNCH')], ME, today, '2026-09-01')).toEqual([])
+  })
+})
+
+describe('weekDays', () => {
+  it('les 7 jours d’une semaine passée, ou jusqu’à aujourd’hui pour la semaine en cours', () => {
+    expect(weekDays('2026-11-09', '2026-11-16')).toEqual(['2026-11-09', '2026-11-10', '2026-11-11', '2026-11-12', '2026-11-13', '2026-11-14', '2026-11-15'])
+    expect(weekDays('2026-11-16', '2026-11-18')).toEqual(['2026-11-16', '2026-11-17', '2026-11-18'])
   })
 })

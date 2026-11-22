@@ -80,9 +80,9 @@ describe('FoodTrackingPage', () => {
       'Petit-déjeuner',
       expect.stringMatching(/^Déjeuner1 noté$/),
       expect.stringMatching(/^Collation1 hors plan$/),
-      // Journal des repas et ses statistiques, en bas de page
-      'Repas du jour',
     ])
+    // Le journal végé a sa propre page
+    expect(screen.queryByRole('region', { name: 'Repas du jour' })).not.toBeInTheDocument()
     expect(within(row('cafe')).getByText('· 250 ml')).toBeInTheDocument()
     expect(within(row('cafe')).getByText('0/7')).toBeInTheDocument()
     expect(within(row('yaourt')).getByText('2/2')).toBeInTheDocument()

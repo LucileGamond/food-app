@@ -19,7 +19,8 @@ describe('réglages', () => {
     expect(SECTIONS.flatMap((s) => s.pages).toSorted()).toEqual(PAGES.map((p) => p.key).toSorted())
     expect(sectionOf('hydratation').label).toBe('Santé')
     const shown = visibleSections((page) => isPageEnabled({ ...DEFAULT_SETTINGS, disabledPages: ['poids', 'plan', 'hydratation', 'courses', 'agenda'] }, page))
-    expect(shown.map(({ section, pages }) => `${section.label}: ${pages.map((p) => p.label).join(', ')}`)).toEqual(['Repas: Planning, Recettes', 'Tricot: Tricot', 'Plantes: Plantes'])
+    expect(shown.map(({ section, pages }) => `${section.label}: ${pages.map((p) => p.label).join(', ')}`)).toEqual(['Repas: Planning, Recettes, Végé', 'Tricot: Tricot', 'Plantes: Plantes'])
+    expect(sectionOf('vege').label).toBe('Repas')
   })
 
   it('active et désactive pages et notifications', () => {
@@ -31,8 +32,9 @@ describe('réglages', () => {
 
   it('liste les notifications qu’on recevra', () => {
     expect(activeTopics(DEFAULT_SETTINGS).map((t) => t.key)).toEqual(['courses', 'repas'])
-    // Le rappel des repas suit la page Plan, pas une page « repas »
-    expect(activeTopics({ ...DEFAULT_SETTINGS, disabledPages: [...DEFAULT_SETTINGS.disabledPages, 'plan'] }).map((t) => t.key)).toEqual(['courses'])
+    // Le rappel des repas suit la page Végé (le journal), pas la page Plan
+    expect(activeTopics({ ...DEFAULT_SETTINGS, disabledPages: [...DEFAULT_SETTINGS.disabledPages, 'vege'] }).map((t) => t.key)).toEqual(['courses'])
+    expect(activeTopics({ ...DEFAULT_SETTINGS, disabledPages: [...DEFAULT_SETTINGS.disabledPages, 'plan'] }).map((t) => t.key)).toEqual(['courses', 'repas'])
     const all = activeTopics({ ...DEFAULT_SETTINGS, disabledPages: [] })
     expect(describeTopics(all)).toBe('listes de courses modifiées par l’autre, rappels pour boire, plantes à arroser, repas à noter le soir et rendez-vous du jour')
     expect(activeTopics({ ...DEFAULT_SETTINGS, disabledPages: [], mutedNotifications: ['courses'] }).map((t) => t.key)).toEqual(['hydratation', 'plantes', 'repas', 'agenda'])

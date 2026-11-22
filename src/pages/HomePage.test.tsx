@@ -112,7 +112,7 @@ describe('HomePage', () => {
   })
 
   it('chaque carte sans rien à montrer est absente ; aucune : un mot plutôt qu’une page vide', async () => {
-    const { api } = setup(['plan'])
+    const { api } = setup(['vege'])
     api.meals.listMeals.mockResolvedValue([mealFixture({ meal_date: '2026-11-10' })])
     api.plants.listPlants.mockResolvedValue([])
     api.knitting.listProjects.mockResolvedValue([])
@@ -153,7 +153,7 @@ describe('HomePage', () => {
   })
 
   it('aucune page résumable : renvoie aux réglages', async () => {
-    setup(['planning', 'recettes', 'plan', 'courses', 'hydratation', 'plantes', 'tricot', 'agenda'])
+    setup(['planning', 'recettes', 'vege', 'plan', 'courses', 'hydratation', 'plantes', 'tricot', 'agenda'])
     expect(await screen.findByText('Rien à résumer ici')).toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'Réglages' })).toHaveAttribute('href', '/reglages')
   })
@@ -169,7 +169,7 @@ describe('HomePage', () => {
       await user.click(within(lunch).getByRole('button', { name: 'Végé' }))
       expect(api.mealLog.set).toHaveBeenCalledWith(LUCILE.id, TODAY, 'LUNCH', 'vegetarian')
       expect(within(lunch).getByRole('button', { name: 'Végé' })).toHaveAttribute('aria-pressed', 'true')
-      expect(within(await card()).getByRole('link', { name: 'Stats' })).toHaveAttribute('href', `/plan?profil=${LUCILE.id}`)
+      expect(within(await card()).getByRole('link', { name: 'Stats' })).toHaveAttribute('href', `/vege?profil=${LUCILE.id}`)
     })
 
     it('propose la réponse déduite du planning', async () => {
@@ -178,11 +178,11 @@ describe('HomePage', () => {
       expect(await within(await card()).findByRole('button', { name: 'Non végé, prévu au planning' })).toBeInTheDocument()
     })
 
-    it('jours passés à rattraper : leur nombre, et le lien ouvre le plus ancien ; la série', async () => {
+    it('jours passés à rattraper : leur nombre, et le lien ouvre la page Végé', async () => {
       const { api } = setup()
       api.mealLog.list.mockResolvedValue([...full('2026-11-05'), ...full('2026-11-07')])
       const link = await within(await card()).findByRole('link', { name: '2 jours à rattraper depuis le 6 novembre' })
-      expect(link).toHaveAttribute('href', `/plan?profil=${LUCILE.id}&jour=2026-11-06`)
+      expect(link).toHaveAttribute('href', `/vege?profil=${LUCILE.id}`)
       expect(api.mealLog.list).toHaveBeenCalledWith(LUCILE.id, '2026-09-10', TODAY)
     })
 
@@ -200,14 +200,14 @@ describe('HomePage', () => {
       expect(within(await card()).queryByRole('link', { name: /rattraper/ })).not.toBeInTheDocument()
     })
 
-    it('tout est rempli, ou page Plan masquée : pas de carte', async () => {
+    it('tout est rempli, ou page Végé masquée : pas de carte', async () => {
       const { api, unmount } = setup([], 22)
       api.mealLog.list.mockResolvedValue([...full('2026-11-08'), ...full(TODAY)])
       await screen.findByRole('region', { name: 'Eau' })
       await waitFor(() => expect(api.mealLog.list).toHaveBeenCalled())
       expect(screen.queryByRole('region', { name: 'Végé ou non ?' })).not.toBeInTheDocument()
       unmount()
-      const hidden = setup(['plan'], 22)
+      const hidden = setup(['vege'], 22)
       await screen.findByRole('region', { name: 'Eau' })
       expect(hidden.api.mealLog.list).not.toHaveBeenCalled()
       expect(screen.queryByRole('region', { name: 'Végé ou non ?' })).not.toBeInTheDocument()

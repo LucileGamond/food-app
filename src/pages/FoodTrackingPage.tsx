@@ -10,17 +10,13 @@ import { ConfirmDialog } from '@/components/ConfirmDialog'
 import { EmptyState } from '@/components/EmptyState'
 import { PageHeader } from '@/components/PageHeader'
 import { FoodItemRow } from '@/components/food/FoodItemRow'
-import { MealLogCard } from '@/components/food/MealLogCard'
 import { PeriodDialog } from '@/components/food/PeriodDialog'
 import { ProfileSwitch, useProfileParam } from '@/components/food/ProfileSwitch'
 import { LoadError } from '@/components/LoadError'
 import { useApi } from '@/app/ApiContext'
 import { useAuth } from '@/auth/AuthProvider'
 import { useFoodTracking } from '@/hooks/useFoodTracking'
-import { useMealLog } from '@/hooks/useMealLog'
-import { useMealSuggestions } from '@/hooks/useMealSuggestions'
 import { addDays, currentHour, formatDay, parseIsoDate, type IsoDate } from '@/lib/dates'
-import { dayLog, logRangeStart, streak, weeklyStats } from '@/lib/mealLog'
 import {
   clampToPeriod,
   containsDate,
@@ -59,38 +55,8 @@ export function FoodTrackingPage({ today: fixedToday, hour = currentHour() }: { 
   const [dialog, setDialog] = useState<'none' | 'create' | 'delete'>('none')
   const [params] = useSearchParams()
   const requested = requestedDay(params.get('jour'), today)
-  // Sans période : le journal a sa propre navigation.
-  const [journalDay, setJournalDay] = useState<IsoDate | null>(null)
 
-  const date = period ? (day?.periodId === period.id ? day.date : clampToPeriod(requested ?? today, period)) : (journalDay ?? requested ?? today)
-  const rangeStart = logRangeStart(today)
-  const mealLog = useMealLog(api, profile?.id ?? null, date < rangeStart ? date : rangeStart, date > today ? date : today)
-  const suggestions = useMealSuggestions(api, profile?.id ?? null, date)
-  // Journal et statistiques en bas de page, sous les quotas.
-  const journal = profile && !mealLog.loadError && (
-    <MealLogCard
-      weeks={mealLog.loading ? undefined : weeklyStats(mealLog.entries, profile.id, today)}
-      log={dayLog(mealLog.entries, profile.id, date)}
-      suggestions={suggestions}
-      streak={streak(mealLog.entries, profile.id, today)}
-      onAnswer={(slot, kind) => void mealLog.answer(date, slot, kind)}
-      header={
-        !period && (
-          <div className="mb-3 flex items-center gap-2">
-            <Button variant="outline" size="icon-lg" aria-label="Jour précédent" onClick={() => setJournalDay(addDays(date, -1))}>
-              <ChevronLeft />
-            </Button>
-            <p className="flex-1 text-center font-medium" aria-live="polite">
-              {formatDay(date)}
-            </p>
-            <Button variant="outline" size="icon-lg" aria-label="Jour suivant" disabled={date >= today} onClick={() => setJournalDay(addDays(date, 1))}>
-              <ChevronRight />
-            </Button>
-          </div>
-        )
-      }
-    />
-  )
+  const date = period ? (day?.periodId === period.id ? day.date : clampToPeriod(requested ?? today, period)) : today
   const groups = useMemo(() => groupItems(items), [items])
   const notice = periodNotice(tracking.periods, today)
   const progress = period ? periodProgress(period, date) : null
@@ -175,20 +141,17 @@ export function FoodTrackingPage({ today: fixedToday, hour = currentHour() }: { 
           <Skeleton className="h-40 rounded-2xl" />
         </div>
       ) : !period ? (
-        <div className="space-y-4">
-          <EmptyState
-            icon={CalendarPlus}
-            title="Aucune période"
-            description="Une période reprend les quotas du plan : crée-la pour commencer à noter ce que tu manges."
-            action={
-              <div className="flex flex-wrap justify-center gap-2">
-                {planLink}
-                {createButton}
-              </div>
-            }
-          />
-          {journal}
-        </div>
+        <EmptyState
+          icon={CalendarPlus}
+          title="Aucune période"
+          description="Une période reprend les quotas du plan : crée-la pour commencer à noter ce que tu manges."
+          action={
+            <div className="flex flex-wrap justify-center gap-2">
+              {planLink}
+              {createButton}
+            </div>
+          }
+        />
       ) : (
         <div className="space-y-4">
           {(notice || nothingToday) && (
@@ -301,8 +264,6 @@ export function FoodTrackingPage({ today: fixedToday, hour = currentHour() }: { 
               )
             })
           )}
-
-          {journal}
         </div>
       )}
 

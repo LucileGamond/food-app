@@ -1,4 +1,4 @@
-// Rappel du soir (page Plan) : journal des repas à remplir (végé ou non) et plan alimentaire vide aujourd'hui.
+// Rappel du soir : journal végé à remplir (page Végé) et plan alimentaire vide aujourd'hui (page Plan).
 // À qui (page affichée, rappel non coupé, une fois par jour dès 21 h, quelque chose à remplir) : la base
 // (claim_meal_reminders).
 
@@ -30,7 +30,8 @@ export function buildMealsMessage(reminder: MealReminder, day: CivilDate): PushP
   return {
     title: 'Tes repas du jour 🥗',
     body: lines.join('\n'),
-    url: `/plan?profil=${reminder.profileId}&jour=${day}`,
+    // Le journal d'abord : c'est lui qui est le plus souvent à remplir.
+    url: reminder.missing > 0 ? `/vege?profil=${reminder.profileId}` : `/plan?profil=${reminder.profileId}&jour=${day}`,
     tag: `repas-${day}`,
   }
 }

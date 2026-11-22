@@ -50,6 +50,7 @@ const AgendaPage = lazy(() => import('@/modules/agenda/pages/AgendaPage').then((
 const AgendaSourcesPage = lazy(() => import('@/modules/agenda/pages/AgendaSourcesPage').then((m) => ({ default: m.AgendaSourcesPage })))
 // Planifier la semaine (section Repas) : présence d'après l'agenda, plats placés par l'IA.
 const WeekPlanPage = lazy(() => import('@/modules/repas/pages/WeekPlanPage').then((m) => ({ default: m.WeekPlanPage })))
+const VegePage = lazy(() => import('@/modules/repas/pages/VegePage').then((m) => ({ default: m.VegePage })))
 const RecipeFormPage = lazy(() => import('@/pages/RecipeFormPage').then((m) => ({ default: m.RecipeFormPage })))
 
 export function App({ api, auth }: { api: Api; auth: AuthClient }) {
@@ -102,6 +103,7 @@ export function App({ api, auth }: { api: Api; auth: AuthClient }) {
                 <Route path="/recettes/:id" element={<RecipeDetailPage />} />
                 <Route path="/recettes/:id/modifier" element={<RecipeFormPage />} />
                 <Route path="/partage" element={<SharePage />} />
+                <Route path="/vege" element={<VegePage />} />
                 <Route path="/plan" element={<FoodTrackingPage />} />
                 <Route path="/plan/modifier" element={<FoodPlanPage />} />
                 <Route path="/poids" element={<WeightPage />} />

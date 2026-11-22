@@ -40,7 +40,7 @@ export function MealLogReminder({ today, hour = currentHour() }: { today: IsoDat
           </span>
         )
       }
-      to={`/plan?profil=${profileId}`}
+      to={`/vege?profil=${profileId}`}
       linkLabel="Stats"
     >
       <div className="flex flex-wrap justify-between gap-x-2 gap-y-2">
@@ -52,7 +52,7 @@ export function MealLogReminder({ today, hour = currentHour() }: { today: IsoDat
         ))}
       </div>
       {oldest && (
-        <Link to={`/plan?profil=${profileId}&jour=${oldest}`} className="block text-sm font-medium text-brand underline-offset-4 hover:underline">
+        <Link to={`/vege?profil=${profileId}`} className="block text-sm font-medium text-brand underline-offset-4 hover:underline">
           {late.length === 1 ? `1 jour à rattraper (${formatShortDate(oldest)})` : `${late.length} jours à rattraper depuis le ${formatShortDate(oldest)}`}
         </Link>
       )}

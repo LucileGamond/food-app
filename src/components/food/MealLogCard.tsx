@@ -1,6 +1,6 @@
 import { Ban, Beef, Flame, Leaf } from 'lucide-react'
 import type { ReactNode } from 'react'
-import { formatShortDate } from '@/lib/dates'
+import { formatShortDate, type IsoDate } from '@/lib/dates'
 import { LOG_KINDS, LOG_SLOTS, vegetarianShare, type DayLog, type LogKind, type LogSlot, type WeekStats } from '@/lib/mealLog'
 import { cn } from '@/lib/utils'
 
@@ -18,17 +18,10 @@ interface Props {
   suggestions: DayLog
   streak: number
   onAnswer: (slot: LogSlot, kind: LogKind | null) => void
-  /** En-tête : jour affiché (et sa navigation quand la page n'en a pas). */
-  header?: ReactNode
-  /** Statistiques des dernières semaines, sous le journal (absentes tant qu'elles chargent). */
-  weeks?: WeekStats[]
 }
 
-/**
- * Journal du jour, compact : pour le petit-déjeuner, le midi et le soir, trois icônes (végé, non végé, pas de repas),
- * puis la part de repas végés des dernières semaines.
- */
-export function MealLogCard({ log, suggestions, streak, onAnswer, header, weeks }: Props) {
+/** Journal du jour, compact : pour le petit-déjeuner, le midi et le soir, trois icônes (végé, non végé, pas de repas). */
+export function MealLogCard({ log, suggestions, streak, onAnswer }: Props) {
   return (
     <section aria-labelledby="meal-log-title" className="rounded-2xl border bg-background p-4 shadow-xs">
       <div className="mb-3 flex items-center gap-2">
@@ -42,7 +35,6 @@ export function MealLogCard({ log, suggestions, streak, onAnswer, header, weeks 
           </span>
         )}
       </div>
-      {header}
       <ul className="space-y-1.5">
         {LOG_SLOTS.map((slot) => {
           const answer = log[slot.value]
@@ -55,8 +47,49 @@ export function MealLogCard({ log, suggestions, streak, onAnswer, header, weeks 
           )
         })}
       </ul>
-      {weeks && <MealLogStats weeks={weeks} />}
     </section>
+  )
+}
+
+/**
+ * Une journée sur une ligne, comme sur l'accueil : le petit-déjeuner, le midi et le soir, chacun avec ses trois icônes.
+ * Les suggestions du planning ne sont proposées que pour les moments sans réponse.
+ */
+export function DayLogRow({
+  label,
+  log,
+  suggestions,
+  onAnswer,
+}: {
+  /** « Vendredi 20 novembre » : nom du groupe pour les lecteurs d'écran. */
+  label: string
+  log: DayLog
+  suggestions: DayLog
+  onAnswer: (slot: LogSlot, kind: LogKind | null) => void
+}) {
+  return (
+    <div role="group" aria-label={label} className="space-y-1.5">
+      <p className="text-sm font-medium" aria-hidden>
+        {label}
+      </p>
+      <div className="flex flex-wrap justify-between gap-x-2 gap-y-2">
+        {LOG_SLOTS.map((slot) => {
+          const answer = log[slot.value]
+          return (
+            <div key={slot.value} className="flex flex-col items-start gap-1">
+              <span className="text-xs text-muted-foreground">{slot.label}</span>
+              <SlotButtons
+                small
+                label={slot.label}
+                answer={answer}
+                suggested={answer === undefined ? suggestions[slot.value] : undefined}
+                onAnswer={(kind) => onAnswer(slot.value, kind)}
+              />
+            </div>
+          )
+        })}
+      </div>
+    </div>
   )
 }
 
@@ -104,43 +137,72 @@ export function SlotButtons({
   )
 }
 
-/** Part de repas végés par semaine (« pas de repas » non compté). */
-function MealLogStats({ weeks }: { weeks: WeekStats[] }) {
+/**
+ * Part de repas végés par semaine (« pas de repas » non compté). Toucher une semaine affiche ses jours (`children`),
+ * pour corriger après coup.
+ */
+export function MealLogStats({
+  weeks,
+  selected,
+  onSelect,
+  children,
+}: {
+  weeks: WeekStats[]
+  /** Semaine ouverte (son lundi). */
+  selected: IsoDate | null
+  onSelect: (week: IsoDate | null) => void
+  /** Jours de la semaine ouverte. */
+  children?: ReactNode
+}) {
   const current = weeks.at(-1)
   const share = current ? vegetarianShare(current) : null
   const all = weeks.reduce((sum, w) => ({ vegetarian: sum.vegetarian + w.vegetarian, meat: sum.meat + w.meat }), { vegetarian: 0, meat: 0 })
   const overall = vegetarianShare(all)
   return (
-    <section aria-labelledby="meal-stats-title" className="mt-4 border-t pt-3">
-      <h3 id="meal-stats-title" className="text-sm font-semibold tracking-tight">
+    <section aria-labelledby="meal-stats-title" className="rounded-2xl border bg-background p-4 shadow-xs">
+      <h2 id="meal-stats-title" className="font-semibold tracking-tight">
         Repas végés
-      </h3>
+      </h2>
       <p className="mt-1 text-sm text-muted-foreground">
         {share === null ? 'Rien de noté cette semaine.' : `Cette semaine : ${share} % (${current!.vegetarian} sur ${current!.vegetarian + current!.meat}).`}
         {overall !== null && ` Sur ${weeks.length} semaines : ${overall} %.`}
       </p>
-      <ol className="mt-3 flex h-24 items-end gap-1.5" aria-label="Part de repas végés par semaine">
+      <ol className="mt-3 flex h-28 items-end gap-1.5" aria-label="Part de repas végés par semaine, touche une semaine pour voir ses jours">
         {weeks.map((w) => {
           const value = vegetarianShare(w)
+          const open = selected === w.week
           return (
-            <li key={w.week} className="flex h-full min-w-0 flex-1 flex-col items-center justify-end gap-1">
-              <span className="text-[0.625rem] text-muted-foreground tabular-nums">{value === null ? '–' : `${value}%`}</span>
-              <span className="flex w-full flex-1 items-end">
-                <span
-                  role="img"
-                  aria-label={`Semaine du ${formatShortDate(w.week)} : ${value === null ? 'rien de noté' : `${value} % végé`}`}
-                  className={cn('w-full rounded-t-md', value === null ? 'h-1 bg-muted' : 'bg-emerald-600/80')}
-                  style={value === null ? undefined : { height: `${Math.max(value, 4)}%` }}
-                />
-              </span>
-              {/* « 16/11 » : huit semaines tiennent sur un téléphone. */}
-              <span className="text-[0.625rem] text-muted-foreground tabular-nums" aria-hidden>
-                {w.week.slice(8, 10)}/{w.week.slice(5, 7)}
-              </span>
+            <li key={w.week} className="flex h-full min-w-0 flex-1">
+              <button
+                type="button"
+                aria-pressed={open}
+                onClick={() => onSelect(open ? null : w.week)}
+                className={cn(
+                  'flex h-full w-full flex-col items-center justify-end gap-1 rounded-md px-0.5 pb-0.5 transition-colors hover:bg-muted focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none',
+                  open && 'bg-muted',
+                )}
+              >
+                {/* Nom du bouton : la phrase entière ; le texte visible (« 75% », « 16/11 ») est masqué aux lecteurs d'écran. */}
+                <span className="sr-only">{`Semaine du ${formatShortDate(w.week)} : ${value === null ? 'rien de noté' : `${value} % végé`}`}</span>
+                <span className="text-[0.625rem] text-muted-foreground tabular-nums" aria-hidden>
+                  {value === null ? '–' : `${value}%`}
+                </span>
+                <span className="flex w-full flex-1 items-end" aria-hidden>
+                  <span
+                    className={cn('w-full rounded-t-md', value === null ? 'h-1 bg-muted-foreground/20' : open ? 'bg-emerald-700' : 'bg-emerald-600/80')}
+                    style={value === null ? undefined : { height: `${Math.max(value, 4)}%` }}
+                  />
+                </span>
+                {/* « 16/11 » : huit semaines tiennent sur un téléphone. */}
+                <span className={cn('text-[0.625rem] tabular-nums', open ? 'font-semibold text-foreground' : 'text-muted-foreground')} aria-hidden>
+                  {w.week.slice(8, 10)}/{w.week.slice(5, 7)}
+                </span>
+              </button>
             </li>
           )
         })}
       </ol>
+      {children}
     </section>
   )
 }
